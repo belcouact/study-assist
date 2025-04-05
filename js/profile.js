@@ -122,7 +122,7 @@ function createProfileModal() {
     modal.innerHTML = `
         <div class="modal-content">
             <div class="modal-header">
-                <h3>选择你的教育背景</h3>
+                <h3>请选择你当前的教育背景</h3>
                 <button class="close-button" id="close-profile-modal">&times;</button>
             </div>
             <div class="modal-body">
