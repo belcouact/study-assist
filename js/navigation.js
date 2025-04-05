@@ -1,215 +1,260 @@
 /**
- * 学习助手 - 导航功能
- * 处理导航菜单和页面跳转相关功能
+ * Study Assist - Navigation JavaScript
+ * Navigation functionality and scroll behavior
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    initMobileNavigation();
-    highlightCurrentPage();
-    setupSmoothScrolling();
+    // Initialize navigation functionality
+    initActiveNavLinks();
+    initScrollBehavior();
 });
 
 /**
- * 初始化移动端导航
+ * Initialize active state for navigation links based on current page or scroll position
  */
-function initMobileNavigation() {
-    const mobileMenuButton = document.querySelector('.mobile-menu-button');
-    const mainNav = document.querySelector('.main-nav');
+function initActiveNavLinks() {
+    const navLinks = document.querySelectorAll('.main-nav a');
     
-    if (mobileMenuButton && mainNav) {
-        mobileMenuButton.addEventListener('click', () => {
-            mainNav.classList.toggle('mobile-open');
-            mobileMenuButton.setAttribute(
-                'aria-expanded',
-                mobileMenuButton.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'
-            );
-        });
+    // Get current page path
+    const currentPath = window.location.pathname;
+    
+    // Check if we're on the homepage
+    const isHomePage = currentPath === '/' || currentPath.endsWith('index.html');
+    
+    if (isHomePage) {
+        // On homepage, highlight nav items based on scroll position
+        updateActiveNavOnScroll(navLinks);
         
-        // 点击导航链接后关闭菜单
-        const navLinks = mainNav.querySelectorAll('a');
+        // Update active link on scroll
+        window.addEventListener('scroll', throttle(() => {
+            updateActiveNavOnScroll(navLinks);
+        }, 100));
+    } else {
+        // On other pages, highlight based on current URL
         navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                mainNav.classList.remove('mobile-open');
-                mobileMenuButton.setAttribute('aria-expanded', 'false');
-            });
-        });
-        
-        // 点击外部区域关闭菜单
-        document.addEventListener('click', (e) => {
-            if (!mainNav.contains(e.target) && !mobileMenuButton.contains(e.target)) {
-                mainNav.classList.remove('mobile-open');
-                mobileMenuButton.setAttribute('aria-expanded', 'false');
+            const linkPath = link.getAttribute('href');
+            
+            if (currentPath.includes(linkPath) && linkPath !== 'index.html' && linkPath !== '/') {
+                setActiveNavLink(navLinks, link);
             }
         });
     }
 }
 
 /**
- * 高亮显示当前页面对应的导航项
+ * Update active navigation link based on scroll position
+ * @param {NodeList} navLinks - The navigation links
  */
-function highlightCurrentPage() {
+function updateActiveNavOnScroll(navLinks) {
+    // Get all sections that have an ID defined
+    const sections = document.querySelectorAll('section[id]');
+    
+    // Get current scroll position
+    const scrollY = window.pageYOffset;
+    
+    // Find the current section
+    let currentSection = null;
+    
+    sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100; // Offset for header height
+        const sectionHeight = section.offsetHeight;
+        
+        if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
+            currentSection = section;
+        }
+    });
+    
+    // If a current section is found, update the active link
+    if (currentSection) {
+        const sectionId = currentSection.getAttribute('id');
+        
+        navLinks.forEach(link => {
+            const linkHref = link.getAttribute('href');
+            
+            if (linkHref === `#${sectionId}`) {
+                setActiveNavLink(navLinks, link);
+            }
+        });
+    } else if (scrollY < 200) {
+        // Near the top, set Home as active
+        const homeLink = document.querySelector('.main-nav a[href="#"]') || 
+                          document.querySelector('.main-nav a[href="index.html"]') ||
+                          document.querySelector('.main-nav a[href="/"]');
+                          
+        if (homeLink) {
+            setActiveNavLink(navLinks, homeLink);
+        }
+    }
+}
+
+/**
+ * Set the active state for a navigation link
+ * @param {NodeList} navLinks - All navigation links
+ * @param {Element} activeLink - The link to set as active
+ */
+function setActiveNavLink(navLinks, activeLink) {
+    // Remove active class from all links
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // Add active class to the current link
+    activeLink.classList.add('active');
+}
+
+/**
+ * Initialize scroll behavior for navigation
+ */
+function initScrollBehavior() {
+    // Add sticky header behavior
+    initStickyHeader();
+    
+    // Add scroll to top button
+    initScrollToTopButton();
+}
+
+/**
+ * Initialize sticky header behavior
+ */
+function initStickyHeader() {
+    const header = document.querySelector('.main-header');
+    const headerHeight = header ? header.offsetHeight : 0;
+    
+    // Add scroll event listener
+    window.addEventListener('scroll', throttle(() => {
+        if (window.scrollY > headerHeight) {
+            header.classList.add('sticky-header');
+        } else {
+            header.classList.remove('sticky-header');
+        }
+    }, 100));
+}
+
+/**
+ * Initialize scroll to top button
+ */
+function initScrollToTopButton() {
+    // Create the scroll to top button if it doesn't exist
+    let scrollTopBtn = document.querySelector('.scroll-top-btn');
+    
+    if (!scrollTopBtn) {
+        scrollTopBtn = document.createElement('button');
+        scrollTopBtn.className = 'scroll-top-btn';
+        scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
+        scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
+        document.body.appendChild(scrollTopBtn);
+        
+        // Style the button with CSS
+        scrollTopBtn.style.position = 'fixed';
+        scrollTopBtn.style.bottom = '20px';
+        scrollTopBtn.style.right = '20px';
+        scrollTopBtn.style.width = '40px';
+        scrollTopBtn.style.height = '40px';
+        scrollTopBtn.style.borderRadius = '50%';
+        scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
+        scrollTopBtn.style.color = 'white';
+        scrollTopBtn.style.border = 'none';
+        scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
+        scrollTopBtn.style.cursor = 'pointer';
+        scrollTopBtn.style.opacity = '0';
+        scrollTopBtn.style.visibility = 'hidden';
+        scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
+        scrollTopBtn.style.zIndex = '999';
+        scrollTopBtn.style.display = 'flex';
+        scrollTopBtn.style.alignItems = 'center';
+        scrollTopBtn.style.justifyContent = 'center';
+        
+        // Create arrow icon
+        const arrowStyle = document.createElement('style');
+        arrowStyle.textContent = `
+            .arrow-up {
+                width: 0;
+                height: 0;
+                border-left: 8px solid transparent;
+                border-right: 8px solid transparent;
+                border-bottom: 12px solid white;
+                display: block;
+            }
+        `;
+        document.head.appendChild(arrowStyle);
+    }
+    
+    // Show/hide the button based on scroll position
+    window.addEventListener('scroll', throttle(() => {
+        if (window.scrollY > 300) {
+            scrollTopBtn.style.opacity = '1';
+            scrollTopBtn.style.visibility = 'visible';
+        } else {
+            scrollTopBtn.style.opacity = '0';
+            scrollTopBtn.style.visibility = 'hidden';
+        }
+    }, 100));
+    
+    // Scroll to top when clicked
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
+}
+
+/**
+ * Highlight the current navigation item if its page is active
+ * @param {String} page - The page identifier
+ */
+function highlightNavItem(page) {
     const navLinks = document.querySelectorAll('.main-nav a');
-    const currentPath = window.location.pathname;
     
     navLinks.forEach(link => {
-        // 移除所有active类
         link.classList.remove('active');
         
-        // 获取链接路径
-        const linkPath = new URL(link.href, window.location.origin).pathname;
-        
-        // 首页特殊处理
-        if (currentPath === '/' || currentPath === '/index.html') {
-            if (linkPath === '/' || linkPath === '/index.html') {
-                link.classList.add('active');
-            }
-        } 
-        // 子页面处理
-        else if (currentPath.includes(linkPath) && linkPath !== '/' && linkPath !== '/index.html') {
+        const linkHref = link.getAttribute('href');
+        if (linkHref.includes(page)) {
             link.classList.add('active');
         }
     });
 }
 
 /**
- * 设置平滑滚动
+ * Navigate to a specific page
+ * @param {String} page - The page URL
+ * @param {Boolean} newTab - Whether to open in a new tab
  */
-function setupSmoothScrolling() {
-    const anchorLinks = document.querySelectorAll('a[href^="#"]');
-    
-    anchorLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            // 获取目标元素
-            const targetId = link.getAttribute('href').substring(1);
-            if (!targetId) return; // 空锚点，不处理
-            
-            const targetElement = document.getElementById(targetId);
-            
-            if (targetElement) {
-                e.preventDefault();
-                
-                // 计算滚动位置，考虑固定导航栏的高度
-                const headerHeight = document.querySelector('.header')?.offsetHeight || 0;
-                const targetPosition = targetElement.getBoundingClientRect().top + window.pageYOffset - headerHeight;
-                
-                // 平滑滚动
-                window.scrollTo({
-                    top: targetPosition,
-                    behavior: 'smooth'
-                });
-                
-                // 更新URL
-                history.pushState(null, null, `#${targetId}`);
-            }
-        });
-    });
-}
-
-/**
- * 打开子菜单
- */
-function setupSubmenus() {
-    const submenuTriggers = document.querySelectorAll('.has-submenu');
-    
-    submenuTriggers.forEach(trigger => {
-        const submenu = trigger.querySelector('.submenu');
-        
-        if (submenu) {
-            // 鼠标悬停打开子菜单
-            trigger.addEventListener('mouseenter', () => {
-                closeAllSubmenus();
-                submenu.classList.add('submenu-open');
-            });
-            
-            // 鼠标离开关闭子菜单
-            trigger.addEventListener('mouseleave', () => {
-                submenu.classList.remove('submenu-open');
-            });
-            
-            // 点击切换子菜单（移动端）
-            trigger.addEventListener('click', (e) => {
-                if (window.innerWidth < 768) {
-                    if (!submenu.contains(e.target) && e.target !== submenu) {
-                        e.preventDefault();
-                        const isOpen = submenu.classList.contains('submenu-open');
-                        
-                        closeAllSubmenus();
-                        
-                        if (!isOpen) {
-                            submenu.classList.add('submenu-open');
-                        }
-                    }
-                }
-            });
-        }
-    });
-    
-    // 关闭所有子菜单
-    function closeAllSubmenus() {
-        const openSubmenus = document.querySelectorAll('.submenu.submenu-open');
-        openSubmenus.forEach(menu => {
-            menu.classList.remove('submenu-open');
-        });
+function navigateTo(page, newTab = false) {
+    if (newTab) {
+        window.open(page, '_blank');
+    } else {
+        window.location.href = page;
     }
 }
 
 /**
- * 返回顶部按钮
+ * Navigate to a specific section on the current page
+ * @param {String} sectionId - The section ID to navigate to
  */
-function setupBackToTop() {
-    const backToTopButton = document.querySelector('.back-to-top');
+function navigateToSection(sectionId) {
+    const section = document.getElementById(sectionId);
     
-    if (backToTopButton) {
-        // 滚动时显示/隐藏按钮
-        window.addEventListener('scroll', () => {
-            if (window.pageYOffset > 300) {
-                backToTopButton.classList.add('visible');
-            } else {
-                backToTopButton.classList.remove('visible');
-            }
+    if (section) {
+        // Close mobile menu if open
+        document.body.classList.remove('mobile-menu-open');
+        
+        // Scroll to the section
+        section.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
         });
         
-        // 点击返回顶部
-        backToTopButton.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-    }
-}
-
-/**
- * 页面切换动画
- */
-function setupPageTransitions() {
-    document.addEventListener('click', (e) => {
-        // 检查是否点击了导航链接（排除锚点链接和外部链接）
-        const link = e.target.closest('a');
+        // Update URL hash without jumping
+        history.pushState(null, null, `#${sectionId}`);
         
-        if (link && 
-            !link.getAttribute('href').startsWith('#') && 
-            link.hostname === window.location.hostname) {
-            
-            e.preventDefault();
-            
-            // 添加离开动画
-            document.body.classList.add('page-transition-out');
-            
-            // 等待动画完成后跳转
-            setTimeout(() => {
-                window.location.href = link.href;
-            }, 300);
+        // Update active nav link
+        const navLinks = document.querySelectorAll('.main-nav a');
+        const targetLink = document.querySelector(`.main-nav a[href="#${sectionId}"]`);
+        
+        if (targetLink) {
+            setActiveNavLink(navLinks, targetLink);
         }
-    });
-    
-    // 页面加载时的进入动画
-    window.addEventListener('pageshow', () => {
-        document.body.classList.add('page-transition-in');
-        
-        setTimeout(() => {
-            document.body.classList.remove('page-transition-in');
-        }, 500);
-    });
+    }
 } 

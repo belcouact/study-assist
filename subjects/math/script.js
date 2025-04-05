@@ -1,443 +1,697 @@
 /**
- * 数学学科 - 页面脚本
+ * Study Assist - Mathematics Subject JavaScript
+ * Handles math-specific functionality and DeepSeek AI interactions
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    setupTopicCards();
-    setupAIAssistant();
-    loadRecommendedContent();
+    // Initialize math subject functionality
+    initTopicCards();
+    initMathAssistant();
+    initQuizGenerator();
+    initFormulaSelector();
+    initMathVisualizer();
 });
 
 /**
- * 设置主题卡片交互
+ * Initialize topic cards
  */
-function setupTopicCards() {
+function initTopicCards() {
     const topicCards = document.querySelectorAll('.topic-card');
     
     topicCards.forEach(card => {
-        card.addEventListener('mouseenter', () => {
-            // 添加高亮效果
-            card.classList.add('topic-highlight');
-        });
-        
-        card.addEventListener('mouseleave', () => {
-            // 移除高亮效果
-            card.classList.remove('topic-highlight');
-        });
-        
-        // 获取主题数据，在实际应用中可从API获取
-        const topicId = card.getAttribute('data-topic');
-        if (topicId) {
-            // 这里只是示例，实际应用中应该从API获取数据
-            const mockProgressData = {
-                'algebra': 45,
-                'geometry': 30,
-                'statistics': 15
-            };
+        card.addEventListener('click', () => {
+            const topic = card.getAttribute('data-topic');
             
-            // 如果有进度数据，添加进度条
-            if (mockProgressData[topicId]) {
-                addProgressBar(card, mockProgressData[topicId]);
+            // Scroll to AI assistant and set topic in input
+            const aiSection = document.querySelector('.ai-assistant-section');
+            const questionInput = document.getElementById('math-question-input');
+            
+            if (aiSection && questionInput) {
+                aiSection.scrollIntoView({ behavior: 'smooth' });
+                questionInput.value = `Help me understand ${topic}`;
+                questionInput.focus();
+                
+                // Pre-populate quiz generator with the topic
+                const quizTopicSelect = document.getElementById('quiz-topic');
+                if (quizTopicSelect) {
+                    // Set the value if the option exists
+                    const option = Array.from(quizTopicSelect.options).find(
+                        option => option.value === topic
+                    );
+                    
+                    if (option) {
+                        quizTopicSelect.value = topic;
+                    }
+                }
             }
-        }
+        });
     });
 }
 
 /**
- * 添加进度条到主题卡片
- * @param {Element} card - 主题卡片元素
- * @param {number} progress - 进度百分比
+ * Initialize the AI math assistant
  */
-function addProgressBar(card, progress) {
-    // 检查用户是否已登录，这里简单模拟
-    const isLoggedIn = localStorage.getItem('study_assist_token') !== null;
+function initMathAssistant() {
+    const sendButton = document.getElementById('send-math-question');
+    const questionInput = document.getElementById('math-question-input');
+    const chatMessages = document.getElementById('math-chat-messages');
     
-    if (isLoggedIn) {
-        // 创建进度条元素
-        const progressContainer = document.createElement('div');
-        progressContainer.classList.add('progress-container');
-        progressContainer.innerHTML = `
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: ${progress}%"></div>
-            </div>
-            <div class="progress-text">${progress}% 完成</div>
-        `;
+    if (sendButton && questionInput && chatMessages) {
+        // Listen for send button click
+        sendButton.addEventListener('click', () => sendMathQuestion());
         
-        // 获取卡片内的按钮
-        const button = card.querySelector('.btn');
-        
-        // 在按钮前插入进度条
-        if (button) {
-            button.parentNode.insertBefore(progressContainer, button);
-        } else {
-            card.appendChild(progressContainer);
-        }
-    }
-}
-
-/**
- * 设置AI助手功能
- */
-function setupAIAssistant() {
-    const openAssistantButton = document.getElementById('open-assistant');
-    
-    if (openAssistantButton) {
-        openAssistantButton.addEventListener('click', () => {
-            showAIAssistantModal();
-        });
-    }
-}
-
-/**
- * 显示AI助手对话框
- */
-function showAIAssistantModal() {
-    // 创建AI助手对话框
-    const modalHTML = `
-        <div class="modal-backdrop">
-            <div class="modal ai-modal">
-                <div class="modal-header">
-                    <h3 class="modal-title">数学AI助手</h3>
-                    <button class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="ai-chat-container">
-                        <div class="ai-chat-messages" id="ai-messages">
-                            <div class="ai-message">
-                                <div class="ai-avatar">AI</div>
-                                <div class="ai-content">
-                                    <p>你好！我是你的数学学习助手。有任何数学问题都可以问我。</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="ai-chat-input">
-                            <textarea id="ai-question" placeholder="输入你的数学问题..." class="form-control"></textarea>
-                            <button id="ai-submit" class="btn btn-primary">提问</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // 添加到DOM
-    const modalElement = document.createRange().createContextualFragment(modalHTML);
-    document.body.appendChild(modalElement);
-    
-    // 显示模态框
-    setTimeout(() => {
-        const modalBackdrop = document.querySelector('.modal-backdrop');
-        if (modalBackdrop) {
-            modalBackdrop.classList.add('visible');
-        }
-    }, 10);
-    
-    // 设置关闭按钮
-    const closeButton = document.querySelector('.modal-close');
-    if (closeButton) {
-        closeButton.addEventListener('click', closeModal);
-    }
-    
-    // 点击外部区域关闭
-    const modalBackdrop = document.querySelector('.modal-backdrop');
-    if (modalBackdrop) {
-        modalBackdrop.addEventListener('click', (e) => {
-            if (e.target === modalBackdrop) {
-                closeModal();
-            }
-        });
-    }
-    
-    // 设置提交按钮
-    const submitButton = document.getElementById('ai-submit');
-    const questionInput = document.getElementById('ai-question');
-    
-    if (submitButton && questionInput) {
-        submitButton.addEventListener('click', () => {
-            const question = questionInput.value.trim();
-            if (question) {
-                sendQuestionToAI(question);
-                questionInput.value = '';
-            }
-        });
-        
-        // 输入框回车键提交
+        // Listen for Enter key press
         questionInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter') {
                 e.preventDefault();
-                submitButton.click();
+                sendMathQuestion();
             }
         });
-    }
-}
-
-/**
- * 关闭模态框
- */
-function closeModal() {
-    const modalBackdrop = document.querySelector('.modal-backdrop');
-    if (modalBackdrop) {
-        modalBackdrop.classList.remove('visible');
         
-        // 动画结束后移除DOM
-        modalBackdrop.addEventListener('transitionend', () => {
-            if (modalBackdrop.parentNode) {
-                modalBackdrop.parentNode.removeChild(modalBackdrop);
+        // Function to send math question
+        async function sendMathQuestion() {
+            const question = questionInput.value.trim();
+            
+            if (question) {
+                // Add user message to chat
+                appendMessage(question, 'user');
+                
+                // Clear input
+                questionInput.value = '';
+                
+                // Show loading indicator
+                const loadingMessage = document.createElement('div');
+                loadingMessage.className = 'message message-ai loading';
+                loadingMessage.innerHTML = '<p>Thinking...</p>';
+                chatMessages.appendChild(loadingMessage);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                try {
+                    // Make API request
+                    const response = await deepSeekAPI.askQuestion(question, 'math');
+                    
+                    // Remove loading indicator
+                    chatMessages.removeChild(loadingMessage);
+                    
+                    // Add AI response to chat
+                    if (response && response.success) {
+                        appendMessage(response.response.answer, 'ai');
+                    } else {
+                        throw new Error('Failed to get response from AI');
+                    }
+                } catch (error) {
+                    console.error('Error getting AI response:', error);
+                    
+                    // Remove loading indicator
+                    chatMessages.removeChild(loadingMessage);
+                    
+                    // Show error message
+                    appendMessage('Sorry, I encountered an error while processing your question. Please try again.', 'ai');
+                }
             }
-        }, { once: true });
+        }
+        
+        // Function to append message to chat
+        function appendMessage(text, sender) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message message-${sender}`;
+            
+            // Process text for MathJax if it contains LaTeX
+            let processedText = text;
+            
+            // Look for math expressions in the text (delimited by $ or $$)
+            // and ensure they are properly formatted for MathJax
+            if (sender === 'ai' && (text.includes('$') || text.includes('\\('))) {
+                // Replace \( \) syntax with $ $ for inline math
+                processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+                
+                // Replace \[ \] syntax with $$ $$ for block math
+                processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
+            }
+            
+            // Convert newlines to <br> tags
+            processedText = processedText.replace(/\n/g, '<br>');
+            
+            messageElement.innerHTML = `<p>${processedText}</p>`;
+            chatMessages.appendChild(messageElement);
+            
+            // Scroll to bottom of chat
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Render math expressions with MathJax if available
+            if (window.MathJax && sender === 'ai') {
+                window.MathJax.typeset([messageElement]);
+            }
+        }
     }
 }
 
 /**
- * 发送问题给AI
- * @param {string} question - 用户问题
+ * Initialize the quiz generator
  */
-function sendQuestionToAI(question) {
-    const messagesContainer = document.getElementById('ai-messages');
+function initQuizGenerator() {
+    const generateBtn = document.getElementById('generate-quiz');
+    const quizContainer = document.getElementById('quiz-container');
+    const topicSelect = document.getElementById('quiz-topic');
+    const difficultySelect = document.getElementById('quiz-difficulty');
+    const questionsSelect = document.getElementById('quiz-questions');
     
-    if (messagesContainer) {
-        // 添加用户消息
-        const userMessageHTML = `
-            <div class="user-message">
-                <div class="user-content">
-                    <p>${question}</p>
-                </div>
-                <div class="user-avatar">我</div>
-            </div>
-        `;
-        messagesContainer.insertAdjacentHTML('beforeend', userMessageHTML);
-        
-        // 添加AI正在思考的提示
-        const thinkingID = 'ai-thinking';
-        const thinkingHTML = `
-            <div class="ai-message" id="${thinkingID}">
-                <div class="ai-avatar">AI</div>
-                <div class="ai-content">
-                    <p><em>思考中...</em></p>
-                </div>
-            </div>
-        `;
-        messagesContainer.insertAdjacentHTML('beforeend', thinkingHTML);
-        
-        // 滚动到底部
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        
-        // 模拟AI回复（实际应用中应该调用API）
-        setTimeout(() => {
-            // 移除思考中提示
-            const thinkingElement = document.getElementById(thinkingID);
-            if (thinkingElement) {
-                thinkingElement.remove();
-            }
+    if (generateBtn && quizContainer) {
+        generateBtn.addEventListener('click', async () => {
+            // Get quiz options
+            const topic = topicSelect ? topicSelect.value : 'algebra';
+            const difficulty = difficultySelect ? difficultySelect.value : 'medium';
+            const count = questionsSelect ? parseInt(questionsSelect.value) : 5;
             
-            // 生成简单的响应（实际应用中应该从API获取）
-            let response = '';
+            // Show loading state
+            quizContainer.innerHTML = '<div class="text-center"><p>Generating your quiz...</p></div>';
             
-            if (question.includes('方程') || question.includes('解方程')) {
-                response = `
-                    <p>解方程是代数中的基本操作。以一个简单的一元一次方程为例：</p>
-                    <div class="math-formula">3x + 5 = 20</div>
-                    <p>解题步骤：</p>
-                    <ol>
-                        <li>将变量项和常数项分开: 3x = 20 - 5</li>
-                        <li>计算右边: 3x = 15</li>
-                        <li>两边同除以3: x = 5</li>
-                    </ol>
-                    <p>因此，方程的解是 x = 5。你可以通过代回原方程验证：3×5 + 5 = 20。</p>
-                `;
-            } else if (question.includes('三角形') || question.includes('勾股定理')) {
-                response = `
-                    <p>勾股定理是关于直角三角形的重要定理，描述了三边长度之间的关系：</p>
-                    <div class="math-formula">a² + b² = c²</div>
-                    <p>其中a和b是直角三角形的两条直角边的长度，c是斜边的长度。</p>
-                    <p>例如，如果一个直角三角形的两条直角边长为3和4，那么斜边长为：</p>
-                    <div class="math-formula">c = √(3² + 4²) = √(9 + 16) = √25 = 5</div>
-                    <p>勾股定理在几何学和实际应用中都非常重要。</p>
-                `;
-            } else if (question.includes('概率') || question.includes('统计')) {
-                response = `
-                    <p>概率表示事件发生的可能性，用0到1之间的数值表示。</p>
-                    <p>例如，掷一个骰子得到数字6的概率是1/6（约0.167或16.7%）。</p>
-                    <p>概率的基本公式：</p>
-                    <div class="math-formula">P(A) = 事件A发生的方式数 / 所有可能结果的数量</div>
-                    <p>在统计学中，我们使用样本来估计总体的特性，如均值、方差等。</p>
-                `;
-            } else {
-                response = `
-                    <p>你的问题很有趣！在数学学习中，理解概念比记忆公式更重要。</p>
-                    <p>如果你能告诉我更具体的问题，我可以提供更详细的解答。你可以问我关于：</p>
-                    <ul>
-                        <li>代数（方程、函数、表达式等）</li>
-                        <li>几何（图形、定理、证明等）</li>
-                        <li>概率与统计（随机事件、数据分析等）</li>
-                    </ul>
-                    <p>或者特定的习题解答。</p>
-                `;
-            }
-            
-            // 添加AI回复
-            const aiMessageHTML = `
-                <div class="ai-message">
-                    <div class="ai-avatar">AI</div>
-                    <div class="ai-content">
-                        ${response}
+            try {
+                // Make API request to generate quiz
+                const response = await deepSeekAPI.generateQuiz(topic, difficulty, count);
+                
+                if (response && response.success) {
+                    renderQuiz(response.quiz);
+                } else {
+                    throw new Error('Failed to generate quiz');
+                }
+            } catch (error) {
+                console.error('Error generating quiz:', error);
+                quizContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>Sorry, there was an error generating your quiz. Please try again.</p>
+                        <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">Try Again</button>
                     </div>
-                </div>
-            `;
-            messagesContainer.insertAdjacentHTML('beforeend', aiMessageHTML);
-            
-            // 滚动到底部
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 1500);
-    }
-}
-
-/**
- * 加载推荐内容
- */
-function loadRecommendedContent() {
-    // 检查用户是否已登录
-    const isLoggedIn = localStorage.getItem('study_assist_token') !== null;
-    
-    // 只为登录用户显示个性化推荐
-    if (isLoggedIn) {
-        // 这里应该从API获取数据，现在使用模拟数据
-        const recommendedContent = [
-            {
-                title: '二次函数图像分析',
-                type: 'lesson',
-                difficulty: '中级',
-                progress: 30,
-                url: '#'
-            },
-            {
-                title: '概率基础测验',
-                type: 'quiz',
-                difficulty: '初级',
-                questions: 10,
-                url: '#'
-            },
-            {
-                title: '几何证明方法',
-                type: 'article',
-                readTime: '5分钟',
-                url: '#'
+                `;
             }
-        ];
+        });
         
-        // 检查是否应该创建推荐区域
-        const mainElement = document.querySelector('main');
-        const featuresSection = document.querySelector('.features');
-        
-        if (mainElement && featuresSection) {
-            // 创建推荐内容区域
-            const recommendedSection = document.createElement('section');
-            recommendedSection.classList.add('recommended');
-            
-            // 构建HTML内容
-            let recommendedHTML = `
-                <div class="container">
-                    <h2 class="section-title">个性化推荐</h2>
-                    <div class="recommended-grid">
+        // Function to render quiz
+        function renderQuiz(quiz) {
+            // Create quiz HTML
+            let quizHTML = `
+                <div class="quiz-header">
+                    <h3>${quiz.title}</h3>
+                    <p>Answer the following ${quiz.questions.length} questions.</p>
+                </div>
+                <div class="quiz-questions">
             `;
             
-            // 添加推荐项
-            recommendedContent.forEach(item => {
-                recommendedHTML += `
-                    <a href="${item.url}" class="recommended-item">
-                        <div class="recommended-badge">${item.type}</div>
-                        <h3>${item.title}</h3>
-                        <div class="recommended-meta">
-                            <span>难度: ${item.difficulty || '基础'}</span>
-                            ${item.progress ? `<div class="mini-progress"><div style="width: ${item.progress}%"></div></div>` : ''}
-                            ${item.questions ? `<span>${item.questions}个问题</span>` : ''}
-                            ${item.readTime ? `<span>${item.readTime}</span>` : ''}
-                        </div>
-                    </a>
+            // Only show first question initially
+            const firstQuestion = quiz.questions[0];
+            
+            quizHTML += `
+                <div class="quiz-question-wrapper" data-question="${firstQuestion.id}" data-correct="${firstQuestion.correctAnswer}">
+                    <div class="quiz-question">${firstQuestion.question}</div>
+                    <div class="quiz-options">
+            `;
+            
+            // Add options
+            firstQuestion.options.forEach(option => {
+                quizHTML += `
+                    <div class="quiz-option" data-option="${option.id}">
+                        <label>
+                            <input type="radio" name="q-${firstQuestion.id}" value="${option.id}">
+                            <span>${option.text}</span>
+                        </label>
+                    </div>
                 `;
             });
             
-            recommendedHTML += `
+            quizHTML += `
                     </div>
+                    <div class="quiz-feedback" style="display: none;"></div>
                 </div>
             `;
             
-            // 设置HTML内容
-            recommendedSection.innerHTML = recommendedHTML;
-            
-            // 插入到DOM中
-            mainElement.insertBefore(recommendedSection, featuresSection);
-            
-            // 添加样式
-            const styleElement = document.createElement('style');
-            styleElement.textContent = `
-                .recommended {
-                    padding: var(--spacing-16) 0;
-                    background-color: white;
-                }
-                
-                .recommended-grid {
-                    display: grid;
-                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                    gap: var(--spacing-4);
-                    margin-top: var(--spacing-8);
-                }
-                
-                .recommended-item {
-                    display: block;
-                    padding: var(--spacing-4);
-                    border-radius: var(--radius-lg);
-                    background-color: var(--neutral-50);
-                    transition: transform var(--transition-fast) ease, box-shadow var(--transition-fast) ease;
-                    position: relative;
-                }
-                
-                .recommended-item:hover {
-                    transform: translateY(-3px);
-                    box-shadow: var(--shadow-md);
-                }
-                
-                .recommended-badge {
-                    position: absolute;
-                    top: var(--spacing-3);
-                    right: var(--spacing-3);
-                    padding: var(--spacing-1) var(--spacing-2);
-                    border-radius: var(--radius-full);
-                    background-color: var(--math-light);
-                    color: var(--math-primary);
-                    font-size: var(--text-xs);
-                    font-weight: 600;
-                    text-transform: uppercase;
-                }
-                
-                .recommended-item h3 {
-                    margin-bottom: var(--spacing-2);
-                    padding-right: var(--spacing-12);
-                }
-                
-                .recommended-meta {
-                    display: flex;
-                    align-items: center;
-                    gap: var(--spacing-3);
-                    color: var(--neutral-600);
-                    font-size: var(--text-sm);
-                }
-                
-                .mini-progress {
-                    flex-grow: 1;
-                    height: 4px;
-                    background-color: var(--neutral-200);
-                    border-radius: var(--radius-full);
-                    overflow: hidden;
-                }
-                
-                .mini-progress > div {
-                    height: 100%;
-                    background-color: var(--math-primary);
-                }
+            // Add navigation buttons
+            quizHTML += `
+                <div class="quiz-navigation">
+                    <button class="btn btn-outline quiz-prev" disabled>Previous</button>
+                    <div class="quiz-progress">Question 1 of ${quiz.questions.length}</div>
+                    <button class="btn btn-primary quiz-next">Next</button>
+                </div>
             `;
             
-            document.head.appendChild(styleElement);
+            quizHTML += `
+                </div>
+                <div class="quiz-results" style="display: none;">
+                    <h3>Quiz Results</h3>
+                    <p class="result-summary"></p>
+                    <button class="btn btn-primary quiz-restart">Try Again</button>
+                </div>
+            `;
+            
+            // Set quiz HTML
+            quizContainer.innerHTML = quizHTML;
+            
+            // Store all questions in a data attribute for later use
+            quizContainer.setAttribute('data-questions', JSON.stringify(quiz.questions));
+            quizContainer.setAttribute('data-current-question', 0);
+            
+            // Add event listeners
+            setupQuizEvents();
+        }
+        
+        // Function to set up quiz event listeners
+        function setupQuizEvents() {
+            // Store quiz state
+            const questions = JSON.parse(quizContainer.getAttribute('data-questions'));
+            let currentQuestion = parseInt(quizContainer.getAttribute('data-current-question'));
+            const userAnswers = [];
+            
+            // Get elements
+            const prevBtn = quizContainer.querySelector('.quiz-prev');
+            const nextBtn = quizContainer.querySelector('.quiz-next');
+            const quizProgress = quizContainer.querySelector('.quiz-progress');
+            
+            // Option selection
+            const options = quizContainer.querySelectorAll('.quiz-option');
+            options.forEach(option => {
+                option.addEventListener('click', () => {
+                    // Select radio button
+                    const radio = option.querySelector('input[type="radio"]');
+                    radio.checked = true;
+                    
+                    // Add selected class
+                    options.forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+                    
+                    // Enable next button
+                    nextBtn.disabled = false;
+                });
+            });
+            
+            // Previous button
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentQuestion > 0) {
+                        currentQuestion--;
+                        updateQuestion();
+                    }
+                });
+            }
+            
+            // Next button
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    // Get selected option
+                    const selected = quizContainer.querySelector('.quiz-option.selected');
+                    if (!selected) return;
+                    
+                    const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
+                    const questionId = questionWrapper.getAttribute('data-question');
+                    const correctAnswer = questionWrapper.getAttribute('data-correct');
+                    const selectedOption = selected.getAttribute('data-option');
+                    
+                    // Record answer
+                    userAnswers[currentQuestion] = {
+                        questionId,
+                        selectedOption,
+                        isCorrect: selectedOption === correctAnswer
+                    };
+                    
+                    // Check if this is the last question
+                    if (currentQuestion < questions.length - 1) {
+                        // Move to next question
+                        currentQuestion++;
+                        updateQuestion();
+                    } else {
+                        // Show results
+                        showResults();
+                    }
+                });
+            }
+            
+            // Function to update question display
+            function updateQuestion() {
+                const question = questions[currentQuestion];
+                const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
+                
+                // Update question
+                questionWrapper.setAttribute('data-question', question.id);
+                questionWrapper.setAttribute('data-correct', question.correctAnswer);
+                questionWrapper.querySelector('.quiz-question').textContent = question.question;
+                
+                // Update options
+                const optionsContainer = questionWrapper.querySelector('.quiz-options');
+                optionsContainer.innerHTML = '';
+                
+                question.options.forEach(option => {
+                    const optionElement = document.createElement('div');
+                    optionElement.className = 'quiz-option';
+                    optionElement.setAttribute('data-option', option.id);
+                    
+                    // Check if user already answered this question
+                    if (userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id) {
+                        optionElement.classList.add('selected');
+                    }
+                    
+                    optionElement.innerHTML = `
+                        <label>
+                            <input type="radio" name="q-${question.id}" value="${option.id}" ${userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id ? 'checked' : ''}>
+                            <span>${option.text}</span>
+                        </label>
+                    `;
+                    optionsContainer.appendChild(optionElement);
+                    
+                    // Add event listener
+                    optionElement.addEventListener('click', () => {
+                        // Select radio button
+                        const radio = optionElement.querySelector('input[type="radio"]');
+                        radio.checked = true;
+                        
+                        // Add selected class
+                        optionsContainer.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+                        optionElement.classList.add('selected');
+                        
+                        // Enable next button
+                        nextBtn.disabled = false;
+                    });
+                });
+                
+                // Update feedback display
+                const feedbackEl = questionWrapper.querySelector('.quiz-feedback');
+                feedbackEl.style.display = 'none';
+                
+                // Update navigation
+                prevBtn.disabled = currentQuestion === 0;
+                nextBtn.disabled = !userAnswers[currentQuestion];
+                quizProgress.textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
+                
+                // Update quiz container data attribute
+                quizContainer.setAttribute('data-current-question', currentQuestion);
+                
+                // If last question, change next button text
+                if (currentQuestion === questions.length - 1) {
+                    nextBtn.textContent = 'Finish Quiz';
+                } else {
+                    nextBtn.textContent = 'Next';
+                }
+            }
+            
+            // Function to show results
+            function showResults() {
+                // Calculate score
+                const correct = userAnswers.filter(a => a.isCorrect).length;
+                const total = questions.length;
+                const percentage = Math.round((correct / total) * 100);
+                
+                // Update results
+                const resultsDiv = quizContainer.querySelector('.quiz-results');
+                const resultSummary = resultsDiv.querySelector('.result-summary');
+                
+                resultSummary.innerHTML = `
+                    <div class="result-score">${correct} out of ${total} correct (${percentage}%)</div>
+                    <div class="result-message">
+                        ${percentage >= 80 ? 'Excellent work!' : percentage >= 60 ? 'Good job!' : 'Keep practicing!'}
+                    </div>
+                `;
+                
+                // Hide questions, show results
+                quizContainer.querySelector('.quiz-questions').style.display = 'none';
+                resultsDiv.style.display = 'block';
+                
+                // Add restart button listener
+                const restartBtn = resultsDiv.querySelector('.quiz-restart');
+                restartBtn.addEventListener('click', () => {
+                    // Reset quiz state
+                    quizContainer.querySelector('.quiz-questions').style.display = 'block';
+                    resultsDiv.style.display = 'none';
+                    
+                    // Clear user answers
+                    for (let i = 0; i < userAnswers.length; i++) {
+                        userAnswers[i] = undefined;
+                    }
+                    
+                    // Reset to first question
+                    currentQuestion = 0;
+                    updateQuestion();
+                });
+            }
+        }
+    }
+}
+
+/**
+ * Initialize formula category selector
+ */
+function initFormulaSelector() {
+    const categoryButtons = document.querySelectorAll('.formula-category-btn');
+    const categories = document.querySelectorAll('.formula-category');
+    
+    if (categoryButtons.length) {
+        // Set first category as active by default
+        categories[0].classList.add('active');
+        
+        categoryButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const target = button.getAttribute('data-target');
+                
+                // Update active button
+                categoryButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update active category
+                categories.forEach(category => {
+                    if (category.getAttribute('data-category') === target) {
+                        category.classList.add('active');
+                    } else {
+                        category.classList.remove('active');
+                    }
+                });
+                
+                // Render math formulas if MathJax is available
+                if (window.MathJax) {
+                    window.MathJax.typeset();
+                }
+            });
+        });
+    }
+}
+
+/**
+ * Initialize math concept visualizer
+ */
+function initMathVisualizer() {
+    const loadButton = document.getElementById('load-visualization');
+    const visualizationContainer = document.getElementById('visualization-container');
+    const topicSelect = document.getElementById('visualizer-topic');
+    
+    if (loadButton && visualizationContainer && topicSelect) {
+        loadButton.addEventListener('click', () => {
+            const topic = topicSelect.value;
+            
+            // Show loading state
+            visualizationContainer.innerHTML = '<div class="text-center"><p>Loading visualization...</p></div>';
+            
+            // Simulate loading delay
+            setTimeout(() => {
+                // For this demo, we'll just render some placeholder visualizations
+                renderVisualization(topic);
+            }, 1000);
+        });
+        
+        // Function to render visualization
+        function renderVisualization(topic) {
+            let visualization = '';
+            
+            switch (topic) {
+                case 'function-graphs':
+                    visualization = renderFunctionGraphs();
+                    break;
+                case 'geometric-shapes':
+                    visualization = renderGeometricShapes();
+                    break;
+                case 'trigonometric-functions':
+                    visualization = renderTrigonometricFunctions();
+                    break;
+                case 'statistical-distributions':
+                    visualization = renderStatisticalDistributions();
+                    break;
+                default:
+                    visualization = '<p>Visualization not available.</p>';
+            }
+            
+            visualizationContainer.innerHTML = visualization;
+            
+            // Initialize any interactive elements
+            initInteractiveVisualizations();
+        }
+        
+        // Function to render function graphs
+        function renderFunctionGraphs() {
+            return `
+                <div class="visualization-content">
+                    <h3>Function Graphs</h3>
+                    <div class="graph-container">
+                        <img src="../../assets/images/function-graph-placeholder.svg" alt="Function Graph" class="graph-image">
+                        <div class="graph-controls">
+                            <div class="form-group">
+                                <label for="function-select">Select Function</label>
+                                <select id="function-select" class="form-control">
+                                    <option value="linear">Linear: f(x) = mx + b</option>
+                                    <option value="quadratic">Quadratic: f(x) = ax² + bx + c</option>
+                                    <option value="cubic">Cubic: f(x) = ax³ + bx² + cx + d</option>
+                                    <option value="exponential">Exponential: f(x) = aˣ</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Function Parameters</label>
+                                <div class="parameter-sliders">
+                                    <div class="parameter-slider">
+                                        <label for="param-a">a: <span id="param-a-value">1</span></label>
+                                        <input type="range" id="param-a" min="-5" max="5" step="0.1" value="1">
+                                    </div>
+                                    <div class="parameter-slider">
+                                        <label for="param-b">b: <span id="param-b-value">0</span></label>
+                                        <input type="range" id="param-b" min="-5" max="5" step="0.1" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="visualization-info">
+                        <p>Explore how changing parameters affects the graph of different functions.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Function to render geometric shapes
+        function renderGeometricShapes() {
+            return `
+                <div class="visualization-content">
+                    <h3>Geometric Shapes</h3>
+                    <div class="shapes-container">
+                        <img src="../../assets/images/geometric-shapes-placeholder.svg" alt="Geometric Shapes" class="shapes-image">
+                        <div class="shapes-controls">
+                            <div class="form-group">
+                                <label for="shape-select">Select Shape</label>
+                                <select id="shape-select" class="form-control">
+                                    <option value="triangle">Triangle</option>
+                                    <option value="square">Square</option>
+                                    <option value="circle">Circle</option>
+                                    <option value="polygon">Regular Polygon</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Shape Properties</label>
+                                <div class="shape-properties">
+                                    <div class="property-input">
+                                        <label for="shape-size">Size:</label>
+                                        <input type="range" id="shape-size" min="50" max="200" value="100">
+                                    </div>
+                                    <div class="property-input">
+                                        <label for="shape-sides">Sides (for polygon):</label>
+                                        <input type="number" id="shape-sides" min="3" max="12" value="5">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="visualization-info">
+                        <p>Explore properties of different geometric shapes including area, perimeter, and angles.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Function to render trigonometric functions
+        function renderTrigonometricFunctions() {
+            return `
+                <div class="visualization-content">
+                    <h3>Trigonometric Functions</h3>
+                    <div class="trig-container">
+                        <img src="../../assets/images/trigonometric-functions-placeholder.svg" alt="Trigonometric Functions" class="trig-image">
+                        <div class="trig-controls">
+                            <div class="form-group">
+                                <label for="trig-function">Select Function</label>
+                                <select id="trig-function" class="form-control">
+                                    <option value="sin">Sine: sin(x)</option>
+                                    <option value="cos">Cosine: cos(x)</option>
+                                    <option value="tan">Tangent: tan(x)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Function Parameters</label>
+                                <div class="parameter-sliders">
+                                    <div class="parameter-slider">
+                                        <label for="amplitude">Amplitude (A): <span id="amplitude-value">1</span></label>
+                                        <input type="range" id="amplitude" min="0.1" max="3" step="0.1" value="1">
+                                    </div>
+                                    <div class="parameter-slider">
+                                        <label for="frequency">Frequency (B): <span id="frequency-value">1</span></label>
+                                        <input type="range" id="frequency" min="0.1" max="3" step="0.1" value="1">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="visualization-info">
+                        <p>Explore how trigonometric functions behave and their relationships to the unit circle.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Function to render statistical distributions
+        function renderStatisticalDistributions() {
+            return `
+                <div class="visualization-content">
+                    <h3>Statistical Distributions</h3>
+                    <div class="stats-container">
+                        <img src="../../assets/images/statistical-distribution-placeholder.svg" alt="Statistical Distribution" class="stats-image">
+                        <div class="stats-controls">
+                            <div class="form-group">
+                                <label for="distribution-type">Distribution Type</label>
+                                <select id="distribution-type" class="form-control">
+                                    <option value="normal">Normal Distribution</option>
+                                    <option value="uniform">Uniform Distribution</option>
+                                    <option value="binomial">Binomial Distribution</option>
+                                    <option value="poisson">Poisson Distribution</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Distribution Parameters</label>
+                                <div class="parameter-inputs">
+                                    <div class="parameter-input">
+                                        <label for="mean">Mean (μ):</label>
+                                        <input type="number" id="mean" min="0" max="100" value="50">
+                                    </div>
+                                    <div class="parameter-input">
+                                        <label for="std-dev">Standard Deviation (σ):</label>
+                                        <input type="number" id="std-dev" min="1" max="30" value="10">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="visualization-info">
+                        <p>Explore different statistical distributions and how their parameters affect their shape.</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Function to initialize interactive elements
+        function initInteractiveVisualizations() {
+            // For a real implementation, this would include code to make
+            // the visualizations interactive, potentially using libraries
+            // like D3.js, Chart.js, or GeoGebra
+            
+            // For this demo, we'll just add some basic slider interactions
+            const sliders = visualizationContainer.querySelectorAll('input[type="range"]');
+            
+            sliders.forEach(slider => {
+                const valueDisplay = document.getElementById(`${slider.id}-value`);
+                
+                if (valueDisplay) {
+                    slider.addEventListener('input', () => {
+                        valueDisplay.textContent = slider.value;
+                    });
+                }
+            });
         }
     }
 } 

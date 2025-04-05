@@ -1,235 +1,269 @@
 /**
- * 学习助手 - 通用JavaScript功能
- * 包含工具函数和初始化逻辑
+ * Study Assist - Common JavaScript
+ * Global utilities and initializations
  */
 
-// 等待DOM加载完成
+// Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    initializeTooltips();
-    handleScrollEffects();
-    setupThemeToggle();
+    // Initialize all components
+    initMobileMenu();
+    initSmoothScroll();
+    initSliders();
+    initAnimations();
 });
 
 /**
- * 初始化提示工具
+ * Initialize Mobile Menu Toggle
  */
-function initializeTooltips() {
-    const tooltips = document.querySelectorAll('[data-tooltip]');
+function initMobileMenu() {
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
     
-    tooltips.forEach(tooltip => {
-        tooltip.addEventListener('mouseenter', (e) => {
-            const tooltipText = e.target.getAttribute('data-tooltip');
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
+            document.body.classList.toggle('mobile-menu-open');
             
-            const tooltipElement = document.createElement('div');
-            tooltipElement.classList.add('tooltip');
-            tooltipElement.textContent = tooltipText;
-            
-            document.body.appendChild(tooltipElement);
-            
-            const rect = e.target.getBoundingClientRect();
-            tooltipElement.style.left = rect.left + (rect.width / 2) - (tooltipElement.offsetWidth / 2) + 'px';
-            tooltipElement.style.top = rect.bottom + 10 + 'px';
-            
-            setTimeout(() => {
-                tooltipElement.classList.add('visible');
-            }, 10);
+            // Accessibility
+            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true' || false;
+            menuToggle.setAttribute('aria-expanded', !isExpanded);
         });
         
-        tooltip.addEventListener('mouseleave', () => {
-            const tooltipElement = document.querySelector('.tooltip');
-            if (tooltipElement) {
-                tooltipElement.classList.remove('visible');
+        // Close menu when clicking outside
+        document.addEventListener('click', (event) => {
+            const isClickInsideMenu = event.target.closest('.main-nav') || 
+                                     event.target.closest('.mobile-menu-toggle');
+            
+            if (!isClickInsideMenu && document.body.classList.contains('mobile-menu-open')) {
+                document.body.classList.remove('mobile-menu-open');
+                menuToggle.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+}
+
+/**
+ * Initialize Smooth Scrolling for Anchor Links
+ */
+function initSmoothScroll() {
+    const anchorLinks = document.querySelectorAll('a[href^="#"]:not([href="#"])');
+    
+    anchorLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            const targetId = link.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
+            
+            if (targetElement) {
+                // Close mobile menu if open
+                document.body.classList.remove('mobile-menu-open');
                 
-                tooltipElement.addEventListener('transitionend', () => {
-                    if (tooltipElement.parentNode) {
-                        tooltipElement.parentNode.removeChild(tooltipElement);
-                    }
+                // Scroll to element
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
                 });
+                
+                // Update URL hash without jumping
+                history.pushState(null, null, targetId);
             }
         });
     });
 }
 
 /**
- * 处理滚动效果
+ * Initialize Sliders
  */
-function handleScrollEffects() {
-    // 滚动时导航栏阴影效果
-    const header = document.querySelector('.header');
-    
-    if (header) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 10) {
-                header.classList.add('scrolled');
-            } else {
-                header.classList.remove('scrolled');
-            }
-        });
-    }
-    
-    // 滚动显示元素动画
-    const animatedElements = document.querySelectorAll('.animate-on-scroll');
-    
-    if (animatedElements.length > 0) {
-        checkVisibility();
-        
-        window.addEventListener('scroll', checkVisibility);
-        
-        function checkVisibility() {
-            animatedElements.forEach(element => {
-                if (isElementInViewport(element)) {
-                    element.classList.add('visible');
-                }
-            });
-        }
-    }
+function initSliders() {
+    // Testimonials Slider
+    initTestimonialsSlider();
 }
 
 /**
- * 检查元素是否在视口内
- * @param {Element} element - 要检查的DOM元素
- * @returns {boolean} - 元素是否在视口内
+ * Initialize Testimonials Slider
  */
-function isElementInViewport(element) {
-    const rect = element.getBoundingClientRect();
+function initTestimonialsSlider() {
+    const slider = document.querySelector('.testimonials-slider');
+    const dots = document.querySelectorAll('.slider-dots .dot');
+    const prevBtn = document.querySelector('.prev-btn');
+    const nextBtn = document.querySelector('.next-btn');
     
-    return (
-        rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.8 &&
-        rect.bottom >= 0 &&
-        rect.left <= (window.innerWidth || document.documentElement.clientWidth) &&
-        rect.right >= 0
-    );
-}
-
-/**
- * 设置主题切换功能
- */
-function setupThemeToggle() {
-    const themeToggle = document.getElementById('theme-toggle');
-    
-    if (themeToggle) {
-        // 检查用户之前的主题选择
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) {
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            themeToggle.checked = savedTheme === 'dark';
-        }
+    if (slider && dots.length && prevBtn && nextBtn) {
+        let currentSlide = 0;
+        const slides = slider.querySelectorAll('.testimonial-card');
+        const maxSlide = slides.length - 1;
         
-        themeToggle.addEventListener('change', (e) => {
-            const newTheme = e.target.checked ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        });
-    }
-}
-
-/**
- * 显示消息通知
- * @param {string} message - 通知消息
- * @param {string} type - 通知类型 (success, error, info, warning)
- * @param {number} duration - 显示时长(毫秒)
- */
-function showNotification(message, type = 'info', duration = 3000) {
-    const notification = document.createElement('div');
-    notification.classList.add('notification', `notification-${type}`);
-    notification.textContent = message;
-    
-    const container = document.querySelector('.notification-container') || createNotificationContainer();
-    container.appendChild(notification);
-    
-    // 显示动画
-    setTimeout(() => {
-        notification.classList.add('visible');
-    }, 10);
-    
-    // 自动消失
-    setTimeout(() => {
-        notification.classList.remove('visible');
-        notification.addEventListener('transitionend', () => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
+        // Function to go to a specific slide
+        const goToSlide = (slideIndex) => {
+            // Ensure slide index is within bounds
+            if (slideIndex < 0) slideIndex = maxSlide;
+            if (slideIndex > maxSlide) slideIndex = 0;
             
-            // 如果容器为空，也移除容器
-            if (container.children.length === 0) {
-                container.parentNode.removeChild(container);
-            }
-        });
-    }, duration);
-}
-
-/**
- * 创建通知容器
- * @returns {Element} - 通知容器元素
- */
-function createNotificationContainer() {
-    const container = document.createElement('div');
-    container.classList.add('notification-container');
-    document.body.appendChild(container);
-    return container;
-}
-
-/**
- * 防抖函数
- * @param {Function} func - 要执行的函数
- * @param {number} wait - 等待时间(毫秒)
- * @returns {Function} - 防抖后的函数
- */
-function debounce(func, wait = 300) {
-    let timeout;
-    
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
+            currentSlide = slideIndex;
+            
+            // Update slider position
+            slider.style.transform = `translateX(-${currentSlide * 100}%)`;
+            
+            // Update active dot
+            dots.forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
         };
         
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
+        // Set up click handlers for prev/next buttons
+        prevBtn.addEventListener('click', () => goToSlide(currentSlide - 1));
+        nextBtn.addEventListener('click', () => goToSlide(currentSlide + 1));
+        
+        // Set up click handlers for dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => goToSlide(index));
+        });
+        
+        // Initialize first slide
+        goToSlide(0);
+        
+        // Auto-play functionality
+        let slideInterval = setInterval(() => goToSlide(currentSlide + 1), 5000);
+        
+        // Pause auto-play on hover
+        slider.addEventListener('mouseenter', () => clearInterval(slideInterval));
+        slider.addEventListener('mouseleave', () => {
+            clearInterval(slideInterval);
+            slideInterval = setInterval(() => goToSlide(currentSlide + 1), 5000);
+        });
+    }
 }
 
 /**
- * 节流函数
- * @param {Function} func - 要执行的函数
- * @param {number} limit - 时间限制(毫秒)
- * @returns {Function} - 节流后的函数
+ * Initialize On-Scroll Animations
  */
-function throttle(func, limit = 300) {
-    let inThrottle;
-    
-    return function executedFunction(...args) {
-        if (!inThrottle) {
-            func(...args);
-            inThrottle = true;
-            setTimeout(() => {
-                inThrottle = false;
-            }, limit);
+function initAnimations() {
+    // Only initialize if IntersectionObserver is supported
+    if ('IntersectionObserver' in window) {
+        const animatedElements = document.querySelectorAll('.animate-on-scroll');
+        
+        const animationObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animated');
+                    // Optionally stop observing after animation is triggered
+                    // animationObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1 // Trigger when at least 10% of the element is visible
+        });
+        
+        animatedElements.forEach(element => {
+            animationObserver.observe(element);
+        });
+    }
+}
+
+/**
+ * Utility Functions
+ */
+
+/**
+ * Throttle function to limit how often a function can be called
+ * @param {Function} func - The function to throttle
+ * @param {Number} limit - The time limit in milliseconds
+ * @returns {Function} - The throttled function
+ */
+function throttle(func, limit) {
+    let lastCall = 0;
+    return function(...args) {
+        const now = Date.now();
+        if (now - lastCall >= limit) {
+            lastCall = now;
+            return func.apply(this, args);
         }
     };
 }
 
 /**
- * 格式化日期
- * @param {Date|string} date - 日期对象或日期字符串
- * @param {string} format - 格式化模式
- * @returns {string} - 格式化后的日期字符串
+ * Debounce function to delay function execution until after a wait period
+ * @param {Function} func - The function to debounce
+ * @param {Number} wait - The wait time in milliseconds
+ * @param {Boolean} immediate - Whether to call immediately
+ * @returns {Function} - The debounced function
  */
-function formatDate(date, format = 'YYYY-MM-DD') {
-    const d = new Date(date);
-    
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    const seconds = String(d.getSeconds()).padStart(2, '0');
-    
-    return format
-        .replace('YYYY', year)
-        .replace('MM', month)
-        .replace('DD', day)
-        .replace('HH', hours)
-        .replace('mm', minutes)
-        .replace('ss', seconds);
+function debounce(func, wait, immediate) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        const later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+        };
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow) func.apply(context, args);
+    };
+}
+
+/**
+ * Format date to a readable string
+ * @param {Date|String} date - The date to format
+ * @returns {String} - The formatted date string
+ */
+function formatDate(date) {
+    date = new Date(date);
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return date.toLocaleDateString(undefined, options);
+}
+
+/**
+ * Validate email format
+ * @param {String} email - The email to validate
+ * @returns {Boolean} - Whether the email is valid
+ */
+function isValidEmail(email) {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+}
+
+/**
+ * Generate a random ID
+ * @returns {String} - A random ID
+ */
+function generateId(prefix = 'id') {
+    return `${prefix}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
+ * Get cookie value by name
+ * @param {String} name - The cookie name
+ * @returns {String|null} - The cookie value or null
+ */
+function getCookie(name) {
+    const cookies = document.cookie.split('; ');
+    for (const cookie of cookies) {
+        const [cookieName, cookieValue] = cookie.split('=');
+        if (cookieName === name) {
+            return decodeURIComponent(cookieValue);
+        }
+    }
+    return null;
+}
+
+/**
+ * Set cookie
+ * @param {String} name - The cookie name
+ * @param {String} value - The cookie value
+ * @param {Number} days - Number of days until expiration
+ */
+function setCookie(name, value, days) {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = `expires=${date.toUTCString()}`;
+    document.cookie = `${name}=${encodeURIComponent(value)};${expires};path=/;SameSite=Strict`;
+}
+
+/**
+ * Delete cookie
+ * @param {String} name - The cookie name
+ */
+function deleteCookie(name) {
+    setCookie(name, '', -1);
 } 
