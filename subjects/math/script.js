@@ -3,52 +3,6 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
-console.log("Loading math script.js...");
-
-// Check if we already have the displayMessage function globally
-if (typeof window.displayMessage !== 'function') {
-    // 全局函数 - 显示消息
-    window.displayMessage = function(role, content, container) {
-        console.log("displayMessage called:", role, container?.id || "no container");
-        const messageElement = document.createElement('div');
-        messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
-        
-        // Process text for MathJax if it contains LaTeX
-        let processedText = content;
-        
-        // Look for math expressions in the text (delimited by $ or $$)
-        // and ensure they are properly formatted for MathJax
-        if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
-            // Replace \( \) syntax with $ $ for inline math
-            processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
-            
-            // Replace \[ \] syntax with $$ $$ for block math
-            processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
-        }
-        
-        // Convert newlines to <br> tags
-        processedText = processedText.replace(/\n/g, '<br>');
-        
-        messageElement.innerHTML = `<p>${processedText}</p>`;
-        container.appendChild(messageElement);
-        
-        // Scroll to bottom of chat
-        container.scrollTop = container.scrollHeight;
-        
-        // Render math expressions with MathJax if available
-        if (window.MathJax && role === 'assistant') {
-            window.MathJax.typeset([messageElement]);
-        }
-    };
-} else {
-    console.log("displayMessage function already exists.");
-}
-
-// Keep the original function for backward compatibility
-function displayMessage(role, content, container) {
-    return window.displayMessage(role, content, container);
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize math subject functionality
     initTopicCards();
@@ -152,7 +106,7 @@ function initMathAssistant() {
         chatMessages.innerHTML = '';
         
         // 显示初始消息
-        displayMessage('assistant', chatHistory[1].content, chatMessages);
+        displayMessage('assistant', chatHistory[1].content);
         
         // 更新系统提示
         updateSystemPrompt();
@@ -182,7 +136,7 @@ function initMathAssistant() {
             
             if (question) {
                 // Add user message to chat
-                displayMessage('user', question, chatMessages);
+                displayMessage('user', question);
                 
                 // Add to chat history
                 chatHistory.push({
@@ -223,7 +177,7 @@ function initMathAssistant() {
                     chatMessages.removeChild(loadingMessage);
                     
                     // 显示AI回复
-                    displayMessage('assistant', aiResponse, chatMessages);
+                    displayMessage('assistant', aiResponse);
                     
                     // 添加到聊天历史
                     chatHistory.push({
@@ -238,8 +192,41 @@ function initMathAssistant() {
                     chatMessages.removeChild(loadingMessage);
                     
                     // Show error message
-                    displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message, chatMessages);
+                    displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
                 }
+            }
+        }
+        
+        // Function to display a message in the chat
+        function displayMessage(role, content) {
+            const messageElement = document.createElement('div');
+            messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
+            
+            // Process text for MathJax if it contains LaTeX
+            let processedText = content;
+            
+            // Look for math expressions in the text (delimited by $ or $$)
+            // and ensure they are properly formatted for MathJax
+            if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
+                // Replace \( \) syntax with $ $ for inline math
+                processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+                
+                // Replace \[ \] syntax with $$ $$ for block math
+                processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
+            }
+            
+            // Convert newlines to <br> tags
+            processedText = processedText.replace(/\n/g, '<br>');
+            
+            messageElement.innerHTML = `<p>${processedText}</p>`;
+            chatMessages.appendChild(messageElement);
+            
+            // Scroll to bottom of chat
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Render math expressions with MathJax if available
+            if (window.MathJax && role === 'assistant') {
+                window.MathJax.typeset([messageElement]);
             }
         }
     }
@@ -329,488 +316,536 @@ function initMathAssistant() {
 }
 
 /**
- * Initialize the quiz generator
+ * Initialize quiz generator
  */
 function initQuizGenerator() {
-    console.log("初始化测验生成器");
     const generateBtn = document.getElementById('generate-quiz');
     const quizContainer = document.getElementById('quiz-container');
     const topicSelect = document.getElementById('quiz-topic');
     const difficultySelect = document.getElementById('quiz-difficulty');
     const questionsSelect = document.getElementById('quiz-questions');
     
-    if (!generateBtn) {
-        console.error("无法找到生成测验按钮 (generate-quiz)");
-        return;
-    }
-    
-    if (!quizContainer) {
-        console.error("无法找到测验容器 (quiz-container)");
-        return;
-    }
-    
-    if (!topicSelect || !difficultySelect || !questionsSelect) {
-        console.warn("无法找到一个或多个选择器: topic-select, difficulty-select, questions-select");
-    }
-    
-    console.log("添加生成测验按钮点击事件监听器");
-    
-    // 首先移除所有现有的事件监听器，避免重复绑定
-    const newGenerateBtn = generateBtn.cloneNode(true);
-    generateBtn.parentNode.replaceChild(newGenerateBtn, generateBtn);
-    
-    // 添加新的事件监听器
-    newGenerateBtn.onclick = async function() {
-        console.log("点击了生成测验按钮");
-        generateQuiz();
-    }
-    
-    // 生成测验的函数
-    async function generateQuiz() {
-        // Get quiz options
-        const topic = topicSelect ? topicSelect.value : 'algebra';
-        const difficulty = difficultySelect ? difficultySelect.value : 'medium';
-        const count = questionsSelect ? parseInt(questionsSelect.value) : 5;
-        
-        console.log(`生成测验: 主题=${topic}, 难度=${difficulty}, 问题数=${count}`);
-        
-        // Show loading state
-        quizContainer.innerHTML = '<div class="text-center"><p>生成测验中...</p><div class="loading-spinner"></div></div>';
-        
-        try {
-            // 获取教育水平
-            const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+    if (generateBtn && quizContainer) {
+        generateBtn.addEventListener('click', async () => {
+            // Get quiz options
+            const topic = topicSelect ? topicSelect.value : 'algebra';
+            const difficulty = difficultySelect ? difficultySelect.value : 'medium';
+            const count = questionsSelect ? parseInt(questionsSelect.value) : 5;
             
-            // 构建系统消息
-            const systemMessage = `你是一个专业的数学教育助手，现在需要生成一个关于${getTopicName(topic)}的${getDifficultyName(difficulty)}难度测验，包含${count}个选择题。请确保每个问题都符合${getEducationLevelName(educationLevel)}水平的学生理解能力。每个问题必须有4个选项(A、B、C、D)，并标明正确答案。对于每个问题还应提供简短的解释。`;
-            
-            // 构建用户消息
-            const userPrompt = `请生成一个包含${count}道${getDifficultyName(difficulty)}难度的${getTopicName(topic)}选择题测验。每个问题都应包含4个选项(A, B, C, D)，并指明正确答案和解释。请按照以下JSON格式返回：
-            {
-              "title": "测验标题",
-              "questions": [
-                {
-                  "id": "q1",
-                  "question": "问题1的内容",
-                  "options": [
-                    {"id": "a", "text": "选项A的内容"},
-                    {"id": "b", "text": "选项B的内容"},
-                    {"id": "c", "text": "选项C的内容"},
-                    {"id": "d", "text": "选项D的内容"}
-                  ],
-                  "correctAnswer": "正确选项的id",
-                  "explanation": "问题解释"
-                }
-                // 更多问题...
-              ]
-            }`;
-            
-            // 构建消息数组
-            const messages = [
-                {
-                    "role": "system",
-                    "content": systemMessage
-                },
-                {
-                    "role": "user",
-                    "content": userPrompt
-                }
-            ];
-            
-            console.log("调用 DeepSeek API 生成测验");
-            
-            // 显示加载状态
-            const loadingIndicator = document.createElement('div');
-            loadingIndicator.className = 'loading-indicator';
-            loadingIndicator.innerHTML = '<p>AI正在生成测验题目，请稍候...</p>';
-            quizContainer.appendChild(loadingIndicator);
+            // Show loading state
+            quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
             
             try {
-                // 调用API - 直接使用匿名对象
+                // 教育水平相关
+                let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                let levelName = '';
+                
+                switch(educationLevel) {
+                    case 'elementary-school':
+                        levelName = '小学';
+                        break;
+                    case 'middle-school':
+                        levelName = '初中';
+                        break;
+                    case 'high-school':
+                        levelName = '高中';
+                        break;
+                    default:
+                        levelName = '初中';
+                }
+                
+                // 转换题目难度为中文
+                let difficultyName = '';
+                switch(difficulty) {
+                    case 'easy':
+                        difficultyName = '简单';
+                        break;
+                    case 'medium':
+                        difficultyName = '中等';
+                        break;
+                    case 'hard':
+                        difficultyName = '困难';
+                        break;
+                    default:
+                        difficultyName = '中等';
+                }
+                
+                // 转换主题为中文
+                let topicName = '';
+                switch(topic) {
+                    case 'algebra':
+                        topicName = '代数';
+                        break;
+                    case 'geometry':
+                        topicName = '几何';
+                        break;
+                    case 'calculus':
+                        topicName = '微积分';
+                        break;
+                    case 'statistics':
+                        topicName = '统计学';
+                        break;
+                    case 'arithmetic':
+                        topicName = '算术';
+                        break;
+                    case 'trigonometry':
+                        topicName = '三角学';
+                        break;
+                    default:
+                        topicName = '代数';
+                }
+                
+                // 构建系统消息
+                const systemMessage = `你是一个专业的数学教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+                每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
+                考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+                请以JSON格式回复，格式如下:
+                {
+                  "title": "测验标题",
+                  "questions": [
+                    {
+                      "id": "1",
+                      "question": "问题描述",
+                      "options": [
+                        { "id": "A", "text": "选项A内容" },
+                        { "id": "B", "text": "选项B内容" },
+                        { "id": "C", "text": "选项C内容" },
+                        { "id": "D", "text": "选项D内容" }
+                      ],
+                      "correctAnswer": "正确选项的ID（A/B/C/D）"
+                    }
+                  ]
+                }`;
+                
+                // 构建用户消息
+                const userPrompt = `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。每个问题需要4个选项，并标明正确答案。`;
+                
+                // 构建消息数组
+                const messages = [
+                    {
+                        "role": "system",
+                        "content": systemMessage
+                    },
+                    {
+                        "role": "user",
+                        "content": userPrompt
+                    }
+                ];
+                
+                // 调用DeepSeek API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ messages })
+                    body: JSON.stringify({
+                        messages: messages
+                    })
                 });
                 
-                console.log("API响应状态:", response.status, response.statusText);
-                
                 if (!response.ok) {
-                    // 尝试读取错误信息
-                    let errorText = "";
-                    try {
-                        errorText = await response.text();
-                    } catch (e) {
-                        errorText = "无法获取错误详情";
-                    }
-                    
-                    console.error("API错误响应:", errorText);
                     throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                
-                // 检查响应格式
-                if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-                    console.error("API响应格式不正确:", data);
-                    throw new Error("API响应格式不正确");
-                }
-                
-                // 从响应中获取AI回复
                 const aiResponse = data.choices[0].message.content;
                 
-                console.log("AI响应长度:", aiResponse.length);
+                console.log("Quiz AI response:", aiResponse);
                 
-                // 尝试从AI响应中提取JSON
+                // 尝试解析JSON响应
+                let quiz;
                 try {
-                    let quizData = null;
-                    
-                    // 尝试从响应中提取JSON (处理多种可能的格式)
-                    if (aiResponse.includes('```json')) {
-                        const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/);
-                        if (jsonMatch && jsonMatch[1]) {
-                            const jsonString = jsonMatch[1].trim();
-                            console.log("从代码块中提取JSON:", jsonString.substring(0, 50) + "...");
-                            quizData = JSON.parse(jsonString);
-                        }
-                    } else if (aiResponse.includes('{') && aiResponse.includes('}')) {
-                        // 尝试提取大括号之间的内容作为JSON
-                        const jsonMatch = aiResponse.match(/({[\s\S]*})/);
-                        if (jsonMatch && jsonMatch[1]) {
-                            const jsonString = jsonMatch[1].trim();
-                            console.log("从响应中提取JSON对象:", jsonString.substring(0, 50) + "...");
-                            quizData = JSON.parse(jsonString);
-                        }
-                    }
-                    
-                    // 如果以上方法都失败，尝试直接解析整个响应
-                    if (!quizData) {
-                        try {
-                            console.log("尝试直接解析整个响应");
-                            quizData = JSON.parse(aiResponse);
-                        } catch (e) {
-                            console.error("直接解析失败:", e);
-                            throw new Error("无法从AI响应中提取有效的JSON数据");
-                        }
-                    }
-                    
-                    // 验证提取的数据是否符合预期格式
-                    if (quizData && quizData.questions && Array.isArray(quizData.questions) && quizData.questions.length > 0) {
-                        console.log("成功解析测验数据, 题目数量:", quizData.questions.length);
-                        
-                        // 确保每个问题都有必要的属性
-                        quizData.questions = quizData.questions.map((q, index) => {
-                            return {
-                                id: q.id || `q${index+1}`,
-                                question: q.question || `问题 ${index+1}`,
-                                options: Array.isArray(q.options) ? q.options : [
-                                    {id: 'a', text: '选项 A'},
-                                    {id: 'b', text: '选项 B'},
-                                    {id: 'c', text: '选项 C'},
-                                    {id: 'd', text: '选项 D'}
-                                ],
-                                correctAnswer: q.correctAnswer || 'a',
-                                explanation: q.explanation || '暂无解释'
-                            };
-                        });
-                        
-                        // 渲染测验
-                        renderQuiz({
-                            title: quizData.title || `${getTopicName(topic)}测验 (${getDifficultyName(difficulty)})`,
-                            questions: quizData.questions
-                        });
+                    // 提取JSON部分 - AI可能会在JSON前后添加文本
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        quiz = JSON.parse(jsonMatch[0]);
                     } else {
-                        console.error("解析的数据不符合预期格式:", quizData);
-                        throw new Error("AI生成的测验数据格式不符合要求");
+                        throw new Error('无法从响应中提取JSON');
                     }
+                    
+                    // 验证是否有必要的字段
+                    if (!quiz.title || !quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+                        throw new Error('解析的JSON格式不正确');
+                    }
+                    
+                    // 渲染测验
+                    renderQuiz(quiz);
                 } catch (jsonError) {
-                    console.error("解析JSON失败:", jsonError);
-                    console.log("AI响应内容预览:", aiResponse.substring(0, 200));
-                    throw new Error("无法解析AI生成的测验数据: " + jsonError.message);
+                    console.error('解析AI响应时出错:', jsonError);
+                    
+                    // 如果JSON解析失败，尝试自己构建测验结构
+                    try {
+                        quiz = parseQuizFromText(aiResponse, topicName);
+                        renderQuiz(quiz);
+                    } catch (parseError) {
+                        console.error('解析测验文本失败:', parseError);
+                        quizContainer.innerHTML = `
+                            <div class="text-center text-error">
+                                <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                                <p class="small">${jsonError.message}</p>
+                                <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
+                            </div>
+                        `;
+                    }
                 }
-            } catch (apiError) {
-                console.error("API调用失败:", apiError);
-                throw new Error("与DeepSeek API通信失败: " + apiError.message);
+            } catch (error) {
+                console.error('Error generating quiz:', error);
+                quizContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                        <p class="small">${error.message}</p>
+                        <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
+                    </div>
+                `;
             }
-        } catch (error) {
-            console.error("生成测验时出错:", error);
+        });
+        
+        // 辅助函数 - 从文本中解析测验
+        function parseQuizFromText(text, topic) {
+            const lines = text.split('\n');
+            const quiz = {
+                title: `${topic}测验`,
+                questions: []
+            };
             
-            // 显示错误消息
-            quizContainer.innerHTML = `
-                <div class="error-container">
-                    <h3>生成测验时出现错误</h3>
-                    <p>${error.message}</p>
-                    <button class="btn btn-primary" id="retry-quiz">重试</button>
+            let currentQuestion = null;
+            let questionCounter = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                // 跳过空行
+                if (!line) continue;
+                
+                // 如果找到标题，使用它
+                if (i < 5 && (line.includes('测验') || line.includes('测试') || line.includes('Quiz'))) {
+                    quiz.title = line;
+                    continue;
+                }
+                
+                // 检查是否是新问题的开始 (数字+问题或问题序号)
+                const questionStartMatch = line.match(/^(\d+)[\.、\)](.+)/) || line.match(/^问题\s*(\d+)[\.、\):](.+)/);
+                if (questionStartMatch) {
+                    // 保存前一个问题
+                    if (currentQuestion && currentQuestion.options.length > 0) {
+                        quiz.questions.push(currentQuestion);
+                    }
+                    
+                    // 创建新问题
+                    questionCounter++;
+                    currentQuestion = {
+                        id: questionCounter.toString(),
+                        question: questionStartMatch[2].trim(),
+                        options: [],
+                        correctAnswer: ''
+                    };
+                    continue;
+                }
+                
+                // 如果当前处理问题，检查是否是选项
+                if (currentQuestion) {
+                    const optionMatch = line.match(/^([A-D])[\.、\):](.+)/);
+                    if (optionMatch) {
+                        const optionId = optionMatch[1];
+                        const optionText = optionMatch[2].trim();
+                        
+                        currentQuestion.options.push({
+                            id: optionId,
+                            text: optionText
+                        });
+                        
+                        // 检查选项是否标记为正确答案
+                        if (optionText.includes('(正确)') || optionText.includes('（正确）')) {
+                            currentQuestion.correctAnswer = optionId;
+                            // 移除选项文本中的正确标记
+                            currentQuestion.options[currentQuestion.options.length - 1].text = 
+                                optionText.replace(/\s*[\(（]正确[\)）]\s*/, '');
+                        }
+                        
+                        continue;
+                    }
+                    
+                    // 检查是否是答案标记
+                    const answerMatch = line.match(/正确答案[是为:：]\s*([A-D])/i) || 
+                                       line.match(/答案[是为:：]\s*([A-D])/i) ||
+                                       line.match(/^\s*答案\s*[是为:：]?\s*([A-D])/i);
+                    if (answerMatch && !currentQuestion.correctAnswer) {
+                        currentQuestion.correctAnswer = answerMatch[1];
+                    }
+                }
+            }
+            
+            // 添加最后一个问题
+            if (currentQuestion && currentQuestion.options.length > 0) {
+                quiz.questions.push(currentQuestion);
+            }
+            
+            // 如果没有找到答案的问题，默认设置为A
+            quiz.questions.forEach(q => {
+                if (!q.correctAnswer && q.options.length > 0) {
+                    q.correctAnswer = 'A';
+                }
+            });
+            
+            // 验证测验
+            if (quiz.questions.length === 0) {
+                throw new Error('无法从文本中提取问题');
+            }
+            
+            return quiz;
+        }
+        
+        // Function to render quiz
+        function renderQuiz(quiz) {
+            // Create quiz HTML
+            let quizHTML = `
+                <div class="quiz-header">
+                    <h3>${quiz.title}</h3>
+                    <p>请回答以下 ${quiz.questions.length} 个问题。</p>
                 </div>
+                <div class="quiz-questions">
             `;
             
-            // 添加重试按钮事件
-            const retryButton = document.getElementById('retry-quiz');
-            if (retryButton) {
-                retryButton.addEventListener('click', generateQuiz);
-            }
-        }
-    }
-    
-    // Function to render quiz
-    function renderQuiz(quiz) {
-        // Create quiz HTML
-        let quizHTML = `
-            <div class="quiz-header">
-                <h3>${quiz.title}</h3>
-                <p>回答以下 ${quiz.questions.length} 个问题。</p>
-            </div>
-            <div class="quiz-questions">
-        `;
-        
-        // Only show first question initially
-        const firstQuestion = quiz.questions[0];
-        
-        quizHTML += `
-            <div class="quiz-question-wrapper" data-question="${firstQuestion.id}" data-correct="${firstQuestion.correctAnswer}">
-                <div class="quiz-question">${firstQuestion.question}</div>
-                <div class="quiz-options">
-        `;
-        
-        // Add options
-        firstQuestion.options.forEach(option => {
+            // Only show first question initially
+            const firstQuestion = quiz.questions[0];
+            
             quizHTML += `
-                <div class="quiz-option" data-option="${option.id}">
-                    <label>
-                        <input type="radio" name="q-${firstQuestion.id}" value="${option.id}">
-                        <span>${option.text}</span>
-                    </label>
-                </div>
+                <div class="quiz-question-wrapper" data-question="${firstQuestion.id}" data-correct="${firstQuestion.correctAnswer}">
+                    <div class="quiz-question">${firstQuestion.question}</div>
+                    <div class="quiz-options">
             `;
-        });
-        
-        quizHTML += `
-                </div>
-                <div class="quiz-feedback" style="display: none;"></div>
-            </div>
-        `;
-        
-        // Add navigation buttons
-        quizHTML += `
-            <div class="quiz-navigation">
-                <button class="btn btn-outline quiz-prev" disabled>上一题</button>
-                <div class="quiz-progress">第 1 题，共 ${quiz.questions.length} 题</div>
-                <button class="btn btn-primary quiz-next">下一题</button>
-            </div>
-        `;
-        
-        quizHTML += `
-            </div>
-            <div class="quiz-results" style="display: none;">
-                <h3>测验结果</h3>
-                <p class="result-summary"></p>
-                <button class="btn btn-primary quiz-restart">再试一次</button>
-            </div>
-        `;
-        
-        // Set quiz HTML
-        quizContainer.innerHTML = quizHTML;
-        
-        // Store all questions in a data attribute for later use
-        quizContainer.setAttribute('data-questions', JSON.stringify(quiz.questions));
-        quizContainer.setAttribute('data-current-question', 0);
-        
-        // Add event listeners
-        setupQuizEvents();
-    }
-    
-    // Function to set up quiz event listeners
-    function setupQuizEvents() {
-        // Store quiz state
-        const questions = JSON.parse(quizContainer.getAttribute('data-questions'));
-        let currentQuestion = parseInt(quizContainer.getAttribute('data-current-question'));
-        const userAnswers = [];
-        
-        // Get elements
-        const prevBtn = quizContainer.querySelector('.quiz-prev');
-        const nextBtn = quizContainer.querySelector('.quiz-next');
-        const quizProgress = quizContainer.querySelector('.quiz-progress');
-        
-        // Option selection
-        const options = quizContainer.querySelectorAll('.quiz-option');
-        options.forEach(option => {
-            option.addEventListener('click', () => {
-                // Select radio button
-                const radio = option.querySelector('input[type="radio"]');
-                radio.checked = true;
-                
-                // Add selected class
-                options.forEach(o => o.classList.remove('selected'));
-                option.classList.add('selected');
-                
-                // Enable next button
-                nextBtn.disabled = false;
-            });
-        });
-        
-        // Previous button
-        if (prevBtn) {
-            prevBtn.addEventListener('click', () => {
-                if (currentQuestion > 0) {
-                    currentQuestion--;
-                    updateQuestion();
-                }
-            });
-        }
-        
-        // Next button
-        if (nextBtn) {
-            nextBtn.addEventListener('click', () => {
-                // Get selected option
-                const selected = quizContainer.querySelector('.quiz-option.selected');
-                if (!selected) return;
-                
-                const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
-                const questionId = questionWrapper.getAttribute('data-question');
-                const correctAnswer = questionWrapper.getAttribute('data-correct');
-                const selectedOption = selected.getAttribute('data-option');
-                
-                // Record answer
-                userAnswers[currentQuestion] = {
-                    questionId,
-                    selectedOption,
-                    isCorrect: selectedOption === correctAnswer
-                };
-                
-                // Check if this is the last question
-                if (currentQuestion < questions.length - 1) {
-                    // Move to next question
-                    currentQuestion++;
-                    updateQuestion();
-                } else {
-                    // Show results
-                    showResults();
-                }
-            });
-        }
-        
-        // Function to update question display
-        function updateQuestion() {
-            const question = questions[currentQuestion];
-            const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
             
-            // Update question
-            questionWrapper.setAttribute('data-question', question.id);
-            questionWrapper.setAttribute('data-correct', question.correctAnswer);
-            questionWrapper.querySelector('.quiz-question').textContent = question.question;
-            
-            // Update options
-            const optionsContainer = questionWrapper.querySelector('.quiz-options');
-            let optionsHTML = '';
-            
-            question.options.forEach(option => {
-                optionsHTML += `
+            // Add options
+            firstQuestion.options.forEach(option => {
+                quizHTML += `
                     <div class="quiz-option" data-option="${option.id}">
                         <label>
-                            <input type="radio" name="q-${question.id}" value="${option.id}">
+                            <input type="radio" name="q-${firstQuestion.id}" value="${option.id}">
                             <span>${option.text}</span>
                         </label>
                     </div>
                 `;
             });
             
-            optionsContainer.innerHTML = optionsHTML;
+            quizHTML += `
+                    </div>
+                    <div class="quiz-feedback" style="display: none;"></div>
+                </div>
+            `;
             
-            // Clear selection
-            const options = questionWrapper.querySelectorAll('.quiz-option');
+            // Add navigation buttons
+            quizHTML += `
+                <div class="quiz-navigation">
+                    <button class="btn btn-outline quiz-prev" disabled>上一题</button>
+                    <div class="quiz-progress">第 1 题，共 ${quiz.questions.length} 题</div>
+                    <button class="btn btn-primary quiz-next">下一题</button>
+                </div>
+            `;
+            
+            quizHTML += `
+                </div>
+                <div class="quiz-results" style="display: none;">
+                    <h3>测验结果</h3>
+                    <p class="result-summary"></p>
+                    <button class="btn btn-primary quiz-restart">再试一次</button>
+                </div>
+            `;
+            
+            // Set quiz HTML
+            quizContainer.innerHTML = quizHTML;
+            
+            // Store all questions in a data attribute for later use
+            quizContainer.setAttribute('data-questions', JSON.stringify(quiz.questions));
+            quizContainer.setAttribute('data-current-question', 0);
+            
+            // Add event listeners
+            setupQuizEvents();
+            
+            // 渲染数学公式
+            if (window.MathJax) {
+                window.MathJax.typeset();
+            }
+        }
+        
+        // Function to set up quiz event listeners
+        function setupQuizEvents() {
+            // Store quiz state
+            const questions = JSON.parse(quizContainer.getAttribute('data-questions'));
+            let currentQuestion = parseInt(quizContainer.getAttribute('data-current-question'));
+            const userAnswers = [];
+            
+            // Get elements
+            const prevBtn = quizContainer.querySelector('.quiz-prev');
+            const nextBtn = quizContainer.querySelector('.quiz-next');
+            const quizProgress = quizContainer.querySelector('.quiz-progress');
+            
+            // Option selection
+            const options = quizContainer.querySelectorAll('.quiz-option');
             options.forEach(option => {
                 option.addEventListener('click', () => {
+                    // Select radio button
                     const radio = option.querySelector('input[type="radio"]');
                     radio.checked = true;
                     
+                    // Add selected class
                     options.forEach(o => o.classList.remove('selected'));
                     option.classList.add('selected');
                     
+                    // Enable next button
                     nextBtn.disabled = false;
                 });
             });
             
-            // Check if the question was already answered
-            if (userAnswers[currentQuestion]) {
-                const selectedOption = questionWrapper.querySelector(`.quiz-option[data-option="${userAnswers[currentQuestion].selectedOption}"]`);
-                if (selectedOption) {
-                    selectedOption.classList.add('selected');
-                    selectedOption.querySelector('input[type="radio"]').checked = true;
-                    nextBtn.disabled = false;
-                }
-            } else {
-                nextBtn.disabled = true;
+            // Previous button
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (currentQuestion > 0) {
+                        currentQuestion--;
+                        updateQuestion();
+                    }
+                });
             }
             
-            // Update navigation
-            prevBtn.disabled = currentQuestion === 0;
-            nextBtn.textContent = currentQuestion === questions.length - 1 ? '完成' : '下一题';
-            quizProgress.textContent = `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`;
+            // Next button
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    // Get selected option
+                    const selected = quizContainer.querySelector('.quiz-option.selected');
+                    if (!selected) return;
+                    
+                    const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
+                    const questionId = questionWrapper.getAttribute('data-question');
+                    const correctAnswer = questionWrapper.getAttribute('data-correct');
+                    const selectedOption = selected.getAttribute('data-option');
+                    
+                    // Record answer
+                    userAnswers[currentQuestion] = {
+                        questionId,
+                        selectedOption,
+                        isCorrect: selectedOption === correctAnswer
+                    };
+                    
+                    // Check if this is the last question
+                    if (currentQuestion < questions.length - 1) {
+                        // Move to next question
+                        currentQuestion++;
+                        updateQuestion();
+                    } else {
+                        // Show results
+                        showResults();
+                    }
+                });
+            }
             
-            // Reset feedback
-            const feedback = questionWrapper.querySelector('.quiz-feedback');
-            feedback.style.display = 'none';
-            feedback.innerHTML = '';
-            
-            // Update current question in data attribute
-            quizContainer.setAttribute('data-current-question', currentQuestion);
-        }
-        
-        // Function to show results
-        function showResults() {
-            // Calculate score
-            const totalQuestions = questions.length;
-            const correctAnswers = userAnswers.filter(a => a && a.isCorrect).length;
-            const score = Math.round((correctAnswers / totalQuestions) * 100);
-            
-            // Hide questions
-            quizContainer.querySelector('.quiz-questions').style.display = 'none';
-            
-            // Show results
-            const resultsDiv = quizContainer.querySelector('.quiz-results');
-            resultsDiv.style.display = 'block';
-            
-            // Update result summary
-            const resultSummary = resultsDiv.querySelector('.result-summary');
-            resultSummary.innerHTML = `
-                <div class="score-display">
-                    <div class="score-circle ${score >= 70 ? 'score-passing' : 'score-failing'}">
-                        <span class="score-number">${score}%</span>
-                    </div>
-                    <p>你答对了 ${correctAnswers} 题，共 ${totalQuestions} 题</p>
-                </div>
-                <div class="results-breakdown">
-                    <h4>答题详情</h4>
-                    <div class="results-questions">
-            `;
-            
-            // Add question breakdown
-            questions.forEach((question, index) => {
-                const userAnswer = userAnswers[index] || { selectedOption: '未作答', isCorrect: false };
+            // Function to update question display
+            function updateQuestion() {
+                const question = questions[currentQuestion];
+                const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
                 
-                resultSummary.querySelector('.results-questions').innerHTML += `
-                    <div class="result-question ${userAnswer.isCorrect ? 'correct' : 'incorrect'}">
-                        <div class="result-question-header">
-                            <span class="result-question-number">问题 ${index + 1}</span>
-                            <span class="result-status">${userAnswer.isCorrect ? '正确 ✓' : '错误 ✗'}</span>
-                        </div>
-                        <div class="result-question-content">
-                            <p>${question.question}</p>
-                            <p class="result-answer"><strong>你的答案:</strong> ${userAnswer.selectedOption === '未作答' ? '未作答' : question.options.find(o => o.id === userAnswer.selectedOption)?.text || '未知选项'}</p>
-                            <p class="result-correct-answer ${userAnswer.isCorrect ? 'hidden' : ''}"><strong>正确答案:</strong> ${question.options.find(o => o.id === question.correctAnswer)?.text || '未知选项'}</p>
-                            <p class="result-explanation"><strong>解释:</strong> ${question.explanation || '暂无解释'}</p>
-                        </div>
+                // Update question
+                questionWrapper.setAttribute('data-question', question.id);
+                questionWrapper.setAttribute('data-correct', question.correctAnswer);
+                questionWrapper.querySelector('.quiz-question').textContent = question.question;
+                
+                // Update options
+                const optionsContainer = questionWrapper.querySelector('.quiz-options');
+                optionsContainer.innerHTML = '';
+                
+                question.options.forEach(option => {
+                    const optionElement = document.createElement('div');
+                    optionElement.className = 'quiz-option';
+                    optionElement.setAttribute('data-option', option.id);
+                    
+                    // Check if user already answered this question
+                    if (userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id) {
+                        optionElement.classList.add('selected');
+                    }
+                    
+                    optionElement.innerHTML = `
+                        <label>
+                            <input type="radio" name="q-${question.id}" value="${option.id}" ${userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id ? 'checked' : ''}>
+                            <span>${option.text}</span>
+                        </label>
+                    `;
+                    optionsContainer.appendChild(optionElement);
+                    
+                    // Add event listener
+                    optionElement.addEventListener('click', () => {
+                        // Select radio button
+                        const radio = optionElement.querySelector('input[type="radio"]');
+                        radio.checked = true;
+                        
+                        // Add selected class
+                        optionsContainer.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
+                        optionElement.classList.add('selected');
+                        
+                        // Enable next button
+                        nextBtn.disabled = false;
+                    });
+                });
+                
+                // Update feedback display
+                const feedbackEl = questionWrapper.querySelector('.quiz-feedback');
+                feedbackEl.style.display = 'none';
+                
+                // Update navigation
+                prevBtn.disabled = currentQuestion === 0;
+                nextBtn.disabled = !userAnswers[currentQuestion];
+                quizProgress.textContent = `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`;
+                
+                // Update quiz container data attribute
+                quizContainer.setAttribute('data-current-question', currentQuestion);
+                
+                // If last question, change next button text
+                if (currentQuestion === questions.length - 1) {
+                    nextBtn.textContent = '完成测验';
+                } else {
+                    nextBtn.textContent = '下一题';
+                }
+                
+                // 渲染数学公式
+                if (window.MathJax) {
+                    window.MathJax.typeset();
+                }
+            }
+            
+            // Function to show results
+            function showResults() {
+                // Calculate score
+                const correct = userAnswers.filter(a => a.isCorrect).length;
+                const total = questions.length;
+                const percentage = Math.round((correct / total) * 100);
+                
+                // Update results
+                const resultsDiv = quizContainer.querySelector('.quiz-results');
+                const resultSummary = resultsDiv.querySelector('.result-summary');
+                
+                resultSummary.innerHTML = `
+                    <div class="result-score">${correct} 题正确，共 ${total} 题 (${percentage}%)</div>
+                    <div class="result-message">
+                        ${percentage >= 80 ? '非常好！' : percentage >= 60 ? '做得好！' : '继续努力！'}
                     </div>
                 `;
-            });
-            
-            // Add restart button listener
-            const restartBtn = resultsDiv.querySelector('.quiz-restart');
-            if (restartBtn) {
+                
+                // Hide questions, show results
+                quizContainer.querySelector('.quiz-questions').style.display = 'none';
+                resultsDiv.style.display = 'block';
+                
+                // Add restart button listener
+                const restartBtn = resultsDiv.querySelector('.quiz-restart');
                 restartBtn.addEventListener('click', () => {
-                    initQuizGenerator();
+                    // Reset quiz state
+                    quizContainer.querySelector('.quiz-questions').style.display = 'block';
+                    resultsDiv.style.display = 'none';
+                    
+                    // Clear user answers
+                    for (let i = 0; i < userAnswers.length; i++) {
+                        userAnswers[i] = undefined;
+                    }
+                    
+                    // Reset to first question
+                    currentQuestion = 0;
+                    updateQuestion();
                 });
             }
         }
@@ -1077,38 +1112,5 @@ function initMathVisualizer() {
                 }
             });
         }
-    }
-}
-
-// 辅助函数 - 获取主题名称（中文）
-function getTopicName(topic) {
-    switch(topic) {
-        case 'algebra': return '代数';
-        case 'geometry': return '几何';
-        case 'calculus': return '微积分';
-        case 'statistics': return '统计学';
-        case 'arithmetic': return '算术';
-        case 'trigonometry': return '三角学';
-        default: return topic;
-    }
-}
-
-// 辅助函数 - 获取难度名称（中文）
-function getDifficultyName(difficulty) {
-    switch(difficulty) {
-        case 'easy': return '简单';
-        case 'medium': return '中等';
-        case 'hard': return '困难';
-        default: return difficulty;
-    }
-}
-
-// 辅助函数 - 获取教育水平名称（中文）
-function getEducationLevelName(level) {
-    switch(level) {
-        case 'elementary-school': return '小学';
-        case 'middle-school': return '初中';
-        case 'high-school': return '高中';
-        default: return '初中';
     }
 } 
