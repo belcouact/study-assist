@@ -1,5 +1,34 @@
 // Handle chat requests to DeepSeek API
-export async function onRequestPost(context) {
+export async function onRequest(context) {
+  // 支持OPTIONS请求（CORS预检）
+  if (context.request.method === "OPTIONS") {
+    return handleOptions();
+  }
+  
+  // 处理POST请求
+  if (context.request.method === "POST") {
+    return handlePost(context);
+  }
+  
+  // 其他请求方法不支持
+  return new Response("Method not allowed", { status: 405 });
+}
+
+// 处理OPTIONS请求（用于CORS预检）
+function handleOptions() {
+  return new Response(null, {
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
+// 处理POST请求
+async function handlePost(context) {
   try {
     const { request, env } = context;
     
@@ -14,7 +43,10 @@ export async function onRequestPost(context) {
         ]
       }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*" 
+        }
       });
     }
     
@@ -32,12 +64,15 @@ export async function onRequestPost(context) {
         ]
       }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*" 
+        }
       });
     }
     
     // Forward request to DeepSeek API
-    const apiBaseUrl = env.API_BASE_URL;
+    const apiBaseUrl = env.API_BASE_URL || "https://api.deepseek.com";
     
     // Check if the API_BASE_URL already includes the endpoint path
     let apiUrl;
@@ -63,8 +98,7 @@ export async function onRequestPost(context) {
           "Authorization": `Bearer ${apiKey}`
         },
         body: JSON.stringify({
-          //model: "deepseek-chat",
-          model: env.MODEL,
+          model: env.MODEL || "deepseek-chat",
           messages: body.messages,
           max_tokens: parseInt(env.MAX_TOKENS || "4096"),
           temperature: parseFloat(env.TEMPERATURE || "0.7")
@@ -72,9 +106,6 @@ export async function onRequestPost(context) {
         signal: controller.signal
       });
       
-      console.log(`base url: ${apiUrl}`);
-      console.log(`base url: ${env.MODEL}`);
-
       // Clear the timeout
       clearTimeout(timeoutId);
       
@@ -101,7 +132,10 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: 502,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*" 
+            }
           });
         }
         
@@ -120,7 +154,10 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: response.status,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*" 
+            }
           });
         } catch (e) {
           // If can't parse as JSON, return text
@@ -137,7 +174,10 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: response.status,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*" 
+            }
           });
         }
       }
@@ -149,7 +189,8 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
           }
         });
       } catch (e) {
@@ -168,7 +209,8 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
           }
         });
       }
@@ -192,7 +234,8 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*"
           }
         });
       }
@@ -211,7 +254,8 @@ export async function onRequestPost(context) {
         headers: { 
           "Content-Type": "application/json; charset=utf-8",
           "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store"
+          "Cache-Control": "no-store",
+          "Access-Control-Allow-Origin": "*"
         }
       });
     }
@@ -230,21 +274,9 @@ export async function onRequestPost(context) {
       headers: { 
         "Content-Type": "application/json; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store"
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*"
       }
     });
   }
-}
-
-// Handle OPTIONS requests for CORS
-export function onRequestOptions() {
-  return new Response(null, {
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store"
-    }
-  });
 } 

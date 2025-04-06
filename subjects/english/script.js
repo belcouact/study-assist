@@ -12,6 +12,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initWritingAssistant();
 });
 
+// 获取API端点URL
+function getApiUrl() {
+    // 使用相对路径在Cloudflare Pages环境中工作
+    return '/api/chat';
+}
+
 /**
  * Initialize topic cards
  */
@@ -116,7 +122,7 @@ function initEnglishAssistant() {
                     ];
                     
                     // Make API request
-                    const response = await fetch('/functions/api/chat', {
+                    const response = await fetch(getApiUrl(), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -212,7 +218,7 @@ function initVocabBuilder() {
                 ];
                 
                 // Make API request
-                const response = await fetch('/functions/api/chat', {
+                const response = await fetch(getApiUrl(), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -310,7 +316,7 @@ function initPoetryAnalysis() {
                 ];
                 
                 // Make API request
-                const response = await fetch('/functions/api/chat', {
+                const response = await fetch(getApiUrl(), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -404,7 +410,7 @@ function initWritingAssistant() {
                     ];
                     
                     // Make API request
-                    const response = await fetch('/functions/api/chat', {
+                    const response = await fetch(getApiUrl(), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
