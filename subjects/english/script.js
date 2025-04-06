@@ -326,10 +326,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             // 构建系统消息
-            const systemMessage = `你是一个专业的英语写作分析助手。请分析以下${getWritingTypeName(writingType)}写作文本，并专注于${getFocusAreaName(focusArea)}方面的分析。提供清晰、有建设性的反馈，包括优点和可以改进的地方。根据用户的教育水平(${getEducationLevelName(educationLevel)})调整反馈的复杂度。`;
+            const systemMessage = `你是一个专业的英语写作分析助手。请分析以下${getWritingTypeName(writingType)}写作文本，并专注于${getFocusAreaName(focusArea)}方面的分析。提供清晰、有建设性的反馈，包括优点和可以改进的地方。
+            作为专业的英语教师，请提供改进后的完整文本版本，确保修正所有错误并提升整体质量。
+            根据用户的教育水平(${getEducationLevelName(educationLevel)})调整反馈的复杂度。`;
             
             // 构建用户消息
-            const userPrompt = `请分析这段${getWritingTypeName(writingType)}写作，重点关注${getFocusAreaName(focusArea)}：\n\n${writingInput}`;
+            const userPrompt = `请分析这段${getWritingTypeName(writingType)}写作，重点关注${getFocusAreaName(focusArea)}：\n\n${writingInput}\n\n请提供详细的反馈，包括优点和改进建议，并提供一个改进后的完整版本。`;
             
             // 构建消息数组
             const messages = [
@@ -361,6 +363,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             const aiResponse = data.choices[0].message.content;
             
+            console.log("Writing analysis response:", aiResponse);
+            
             // 处理并显示分析结果
             let feedbackHtml = '<div class="writing-analysis">';
             feedbackHtml += '<h3>写作分析</h3>';
@@ -373,7 +377,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const detailedSuggestionsBtn = document.getElementById('detailed-suggestions');
             if (detailedSuggestionsBtn) {
                 detailedSuggestionsBtn.addEventListener('click', function() {
-                    alert('详细分析已经提供。如需更多帮助，请在聊天框中提问。');
+                    const correctedTextEl = document.getElementById('corrected-text-container');
+                    if (correctedTextEl) {
+                        correctedTextEl.style.display = correctedTextEl.style.display === 'none' ? 'block' : 'none';
+                        this.textContent = correctedTextEl.style.display === 'none' ? '查看修改后文本' : '隐藏修改后文本';
+                    } else {
+                        alert('详细分析已经提供。如需更多帮助，请在聊天框中提问。');
+                    }
                 });
             }
             
@@ -381,6 +391,173 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Error analyzing writing:", error);
             writingFeedback.innerHTML = '<p class="error">分析过程中出现错误: ' + error.message + '</p>';
         }
+    }
+    
+    // 辅助函数 - 格式化写作反馈
+    function formatWritingFeedback(response, originalText) {
+        console.log("Formatting writing feedback:", response);
+        
+        // 简单实现 - 在实际应用中可以更复杂地解析AI响应
+        let html = '';
+        
+        // 尝试提取修改后的文本
+        let correctedText = '';
+        const correctedTextIndicators = [
+            '修改后的文本', '改进后的文本', '修改版本', '修正后的文本', 
+            '修改建议', '改进版本', 'Corrected Version', 'Improved Version',
+            '修改后:', '改进后:', '修正后:'
+        ];
+        
+        for (const indicator of correctedTextIndicators) {
+            const idx = response.indexOf(indicator);
+            if (idx !== -1) {
+                // 找到指示词后的文本
+                const textAfter = response.substring(idx + indicator.length);
+                // 找到下一个标题或分段
+                const nextSectionMatch = textAfter.match(/\n\s*#|\n\s*\*\*|\n\s*优点|\n\s*优势|\n\s*改进|\n\s*conclusion/i);
+                
+                if (nextSectionMatch) {
+                    correctedText = textAfter.substring(0, nextSectionMatch.index).trim();
+                } else {
+                    // 如果没有找到明确的下一节，就使用剩余的文本
+                    correctedText = textAfter.trim();
+                }
+                
+                // 清理一下可能的冒号
+                correctedText = correctedText.replace(/^[:：]\s*/, '').trim();
+                
+                // 如果提取到了内容，就跳出循环
+                if (correctedText) break;
+            }
+        }
+        
+        // 如果没有找到明确的修改后文本部分，尝试提取引用块或代码块
+        if (!correctedText) {
+            const blockMatch = response.match(/```(.+?)```|~~~(.+?)~~~|>(.+?)(?:\n\n|\n$)/s);
+            if (blockMatch) {
+                correctedText = (blockMatch[1] || blockMatch[2] || blockMatch[3]).trim();
+            }
+        }
+        
+        console.log("Extracted corrected text:", correctedText);
+        
+        // 尝试从响应中提取部分
+        const sections = response.split(/\n\n+/);
+        
+        // 整体评估 - 使用第一段
+        let overallAssessment = sections[0] || '';
+        
+        // 如果第一段很短，可能是标题，使用第二段
+        if (overallAssessment.length < 20 && sections.length > 1) {
+            overallAssessment = sections[1];
+        }
+        
+        html += `
+            <div class="feedback-section">
+                <h4>整体评估</h4>
+                <div class="feedback-meter">
+                    <div class="meter-fill" style="width: 75%"></div>
+                </div>
+                <p>${overallAssessment}</p>
+            </div>
+        `;
+        
+        // 提取优势和改进领域
+        const strengthsKeywords = ['优点', '优势', '长处', 'Strengths', 'Positive Aspects'];
+        const improvementsKeywords = ['改进', '不足', '缺点', '弱点', 'Improvements', 'Areas for Improvement'];
+        
+        let strengthsIdx = -1;
+        let improvementsIdx = -1;
+        
+        // 寻找优势部分
+        for (const keyword of strengthsKeywords) {
+            const idx = response.indexOf(keyword);
+            if (idx !== -1) {
+                strengthsIdx = idx;
+                break;
+            }
+        }
+        
+        // 寻找改进部分
+        for (const keyword of improvementsKeywords) {
+            const idx = response.indexOf(keyword);
+            if (idx !== -1) {
+                improvementsIdx = idx;
+                break;
+            }
+        }
+        
+        if (strengthsIdx !== -1) {
+            const endIdx = improvementsIdx !== -1 ? improvementsIdx : response.length;
+            const strengthsText = response.substring(strengthsIdx, endIdx);
+            const strengthsList = extractListItems(strengthsText);
+            
+            html += `
+                <div class="feedback-section">
+                    <h4>优势</h4>
+                    <ul>
+                        ${strengthsList.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (improvementsIdx !== -1) {
+            const startIdx = improvementsIdx;
+            let endIdx = response.length;
+            
+            // 寻找修改后的文本部分的开始，作为改进部分的结束
+            for (const indicator of correctedTextIndicators) {
+                const idx = response.indexOf(indicator);
+                if (idx !== -1 && idx > improvementsIdx && idx < endIdx) {
+                    endIdx = idx;
+                    break;
+                }
+            }
+            
+            const improvementsText = response.substring(startIdx, endIdx);
+            const improvementsList = extractListItems(improvementsText);
+            
+            html += `
+                <div class="feedback-section">
+                    <h4>改进领域</h4>
+                    <ul>
+                        ${improvementsList.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // 原文高亮
+        html += `
+            <div class="feedback-section">
+                <h4>原文</h4>
+                <div class="highlighted-text">
+                    ${originalText.replace(/\n/g, '<br>')}
+                </div>
+            </div>
+        `;
+        
+        // 修改后的文本，默认隐藏
+        if (correctedText) {
+            html += `
+                <div class="feedback-section">
+                    <button class="btn btn-primary" id="detailed-suggestions">查看修改后文本</button>
+                    <div id="corrected-text-container" style="display: none; margin-top: 15px;">
+                        <h4>修改后的文本</h4>
+                        <div class="corrected-text highlighted-text">
+                            ${correctedText.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <button class="btn btn-primary" id="detailed-suggestions">获取详细建议</button>
+            `;
+        }
+        
+        return html;
     }
     
     // 加载诗歌功能
@@ -515,135 +692,196 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 辅助函数 - 格式化写作反馈
-    function formatWritingFeedback(response, originalText) {
-        // 简单实现 - 在实际应用中可以更复杂地解析AI响应
-        let html = '';
-        
-        // 尝试从响应中提取部分
-        const sections = response.split('\n\n');
-        
-        // 整体评估
-        html += `
-            <div class="feedback-section">
-                <h4>整体评估</h4>
-                <div class="feedback-meter">
-                    <div class="meter-fill" style="width: 75%"></div>
-                </div>
-                <p>${sections[0] || response.substring(0, 150)}</p>
-            </div>
-        `;
-        
-        // 提取优势和改进领域 (如果存在)
-        const strengthsIdx = response.indexOf('优势') !== -1 ? response.indexOf('优势') : response.indexOf('Strengths');
-        const improvementsIdx = response.indexOf('改进') !== -1 ? response.indexOf('改进') : response.indexOf('Improvements');
-        
-        if (strengthsIdx !== -1) {
-            const strengthsText = response.substring(strengthsIdx, improvementsIdx !== -1 ? improvementsIdx : response.length);
-            const strengthsList = extractListItems(strengthsText);
-            
-            html += `
-                <div class="feedback-section">
-                    <h4>优势</h4>
-                    <ul>
-                        ${strengthsList.map(item => `<li>${item}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-        
-        if (improvementsIdx !== -1) {
-            const improvementsText = response.substring(improvementsIdx);
-            const improvementsList = extractListItems(improvementsText);
-            
-            html += `
-                <div class="feedback-section">
-                    <h4>改进领域</h4>
-                    <ul>
-                        ${improvementsList.map(item => `<li>${item}</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-        }
-        
-        // 原文高亮
-        html += `
-            <div class="feedback-section">
-                <h4>高亮文本</h4>
-                <div class="highlighted-text">
-                    ${originalText.replace(/\n/g, '<br>')}
-                </div>
-            </div>
-            
-            <button class="btn btn-primary" id="detailed-suggestions">获取详细建议</button>
-        `;
-        
-        return html;
-    }
-    
     // 辅助函数 - 格式化诗歌响应
     function formatPoemResponse(response) {
-        // 简单实现 - 在实际应用中可以更复杂地解析AI响应
+        console.log("Formatting poem response:", response);
         
         // 尝试提取诗歌标题和正文
-        const titleMatch = response.match(/["'](.+?)["']|#+\s*(.+?)\n/);
+        const titleMatch = response.match(/["'](.+?)["']|[#]+\s*(.+?)[\n\r]/);
         const title = titleMatch ? (titleMatch[1] || titleMatch[2]) : '诗歌';
+        console.log("Extracted title:", title);
         
-        // 尝试提取诗歌正文 - 寻找缩进或引用块
-        let poemText = '';
-        const lines = response.split('\n');
-        let inPoem = false;
+        // 尝试提取诗歌正文 - 多种可能的格式
         let poemLines = [];
+        let foundPoem = false;
         
+        const lines = response.split(/\n/);
+        
+        // 尝试方法1: 寻找引用块或缩进
+        let inPoem = false;
         for (const line of lines) {
-            if (line.trim().startsWith('>') || line.trim().startsWith('    ') || line.includes('　　')) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('>') || trimmed.startsWith('    ') || trimmed.includes('　　')) {
                 inPoem = true;
+                foundPoem = true;
                 poemLines.push(line.replace(/^>\s*|^    /, ''));
-            } else if (inPoem && line.trim() === '') {
+            } else if (inPoem && trimmed === '') {
                 poemLines.push('');
-            } else if (inPoem) {
+            } else if (inPoem && trimmed) {
                 inPoem = false;
-                break;
             }
         }
         
-        // 如果没有找到明确格式的诗歌，尝试查找第一个空行前的内容
-        if (poemLines.length === 0) {
-            const firstEmptyLineIdx = lines.findIndex(line => line.trim() === '');
-            if (firstEmptyLineIdx > 0) {
-                poemLines = lines.slice(0, firstEmptyLineIdx);
-            } else {
-                // 作为后备，使用响应的前几行
-                poemLines = lines.slice(0, Math.min(10, lines.length));
+        // 尝试方法2: 寻找代码块
+        if (!foundPoem) {
+            let inCodeBlock = false;
+            for (const line of lines) {
+                if (line.trim().startsWith('```') || line.trim().startsWith('~~~')) {
+                    inCodeBlock = !inCodeBlock;
+                    foundPoem = true;
+                    continue;
+                }
+                if (inCodeBlock) {
+                    poemLines.push(line);
+                }
             }
         }
         
-        poemText = poemLines.join('\n');
+        // 尝试方法3: 在标题之后和第一个空行之前的内容
+        if (!foundPoem && titleMatch) {
+            let titleIndex = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes(title)) {
+                    titleIndex = i;
+                    break;
+                }
+            }
+            
+            if (titleIndex >= 0) {
+                let i = titleIndex + 1;
+                while (i < lines.length && lines[i].trim() === '') i++; // 跳过空行
+                
+                // 收集诗歌行，直到遇到空行+非空行的模式（可能是分析的开始）
+                for (; i < lines.length; i++) {
+                    if (lines[i].trim() === '') {
+                        // 检查下一行是否是分析的开始
+                        if (i + 1 < lines.length && 
+                            (lines[i+1].includes('分析') || 
+                             lines[i+1].includes('解析') || 
+                             lines[i+1].includes('解读') ||
+                             lines[i+1].includes('主题') ||
+                             lines[i+1].includes('作者'))) {
+                            break;
+                        }
+                    }
+                    poemLines.push(lines[i]);
+                }
+                
+                if (poemLines.length > 0) foundPoem = true;
+            }
+        }
+        
+        // 尝试方法4: 找到第一个空行和第二个空行之间的内容
+        if (!foundPoem) {
+            let firstEmptyLine = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].trim() === '') {
+                    firstEmptyLine = i;
+                    break;
+                }
+            }
+            
+            if (firstEmptyLine > 0) {
+                let secondEmptyLine = -1;
+                for (let i = firstEmptyLine + 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') {
+                        secondEmptyLine = i;
+                        break;
+                    }
+                }
+                
+                if (secondEmptyLine > firstEmptyLine) {
+                    poemLines = lines.slice(firstEmptyLine + 1, secondEmptyLine);
+                    if (poemLines.length > 0) foundPoem = true;
+                }
+            }
+        }
+        
+        // 后备方法: 使用响应的前几行
+        if (!foundPoem || poemLines.length === 0) {
+            // 找到第一个非空行开始
+            let startLine = 0;
+            while (startLine < lines.length && lines[startLine].trim() === '') startLine++;
+            
+            // 找到第一个可能的"分析"或"解析"关键词位置
+            let endLine = lines.length;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].includes('分析') || lines[i].includes('解析') || lines[i].includes('解读') || lines[i].includes('主题')) {
+                    endLine = i;
+                    break;
+                }
+            }
+            
+            // 如果没有找到分析开始，使用前10行或前1/3的内容
+            if (endLine === lines.length) {
+                endLine = Math.min(startLine + 10, Math.floor(lines.length / 3));
+            }
+            
+            poemLines = lines.slice(startLine, endLine);
+        }
+        
+        // 清理诗歌行：移除行首的数字序号、移除markdown标记等
+        poemLines = poemLines.map(line => {
+            // 移除行号
+            return line.replace(/^\d+[\.\)]?\s*/, '')
+                       .replace(/^\*\*|\*\*$/g, '') // 移除粗体标记
+                       .replace(/^_|_$/g, '');      // 移除斜体标记
+        });
+        
+        // 移除空行
+        while (poemLines.length > 0 && poemLines[0].trim() === '') poemLines.shift();
+        while (poemLines.length > 0 && poemLines[poemLines.length - 1].trim() === '') poemLines.pop();
+        
+        const poemText = poemLines.join('\n');
+        console.log("Extracted poem text:", poemText);
         
         // 分析部分
-        const analysisIdx = response.indexOf('分析');
-        const analysisText = analysisIdx !== -1 ? 
-            response.substring(analysisIdx) : 
-            response.substring(poemText.length + title.length + 10); // 估计位置
+        let analysisText = '';
+        const analysisKeywords = ['分析', '解析', '解读', '鉴赏', '主题'];
+        
+        // 查找分析部分的开始
+        let analysisStartIdx = -1;
+        for (let i = 0; i < lines.length; i++) {
+            for (const keyword of analysisKeywords) {
+                if (lines[i].includes(keyword)) {
+                    analysisStartIdx = i;
+                    break;
+                }
+            }
+            if (analysisStartIdx >= 0) break;
+        }
+        
+        if (analysisStartIdx >= 0) {
+            analysisText = lines.slice(analysisStartIdx).join('\n');
+        } else {
+            // 如果没有找到明确的分析部分，假设诗歌后面的内容都是分析
+            const poemEndIdx = lines.findIndex(line => line.includes(poemLines[poemLines.length - 1]));
+            if (poemEndIdx >= 0 && poemEndIdx < lines.length - 1) {
+                analysisText = lines.slice(poemEndIdx + 1).join('\n');
+            } else {
+                // 后备方案，使用响应的后半部分作为分析
+                analysisText = response.substring(Math.floor(response.length / 2));
+            }
+        }
         
         let html = `
             <div class="poem-text">
                 <h3>"${title}"</h3>
-                <pre>${poemText}</pre>
+                <pre>${poemText || '诗歌加载中...'}</pre>
             </div>
             <div class="poem-breakdown">
                 <h4>分析</h4>
-                <p>${analysisText.split('\n\n')[0] || analysisText.substring(0, 200)}</p>
+                <p>${analysisText.split('\n\n')[0] || analysisText.substring(0, 200) || '分析加载中...'}</p>
         `;
         
         // 尝试提取文学手法和主题
         const techniquesIdx = analysisText.indexOf('手法') !== -1 ? 
             analysisText.indexOf('手法') : 
-            analysisText.indexOf('Techniques');
+            analysisText.indexOf('技巧');
             
         const themesIdx = analysisText.indexOf('主题') !== -1 ? 
             analysisText.indexOf('主题') : 
-            analysisText.indexOf('Themes');
+            (analysisText.indexOf('内容') !== -1 ? analysisText.indexOf('内容') : -1);
         
         if (techniquesIdx !== -1) {
             const techniquesText = analysisText.substring(techniquesIdx, themesIdx !== -1 ? themesIdx : analysisText.length);
@@ -677,6 +915,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatVocabularyResponse(response, level, category) {
         // 提取单词列表
         const words = extractWords(response);
+        console.log("Extracted words:", words);
         
         let levelName, categoryName;
         
@@ -704,8 +943,8 @@ document.addEventListener('DOMContentLoaded', function() {
             html += `
                 <div class="vocab-card">
                     <h4>${word.word}</h4>
-                    <p class="definition"><strong>定义:</strong> ${word.definition}</p>
-                    <p class="example"><strong>示例:</strong> <em>${word.example}</em></p>
+                    <p class="definition"><strong>定义:</strong> ${word.definition || '无定义'}</p>
+                    <p class="example"><strong>示例:</strong> <em>${word.example || '无示例'}</em></p>
                     <button class="btn btn-small btn-secondary save-word">保存到我的列表</button>
                 </div>
             `;
@@ -745,55 +984,93 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 辅助函数 - 从响应中提取单词
     function extractWords(response) {
+        console.log("Extracting words from response:", response);
+        
         // 这是一个简化的实现，实际应用中可能需要更复杂的解析
         const lines = response.split('\n');
         const words = [];
         let currentWord = null;
         
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
             const trimmed = line.trim();
             
-            // 新单词（数字+点 或 粗体文本 开头）
-            if (trimmed.match(/^\d+\.\s+\*\*(.+?)\*\*/) || trimmed.match(/^\d+\.\s+(.+?)[\s:：]/)) {
-                if (currentWord) words.push(currentWord);
+            // 跳过空行
+            if (trimmed === '') {
+                if (currentWord) {
+                    words.push(currentWord);
+                    currentWord = null;
+                }
+                continue;
+            }
+            
+            // 检查是否是新单词的开始 (数字序号开头)
+            const wordStartMatch = trimmed.match(/^\d+[\.\)]?\s+(.+?)(?:：|:|\s-|\s–|$)/);
+            if (wordStartMatch) {
+                // 保存前一个单词
+                if (currentWord) {
+                    words.push(currentWord);
+                }
                 
-                const wordMatch = trimmed.match(/^\d+\.\s+\*\*(.+?)\*\*/) || trimmed.match(/^\d+\.\s+(.+?)[\s:：]/);
-                const word = wordMatch ? wordMatch[1] : trimmed.split(/[\s:：]/)[0];
+                // 提取单词
+                const wordText = wordStartMatch[1].replace(/\*\*/g, '').trim();
                 
                 currentWord = {
-                    word: word,
+                    word: wordText,
                     definition: '',
                     example: ''
                 };
                 
-                // 尝试从同一行提取定义
-                const defMatch = trimmed.match(/[定义释意]*[:：]\s*(.+)/);
-                if (defMatch) {
-                    currentWord.definition = defMatch[1];
-                }
-            } 
-            // 定义行
-            else if (currentWord && (trimmed.includes('定义') || trimmed.includes('释义') || trimmed.match(/^[\-\*•]?\s*[定义释意]*[:：]/))) {
-                const defMatch = trimmed.match(/[定义释意]*[:：]\s*(.+)/);
-                if (defMatch) {
-                    currentWord.definition = defMatch[1];
+                // 检查本行是否包含定义或例句
+                const remainingText = trimmed.substring(wordStartMatch[0].length).trim();
+                if (remainingText) {
+                    // 可能包含定义
+                    if (remainingText.includes('定义') || remainingText.includes('：') || remainingText.includes(':')) {
+                        const defMatch = remainingText.match(/(?:定义|释义)?(?:：|:)\s*(.+)/);
+                        if (defMatch) {
+                            currentWord.definition = defMatch[1].trim();
+                        } else {
+                            currentWord.definition = remainingText.trim();
+                        }
+                    }
                 } else {
-                    currentWord.definition = trimmed.replace(/^[\-\*•]?\s*/, '');
+                    // 查看下一行是否包含定义
+                    if (i + 1 < lines.length) {
+                        const nextLine = lines[i + 1].trim();
+                        if (nextLine.includes('定义') || nextLine.includes('释义')) {
+                            const defMatch = nextLine.match(/(?:定义|释义)(?:：|:)\s*(.+)/);
+                            if (defMatch) {
+                                currentWord.definition = defMatch[1].trim();
+                                i++; // 跳过下一行，因为已经处理了
+                            }
+                        }
+                    }
                 }
-            } 
-            // 例句行
-            else if (currentWord && (trimmed.includes('例句') || trimmed.includes('示例') || trimmed.match(/^[\-\*•]?\s*[例句示例]*[:：]/))) {
-                const exampleMatch = trimmed.match(/[例句示例]*[:：]\s*(.+)/);
-                if (exampleMatch) {
-                    currentWord.example = exampleMatch[1];
-                } else {
-                    currentWord.example = trimmed.replace(/^[\-\*•]?\s*/, '');
+                
+                // 继续查找例句
+                for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+                    const checkLine = lines[j].trim();
+                    if (checkLine.startsWith('例句') || checkLine.includes('例子') || checkLine.includes('示例')) {
+                        const exampleMatch = checkLine.match(/(?:例句|例子|示例)(?:：|:)\s*(.+)/);
+                        if (exampleMatch) {
+                            currentWord.example = exampleMatch[1].trim();
+                            i = j; // 更新循环索引
+                            break;
+                        }
+                    } else if (checkLine.match(/^\d+[\.\)]/) || checkLine === '') {
+                        // 如果遇到下一个单词或空行，停止寻找例句
+                        break;
+                    } else if (!currentWord.definition && !checkLine.match(/^例/)) {
+                        // 如果定义为空且当前行不是例句开头，则可能是定义
+                        currentWord.definition = checkLine;
+                        i = j; // 更新循环索引
+                    } else if (currentWord.definition && !currentWord.example && !checkLine.match(/^例/)) {
+                        // 如果定义存在但例句为空，且当前行不是例句开头，则可能是例句
+                        currentWord.example = checkLine;
+                        i = j; // 更新循环索引
+                        break;
+                    }
                 }
-            }
-            // 空行，表示当前单词处理完毕
-            else if (trimmed === '' && currentWord) {
-                words.push(currentWord);
-                currentWord = null;
             }
         }
         
@@ -802,8 +1079,11 @@ document.addEventListener('DOMContentLoaded', function() {
             words.push(currentWord);
         }
         
+        console.log("Extracted words array:", words);
+        
         // 如果没有成功提取单词，返回示例单词
         if (words.length === 0) {
+            console.log("No words extracted, using fallback examples");
             return [
                 { word: 'Eloquent', definition: '口齿流利或有说服力的', example: 'She gave an eloquent speech that moved the audience.（她发表了一场感人的演讲，打动了观众。）' },
                 { word: 'Meticulous', definition: '非常细心；非常仔细和精确', example: 'He was meticulous in his research, checking every fact twice.（他在研究中非常细致，每个事实都核对两次。）' },
