@@ -417,62 +417,86 @@ function initQuizGenerator() {
                 }
             ];
             
-            console.log("调用 DeepSeek API 生成测验");
+            // 准备请求数据
+            const requestData = {
+                messages: messages
+            };
             
-            // 调用DeepSeek API
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: messages
-                })
-            });
+            // 创建API URL
+            const apiUrl = '/api/chat';
             
-            if (!response.ok) {
-                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
-            }
+            console.log(`调用 DeepSeek API，使用URL: ${apiUrl}`);
+            console.log("请求数据:", JSON.stringify(requestData).substring(0, 200) + "...");
             
-            console.log("收到 API 响应");
-            const data = await response.json();
-            console.log("解析API响应为JSON:", data);
-            const aiResponse = data.choices[0].message.content;
-            console.log("AI响应长度:", aiResponse.length);
-            
-            // 尝试从AI响应中提取JSON
             try {
-                console.log("正在解析 AI 响应中的 JSON");
-                // 提取JSON部分
-                const jsonMatch = aiResponse.match(/```json\s*({[\s\S]*?})\s*```/) || 
-                                aiResponse.match(/({[\s\S]*"questions"[\s\S]*})/);
+                // 调用DeepSeek API
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
                 
-                let quizData;
-                if (jsonMatch && jsonMatch[1]) {
-                    // 清理JSON字符串并解析
-                    const cleanJson = jsonMatch[1].replace(/\\n/g, '\n').trim();
-                    console.log("提取的 JSON:", cleanJson.substring(0, 100) + "...");
-                    quizData = JSON.parse(cleanJson);
-                } else {
-                    // 如果没有找到JSON格式，尝试直接解析整个响应
-                    console.log("尝试直接解析整个响应");
-                    quizData = JSON.parse(aiResponse);
+                console.log("API响应状态:", response.status, response.statusText);
+                console.log("响应头:", [...response.headers.entries()]);
+                
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    console.error("API错误响应体:", responseText);
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
                 }
                 
-                if (quizData && quizData.questions && quizData.questions.length > 0) {
-                    console.log("成功解析测验数据，题目数量:", quizData.questions.length);
-                    renderQuiz({
-                        title: quizData.title || `${getTopicName(topic)}测验 (${getDifficultyName(difficulty)})`,
-                        questions: quizData.questions
-                    });
-                } else {
-                    console.error("解析的 JSON 数据不包含有效题目");
-                    throw new Error('无效的测验数据格式');
+                console.log("获取到API响应");
+                const data = await response.json();
+                console.log("解析API响应为JSON:", Object.keys(data));
+                
+                if (!data || !data.choices || !data.choices[0] || !data.choices[0].message) {
+                    console.error("API响应缺少必要字段:", data);
+                    throw new Error('API响应格式不正确');
                 }
-            } catch (jsonError) {
-                console.error('解析测验JSON数据失败:', jsonError);
-                console.log("原始 API 响应前50个字符:", aiResponse.substring(0, 50));
-                throw new Error('解析测验数据时出错，请重试');
+                
+                const aiResponse = data.choices[0].message.content;
+                console.log("AI响应长度:", aiResponse.length);
+                console.log("AI响应预览:", aiResponse.substring(0, 200) + "...");
+                
+                // 尝试从AI响应中提取JSON
+                try {
+                    console.log("正在解析 AI 响应中的 JSON");
+                    // 提取JSON部分
+                    const jsonMatch = aiResponse.match(/```json\s*({[\s\S]*?})\s*```/) || 
+                                    aiResponse.match(/({[\s\S]*"questions"[\s\S]*})/);
+                    
+                    let quizData;
+                    if (jsonMatch && jsonMatch[1]) {
+                        // 清理JSON字符串并解析
+                        const cleanJson = jsonMatch[1].replace(/\\n/g, '\n').trim();
+                        console.log("提取的 JSON:", cleanJson.substring(0, 100) + "...");
+                        quizData = JSON.parse(cleanJson);
+                    } else {
+                        // 如果没有找到JSON格式，尝试直接解析整个响应
+                        console.log("未找到JSON格式，尝试直接解析整个响应");
+                        quizData = JSON.parse(aiResponse);
+                    }
+                    
+                    if (quizData && quizData.questions && quizData.questions.length > 0) {
+                        console.log("成功解析测验数据，题目数量:", quizData.questions.length);
+                        renderQuiz({
+                            title: quizData.title || `${getTopicName(topic)}测验 (${getDifficultyName(difficulty)})`,
+                            questions: quizData.questions
+                        });
+                    } else {
+                        console.error("解析的 JSON 数据不包含有效题目:", quizData);
+                        throw new Error('无效的测验数据格式');
+                    }
+                } catch (jsonError) {
+                    console.error('解析测验JSON数据失败:', jsonError);
+                    console.log("原始 AI 响应预览:", aiResponse.substring(0, 200));
+                    throw new Error('解析测验数据时出错，请重试');
+                }
+            } catch (fetchError) {
+                console.error('API调用失败:', fetchError);
+                throw new Error(`无法与API服务器通信: ${fetchError.message}`);
             }
         } catch (error) {
             console.error('生成测验时出错:', error);
@@ -480,9 +504,15 @@ function initQuizGenerator() {
                 <div class="text-center text-error">
                     <p>抱歉，生成测验时出现错误。请重试。</p>
                     <p class="error-details">${error.message}</p>
-                    <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
+                    <button class="btn btn-outline mt-md" id="retry-quiz-btn">重试</button>
                 </div>
             `;
+            
+            // 添加重试按钮事件监听器
+            const retryBtn = document.getElementById('retry-quiz-btn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => generateQuiz());
+            }
         }
     }
     
