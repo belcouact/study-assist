@@ -28,7 +28,33 @@ function initTopicCards() {
             
             if (aiSection && questionInput) {
                 aiSection.scrollIntoView({ behavior: 'smooth' });
-                questionInput.value = `Help me understand ${topic}`;
+                
+                // Set appropriate topic prompts in Chinese
+                let topicPrompt = "";
+                switch(topic) {
+                    case 'algebra':
+                        topicPrompt = "代数方程如何求解？请解释代数的基本概念。";
+                        break;
+                    case 'geometry':
+                        topicPrompt = "几何中的三角形性质有哪些？如何计算面积和体积？";
+                        break;
+                    case 'calculus':
+                        topicPrompt = "微积分的基本概念是什么？导数和积分有什么关系？";
+                        break;
+                    case 'statistics':
+                        topicPrompt = "统计学中的平均值、中位数和众数有什么区别？如何解释方差？";
+                        break;
+                    case 'probability':
+                        topicPrompt = "概率论的基本原理是什么？如何计算复杂事件的概率？";
+                        break;
+                    case 'trigonometry':
+                        topicPrompt = "三角函数的基本性质是什么？正弦和余弦函数如何应用？";
+                        break;
+                    default:
+                        topicPrompt = `请帮我理解${topic}的基本概念`;
+                }
+                
+                questionInput.value = topicPrompt;
                 questionInput.focus();
                 
                 // Pre-populate quiz generator with the topic
@@ -56,6 +82,42 @@ function initMathAssistant() {
     const questionInput = document.getElementById('math-question-input');
     const chatMessages = document.getElementById('math-chat-messages');
     
+    // 存储聊天历史
+    let chatHistory = [
+        {
+            "role": "system",
+            "content": "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。你会提供清晰的解释、公式推导和适合用户教育水平的答案。"
+        },
+        {
+            "role": "assistant",
+            "content": "你好！我是你的数学学习助手。有什么数学问题我可以帮你解答吗？"
+        }
+    ];
+    
+    // 教育水平相关
+    let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+    
+    // 当前选择的主题
+    let currentTopic = null;
+    
+    // 初始化聊天界面
+    if (chatMessages) {
+        // 清空聊天区域
+        chatMessages.innerHTML = '';
+        
+        // 显示初始消息
+        displayMessage('assistant', chatHistory[1].content);
+        
+        // 更新系统提示
+        updateSystemPrompt();
+        
+        // 检测教育水平变化
+        window.addEventListener('education-level-change', function(event) {
+            educationLevel = event.detail.level;
+            updateSystemPrompt();
+        });
+    }
+    
     if (sendButton && questionInput && chatMessages) {
         // Listen for send button click
         sendButton.addEventListener('click', () => sendMathQuestion());
@@ -74,7 +136,13 @@ function initMathAssistant() {
             
             if (question) {
                 // Add user message to chat
-                appendMessage(question, 'user');
+                displayMessage('user', question);
+                
+                // Add to chat history
+                chatHistory.push({
+                    "role": "user",
+                    "content": question
+                });
                 
                 // Clear input
                 questionInput.value = '';
@@ -82,23 +150,41 @@ function initMathAssistant() {
                 // Show loading indicator
                 const loadingMessage = document.createElement('div');
                 loadingMessage.className = 'message message-ai loading';
-                loadingMessage.innerHTML = '<p>Thinking...</p>';
+                loadingMessage.innerHTML = '<p>思考中...</p>';
                 chatMessages.appendChild(loadingMessage);
                 chatMessages.scrollTop = chatMessages.scrollHeight;
                 
                 try {
-                    // Make API request
-                    const response = await deepSeekAPI.askQuestion(question, 'math');
+                    // 调用API - 使用正确的API端点
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: chatHistory
+                        })
+                    });
                     
-                    // Remove loading indicator
+                    if (!response.ok) {
+                        throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    const aiResponse = data.choices[0].message.content;
+                    
+                    // 移除加载消息
                     chatMessages.removeChild(loadingMessage);
                     
-                    // Add AI response to chat
-                    if (response && response.success) {
-                        appendMessage(response.response.answer, 'ai');
-                    } else {
-                        throw new Error('Failed to get response from AI');
-                    }
+                    // 显示AI回复
+                    displayMessage('assistant', aiResponse);
+                    
+                    // 添加到聊天历史
+                    chatHistory.push({
+                        "role": "assistant",
+                        "content": aiResponse
+                    });
+                    
                 } catch (error) {
                     console.error('Error getting AI response:', error);
                     
@@ -106,22 +192,22 @@ function initMathAssistant() {
                     chatMessages.removeChild(loadingMessage);
                     
                     // Show error message
-                    appendMessage('Sorry, I encountered an error while processing your question. Please try again.', 'ai');
+                    displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
                 }
             }
         }
         
-        // Function to append message to chat
-        function appendMessage(text, sender) {
+        // Function to display a message in the chat
+        function displayMessage(role, content) {
             const messageElement = document.createElement('div');
-            messageElement.className = `message message-${sender}`;
+            messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
             
             // Process text for MathJax if it contains LaTeX
-            let processedText = text;
+            let processedText = content;
             
             // Look for math expressions in the text (delimited by $ or $$)
             // and ensure they are properly formatted for MathJax
-            if (sender === 'ai' && (text.includes('$') || text.includes('\\('))) {
+            if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
                 // Replace \( \) syntax with $ $ for inline math
                 processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
                 
@@ -139,11 +225,94 @@ function initMathAssistant() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
             
             // Render math expressions with MathJax if available
-            if (window.MathJax && sender === 'ai') {
+            if (window.MathJax && role === 'assistant') {
                 window.MathJax.typeset([messageElement]);
             }
         }
     }
+    
+    // 更新系统提示
+    function updateSystemPrompt() {
+        let levelSpecificPrompt = '';
+        
+        switch(educationLevel) {
+            case 'elementary-school':
+                levelSpecificPrompt = '用户是小学生，请使用简单、基础的数学概念进行解释，避免复杂公式和术语。使用直观例子和可视化方法解释，重点讲解基础的数字运算、几何概念和简单的问题解决策略。';
+                break;
+            case 'middle-school':
+                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
+                break;
+            case 'high-school':
+                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的数学概念，包括函数、三角学、概率统计和微积分入门等高级内容，可以使用更深入的数学公式和证明方法。';
+                break;
+            default:
+                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
+        }
+        
+        // 添加主题特定提示
+        let topicSpecificPrompt = '';
+        
+        if (currentTopic) {
+            switch(currentTopic) {
+                case 'algebra':
+                    topicSpecificPrompt = '用户正在学习代数。请专注于方程、函数、多项式等代数概念，并提供清晰的解题步骤和例题。';
+                    break;
+                case 'geometry':
+                    topicSpecificPrompt = '用户正在学习几何。请专注于平面图形、空间图形、坐标几何等概念，并提供图形推理和证明方法。';
+                    break;
+                case 'calculus':
+                    topicSpecificPrompt = '用户正在学习微积分。请专注于极限、导数、积分等概念，并解释其实际应用和图形意义。';
+                    break;
+                case 'statistics':
+                    topicSpecificPrompt = '用户正在学习统计学。请专注于数据分析、概率分布、统计推断等概念，并提供数据解释方法。';
+                    break;
+                case 'probability':
+                    topicSpecificPrompt = '用户正在学习概率论。请专注于概率计算、随机变量、概率分布等概念，并提供实际应用例子。';
+                    break;
+                case 'trigonometry':
+                    topicSpecificPrompt = '用户正在学习三角学。请专注于三角函数、三角恒等式、三角方程等概念，并解释其在现实世界中的应用。';
+                    break;
+                default:
+                    topicSpecificPrompt = '';
+            }
+        }
+        
+        // 更新系统消息
+        chatHistory[0].content = "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答数学问题时，请使用适当的数学公式和符号，可使用LaTeX格式（用$或$$包围）来展示数学表达式。提供清晰的解题步骤和思路解释。";
+    }
+    
+    // Set current topic from card clicks
+    topicCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const topic = this.getAttribute('data-topic');
+            if (topic) {
+                currentTopic = topic;
+                updateSystemPrompt();
+            }
+        });
+    });
+    
+    // Add loading animation CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        .loading p::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        .topic-card.active {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(67, 97, 238, 0.3);
+            transform: translateY(-5px);
+        }
+    `;
+    document.head.appendChild(style);
 }
 
 /**
@@ -168,10 +337,26 @@ function initQuizGenerator() {
             
             try {
                 // Make API request to generate quiz
-                const response = await deepSeekAPI.generateQuiz(topic, difficulty, count);
+                const response = await fetch('/api/quiz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        topic: topic,
+                        difficulty: difficulty,
+                        count: count
+                    })
+                });
                 
-                if (response && response.success) {
-                    renderQuiz(response.quiz);
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data && data.success) {
+                    renderQuiz(data.quiz);
                 } else {
                     throw new Error('Failed to generate quiz');
                 }
