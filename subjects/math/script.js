@@ -3,6 +3,39 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
+// Define a global helper for displaying messages in the math chat
+function displayMathMessage(role, content, container) {
+    const messageElement = document.createElement('div');
+    messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
+    
+    // Process text for MathJax if it contains LaTeX
+    let processedText = content;
+    
+    // Look for math expressions in the text (delimited by $ or $$)
+    // and ensure they are properly formatted for MathJax
+    if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
+        // Replace \( \) syntax with $ $ for inline math
+        processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+        
+        // Replace \[ \] syntax with $$ $$ for block math
+        processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
+    }
+    
+    // Convert newlines to <br> tags
+    processedText = processedText.replace(/\n/g, '<br>');
+    
+    messageElement.innerHTML = `<p>${processedText}</p>`;
+    container.appendChild(messageElement);
+    
+    // Scroll to bottom of chat
+    container.scrollTop = container.scrollHeight;
+    
+    // Render math expressions with MathJax if available
+    if (window.MathJax && role === 'assistant') {
+        window.MathJax.typeset([messageElement]);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize math subject functionality
     initTopicCards();
@@ -71,9 +104,8 @@ function initTopicCards() {
                 }
                 
                 // Update the current topic in math assistant if it exists
-                const mathAssistantInstance = window.mathAssistantInstance;
-                if (mathAssistantInstance && typeof mathAssistantInstance.setCurrentTopic === 'function') {
-                    mathAssistantInstance.setCurrentTopic(topic);
+                if (window.mathAssistant && typeof window.mathAssistant.setTopic === 'function') {
+                    window.mathAssistant.setTopic(topic);
                 }
             }
         });
@@ -88,210 +120,189 @@ function initMathAssistant() {
     const questionInput = document.getElementById('math-question-input');
     const chatMessages = document.getElementById('math-chat-messages');
     
-    // 存储聊天历史
-    let chatHistory = [
-        {
-            "role": "system",
-            "content": "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。你会提供清晰的解释、公式推导和适合用户教育水平的答案。"
+    // If any elements are missing, don't initialize
+    if (!chatMessages || !sendButton || !questionInput) {
+        console.error('Math assistant initialization failed: Missing required elements');
+        return;
+    }
+    
+    // Global assistant state
+    const assistant = {
+        // Chat history for the API
+        chatHistory: [
+            {
+                "role": "system",
+                "content": "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。你会提供清晰的解释、公式推导和适合用户教育水平的答案。"
+            },
+            {
+                "role": "assistant",
+                "content": "你好！我是你的数学学习助手。有什么数学问题我可以帮你解答吗？"
+            }
+        ],
+        
+        // Current settings
+        currentTopic: null,
+        educationLevel: localStorage.getItem('educationLevel') || 'middle-school',
+        
+        // Method to set the current topic
+        setTopic: function(topic) {
+            this.currentTopic = topic;
+            this.updateSystemPrompt();
         },
-        {
-            "role": "assistant",
-            "content": "你好！我是你的数学学习助手。有什么数学问题我可以帮你解答吗？"
-        }
-    ];
-    
-    // 教育水平相关
-    let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
-    
-    // 当前选择的主题
-    let currentTopic = null;
-    
-    // Function to display a message in the chat
-    function displayMessage(role, content) {
-        const messageElement = document.createElement('div');
-        messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
         
-        // Process text for MathJax if it contains LaTeX
-        let processedText = content;
-        
-        // Look for math expressions in the text (delimited by $ or $$)
-        // and ensure they are properly formatted for MathJax
-        if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
-            // Replace \( \) syntax with $ $ for inline math
-            processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+        // Method to update the system prompt based on education level and topic
+        updateSystemPrompt: function() {
+            let levelSpecificPrompt = '';
             
-            // Replace \[ \] syntax with $$ $$ for block math
-            processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
-        }
-        
-        // Convert newlines to <br> tags
-        processedText = processedText.replace(/\n/g, '<br>');
-        
-        messageElement.innerHTML = `<p>${processedText}</p>`;
-        chatMessages.appendChild(messageElement);
-        
-        // Scroll to bottom of chat
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        
-        // Render math expressions with MathJax if available
-        if (window.MathJax && role === 'assistant') {
-            window.MathJax.typeset([messageElement]);
-        }
-    }
-    
-    // 初始化聊天界面
-    if (chatMessages) {
-        // 清空聊天区域
-        chatMessages.innerHTML = '';
-        
-        // 显示初始消息
-        displayMessage('assistant', chatHistory[1].content);
-        
-        // 更新系统提示
-        updateSystemPrompt();
-        
-        // 检测教育水平变化
-        window.addEventListener('education-level-change', function(event) {
-            educationLevel = event.detail.level;
-            updateSystemPrompt();
-        });
-    }
-    
-    if (sendButton && questionInput && chatMessages) {
-        // Listen for send button click
-        sendButton.addEventListener('click', () => sendMathQuestion());
-        
-        // Listen for Enter key press
-        questionInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMathQuestion();
-            }
-        });
-        
-        // Function to send math question
-        async function sendMathQuestion() {
-            const question = questionInput.value.trim();
-            
-            if (question) {
-                // Add user message to chat
-                displayMessage('user', question);
-                
-                // Add to chat history
-                chatHistory.push({
-                    "role": "user",
-                    "content": question
-                });
-                
-                // Clear input
-                questionInput.value = '';
-                
-                // Show loading indicator
-                const loadingMessage = document.createElement('div');
-                loadingMessage.className = 'message message-ai loading';
-                loadingMessage.innerHTML = '<p>思考中...</p>';
-                chatMessages.appendChild(loadingMessage);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                
-                try {
-                    // 调用API - 使用正确的API端点
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            messages: chatHistory
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
-                    }
-                    
-                    const data = await response.json();
-                    const aiResponse = data.choices[0].message.content;
-                    
-                    // 移除加载消息
-                    chatMessages.removeChild(loadingMessage);
-                    
-                    // 显示AI回复
-                    displayMessage('assistant', aiResponse);
-                    
-                    // 添加到聊天历史
-                    chatHistory.push({
-                        "role": "assistant",
-                        "content": aiResponse
-                    });
-                    
-                } catch (error) {
-                    console.error('Error getting AI response:', error);
-                    
-                    // Remove loading indicator
-                    chatMessages.removeChild(loadingMessage);
-                    
-                    // Show error message
-                    displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
-                }
-            }
-        }
-    }
-    
-    // 更新系统提示
-    function updateSystemPrompt() {
-        let levelSpecificPrompt = '';
-        
-        switch(educationLevel) {
-            case 'elementary-school':
-                levelSpecificPrompt = '用户是小学生，请使用简单、基础的数学概念进行解释，避免复杂公式和术语。使用直观例子和可视化方法解释，重点讲解基础的数字运算、几何概念和简单的问题解决策略。';
-                break;
-            case 'middle-school':
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
-                break;
-            case 'high-school':
-                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的数学概念，包括函数、三角学、概率统计和微积分入门等高级内容，可以使用更深入的数学公式和证明方法。';
-                break;
-            default:
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
-        }
-        
-        // 添加主题特定提示
-        let topicSpecificPrompt = '';
-        
-        if (currentTopic) {
-            switch(currentTopic) {
-                case 'algebra':
-                    topicSpecificPrompt = '用户正在学习代数。请专注于方程、函数、多项式等代数概念，并提供清晰的解题步骤和例题。';
+            switch(this.educationLevel) {
+                case 'elementary-school':
+                    levelSpecificPrompt = '用户是小学生，请使用简单、基础的数学概念进行解释，避免复杂公式和术语。使用直观例子和可视化方法解释，重点讲解基础的数字运算、几何概念和简单的问题解决策略。';
                     break;
-                case 'geometry':
-                    topicSpecificPrompt = '用户正在学习几何。请专注于平面图形、空间图形、坐标几何等概念，并提供图形推理和证明方法。';
+                case 'middle-school':
+                    levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
                     break;
-                case 'calculus':
-                    topicSpecificPrompt = '用户正在学习微积分。请专注于极限、导数、积分等概念，并解释其实际应用和图形意义。';
-                    break;
-                case 'statistics':
-                    topicSpecificPrompt = '用户正在学习统计学。请专注于数据分析、概率分布、统计推断等概念，并提供数据解释方法。';
-                    break;
-                case 'probability':
-                    topicSpecificPrompt = '用户正在学习概率论。请专注于概率计算、随机变量、概率分布等概念，并提供实际应用例子。';
-                    break;
-                case 'trigonometry':
-                    topicSpecificPrompt = '用户正在学习三角学。请专注于三角函数、三角恒等式、三角方程等概念，并解释其在现实世界中的应用。';
+                case 'high-school':
+                    levelSpecificPrompt = '用户是高中生，可以讨论更复杂的数学概念，包括函数、三角学、概率统计和微积分入门等高级内容，可以使用更深入的数学公式和证明方法。';
                     break;
                 default:
-                    topicSpecificPrompt = '';
+                    levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的数学概念，包括代数入门、平面几何、比例关系等，可以使用基础数学符号和简单方程，平衡简洁性和教育性。';
+            }
+            
+            // Add topic-specific prompt
+            let topicSpecificPrompt = '';
+            
+            if (this.currentTopic) {
+                switch(this.currentTopic) {
+                    case 'algebra':
+                        topicSpecificPrompt = '用户正在学习代数。请专注于方程、函数、多项式等代数概念，并提供清晰的解题步骤和例题。';
+                        break;
+                    case 'geometry':
+                        topicSpecificPrompt = '用户正在学习几何。请专注于平面图形、空间图形、坐标几何等概念，并提供图形推理和证明方法。';
+                        break;
+                    case 'calculus':
+                        topicSpecificPrompt = '用户正在学习微积分。请专注于极限、导数、积分等概念，并解释其实际应用和图形意义。';
+                        break;
+                    case 'statistics':
+                        topicSpecificPrompt = '用户正在学习统计学。请专注于数据分析、概率分布、统计推断等概念，并提供数据解释方法。';
+                        break;
+                    case 'probability':
+                        topicSpecificPrompt = '用户正在学习概率论。请专注于概率计算、随机变量、概率分布等概念，并提供实际应用例子。';
+                        break;
+                    case 'trigonometry':
+                        topicSpecificPrompt = '用户正在学习三角学。请专注于三角函数、三角恒等式、三角方程等概念，并解释其在现实世界中的应用。';
+                        break;
+                    default:
+                        topicSpecificPrompt = '';
+                }
+            }
+            
+            // Update system message
+            this.chatHistory[0].content = "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答数学问题时，请使用适当的数学公式和符号，可使用LaTeX格式（用$或$$包围）来展示数学表达式。提供清晰的解题步骤和思路解释。";
+        },
+        
+        // Method to send a question to the AI
+        sendQuestion: async function(question) {
+            if (!question.trim()) return;
+            
+            // Display user message
+            displayMathMessage('user', question, chatMessages);
+            
+            // Add to chat history
+            this.chatHistory.push({
+                "role": "user",
+                "content": question
+            });
+            
+            // Show loading indicator
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'message message-ai loading';
+            loadingMessage.innerHTML = '<p>思考中...</p>';
+            chatMessages.appendChild(loadingMessage);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            try {
+                // Call the API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: this.chatHistory
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+                
+                // Remove loading indicator
+                chatMessages.removeChild(loadingMessage);
+                
+                // Display AI response
+                displayMathMessage('assistant', aiResponse, chatMessages);
+                
+                // Add to chat history
+                this.chatHistory.push({
+                    "role": "assistant",
+                    "content": aiResponse
+                });
+                
+            } catch (error) {
+                console.error('Error getting AI response:', error);
+                
+                // Remove loading indicator
+                chatMessages.removeChild(loadingMessage);
+                
+                // Show error message
+                displayMathMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message, chatMessages);
+            }
+        },
+        
+        // Method to initialize the chat interface
+        initChat: function() {
+            // Clear chat area
+            chatMessages.innerHTML = '';
+            
+            // Display welcome message
+            displayMathMessage('assistant', this.chatHistory[1].content, chatMessages);
+            
+            // Update system prompt based on current settings
+            this.updateSystemPrompt();
+        }
+    };
+    
+    // Initialize the chat interface
+    assistant.initChat();
+    
+    // Set up event listeners
+    sendButton.addEventListener('click', () => {
+        const question = questionInput.value.trim();
+        if (question) {
+            assistant.sendQuestion(question);
+            questionInput.value = '';
+        }
+    });
+    
+    questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const question = questionInput.value.trim();
+            if (question) {
+                assistant.sendQuestion(question);
+                questionInput.value = '';
             }
         }
-        
-        // 更新系统消息
-        chatHistory[0].content = "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答数学问题时，请使用适当的数学公式和符号，可使用LaTeX格式（用$或$$包围）来展示数学表达式。提供清晰的解题步骤和思路解释。";
-    }
+    });
     
-    // 公开设置当前主题的方法
-    function setCurrentTopic(topic) {
-        currentTopic = topic;
-        updateSystemPrompt();
-    }
+    // Listen for education level changes
+    window.addEventListener('education-level-change', function(event) {
+        assistant.educationLevel = event.detail.level;
+        assistant.updateSystemPrompt();
+    });
     
     // Add loading animation CSS
     const style = document.createElement('style');
@@ -315,10 +326,8 @@ function initMathAssistant() {
     `;
     document.head.appendChild(style);
     
-    // 将实例保存在全局对象上，以便其他函数可以访问
-    window.mathAssistantInstance = {
-        setCurrentTopic: setCurrentTopic
-    };
+    // Make assistant available globally
+    window.mathAssistant = assistant;
 }
 
 /**
