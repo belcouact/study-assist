@@ -5,6 +5,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendButton = document.getElementById('send-english-question');
     const topicCards = document.querySelectorAll('.topic-card');
     
+    console.log("DOM loaded, setting up English subject page event listeners");
+    
+    // 分析写作按钮
+    const analyzeWritingButton = document.getElementById('analyze-writing');
+    console.log("analyze-writing button found:", !!analyzeWritingButton);
+    if (analyzeWritingButton) {
+        analyzeWritingButton.addEventListener('click', function() {
+            console.log("analyze-writing button clicked");
+            analyzeWriting();
+        });
+    }
+    
+    // 加载诗歌按钮
+    const loadPoemButton = document.getElementById('load-poem');
+    console.log("load-poem button found:", !!loadPoemButton);
+    if (loadPoemButton) {
+        loadPoemButton.addEventListener('click', function() {
+            console.log("load-poem button clicked");
+            loadPoem();
+        });
+    }
+    
+    // 生成词汇按钮
+    const generateVocabButton = document.getElementById('generate-vocab');
+    console.log("generate-vocab button found:", !!generateVocabButton);
+    if (generateVocabButton) {
+        generateVocabButton.addEventListener('click', function() {
+            console.log("generate-vocab button clicked");
+            generateVocabulary();
+        });
+    }
+    
     // 存储聊天历史
     let chatHistory = [
         {
@@ -860,37 +892,5 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'high-school': return '高中';
             default: return '初中';
         }
-    }
-    
-    console.log("DOM loaded, setting up English subject page event listeners");
-    
-    // 分析写作按钮
-    const analyzeWritingButton = document.getElementById('analyze-writing');
-    console.log("analyze-writing button found:", !!analyzeWritingButton);
-    if (analyzeWritingButton) {
-        analyzeWritingButton.addEventListener('click', function() {
-            console.log("analyze-writing button clicked");
-            analyzeWriting();
-        });
-    }
-    
-    // 加载诗歌按钮
-    const loadPoemButton = document.getElementById('load-poem');
-    console.log("load-poem button found:", !!loadPoemButton);
-    if (loadPoemButton) {
-        loadPoemButton.addEventListener('click', function() {
-            console.log("load-poem button clicked");
-            loadPoem();
-        });
-    }
-    
-    // 生成词汇按钮
-    const generateVocabButton = document.getElementById('generate-vocab');
-    console.log("generate-vocab button found:", !!generateVocabButton);
-    if (generateVocabButton) {
-        generateVocabButton.addEventListener('click', function() {
-            console.log("generate-vocab button clicked");
-            generateVocabulary();
-        });
     }
 }); 
