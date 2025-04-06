@@ -100,6 +100,39 @@ function initMathAssistant() {
     // 当前选择的主题
     let currentTopic = null;
     
+    // Function to display a message in the chat
+    function displayMessage(role, content) {
+        const messageElement = document.createElement('div');
+        messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
+        
+        // Process text for MathJax if it contains LaTeX
+        let processedText = content;
+        
+        // Look for math expressions in the text (delimited by $ or $$)
+        // and ensure they are properly formatted for MathJax
+        if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
+            // Replace \( \) syntax with $ $ for inline math
+            processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+            
+            // Replace \[ \] syntax with $$ $$ for block math
+            processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
+        }
+        
+        // Convert newlines to <br> tags
+        processedText = processedText.replace(/\n/g, '<br>');
+        
+        messageElement.innerHTML = `<p>${processedText}</p>`;
+        chatMessages.appendChild(messageElement);
+        
+        // Scroll to bottom of chat
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        // Render math expressions with MathJax if available
+        if (window.MathJax && role === 'assistant') {
+            window.MathJax.typeset([messageElement]);
+        }
+    }
+    
     // 初始化聊天界面
     if (chatMessages) {
         // 清空聊天区域
@@ -194,39 +227,6 @@ function initMathAssistant() {
                     // Show error message
                     displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
                 }
-            }
-        }
-        
-        // Function to display a message in the chat
-        function displayMessage(role, content) {
-            const messageElement = document.createElement('div');
-            messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
-            
-            // Process text for MathJax if it contains LaTeX
-            let processedText = content;
-            
-            // Look for math expressions in the text (delimited by $ or $$)
-            // and ensure they are properly formatted for MathJax
-            if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
-                // Replace \( \) syntax with $ $ for inline math
-                processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
-                
-                // Replace \[ \] syntax with $$ $$ for block math
-                processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
-            }
-            
-            // Convert newlines to <br> tags
-            processedText = processedText.replace(/\n/g, '<br>');
-            
-            messageElement.innerHTML = `<p>${processedText}</p>`;
-            chatMessages.appendChild(messageElement);
-            
-            // Scroll to bottom of chat
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            // Render math expressions with MathJax if available
-            if (window.MathJax && role === 'assistant') {
-                window.MathJax.typeset([messageElement]);
             }
         }
     }
