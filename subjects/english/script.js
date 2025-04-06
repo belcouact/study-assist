@@ -862,24 +862,35 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // 添加事件监听器
-    document.addEventListener('DOMContentLoaded', function() {
-        // 分析写作按钮
-        const analyzeWritingButton = document.getElementById('analyze-writing');
-        if (analyzeWritingButton) {
-            analyzeWritingButton.addEventListener('click', analyzeWriting);
-        }
-        
-        // 加载诗歌按钮
-        const loadPoemButton = document.getElementById('load-poem');
-        if (loadPoemButton) {
-            loadPoemButton.addEventListener('click', loadPoem);
-        }
-        
-        // 生成词汇按钮
-        const generateVocabButton = document.getElementById('generate-vocab');
-        if (generateVocabButton) {
-            generateVocabButton.addEventListener('click', generateVocabulary);
-        }
-    });
+    console.log("DOM loaded, setting up English subject page event listeners");
+    
+    // 分析写作按钮
+    const analyzeWritingButton = document.getElementById('analyze-writing');
+    console.log("analyze-writing button found:", !!analyzeWritingButton);
+    if (analyzeWritingButton) {
+        analyzeWritingButton.addEventListener('click', function() {
+            console.log("analyze-writing button clicked");
+            analyzeWriting();
+        });
+    }
+    
+    // 加载诗歌按钮
+    const loadPoemButton = document.getElementById('load-poem');
+    console.log("load-poem button found:", !!loadPoemButton);
+    if (loadPoemButton) {
+        loadPoemButton.addEventListener('click', function() {
+            console.log("load-poem button clicked");
+            loadPoem();
+        });
+    }
+    
+    // 生成词汇按钮
+    const generateVocabButton = document.getElementById('generate-vocab');
+    console.log("generate-vocab button found:", !!generateVocabButton);
+    if (generateVocabButton) {
+        generateVocabButton.addEventListener('click', function() {
+            console.log("generate-vocab button clicked");
+            generateVocabulary();
+        });
+    }
 }); 

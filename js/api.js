@@ -489,4 +489,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Failed to initialize DeepSeek API');
             }
         });
-}); 
+});
+
+/**
+ * Global API instance
+ */
+let deepSeekAPI = null;
+
+/**
+ * Initialize the DeepSeek API
+ * This function is called from the subject pages
+ */
+function initAPI() {
+    if (!deepSeekAPI) {
+        deepSeekAPI = new DeepSeekAPI();
+        deepSeekAPI.initialize()
+            .then(success => {
+                if (success) {
+                    console.log('DeepSeek API initialized successfully');
+                } else {
+                    console.warn('DeepSeek API initialization was not successful');
+                }
+            })
+            .catch(error => {
+                console.error('Error initializing DeepSeek API:', error);
+            });
+    }
+    return deepSeekAPI;
+} 
