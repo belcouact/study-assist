@@ -196,8 +196,8 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
         
         try {
-            // 调用API
-            const response = await fetch('/functions/api/chat', {
+            // 调用API - 确保使用正确的HTTP方法和完整URL
+            const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             if (!response.ok) {
-                throw new Error('网络响应不正常');
+                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
             }
             
             const data = await response.json();
@@ -227,6 +227,8 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
         } catch (error) {
+            console.error("Error getting AI response:", error);
+            
             // 移除加载消息
             chatMessages.removeChild(loadingMessage);
             
