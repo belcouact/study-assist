@@ -69,6 +69,12 @@ function initTopicCards() {
                         quizTopicSelect.value = topic;
                     }
                 }
+                
+                // Update the current topic in math assistant if it exists
+                const mathAssistantInstance = window.mathAssistantInstance;
+                if (mathAssistantInstance && typeof mathAssistantInstance.setCurrentTopic === 'function') {
+                    mathAssistantInstance.setCurrentTopic(topic);
+                }
             }
         });
     });
@@ -281,16 +287,11 @@ function initMathAssistant() {
         chatHistory[0].content = "你是一个专业的数学教学助手，擅长解答关于代数、几何、微积分、统计、概率等数学分支的问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答数学问题时，请使用适当的数学公式和符号，可使用LaTeX格式（用$或$$包围）来展示数学表达式。提供清晰的解题步骤和思路解释。";
     }
     
-    // Set current topic from card clicks
-    topicCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const topic = this.getAttribute('data-topic');
-            if (topic) {
-                currentTopic = topic;
-                updateSystemPrompt();
-            }
-        });
-    });
+    // 公开设置当前主题的方法
+    function setCurrentTopic(topic) {
+        currentTopic = topic;
+        updateSystemPrompt();
+    }
     
     // Add loading animation CSS
     const style = document.createElement('style');
@@ -313,6 +314,11 @@ function initMathAssistant() {
         }
     `;
     document.head.appendChild(style);
+    
+    // 将实例保存在全局对象上，以便其他函数可以访问
+    window.mathAssistantInstance = {
+        setCurrentTopic: setCurrentTopic
+    };
 }
 
 /**
