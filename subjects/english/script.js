@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // 获取API端点URL
 function getApiUrl() {
     // 使用相对路径在Cloudflare Pages环境中工作
-    return '/api/chat';
+    return 'functions/api/chat';
 }
 
 /**
