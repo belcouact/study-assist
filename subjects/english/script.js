@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         scrollToBottom();
         
         try {
-            // 调用API - 确保使用正确的HTTP方法和完整URL
+            // 调用API - 使用正确的API端点
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {

@@ -2,6 +2,19 @@
 export async function onRequest(context) {
   const { request, env } = context;
   
+  // Handle OPTIONS method for CORS preflight requests
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+      }
+    });
+  }
+  
   // Create a new request to the functions/api/chat endpoint
   const url = new URL(request.url);
   const newUrl = new URL(url);
