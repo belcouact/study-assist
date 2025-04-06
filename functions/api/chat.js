@@ -14,7 +14,12 @@ export async function onRequestPost(context) {
         ]
       }), {
         status: 500,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
       });
     }
     
@@ -32,7 +37,12 @@ export async function onRequestPost(context) {
         ]
       }), {
         status: 400,
-        headers: { "Content-Type": "application/json" }
+        headers: { 
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        }
       });
     }
     
@@ -73,7 +83,7 @@ export async function onRequestPost(context) {
       });
       
       console.log(`base url: ${apiUrl}`);
-      console.log(`base url: ${env.MODEL}`);
+      console.log(`model: ${env.MODEL}`);
 
       // Clear the timeout
       clearTimeout(timeoutId);
@@ -101,7 +111,12 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: 502,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
           });
         }
         
@@ -120,7 +135,12 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: response.status,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
           });
         } catch (e) {
           // If can't parse as JSON, return text
@@ -137,7 +157,12 @@ export async function onRequestPost(context) {
             ]
           }), {
             status: response.status,
-            headers: { "Content-Type": "application/json" }
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
           });
         }
       }
@@ -149,7 +174,10 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
           }
         });
       } catch (e) {
@@ -168,7 +196,10 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
           }
         });
       }
@@ -192,7 +223,10 @@ export async function onRequestPost(context) {
           headers: { 
             "Content-Type": "application/json; charset=utf-8",
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "no-store"
+            "Cache-Control": "no-store",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization"
           }
         });
       }
@@ -211,7 +245,10 @@ export async function onRequestPost(context) {
         headers: { 
           "Content-Type": "application/json; charset=utf-8",
           "X-Content-Type-Options": "nosniff",
-          "Cache-Control": "no-store"
+          "Cache-Control": "no-store",
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
       });
     }
@@ -230,7 +267,10 @@ export async function onRequestPost(context) {
       headers: { 
         "Content-Type": "application/json; charset=utf-8",
         "X-Content-Type-Options": "nosniff",
-        "Cache-Control": "no-store"
+        "Cache-Control": "no-store",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
       }
     });
   }
@@ -245,6 +285,32 @@ export function onRequestOptions() {
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "X-Content-Type-Options": "nosniff",
       "Cache-Control": "no-store"
+    }
+  });
+}
+
+// Handle GET requests in the same function
+export function onRequestGet() {
+  return new Response(JSON.stringify({
+    message: "The chat API is working. Send POST requests to this endpoint to interact with the AI.",
+    example: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messages: [
+          {role: "system", content: "You are a helpful assistant"},
+          {role: "user", content: "Hello, how are you?"}
+        ]
+      }, null, 2)
+    }
+  }), {
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
     }
   });
 } 
