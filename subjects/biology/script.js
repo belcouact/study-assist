@@ -6,58 +6,172 @@ document.addEventListener('DOMContentLoaded', function() {
     const generateQuizBtn = document.getElementById('generate-quiz');
     const quizContainer = document.getElementById('quiz-container');
     
-    // Chat functionality
-    if (sendQuestionBtn && questionInput && chatMessages) {
-        sendQuestionBtn.addEventListener('click', function() {
-            const question = questionInput.value.trim();
-            if (question !== '') {
-                // Add user message
-                addMessage(question, 'user');
-                
-                // Simulate AI response based on educational level
-                setTimeout(() => {
-                    const difficulty = getCurrentDifficultyLevel ? getCurrentDifficultyLevel() : 'junior';
-                    
-                    // Different responses based on difficulty
-                    let responses;
-                    if (difficulty === 'elementary') {
-                        responses = [
-                            "这是个很好的问题！细胞是生命的基本单位，就像一个小房子，里面有不同的部分各司其职。",
-                            "植物能通过光合作用制造食物，利用阳光、水和空气中的二氧化碳。",
-                            "我们的身体有很多系统一起工作，比如心脏负责输送血液，肺负责呼吸。",
-                            "动物和植物生活在不同的环境中，它们彼此依赖，共同组成生态系统。"
-                        ];
-                    } else if (difficulty === 'junior') {
-                        responses = [
-                            "这是个很好的生物学问题！细胞是生命的基本单位，它包含了细胞核、细胞质和细胞膜等结构。",
-                            "DNA是遗传信息的载体，位于细胞核内，决定了生物的特征。",
-                            "生态系统由生物群落和环境组成，包括食物链和能量流动。",
-                            "人体由多个系统组成，包括循环系统、消化系统和神经系统等，它们协同工作。"
-                        ];
-                    } else {
-                        responses = [
-                            "这是个很好的生物学问题！细胞是生命的基本单位，它包含了各种重要的细胞器，如线粒体、叶绿体和细胞核等。",
-                            "DNA（脱氧核糖核酸）是遗传信息的载体，它由两条互补的核苷酸链组成，呈双螺旋结构。",
-                            "生态系统是生物群落与其物理环境相互作用形成的功能单位，其中包括生产者、消费者和分解者。",
-                            "人体有多个系统协同工作，包括循环系统、消化系统、呼吸系统、神经系统等，它们共同维持着人体的正常运作。"
-                        ];
-                    }
-                    
-                    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-                    addMessage(randomResponse, 'ai');
-                }, 1000);
-                
-                // Clear input
-                questionInput.value = '';
+    // 存储聊天历史
+    let chatHistory = [
+        {
+            "role": "system",
+            "content": "你是一个专业的生物学教学助手，能够解答关于细胞生物学、遗传学、生态学、人体系统、进化论和微生物学的问题。你将根据用户的教育水平提供适当复杂度的回答。"
+        },
+        {
+            "role": "assistant",
+            "content": "你好！我是你的生物学学习助手。有什么关于生物学的问题我可以帮助你解答吗？"
+        }
+    ];
+    
+    // 教育水平相关
+    let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+    
+    // 从页面加载时初始化聊天界面
+    initializeChat();
+    
+    // 初始化聊天界面
+    function initializeChat() {
+        // 清空聊天区域
+        chatMessages.innerHTML = '';
+        
+        // 显示聊天历史
+        displayChatHistory();
+        
+        // 更新系统提示
+        updateSystemPrompt();
+        
+        // 检测教育水平变化
+        window.addEventListener('education-level-change', function(event) {
+            educationLevel = event.detail.level;
+            updateSystemPrompt();
+        });
+    }
+    
+    // 更新系统提示
+    function updateSystemPrompt() {
+        let levelSpecificPrompt = '';
+        
+        switch(educationLevel) {
+            case 'elementary-school':
+                levelSpecificPrompt = '用户是小学生，请使用简单、基础的生物学概念进行解释，多用比喻和直观例子，避免复杂术语。';
+                break;
+            case 'middle-school':
+                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的生物学概念，平衡简洁性和教育性。';
+                break;
+            case 'high-school':
+                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的生物学概念，包括分子生物学、遗传学和进化论等高级内容。';
+                break;
+            default:
+                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的生物学概念，平衡简洁性和教育性。';
+        }
+        
+        // 更新系统消息
+        chatHistory[0].content = "你是一个专业的生物学教学助手，能够解答关于细胞生物学、遗传学、生态学、人体系统、进化论和微生物学的问题。提供清晰、准确且有教育意义的回答。" + levelSpecificPrompt + " 鼓励学习者思考并提供有用的例子。";
+    }
+    
+    // 显示聊天历史
+    function displayChatHistory() {
+        chatHistory.forEach(message => {
+            if (message.role === 'assistant' || message.role === 'user') {
+                displayMessage(message.role, message.content);
             }
         });
+        
+        // 滚动到底部
+        scrollToBottom();
+    }
+    
+    // Chat functionality
+    if (sendQuestionBtn && questionInput && chatMessages) {
+        sendQuestionBtn.addEventListener('click', sendMessage);
         
         // Allow Enter key to send message
         questionInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                sendQuestionBtn.click();
+                sendMessage();
             }
         });
+    }
+    
+    // 发送消息到API
+    async function sendMessage() {
+        const userMessage = questionInput.value.trim();
+        
+        // 检查是否为空消息
+        if (userMessage === '') return;
+        
+        // 清空输入框
+        questionInput.value = '';
+        
+        // 显示用户消息
+        displayMessage('user', userMessage);
+        
+        // 添加到聊天历史
+        chatHistory.push({
+            "role": "user",
+            "content": userMessage
+        });
+        
+        // 显示加载状态
+        const loadingMessage = document.createElement('div');
+        loadingMessage.className = 'message message-ai loading';
+        loadingMessage.innerHTML = '<p>思考中...</p>';
+        chatMessages.appendChild(loadingMessage);
+        scrollToBottom();
+        
+        try {
+            // 调用API - 使用正确的API端点
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: chatHistory
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const aiResponse = data.choices[0].message.content;
+            
+            // 移除加载消息
+            chatMessages.removeChild(loadingMessage);
+            
+            // 显示AI回复
+            displayMessage('assistant', aiResponse);
+            
+            // 添加到聊天历史
+            chatHistory.push({
+                "role": "assistant",
+                "content": aiResponse
+            });
+            
+        } catch (error) {
+            console.error("Error getting AI response:", error);
+            
+            // 移除加载消息
+            chatMessages.removeChild(loadingMessage);
+            
+            // 显示错误消息
+            displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
+        }
+    }
+    
+    // 显示消息在聊天界面
+    function displayMessage(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = role === 'user' ? 'message message-user' : 'message message-ai';
+        
+        // 处理内容中可能的换行
+        const formattedContent = content.replace(/\n/g, '<br>');
+        messageDiv.innerHTML = `<p>${formattedContent}</p>`;
+        
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+    }
+    
+    // 滚动到底部
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
     // Quiz generation
@@ -83,25 +197,48 @@ document.addEventListener('DOMContentLoaded', function() {
         card.addEventListener('click', function() {
             const topic = card.getAttribute('data-topic');
             console.log(`Selected topic: ${topic}`);
-            // Here you could implement navigation to topic-specific content
+            // Here you could implement navigation to topic-specific content or set prompt
+            if (questionInput) {
+                // 根据不同主题设置提示问题
+                switch(topic) {
+                    case 'cells':
+                        questionInput.value = "请解释细胞的基本结构和功能是什么？";
+                        break;
+                    case 'genetics':
+                        questionInput.value = "DNA和基因是什么关系？它们如何决定生物特征？";
+                        break;
+                    case 'ecology':
+                        questionInput.value = "什么是生态系统？生物和环境如何相互作用？";
+                        break;
+                    case 'human-body':
+                        questionInput.value = "人体的主要器官系统有哪些？它们如何协同工作？";
+                        break;
+                    case 'evolution':
+                        questionInput.value = "达尔文的进化理论是什么？自然选择如何发生？";
+                        break;
+                    case 'microbiology':
+                        questionInput.value = "什么是微生物？它们在生态系统中扮演什么角色？";
+                        break;
+                }
+            }
         });
     });
-    
-    // Function to add message to chat
-    function addMessage(text, sender) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message');
-        messageDiv.classList.add(`message-${sender}`);
+
+    // 添加加载动画CSS
+    const style = document.createElement('style');
+    style.textContent = `
+        .loading p::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
         
-        const messagePara = document.createElement('p');
-        messagePara.textContent = text;
-        
-        messageDiv.appendChild(messagePara);
-        chatMessages.appendChild(messageDiv);
-        
-        // Scroll to bottom of chat
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+    `;
+    document.head.appendChild(style);
     
     // Function to generate a quiz
     function generateQuiz(topic, difficulty, questionCount) {
@@ -299,55 +436,37 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
-        // Get questions for the selected topic or use default
-        const topicQuestions = questions[topic] || questions['cells'];
-        
-        // If no questions available for the topic, return a message
-        if (!topicQuestions || topicQuestions.length === 0) {
+        // Get questions for the selected topic
+        const topicQuestions = questions[topic] || [];
+        if (topicQuestions.length === 0) {
             return `
                 <div class="quiz-question">
-                    <h4>该主题暂无适合您学习阶段的问题</h4>
+                    <p>问题 ${index}: 没有可用的${getTopicName(topic)}问题。</p>
                 </div>
             `;
         }
         
-        // Select a random question from the topic
-        const randomIndex = Math.floor(Math.random() * topicQuestions.length);
-        const selectedQuestion = topicQuestions[randomIndex];
+        // Pick a random question from the topic
+        const questionObj = topicQuestions[Math.floor(Math.random() * topicQuestions.length)];
         
-        return `
+        // Generate HTML for the question
+        let questionHTML = `
             <div class="quiz-question">
-                <h4>问题 ${index}：${selectedQuestion.question}</h4>
-                <div class="quiz-options">
-                    ${selectedQuestion.options.map((option, i) => `
-                        <div class="quiz-option">
-                            <input type="radio" id="q${index}o${i}" name="q${index}" value="${i}">
-                            <label for="q${index}o${i}">${option}</label>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
+                <p><strong>问题 ${index}:</strong> ${questionObj.question}</p>
+                <div class="question-options">
         `;
-    }
-    
-    // Initialize taxonomy display buttons
-    const taxonomyButtons = document.querySelectorAll('.property-btn');
-    if (taxonomyButtons.length > 0) {
-        taxonomyButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                // Remove active class from all buttons
-                taxonomyButtons.forEach(btn => btn.classList.remove('active'));
-                
-                // Add active class to clicked button
-                this.classList.add('active');
-                
-                // Get selected property
-                const property = this.getAttribute('data-property');
-                console.log(`Selected taxonomy level: ${property}`);
-                
-                // Here you would implement the logic to update the taxonomy display
-                // based on the selected classification level
-            });
+        
+        // Add options
+        questionObj.options.forEach((option, i) => {
+            questionHTML += `
+                <div class="option">
+                    <input type="radio" id="q${index}_o${i}" name="q${index}" value="${i}">
+                    <label for="q${index}_o${i}">${option}</label>
+                </div>
+            `;
         });
+        
+        questionHTML += '</div></div>';
+        return questionHTML;
     }
 }); 
