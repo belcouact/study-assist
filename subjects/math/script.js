@@ -3,37 +3,50 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
-// 全局函数 - 显示消息
-function displayMessage(role, content, container) {
-    const messageElement = document.createElement('div');
-    messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
-    
-    // Process text for MathJax if it contains LaTeX
-    let processedText = content;
-    
-    // Look for math expressions in the text (delimited by $ or $$)
-    // and ensure they are properly formatted for MathJax
-    if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
-        // Replace \( \) syntax with $ $ for inline math
-        processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+console.log("Loading math script.js...");
+
+// Check if we already have the displayMessage function globally
+if (typeof window.displayMessage !== 'function') {
+    // 全局函数 - 显示消息
+    window.displayMessage = function(role, content, container) {
+        console.log("displayMessage called:", role, container?.id || "no container");
+        const messageElement = document.createElement('div');
+        messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
         
-        // Replace \[ \] syntax with $$ $$ for block math
-        processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
-    }
-    
-    // Convert newlines to <br> tags
-    processedText = processedText.replace(/\n/g, '<br>');
-    
-    messageElement.innerHTML = `<p>${processedText}</p>`;
-    container.appendChild(messageElement);
-    
-    // Scroll to bottom of chat
-    container.scrollTop = container.scrollHeight;
-    
-    // Render math expressions with MathJax if available
-    if (window.MathJax && role === 'assistant') {
-        window.MathJax.typeset([messageElement]);
-    }
+        // Process text for MathJax if it contains LaTeX
+        let processedText = content;
+        
+        // Look for math expressions in the text (delimited by $ or $$)
+        // and ensure they are properly formatted for MathJax
+        if (role === 'assistant' && (content.includes('$') || content.includes('\\('))) {
+            // Replace \( \) syntax with $ $ for inline math
+            processedText = processedText.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+            
+            // Replace \[ \] syntax with $$ $$ for block math
+            processedText = processedText.replace(/\\\[(.*?)\\\]/g, '$$$$1$$$$');
+        }
+        
+        // Convert newlines to <br> tags
+        processedText = processedText.replace(/\n/g, '<br>');
+        
+        messageElement.innerHTML = `<p>${processedText}</p>`;
+        container.appendChild(messageElement);
+        
+        // Scroll to bottom of chat
+        container.scrollTop = container.scrollHeight;
+        
+        // Render math expressions with MathJax if available
+        if (window.MathJax && role === 'assistant') {
+            window.MathJax.typeset([messageElement]);
+        }
+    };
+} else {
+    console.log("displayMessage function already exists.");
+}
+
+// Keep the original function for backward compatibility
+function displayMessage(role, content, container) {
+    return window.displayMessage(role, content, container);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -341,8 +354,19 @@ function initQuizGenerator() {
     }
     
     console.log("添加生成测验按钮点击事件监听器");
-    generateBtn.addEventListener('click', async function() {
+    
+    // 首先移除所有现有的事件监听器，避免重复绑定
+    const newGenerateBtn = generateBtn.cloneNode(true);
+    generateBtn.parentNode.replaceChild(newGenerateBtn, generateBtn);
+    
+    // 添加新的事件监听器
+    newGenerateBtn.onclick = async function() {
         console.log("点击了生成测验按钮");
+        generateQuiz();
+    }
+    
+    // 生成测验的函数
+    async function generateQuiz() {
         // Get quiz options
         const topic = topicSelect ? topicSelect.value : 'algebra';
         const difficulty = difficultySelect ? difficultySelect.value : 'medium';
@@ -412,6 +436,7 @@ function initQuizGenerator() {
             
             console.log("收到 API 响应");
             const data = await response.json();
+            console.log("解析API响应为JSON:", data);
             const aiResponse = data.choices[0].message.content;
             console.log("AI响应长度:", aiResponse.length);
             
@@ -420,7 +445,7 @@ function initQuizGenerator() {
                 console.log("正在解析 AI 响应中的 JSON");
                 // 提取JSON部分
                 const jsonMatch = aiResponse.match(/```json\s*({[\s\S]*?})\s*```/) || 
-                                 aiResponse.match(/({[\s\S]*"questions"[\s\S]*})/);
+                                aiResponse.match(/({[\s\S]*"questions"[\s\S]*})/);
                 
                 let quizData;
                 if (jsonMatch && jsonMatch[1]) {
@@ -459,7 +484,7 @@ function initQuizGenerator() {
                 </div>
             `;
         }
-    });
+    }
     
     // Function to render quiz
     function renderQuiz(quiz) {
