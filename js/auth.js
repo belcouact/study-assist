@@ -231,8 +231,8 @@ function createAuthModals() {
  * Update UI based on current authentication state
  */
 function updateAuthUI() {
-    const loginBtn = document.querySelector('.btn-outline');
-    const signupBtn = document.querySelector('.btn-primary');
+    const loginBtn = document.getElementById('login-button');
+    const signupBtn = document.getElementById('signup-button');
     
     if (AUTH_STATE.isLoggedIn && AUTH_STATE.currentUser) {
         // User is logged in
