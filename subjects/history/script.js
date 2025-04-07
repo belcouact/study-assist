@@ -28,20 +28,59 @@ function initQuizGenerator() {
             const difficulty = difficultySelect.value;
             const count = parseInt(questionsSelect.value);
             
-            // Get education level
-            const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+            // Get education level from header profile display
+            const profileDisplay = document.querySelector('.profile-display');
+            let educationLevel = 'middle-school'; // Default value
+            if (profileDisplay) {
+                const levelText = profileDisplay.textContent.trim();
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                }
+            }
+            
             const levelName = getEducationLevelName(educationLevel);
             const topicName = getTopicName(topic);
             const difficultyName = getDifficultyName(difficulty);
             
+            // Adjust difficulty and content based on education level
+            let levelSpecificPrompt = '';
+            let difficultyAdjustment = '';
+            
+            switch(educationLevel) {
+                case 'elementary-school':
+                    levelSpecificPrompt = '题目应该简单易懂，使用基础词汇和简单句子结构。每个问题都应该有明确的答案，避免模棱两可的情况。解释应该使用简单的语言，并包含具体的例子。';
+                    difficultyAdjustment = 'easy';
+                    break;
+                case 'middle-school':
+                    levelSpecificPrompt = '题目应该包含基础到中等难度的内容，使用适当的学术词汇。可以包含一些需要推理的问题，但答案应该相对明确。解释应该详细但不过于复杂。';
+                    difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
+                    break;
+                case 'high-school':
+                    levelSpecificPrompt = '题目可以包含更复杂的内容，使用高级词汇和复杂句子结构。可以包含需要批判性思维的问题，以及一些需要深入理解的概念。解释应该全面且专业。';
+                    difficultyAdjustment = difficulty;
+                    break;
+                default:
+                    levelSpecificPrompt = '题目应该适合初中生水平，使用适当的词汇和句子结构。';
+                    difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
+            }
+            
             // Build system message
             const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+            
+            ${levelSpecificPrompt}
+            
             每个问题应包含问题描述、4个选项（A、B、C、D）、正确答案和详细的解释说明。
             解释说明应该包含：
             1. 为什么这个选项是正确的
             2. 其他选项为什么是错误的
             3. 相关的历史背景知识
-            考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+            4. 适合${levelName}学生理解的具体例子
+            
+            请确保题目难度适合${levelName}学生的水平，避免过于简单或过于困难。
             请以JSON格式回复，格式如下:
             {
               "title": "测验标题",
@@ -56,7 +95,7 @@ function initQuizGenerator() {
                     { "id": "D", "text": "选项D内容" }
                   ],
                   "correctAnswer": "正确选项的ID（A/B/C/D）",
-                  "explanation": "详细的解释说明，包括正确答案的原因、错误选项的分析和相关历史背景"
+                  "explanation": "详细的解释说明，包括正确答案的原因、错误选项的分析和相关历史知识"
                 }
               ]
             }`;
