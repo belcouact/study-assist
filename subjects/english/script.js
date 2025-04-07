@@ -1191,8 +1191,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 const difficulty = document.getElementById('quiz-difficulty').value;
                 const count = parseInt(document.getElementById('quiz-questions').value);
                 
-                // 获取教育水平
-                const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                // 从header的profile-display获取教育水平
+                const profileDisplay = document.querySelector('.profile-display');
+                let educationLevel = 'middle-school'; // 默认值
+                if (profileDisplay) {
+                    const levelText = profileDisplay.textContent.trim();
+                    if (levelText.includes('小学')) {
+                        educationLevel = 'elementary-school';
+                    } else if (levelText.includes('初中')) {
+                        educationLevel = 'middle-school';
+                    } else if (levelText.includes('高中')) {
+                        educationLevel = 'high-school';
+                    }
+                }
+                
                 const levelName = getEducationLevelName(educationLevel);
                 const topicName = getTopicName(topic);
                 const difficultyName = getDifficultyName(difficulty);
