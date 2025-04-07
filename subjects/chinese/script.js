@@ -11,7 +11,7 @@ function initQuizGenerator() {
         generateBtn.addEventListener('click', async () => {
             // Get quiz options
             const topic = document.getElementById('quiz-topic').value;
-            const difficulty = document.getElementById('quiz-difficulty').value;
+            let difficulty = document.getElementById('quiz-difficulty').value;
             const count = parseInt(document.getElementById('quiz-questions').value);
             
             // Get education level from profile display
