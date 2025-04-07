@@ -342,78 +342,68 @@ function initQuizGenerator() {
     
     if (generateBtn && quizContainer) {
         generateBtn.addEventListener('click', async () => {
-            // Get quiz options
-            const topic = topicSelect ? topicSelect.value : 'algebra';
-            const difficulty = difficultySelect ? difficultySelect.value : 'medium';
-            const count = questionsSelect ? parseInt(questionsSelect.value) : 5;
-            
             // Show loading state
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
             
             try {
-                // 教育水平相关
-                let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
-                let levelName = '';
+                // Get quiz options
+                const topic = topicSelect ? topicSelect.value : 'algebra';
+                const difficulty = difficultySelect ? difficultySelect.value : 'medium';
+                const count = questionsSelect ? parseInt(questionsSelect.value) : 5;
+                
+                // Get education level from header profile display
+                const profileDisplay = document.querySelector('.profile-display');
+                let educationLevel = 'middle-school'; // Default value
+                if (profileDisplay) {
+                    const levelText = profileDisplay.textContent.trim();
+                    if (levelText.includes('小学')) {
+                        educationLevel = 'elementary-school';
+                    } else if (levelText.includes('初中')) {
+                        educationLevel = 'middle-school';
+                    } else if (levelText.includes('高中')) {
+                        educationLevel = 'high-school';
+                    }
+                }
+                
+                const levelName = getEducationLevelName(educationLevel);
+                const topicName = getTopicName(topic);
+                const difficultyName = getDifficultyName(difficulty);
+                
+                // Adjust difficulty and content based on education level
+                let levelSpecificPrompt = '';
+                let difficultyAdjustment = '';
                 
                 switch(educationLevel) {
                     case 'elementary-school':
-                        levelName = '小学';
+                        levelSpecificPrompt = '题目应该简单易懂，使用基础数学概念和简单计算。每个问题都应该有明确的答案，避免复杂的推理。解释应该使用简单的语言，并包含具体的例子。';
+                        difficultyAdjustment = 'easy';
                         break;
                     case 'middle-school':
-                        levelName = '初中';
+                        levelSpecificPrompt = '题目应该包含基础到中等难度的内容，使用适当的数学术语。可以包含一些需要推理的问题，但答案应该相对明确。解释应该详细但不过于复杂。';
+                        difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
                         break;
                     case 'high-school':
-                        levelName = '高中';
+                        levelSpecificPrompt = '题目可以包含更复杂的内容，使用高级数学概念和复杂推理。可以包含需要批判性思维的问题，以及一些需要深入理解的概念。解释应该全面且专业。';
+                        difficultyAdjustment = difficulty;
                         break;
                     default:
-                        levelName = '初中';
+                        levelSpecificPrompt = '题目应该适合初中生水平，使用适当的数学术语和概念。';
+                        difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
                 }
                 
-                // 转换题目难度为中文
-                let difficultyName = '';
-                switch(difficulty) {
-                    case 'easy':
-                        difficultyName = '简单';
-                        break;
-                    case 'medium':
-                        difficultyName = '中等';
-                        break;
-                    case 'hard':
-                        difficultyName = '困难';
-                        break;
-                    default:
-                        difficultyName = '中等';
-                }
-                
-                // 转换主题为中文
-                let topicName = '';
-                switch(topic) {
-                    case 'algebra':
-                        topicName = '代数';
-                        break;
-                    case 'geometry':
-                        topicName = '几何';
-                        break;
-                    case 'calculus':
-                        topicName = '微积分';
-                        break;
-                    case 'statistics':
-                        topicName = '统计学';
-                        break;
-                    case 'arithmetic':
-                        topicName = '算术';
-                        break;
-                    case 'trigonometry':
-                        topicName = '三角学';
-                        break;
-                    default:
-                        topicName = '代数';
-                }
-                
-                // 构建系统消息
+                // Build system message
                 const systemMessage = `你是一个专业的数学教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
-                每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
-                考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+                
+                ${levelSpecificPrompt}
+                
+                每个问题应包含问题描述、4个选项（A、B、C、D）、正确答案和详细的解释说明。
+                解释说明应该包含：
+                1. 为什么这个选项是正确的
+                2. 其他选项为什么是错误的
+                3. 相关的数学概念和公式
+                4. 适合${levelName}学生理解的具体例子
+                
+                请确保题目难度适合${levelName}学生的水平，避免过于简单或过于困难。
                 请以JSON格式回复，格式如下:
                 {
                   "title": "测验标题",
@@ -427,50 +417,42 @@ function initQuizGenerator() {
                         { "id": "C", "text": "选项C内容" },
                         { "id": "D", "text": "选项D内容" }
                       ],
-                      "correctAnswer": "正确选项的ID（A/B/C/D）"
+                      "correctAnswer": "正确选项的ID（A/B/C/D）",
+                      "explanation": "详细的解释说明，包括正确答案的原因、错误选项的分析和相关数学知识"
                     }
                   ]
                 }`;
                 
-                // 构建用户消息
-                const userPrompt = `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。每个问题需要4个选项，并标明正确答案。`;
-                
-                // 构建消息数组
-                const messages = [
-                    {
-                        "role": "system",
-                        "content": systemMessage
-                    },
-                    {
-                        "role": "user",
-                        "content": userPrompt
-                    }
-                ];
-                
-                // 调用DeepSeek API
+                // Call DeepSeek API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        messages: messages
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": systemMessage
+                            },
+                            {
+                                "role": "user",
+                                "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。`
+                            }
+                        ]
                     })
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                    throw new Error(`网络响应不正常: ${response.status}`);
                 }
                 
                 const data = await response.json();
                 const aiResponse = data.choices[0].message.content;
                 
-                console.log("Quiz AI response:", aiResponse);
-                
-                // 尝试解析JSON响应
+                // Parse JSON response
                 let quiz;
                 try {
-                    // 提取JSON部分 - AI可能会在JSON前后添加文本
                     const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         quiz = JSON.parse(jsonMatch[0]);
@@ -478,392 +460,314 @@ function initQuizGenerator() {
                         throw new Error('无法从响应中提取JSON');
                     }
                     
-                    // 验证是否有必要的字段
-                    if (!quiz.title || !quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+                    if (!quiz.title || !quiz.questions || !Array.isArray(quiz.questions)) {
                         throw new Error('解析的JSON格式不正确');
                     }
                     
-                    // 渲染测验
                     renderQuiz(quiz);
                 } catch (jsonError) {
                     console.error('解析AI响应时出错:', jsonError);
-                    
-                    // 如果JSON解析失败，尝试自己构建测验结构
-                    try {
-                        quiz = parseQuizFromText(aiResponse, topicName);
-                        renderQuiz(quiz);
-                    } catch (parseError) {
-                        console.error('解析测验文本失败:', parseError);
-                        quizContainer.innerHTML = `
-                            <div class="text-center text-error">
-                                <p>抱歉，生成测验时出现错误。请再试一次。</p>
-                                <p class="small">${jsonError.message}</p>
-                                <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
-                            </div>
-                        `;
-                    }
+                    quizContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                            <p class="small">${jsonError.message}</p>
+                        </div>
+                    `;
                 }
             } catch (error) {
-                console.error('Error generating quiz:', error);
+                console.error('生成测验时出错:', error);
                 quizContainer.innerHTML = `
                     <div class="text-center text-error">
                         <p>抱歉，生成测验时出现错误。请再试一次。</p>
                         <p class="small">${error.message}</p>
-                        <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
                     </div>
                 `;
             }
         });
+    }
+}
+
+/**
+ * Render the quiz with navigation
+ */
+function renderQuiz(quiz) {
+    const quizContainer = document.getElementById('quiz-container');
+    if (!quizContainer) return;
+    
+    let currentQuestionIndex = 0;
+    const userAnswers = new Array(quiz.questions.length).fill(null);
+    
+    function renderCurrentQuestion() {
+        const question = quiz.questions[currentQuestionIndex];
         
-        // 辅助函数 - 从文本中解析测验
-        function parseQuizFromText(text, topic) {
-            const lines = text.split('\n');
-            const quiz = {
-                title: `${topic}测验`,
-                questions: []
-            };
-            
-            let currentQuestion = null;
-            let questionCounter = 0;
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                
-                // 跳过空行
-                if (!line) continue;
-                
-                // 如果找到标题，使用它
-                if (i < 5 && (line.includes('测验') || line.includes('测试') || line.includes('Quiz'))) {
-                    quiz.title = line;
-                    continue;
-                }
-                
-                // 检查是否是新问题的开始 (数字+问题或问题序号)
-                const questionStartMatch = line.match(/^(\d+)[\.、\)](.+)/) || line.match(/^问题\s*(\d+)[\.、\):](.+)/);
-                if (questionStartMatch) {
-                    // 保存前一个问题
-                    if (currentQuestion && currentQuestion.options.length > 0) {
-                        quiz.questions.push(currentQuestion);
-                    }
-                    
-                    // 创建新问题
-                    questionCounter++;
-                    currentQuestion = {
-                        id: questionCounter.toString(),
-                        question: questionStartMatch[2].trim(),
-                        options: [],
-                        correctAnswer: ''
-                    };
-                    continue;
-                }
-                
-                // 如果当前处理问题，检查是否是选项
-                if (currentQuestion) {
-                    const optionMatch = line.match(/^([A-D])[\.、\):](.+)/);
-                    if (optionMatch) {
-                        const optionId = optionMatch[1];
-                        const optionText = optionMatch[2].trim();
-                        
-                        currentQuestion.options.push({
-                            id: optionId,
-                            text: optionText
-                        });
-                        
-                        // 检查选项是否标记为正确答案
-                        if (optionText.includes('(正确)') || optionText.includes('（正确）')) {
-                            currentQuestion.correctAnswer = optionId;
-                            // 移除选项文本中的正确标记
-                            currentQuestion.options[currentQuestion.options.length - 1].text = 
-                                optionText.replace(/\s*[\(（]正确[\)）]\s*/, '');
-                        }
-                        
-                        continue;
-                    }
-                    
-                    // 检查是否是答案标记
-                    const answerMatch = line.match(/正确答案[是为:：]\s*([A-D])/i) || 
-                                       line.match(/答案[是为:：]\s*([A-D])/i) ||
-                                       line.match(/^\s*答案\s*[是为:：]?\s*([A-D])/i);
-                    if (answerMatch && !currentQuestion.correctAnswer) {
-                        currentQuestion.correctAnswer = answerMatch[1];
-                    }
-                }
-            }
-            
-            // 添加最后一个问题
-            if (currentQuestion && currentQuestion.options.length > 0) {
-                quiz.questions.push(currentQuestion);
-            }
-            
-            // 如果没有找到答案的问题，默认设置为A
-            quiz.questions.forEach(q => {
-                if (!q.correctAnswer && q.options.length > 0) {
-                    q.correctAnswer = 'A';
-                }
-            });
-            
-            // 验证测验
-            if (quiz.questions.length === 0) {
-                throw new Error('无法从文本中提取问题');
-            }
-            
-            return quiz;
-        }
+        let html = `
+            <div class="quiz-header">
+                <h3>${quiz.title}</h3>
+                <p class="quiz-progress">第 ${currentQuestionIndex + 1} 题，共 ${quiz.questions.length} 题</p>
+            </div>
+            <div class="quiz-question">
+                <p>${question.question}</p>
+                <div class="quiz-options">
+        `;
         
-        // Function to render quiz
-        function renderQuiz(quiz) {
-            // Create quiz HTML
-            let quizHTML = `
-                <div class="quiz-header">
-                    <h3>${quiz.title}</h3>
-                    <p>请回答以下 ${quiz.questions.length} 个问题。</p>
+        question.options.forEach(option => {
+            const isSelected = userAnswers[currentQuestionIndex] === option.id;
+            html += `
+                <div class="quiz-option ${isSelected ? 'selected' : ''}" data-option="${option.id}">
+                    <label>
+                        <input type="radio" name="q${currentQuestionIndex}" value="${option.id}" ${isSelected ? 'checked' : ''}>
+                        <span>${option.text}</span>
+                    </label>
                 </div>
-                <div class="quiz-questions">
             `;
-            
-            // Only show first question initially
-            const firstQuestion = quiz.questions[0];
-            
-            quizHTML += `
-                <div class="quiz-question-wrapper" data-question="${firstQuestion.id}" data-correct="${firstQuestion.correctAnswer}">
-                    <div class="quiz-question">${firstQuestion.question}</div>
-                    <div class="quiz-options">
-            `;
-            
-            // Add options
-            firstQuestion.options.forEach(option => {
-                quizHTML += `
-                    <div class="quiz-option" data-option="${option.id}">
-                        <label>
-                            <input type="radio" name="q-${firstQuestion.id}" value="${option.id}">
-                            <span>${option.text}</span>
-                        </label>
+        });
+        
+        html += `
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" id="confirm-answer" ${!userAnswers[currentQuestionIndex] ? 'disabled' : ''}>
+                        确认答案
+                    </button>
+                </div>
+                <div class="quiz-feedback" style="display: none;">
+                    <div class="answer-feedback">
+                        <h4>正确答案：${question.options.find(o => o.id === question.correctAnswer).text}</h4>
+                        <p class="explanation">${question.explanation || '暂无详细解释'}</p>
                     </div>
-                `;
-            });
-            
-            quizHTML += `
-                    </div>
-                    <div class="quiz-feedback" style="display: none;"></div>
                 </div>
-            `;
-            
-            // Add navigation buttons
-            quizHTML += `
-                <div class="quiz-navigation">
-                    <button class="btn btn-outline quiz-prev" disabled>上一题</button>
-                    <div class="quiz-progress">第 1 题，共 ${quiz.questions.length} 题</div>
-                    <button class="btn btn-primary quiz-next">下一题</button>
-                </div>
-            `;
-            
-            quizHTML += `
-                </div>
-                <div class="quiz-results" style="display: none;">
-                    <h3>测验结果</h3>
-                    <p class="result-summary"></p>
-                    <button class="btn btn-primary quiz-restart">再试一次</button>
-                </div>
-            `;
-            
-            // Set quiz HTML
-            quizContainer.innerHTML = quizHTML;
-            
-            // Store all questions in a data attribute for later use
-            quizContainer.setAttribute('data-questions', JSON.stringify(quiz.questions));
-            quizContainer.setAttribute('data-current-question', 0);
-            
-            // Add event listeners
-            setupQuizEvents();
-            
-            // 渲染数学公式
-            if (window.MathJax) {
-                window.MathJax.typeset();
-            }
-        }
+            </div>
+            <div class="quiz-navigation">
+                <button class="btn btn-outline" id="prev-question" ${currentQuestionIndex === 0 ? 'disabled' : ''}>
+                    上一题
+                </button>
+                <button class="btn btn-primary" id="next-question">
+                    ${currentQuestionIndex === quiz.questions.length - 1 ? '完成测验' : '下一题'}
+                </button>
+            </div>
+        `;
         
-        // Function to set up quiz event listeners
-        function setupQuizEvents() {
-            // Store quiz state
-            const questions = JSON.parse(quizContainer.getAttribute('data-questions'));
-            let currentQuestion = parseInt(quizContainer.getAttribute('data-current-question'));
-            const userAnswers = [];
+        quizContainer.innerHTML = html;
+        
+        // Add event listeners
+        const options = quizContainer.querySelectorAll('.quiz-option');
+        options.forEach(option => {
+            option.addEventListener('click', () => {
+                const optionId = option.dataset.option;
+                userAnswers[currentQuestionIndex] = optionId;
+                options.forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                document.getElementById('confirm-answer').disabled = false;
+            });
+        });
+        
+        const confirmBtn = document.getElementById('confirm-answer');
+        confirmBtn.addEventListener('click', () => {
+            const feedback = quizContainer.querySelector('.quiz-feedback');
+            feedback.style.display = 'block';
+            confirmBtn.disabled = true;
             
-            // Get elements
-            const prevBtn = quizContainer.querySelector('.quiz-prev');
-            const nextBtn = quizContainer.querySelector('.quiz-next');
-            const quizProgress = quizContainer.querySelector('.quiz-progress');
-            
-            // Option selection
-            const options = quizContainer.querySelectorAll('.quiz-option');
+            // Disable all options
             options.forEach(option => {
-                option.addEventListener('click', () => {
-                    // Select radio button
-                    const radio = option.querySelector('input[type="radio"]');
-                    radio.checked = true;
-                    
-                    // Add selected class
-                    options.forEach(o => o.classList.remove('selected'));
-                    option.classList.add('selected');
-                    
-                    // Enable next button
-                    nextBtn.disabled = false;
-                });
+                option.style.pointerEvents = 'none';
+                if (option.dataset.option === question.correctAnswer) {
+                    option.classList.add('correct');
+                } else if (option.dataset.option === userAnswers[currentQuestionIndex]) {
+                    option.classList.add('incorrect');
+                }
             });
-            
-            // Previous button
-            if (prevBtn) {
-                prevBtn.addEventListener('click', () => {
-                    if (currentQuestion > 0) {
-                        currentQuestion--;
-                        updateQuestion();
-                    }
-                });
+        });
+        
+        const prevBtn = document.getElementById('prev-question');
+        const nextBtn = document.getElementById('next-question');
+        
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderCurrentQuestion();
             }
-            
-            // Next button
-            if (nextBtn) {
-                nextBtn.addEventListener('click', () => {
-                    // Get selected option
-                    const selected = quizContainer.querySelector('.quiz-option.selected');
-                    if (!selected) return;
-                    
-                    const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
-                    const questionId = questionWrapper.getAttribute('data-question');
-                    const correctAnswer = questionWrapper.getAttribute('data-correct');
-                    const selectedOption = selected.getAttribute('data-option');
-                    
-                    // Record answer
-                    userAnswers[currentQuestion] = {
-                        questionId,
-                        selectedOption,
-                        isCorrect: selectedOption === correctAnswer
-                    };
-                    
-                    // Check if this is the last question
-                    if (currentQuestion < questions.length - 1) {
-                        // Move to next question
-                        currentQuestion++;
-                        updateQuestion();
-                    } else {
-                        // Show results
-                        showResults();
-                    }
-                });
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (currentQuestionIndex === quiz.questions.length - 1) {
+                showResults();
+            } else {
+                currentQuestionIndex++;
+                renderCurrentQuestion();
             }
+        });
+    }
+    
+    function showResults() {
+        let correctCount = 0;
+        const results = quiz.questions.map((question, index) => {
+            const isCorrect = userAnswers[index] === question.correctAnswer;
+            if (isCorrect) correctCount++;
+            return {
+                question: question.question,
+                userAnswer: userAnswers[index],
+                correctAnswer: question.correctAnswer,
+                isCorrect,
+                explanation: question.explanation
+            };
+        });
+        
+        const percentage = Math.round((correctCount / quiz.questions.length) * 100);
+        const grade = getGrade(percentage);
+        
+        let html = `
+            <div class="quiz-results">
+                <h3>测验结果</h3>
+                <div class="result-summary">
+                    <p>得分：${correctCount} / ${quiz.questions.length} (${percentage}%)</p>
+                    <p class="grade">等级：${grade}</p>
+                    <p class="result-message">
+                        ${percentage >= 80 ? '太棒了！你对这个主题掌握得很好！' :
+                          percentage >= 60 ? '不错！继续努力，你可以做得更好！' :
+                          '继续学习，相信你下次一定能取得更好的成绩！'}
+                    </p>
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" id="retry-quiz">重新测验</button>
+                    <button class="btn btn-outline" id="learning-assessment">学习评估</button>
+                </div>
+            </div>
+        `;
+        
+        quizContainer.innerHTML = html;
+        
+        const retryBtn = document.getElementById('retry-quiz');
+        retryBtn.addEventListener('click', () => {
+            currentQuestionIndex = 0;
+            userAnswers.fill(null);
+            renderCurrentQuestion();
+        });
+        
+        const assessmentBtn = document.getElementById('learning-assessment');
+        assessmentBtn.addEventListener('click', async () => {
+            assessmentBtn.disabled = true;
+            assessmentBtn.textContent = '评估中...';
             
-            // Function to update question display
-            function updateQuestion() {
-                const question = questions[currentQuestion];
-                const questionWrapper = quizContainer.querySelector('.quiz-question-wrapper');
+            try {
+                const topic = document.getElementById('quiz-topic').value;
+                const topicName = getTopicName(topic);
+                const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                const levelName = getEducationLevelName(educationLevel);
                 
-                // Update question
-                questionWrapper.setAttribute('data-question', question.id);
-                questionWrapper.setAttribute('data-correct', question.correctAnswer);
-                questionWrapper.querySelector('.quiz-question').textContent = question.question;
+                const assessmentPrompt = `你是一个专业的数学教育专家。请根据以下测验结果，为${levelName}学生提供关于${topicName}主题的学习评估和改进建议：
                 
-                // Update options
-                const optionsContainer = questionWrapper.querySelector('.quiz-options');
-                optionsContainer.innerHTML = '';
+                测验结果：
+                - 总分：${correctCount}/${quiz.questions.length} (${percentage}%)
+                - 等级：${grade}
                 
-                question.options.forEach(option => {
-                    const optionElement = document.createElement('div');
-                    optionElement.className = 'quiz-option';
-                    optionElement.setAttribute('data-option', option.id);
-                    
-                    // Check if user already answered this question
-                    if (userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id) {
-                        optionElement.classList.add('selected');
-                    }
-                    
-                    optionElement.innerHTML = `
-                        <label>
-                            <input type="radio" name="q-${question.id}" value="${option.id}" ${userAnswers[currentQuestion] && userAnswers[currentQuestion].selectedOption === option.id ? 'checked' : ''}>
-                            <span>${option.text}</span>
-                        </label>
-                    `;
-                    optionsContainer.appendChild(optionElement);
-                    
-                    // Add event listener
-                    optionElement.addEventListener('click', () => {
-                        // Select radio button
-                        const radio = optionElement.querySelector('input[type="radio"]');
-                        radio.checked = true;
-                        
-                        // Add selected class
-                        optionsContainer.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('selected'));
-                        optionElement.classList.add('selected');
-                        
-                        // Enable next button
-                        nextBtn.disabled = false;
-                    });
+                详细答题情况：
+                ${results.map((result, index) => `
+                ${index + 1}. 问题：${result.question}
+                   学生答案：${result.userAnswer ? quiz.questions[index].options.find(o => o.id === result.userAnswer).text : '未作答'}
+                   正确答案：${quiz.questions[index].options.find(o => o.id === result.correctAnswer).text}
+                   是否正确：${result.isCorrect ? '是' : '否'}
+                `).join('\n')}
+                
+                请提供：
+                1. 知识掌握情况分析
+                2. 具体薄弱环节
+                3. 针对性的学习建议
+                4. 推荐的学习资源和方法
+                
+                请用中文回答，语言要适合${levelName}学生的理解水平。`;
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": "你是一个专业的数学教育专家，擅长分析学生的学习情况并提供针对性的学习建议。"
+                            },
+                            {
+                                "role": "user",
+                                "content": assessmentPrompt
+                            }
+                        ]
+                    })
                 });
                 
-                // Update feedback display
-                const feedbackEl = questionWrapper.querySelector('.quiz-feedback');
-                feedbackEl.style.display = 'none';
-                
-                // Update navigation
-                prevBtn.disabled = currentQuestion === 0;
-                nextBtn.disabled = !userAnswers[currentQuestion];
-                quizProgress.textContent = `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`;
-                
-                // Update quiz container data attribute
-                quizContainer.setAttribute('data-current-question', currentQuestion);
-                
-                // If last question, change next button text
-                if (currentQuestion === questions.length - 1) {
-                    nextBtn.textContent = '完成测验';
-                } else {
-                    nextBtn.textContent = '下一题';
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status}`);
                 }
                 
-                // 渲染数学公式
-                if (window.MathJax) {
-                    window.MathJax.typeset();
-                }
-            }
-            
-            // Function to show results
-            function showResults() {
-                // Calculate score
-                const correct = userAnswers.filter(a => a.isCorrect).length;
-                const total = questions.length;
-                const percentage = Math.round((correct / total) * 100);
+                const data = await response.json();
+                const assessment = data.choices[0].message.content;
                 
-                // Update results
-                const resultsDiv = quizContainer.querySelector('.quiz-results');
-                const resultSummary = resultsDiv.querySelector('.result-summary');
-                
-                resultSummary.innerHTML = `
-                    <div class="result-score">${correct} 题正确，共 ${total} 题 (${percentage}%)</div>
-                    <div class="result-message">
-                        ${percentage >= 80 ? '非常好！' : percentage >= 60 ? '做得好！' : '继续努力！'}
+                const assessmentContainer = document.createElement('div');
+                assessmentContainer.className = 'learning-assessment';
+                assessmentContainer.innerHTML = `
+                    <h4>学习评估报告</h4>
+                    <div class="assessment-content">
+                        ${assessment.replace(/\n/g, '<br>')}
                     </div>
+                    <button class="btn btn-outline" id="close-assessment">关闭评估</button>
                 `;
                 
-                // Hide questions, show results
-                quizContainer.querySelector('.quiz-questions').style.display = 'none';
-                resultsDiv.style.display = 'block';
+                quizContainer.appendChild(assessmentContainer);
                 
-                // Add restart button listener
-                const restartBtn = resultsDiv.querySelector('.quiz-restart');
-                restartBtn.addEventListener('click', () => {
-                    // Reset quiz state
-                    quizContainer.querySelector('.quiz-questions').style.display = 'block';
-                    resultsDiv.style.display = 'none';
-                    
-                    // Clear user answers
-                    for (let i = 0; i < userAnswers.length; i++) {
-                        userAnswers[i] = undefined;
-                    }
-                    
-                    // Reset to first question
-                    currentQuestion = 0;
-                    updateQuestion();
+                document.getElementById('close-assessment').addEventListener('click', () => {
+                    assessmentContainer.remove();
+                    assessmentBtn.disabled = false;
+                    assessmentBtn.textContent = '学习评估';
                 });
+                
+            } catch (error) {
+                console.error('获取学习评估时出错:', error);
+                alert('获取学习评估时出错，请稍后再试。');
+                assessmentBtn.disabled = false;
+                assessmentBtn.textContent = '学习评估';
             }
-        }
+        });
+    }
+    
+    function getGrade(percentage) {
+        if (percentage >= 90) return 'A';
+        if (percentage >= 80) return 'B';
+        if (percentage >= 70) return 'C';
+        if (percentage >= 60) return 'D';
+        return 'F';
+    }
+    
+    // Start with the first question
+    renderCurrentQuestion();
+}
+
+// Helper functions for name conversions
+function getEducationLevelName(level) {
+    switch(level) {
+        case 'elementary-school': return '小学';
+        case 'middle-school': return '初中';
+        case 'high-school': return '高中';
+        default: return '初中';
+    }
+}
+
+function getTopicName(topic) {
+    switch(topic) {
+        case 'algebra': return '代数';
+        case 'geometry': return '几何';
+        case 'calculus': return '微积分';
+        case 'statistics': return '统计学';
+        case 'arithmetic': return '算术';
+        case 'trigonometry': return '三角学';
+        default: return '数学';
+    }
+}
+
+function getDifficultyName(difficulty) {
+    switch(difficulty) {
+        case 'easy': return '简单';
+        case 'medium': return '中等';
+        case 'hard': return '困难';
+        default: return '中等';
     }
 }
 
