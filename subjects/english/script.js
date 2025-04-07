@@ -1173,4 +1173,394 @@ document.addEventListener('DOMContentLoaded', function() {
             default: return '初中';
         }
     }
+
+    // 初始化测验生成器
+    function initQuizGenerator() {
+        const generateBtn = document.getElementById('generate-quiz');
+        const quizContainer = document.getElementById('quiz-container');
+        
+        if (!generateBtn || !quizContainer) return;
+        
+        generateBtn.addEventListener('click', async () => {
+            // 显示加载状态
+            quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
+            
+            try {
+                // 获取测验选项
+                const topic = document.getElementById('quiz-topic').value;
+                const difficulty = document.getElementById('quiz-difficulty').value;
+                const count = parseInt(document.getElementById('quiz-questions').value);
+                
+                // 获取教育水平
+                const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                const levelName = getEducationLevelName(educationLevel);
+                const topicName = getTopicName(topic);
+                const difficultyName = getDifficultyName(difficulty);
+                
+                // 构建系统消息
+                const systemMessage = `你是一个专业的英语教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+                每个问题应包含问题描述、4个选项（A、B、C、D）、正确答案和详细的解释说明。
+                解释说明应该包含：
+                1. 为什么这个选项是正确的
+                2. 其他选项为什么是错误的
+                3. 相关的语法或语言知识
+                考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+                请以JSON格式回复，格式如下:
+                {
+                  "title": "测验标题",
+                  "questions": [
+                    {
+                      "id": "1",
+                      "question": "问题描述",
+                      "options": [
+                        { "id": "A", "text": "选项A内容" },
+                        { "id": "B", "text": "选项B内容" },
+                        { "id": "C", "text": "选项C内容" },
+                        { "id": "D", "text": "选项D内容" }
+                      ],
+                      "correctAnswer": "正确选项的ID（A/B/C/D）",
+                      "explanation": "详细的解释说明，包括正确答案的原因、错误选项的分析和相关语法知识"
+                    }
+                  ]
+                }`;
+                
+                // 调用DeepSeek API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": systemMessage
+                            },
+                            {
+                                "role": "user",
+                                "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。`
+                            }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+                
+                // 解析JSON响应
+                let quiz;
+                try {
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        quiz = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error('无法从响应中提取JSON');
+                    }
+                    
+                    if (!quiz.title || !quiz.questions || !Array.isArray(quiz.questions)) {
+                        throw new Error('解析的JSON格式不正确');
+                    }
+                    
+                    renderQuiz(quiz);
+                } catch (jsonError) {
+                    console.error('解析AI响应时出错:', jsonError);
+                    quizContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                            <p class="small">${jsonError.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('生成测验时出错:', error);
+                quizContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                        <p class="small">${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+    }
+
+    // 渲染测验
+    function renderQuiz(quiz) {
+        const quizContainer = document.getElementById('quiz-container');
+        if (!quizContainer) return;
+        
+        let currentQuestionIndex = 0;
+        const userAnswers = new Array(quiz.questions.length).fill(null);
+        
+        function renderCurrentQuestion() {
+            const question = quiz.questions[currentQuestionIndex];
+            
+            let html = `
+                <div class="quiz-header">
+                    <h3>${quiz.title}</h3>
+                    <p class="quiz-progress">第 ${currentQuestionIndex + 1} 题，共 ${quiz.questions.length} 题</p>
+                </div>
+                <div class="quiz-question">
+                    <p>${question.question}</p>
+                    <div class="quiz-options">
+            `;
+            
+            question.options.forEach(option => {
+                const isSelected = userAnswers[currentQuestionIndex] === option.id;
+                html += `
+                    <div class="quiz-option ${isSelected ? 'selected' : ''}" data-option="${option.id}">
+                        <label>
+                            <input type="radio" name="q${currentQuestionIndex}" value="${option.id}" ${isSelected ? 'checked' : ''}>
+                            <span>${option.text}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    <div class="quiz-actions">
+                        <button class="btn btn-primary" id="confirm-answer" ${!userAnswers[currentQuestionIndex] ? 'disabled' : ''}>
+                            确认答案
+                        </button>
+                    </div>
+                    <div class="quiz-feedback" style="display: none;">
+                        <div class="answer-feedback">
+                            <h4>正确答案：${question.options.find(o => o.id === question.correctAnswer).text}</h4>
+                            <p class="explanation">${question.explanation}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="quiz-navigation">
+                    <button class="btn btn-outline" id="prev-question" ${currentQuestionIndex === 0 ? 'disabled' : ''}>
+                        上一题
+                    </button>
+                    <button class="btn btn-primary" id="next-question">
+                        ${currentQuestionIndex === quiz.questions.length - 1 ? '完成测验' : '下一题'}
+                    </button>
+                </div>
+            `;
+            
+            quizContainer.innerHTML = html;
+            
+            // 添加事件监听器
+            const options = quizContainer.querySelectorAll('.quiz-option');
+            options.forEach(option => {
+                option.addEventListener('click', () => {
+                    const optionId = option.dataset.option;
+                    userAnswers[currentQuestionIndex] = optionId;
+                    options.forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+                    document.getElementById('confirm-answer').disabled = false;
+                });
+            });
+            
+            const confirmBtn = document.getElementById('confirm-answer');
+            confirmBtn.addEventListener('click', () => {
+                const feedback = quizContainer.querySelector('.quiz-feedback');
+                feedback.style.display = 'block';
+                confirmBtn.disabled = true;
+                
+                // 禁用所有选项
+                options.forEach(option => {
+                    option.style.pointerEvents = 'none';
+                    if (option.dataset.option === question.correctAnswer) {
+                        option.classList.add('correct');
+                    } else if (option.dataset.option === userAnswers[currentQuestionIndex]) {
+                        option.classList.add('incorrect');
+                    }
+                });
+            });
+            
+            const prevBtn = document.getElementById('prev-question');
+            const nextBtn = document.getElementById('next-question');
+            
+            prevBtn.addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    renderCurrentQuestion();
+                }
+            });
+            
+            nextBtn.addEventListener('click', () => {
+                if (currentQuestionIndex === quiz.questions.length - 1) {
+                    showResults();
+                } else {
+                    currentQuestionIndex++;
+                    renderCurrentQuestion();
+                }
+            });
+        }
+        
+        function showResults() {
+            let correctCount = 0;
+            const results = quiz.questions.map((question, index) => {
+                const isCorrect = userAnswers[index] === question.correctAnswer;
+                if (isCorrect) correctCount++;
+                return {
+                    question: question.question,
+                    userAnswer: userAnswers[index],
+                    correctAnswer: question.correctAnswer,
+                    isCorrect,
+                    explanation: question.explanation
+                };
+            });
+            
+            const percentage = Math.round((correctCount / quiz.questions.length) * 100);
+            const grade = getGrade(percentage);
+            
+            let html = `
+                <div class="quiz-results">
+                    <h3>测验结果</h3>
+                    <div class="result-summary">
+                        <p>得分：${correctCount} / ${quiz.questions.length} (${percentage}%)</p>
+                        <p class="grade">等级：${grade}</p>
+                        <p class="result-message">
+                            ${percentage >= 80 ? '太棒了！你对这个主题掌握得很好！' :
+                              percentage >= 60 ? '不错！继续努力，你可以做得更好！' :
+                              '继续学习，相信你下次一定能取得更好的成绩！'}
+                        </p>
+                    </div>
+                    <div class="result-actions">
+                        <button class="btn btn-primary" id="retry-quiz">重新测验</button>
+                        <button class="btn btn-outline" id="learning-assessment">学习评估</button>
+                    </div>
+                </div>
+            `;
+            
+            quizContainer.innerHTML = html;
+            
+            const retryBtn = document.getElementById('retry-quiz');
+            retryBtn.addEventListener('click', () => {
+                currentQuestionIndex = 0;
+                userAnswers.fill(null);
+                renderCurrentQuestion();
+            });
+            
+            const assessmentBtn = document.getElementById('learning-assessment');
+            assessmentBtn.addEventListener('click', async () => {
+                assessmentBtn.disabled = true;
+                assessmentBtn.textContent = '评估中...';
+                
+                try {
+                    const topic = document.getElementById('quiz-topic').value;
+                    const topicName = getTopicName(topic);
+                    const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                    const levelName = getEducationLevelName(educationLevel);
+                    
+                    const assessmentPrompt = `你是一个专业的英语教育专家。请根据以下测验结果，为${levelName}学生提供关于${topicName}主题的学习评估和改进建议：
+                    
+                    测验结果：
+                    - 总分：${correctCount}/${quiz.questions.length} (${percentage}%)
+                    - 等级：${grade}
+                    
+                    请提供：
+                    1. 知识掌握情况分析
+                    2. 具体薄弱环节
+                    3. 针对性的学习建议
+                    4. 推荐的学习资源和方法
+                    
+                    请用中文回答，语言要适合${levelName}学生的理解水平。`;
+                    
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    "role": "system",
+                                    "content": "你是一个专业的英语教育专家，擅长分析学生的学习情况并提供针对性的学习建议。"
+                                },
+                                {
+                                    "role": "user",
+                                    "content": assessmentPrompt
+                                }
+                            ]
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`网络响应不正常: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    const assessment = data.choices[0].message.content;
+                    
+                    const assessmentContainer = document.createElement('div');
+                    assessmentContainer.className = 'learning-assessment';
+                    assessmentContainer.innerHTML = `
+                        <h4>学习评估报告</h4>
+                        <div class="assessment-content">
+                            ${assessment.replace(/\n/g, '<br>')}
+                        </div>
+                        <button class="btn btn-outline" id="close-assessment">关闭评估</button>
+                    `;
+                    
+                    quizContainer.appendChild(assessmentContainer);
+                    
+                    document.getElementById('close-assessment').addEventListener('click', () => {
+                        assessmentContainer.remove();
+                        assessmentBtn.disabled = false;
+                        assessmentBtn.textContent = '学习评估';
+                    });
+                    
+                } catch (error) {
+                    console.error('获取学习评估时出错:', error);
+                    alert('获取学习评估时出错，请稍后再试。');
+                    assessmentBtn.disabled = false;
+                    assessmentBtn.textContent = '学习评估';
+                }
+            });
+        }
+        
+        function getGrade(percentage) {
+            if (percentage >= 90) return 'A';
+            if (percentage >= 80) return 'B';
+            if (percentage >= 70) return 'C';
+            if (percentage >= 60) return 'D';
+            return 'F';
+        }
+        
+        // 从第一题开始
+        renderCurrentQuestion();
+    }
+
+    // 辅助函数：获取教育水平名称
+    function getEducationLevelName(level) {
+        switch(level) {
+            case 'elementary-school': return '小学';
+            case 'middle-school': return '初中';
+            case 'high-school': return '高中';
+            default: return '初中';
+        }
+    }
+
+    // 辅助函数：获取主题名称
+    function getTopicName(topic) {
+        switch(topic) {
+            case 'grammar': return '语法';
+            case 'vocabulary': return '词汇';
+            case 'reading': return '阅读理解';
+            case 'writing': return '写作';
+            default: return '英语';
+        }
+    }
+
+    // 辅助函数：获取难度名称
+    function getDifficultyName(difficulty) {
+        switch(difficulty) {
+            case 'easy': return '初级';
+            case 'medium': return '中级';
+            case 'hard': return '高级';
+            default: return '中级';
+        }
+    }
+
+    // 初始化测验生成器
+    initQuizGenerator();
 }); 
