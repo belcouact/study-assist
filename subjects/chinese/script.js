@@ -115,6 +115,7 @@ function initQuizGenerator() {
               ]
             }`;
             
+            console.log(systemMessage)
             // Show loading state
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
             
