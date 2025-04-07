@@ -1,216 +1,459 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // DOM元素
-    const chatMessages = document.getElementById('chinese-chat-messages');
-    const questionInput = document.getElementById('chinese-question-input');
-    const sendButton = document.getElementById('send-chinese-question');
-    const topicCards = document.querySelectorAll('.topic-card');
+document.addEventListener('DOMContentLoaded', () => {
+    initQuizGenerator();
+    initChineseChat();
+});
+
+function initQuizGenerator() {
+    const generateBtn = document.getElementById('generate-quiz');
+    const quizContainer = document.getElementById('quiz-container');
     
-    // 存储聊天历史
+    if (generateBtn && quizContainer) {
+        generateBtn.addEventListener('click', async () => {
+            // Get quiz options
+            const topic = document.getElementById('quiz-topic').value;
+            const difficulty = document.getElementById('quiz-difficulty').value;
+            const count = parseInt(document.getElementById('quiz-questions').value);
+            
+            // Get education level from profile display
+            const profileDisplay = document.getElementById('profile-display');
+            let educationLevel = 'middle-school'; // default
+            if (profileDisplay) {
+                const levelText = profileDisplay.textContent.toLowerCase();
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                }
+            }
+            
+            // Adjust quiz content based on education level
+            let levelSpecificPrompt = '';
+            switch(educationLevel) {
+                case 'elementary-school':
+                    levelSpecificPrompt = '题目应简单易懂，使用基础词汇和清晰答案。解释要简单明了，使用具体例子。难度自动调整为简单。';
+                    difficulty = 'easy';
+                    break;
+                case 'middle-school':
+                    levelSpecificPrompt = '题目可以包含基础到中等难度内容，使用适当的学术词汇，需要一些推理。解释要详细但不复杂。困难难度自动调整为中等。';
+                    if (difficulty === 'hard') difficulty = 'medium';
+                    break;
+                case 'high-school':
+                    levelSpecificPrompt = '题目可以包含复杂内容，使用高级词汇和批判性思维。解释要全面专业。保持所选难度。';
+                    break;
+            }
+            
+            // Convert topic to Chinese name
+            const topicName = getTopicName(topic);
+            const difficultyName = getDifficultyName(difficulty);
+            const levelName = getEducationLevelName(educationLevel);
+            
+            // Build system message
+            const systemMessage = `你是一个专业的语文教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+            每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
+            考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+            ${levelSpecificPrompt}
+            请以JSON格式回复，格式如下:
+            {
+              "title": "测验标题",
+              "questions": [
+                {
+                  "id": "1",
+                  "question": "问题描述",
+                  "options": [
+                    { "id": "A", "text": "选项A内容" },
+                    { "id": "B", "text": "选项B内容" },
+                    { "id": "C", "text": "选项C内容" },
+                    { "id": "D", "text": "选项D内容" }
+                  ],
+                  "correctAnswer": "正确选项的ID（A/B/C/D）",
+                  "explanation": "详细解释，包括：1. 为什么这个选项是正确的；2. 为什么其他选项是错误的；3. 相关的知识点说明"
+                }
+              ]
+            }`;
+            
+            // Show loading state
+            quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
+            
+            try {
+                // Call DeepSeek API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": systemMessage
+                            },
+                            {
+                                "role": "user",
+                                "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。每个问题需要4个选项，并标明正确答案。`
+                            }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+                
+                // Parse JSON response
+                let quiz;
+                try {
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        quiz = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error('无法从响应中提取JSON');
+                    }
+                } catch (error) {
+                    console.error('解析AI响应时出错:', error);
+                    quizContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                            <p class="small">${error.message}</p>
+                            <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Render quiz
+                renderQuiz(quiz);
+            } catch (error) {
+                console.error('生成测验时出错:', error);
+                quizContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                        <p class="small">${error.message}</p>
+                        <button class="btn btn-outline mt-md" onclick="initQuizGenerator()">重试</button>
+                    </div>
+                `;
+            }
+        });
+    }
+}
+
+function renderQuiz(quiz) {
+    const quizContainer = document.getElementById('quiz-container');
+    let currentQuestionIndex = 0;
+    const userAnswers = [];
+    
+    function updateQuestion() {
+        const question = quiz.questions[currentQuestionIndex];
+        const progress = `${currentQuestionIndex + 1}/${quiz.questions.length}`;
+        
+        let optionsHTML = '';
+        question.options.forEach(option => {
+            optionsHTML += `
+                <div class="quiz-option" data-option="${option.id}">
+                    <input type="radio" name="answer" id="option-${option.id}" value="${option.id}">
+                    <label for="option-${option.id}">${option.text}</label>
+                </div>
+            `;
+        });
+        
+        quizContainer.innerHTML = `
+            <div class="quiz-header">
+                <h3>${quiz.title}</h3>
+                <div class="quiz-progress">第 ${progress} 题</div>
+            </div>
+            <div class="quiz-question">
+                <p>${question.question}</p>
+                <div class="quiz-options">
+                    ${optionsHTML}
+                </div>
+            </div>
+            <div class="quiz-actions">
+                <button class="btn btn-outline" id="prev-question" ${currentQuestionIndex === 0 ? 'disabled' : ''}>上一题</button>
+                <button class="btn btn-primary" id="confirm-answer" disabled>确认答案</button>
+                <button class="btn btn-primary" id="next-question" ${currentQuestionIndex === quiz.questions.length - 1 ? 'disabled' : ''}>下一题</button>
+            </div>
+            <div class="quiz-feedback" style="display: none;"></div>
+        `;
+        
+        // Add event listeners
+        setupQuizEvents();
+    }
+    
+    function setupQuizEvents() {
+        const options = quizContainer.querySelectorAll('.quiz-option');
+        const confirmBtn = document.getElementById('confirm-answer');
+        const nextBtn = document.getElementById('next-question');
+        const prevBtn = document.getElementById('prev-question');
+        const feedbackDiv = document.querySelector('.quiz-feedback');
+        
+        // Option selection
+        options.forEach(option => {
+            option.addEventListener('click', () => {
+                options.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                confirmBtn.disabled = false;
+            });
+        });
+        
+        // Confirm answer
+        confirmBtn.addEventListener('click', () => {
+            const selectedOption = quizContainer.querySelector('.quiz-option.selected');
+            if (!selectedOption) return;
+            
+            const question = quiz.questions[currentQuestionIndex];
+            const isCorrect = selectedOption.dataset.option === question.correctAnswer;
+            
+            // Record answer
+            userAnswers[currentQuestionIndex] = {
+                questionId: question.id,
+                selectedOption: selectedOption.dataset.option,
+                isCorrect: isCorrect
+            };
+            
+            // Show feedback
+            feedbackDiv.style.display = 'block';
+            feedbackDiv.innerHTML = `
+                <div class="feedback-content ${isCorrect ? 'correct' : 'incorrect'}">
+                    <h4>${isCorrect ? '回答正确！' : '回答错误'}</h4>
+                    <p>${question.explanation}</p>
+                </div>
+            `;
+            
+            // Disable options and confirm button
+            options.forEach(opt => {
+                opt.classList.add('disabled');
+                if (opt.dataset.option === question.correctAnswer) {
+                    opt.classList.add('correct');
+                } else if (opt.dataset.option === selectedOption.dataset.option && !isCorrect) {
+                    opt.classList.add('incorrect');
+                }
+            });
+            confirmBtn.disabled = true;
+            
+            // Enable next button if not last question
+            if (currentQuestionIndex < quiz.questions.length - 1) {
+                nextBtn.disabled = false;
+            } else {
+                // Show results
+                showResults();
+            }
+        });
+        
+        // Next question
+        nextBtn.addEventListener('click', () => {
+            currentQuestionIndex++;
+            updateQuestion();
+        });
+        
+        // Previous question
+        prevBtn.addEventListener('click', () => {
+            currentQuestionIndex--;
+            updateQuestion();
+        });
+    }
+    
+    function showResults() {
+        const correctCount = userAnswers.filter(answer => answer.isCorrect).length;
+        const totalQuestions = quiz.questions.length;
+        const percentage = Math.round((correctCount / totalQuestions) * 100);
+        let grade = '';
+        
+        if (percentage >= 90) grade = 'A';
+        else if (percentage >= 80) grade = 'B';
+        else if (percentage >= 70) grade = 'C';
+        else if (percentage >= 60) grade = 'D';
+        else grade = 'F';
+        
+        quizContainer.innerHTML = `
+            <div class="quiz-results">
+                <h3>测验完成！</h3>
+                <div class="result-summary">
+                    <div class="score">得分: ${correctCount}/${totalQuestions} (${percentage}%)</div>
+                    <div class="grade">等级: ${grade}</div>
+                </div>
+                <div class="result-message">
+                    ${percentage >= 80 ? '太棒了！你的语文水平很好！' : 
+                      percentage >= 60 ? '不错！继续努力！' : 
+                      '别灰心，多加练习会更好！'}
+                </div>
+                <button class="btn btn-primary" id="learning-assessment">学习评估</button>
+                <button class="btn btn-outline" onclick="initQuizGenerator()">再试一次</button>
+            </div>
+        `;
+        
+        // Add learning assessment functionality
+        document.getElementById('learning-assessment').addEventListener('click', async () => {
+            const assessmentContainer = document.createElement('div');
+            assessmentContainer.className = 'learning-assessment';
+            assessmentContainer.innerHTML = '<p>正在生成学习评估...</p>';
+            quizContainer.appendChild(assessmentContainer);
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": `你是一个专业的语文教育专家，需要根据学生的测验结果提供学习评估和建议。
+                                测验结果：${correctCount}/${totalQuestions} 正确，等级 ${grade}。
+                                请提供：
+                                1. 知识掌握情况分析
+                                2. 薄弱环节识别
+                                3. 个性化学习建议
+                                4. 推荐的学习资源和方法`
+                            },
+                            {
+                                "role": "user",
+                                "content": "请根据以上测验结果提供详细的学习评估和建议。"
+                            }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const assessment = data.choices[0].message.content;
+                
+                assessmentContainer.innerHTML = `
+                    <h4>学习评估</h4>
+                    <div class="assessment-content">
+                        ${assessment}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('生成学习评估时出错:', error);
+                assessmentContainer.innerHTML = `
+                    <div class="text-error">
+                        <p>抱歉，生成学习评估时出现错误。</p>
+                        <p class="small">${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+    }
+    
+    // Start with first question
+    updateQuestion();
+}
+
+function getEducationLevelName(level) {
+    switch(level) {
+        case 'elementary-school': return '小学生';
+        case 'middle-school': return '初中生';
+        case 'high-school': return '高中生';
+        default: return '初中生';
+    }
+}
+
+function getTopicName(topic) {
+    switch(topic) {
+        case 'characters': return '汉字';
+        case 'reading': return '阅读理解';
+        case 'grammar': return '语法';
+        case 'idioms': return '成语';
+        case 'literature': return '文学知识';
+        case 'comprehensive': return '综合';
+        default: return '综合';
+    }
+}
+
+function getDifficultyName(difficulty) {
+    switch(difficulty) {
+        case 'easy': return '简单';
+        case 'medium': return '中等';
+        case 'hard': return '困难';
+        default: return '中等';
+    }
+}
+
+function initChineseChat() {
+    const sendButton = document.getElementById('send-chinese-question');
+    const questionInput = document.getElementById('chinese-question-input');
+    const chatMessages = document.getElementById('chinese-chat-messages');
+    
+    if (!sendButton || !questionInput || !chatMessages) return;
+    
     let chatHistory = [
         {
             "role": "system",
-            "content": "你是一个专业的汉语教学助手，擅长解答关于汉字、语法、文学、阅读、写作和书法等问题。你会提供清晰的解释和适合用户教育水平的答案。"
-        },
-        {
-            "role": "assistant",
-            "content": "你好！我是你的汉语学习助手。有什么关于汉语的问题我可以帮你解答吗？"
+            "content": "你是一个专业的语文教学助手，擅长解答关于汉字、语法、阅读、写作和文学等方面的问题。你会根据用户的教育水平提供适当的解释和指导。"
         }
     ];
     
-    // 教育水平相关
-    let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
-    
-    // 当前选择的主题
-    let currentTopic = null;
-    
-    // 监听发送按钮点击
-    if (sendButton) {
-        sendButton.addEventListener('click', sendMessage);
-    }
-    
-    // 监听输入框回车事件
-    if (questionInput) {
-        questionInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
-    
-    // 为主题卡片添加点击事件
-    topicCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const topic = this.getAttribute('data-topic');
-            setTopic(topic);
-            
-            // 高亮选中的主题卡片
-            topicCards.forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            
-            // 滚动到聊天部分
-            document.querySelector('.ai-assistant-section').scrollIntoView({ behavior: 'smooth' });
-            
-            // 聚焦到输入框
-            if (questionInput) {
-                questionInput.focus();
-            }
-        });
-    });
-    
-    // 从页面加载时初始化聊天界面
-    initializeChat();
-    
-    // 初始化聊天界面
-    function initializeChat() {
-        // 清空聊天区域
-        if (chatMessages) {
-            chatMessages.innerHTML = '';
-        }
-        
-        // 显示聊天历史
-        displayChatHistory();
-        
-        // 更新系统提示
-        updateSystemPrompt();
-        
-        // 检测教育水平变化
-        window.addEventListener('education-level-change', function(event) {
-            educationLevel = event.detail.level;
-            updateSystemPrompt();
-        });
-    }
-    
-    // 设置当前主题
-    function setTopic(topic) {
-        currentTopic = topic;
-        updateSystemPrompt();
-        
-        // 添加话题引导消息
-        let topicPrompt = "";
-        
-        switch(topic) {
-            case 'characters':
-                topicPrompt = "汉字的构成要素有哪些？如何区分形近字？";
-                break;
-            case 'reading':
-                topicPrompt = "如何提高阅读理解能力？有什么好的阅读策略？";
-                break;
-            case 'grammar':
-                topicPrompt = "汉语的基本句型结构是什么？如何正确使用虚词？";
-                break;
-            case 'writing':
-                topicPrompt = "如何写好一篇记叙文？文章结构应该怎么安排？";
-                break;
-            case 'literature':
-                topicPrompt = "中国古典文学的主要流派有哪些？能推荐几部经典作品吗？";
-                break;
-            case 'calligraphy':
-                topicPrompt = "书法的基本笔画有哪些？练习书法有什么技巧？";
-                break;
-            default:
-                return;
-        }
-        
-        // 自动在输入框中填入主题相关问题
-        if (questionInput) {
-            questionInput.value = topicPrompt;
-        }
-    }
-    
-    // 更新系统提示
     function updateSystemPrompt() {
-        let levelSpecificPrompt = '';
+        const profileDisplay = document.getElementById('profile-display');
+        let educationLevel = 'middle-school';
+        if (profileDisplay) {
+            const levelText = profileDisplay.textContent.toLowerCase();
+            if (levelText.includes('小学')) {
+                educationLevel = 'elementary-school';
+            } else if (levelText.includes('初中')) {
+                educationLevel = 'middle-school';
+            } else if (levelText.includes('高中')) {
+                educationLevel = 'high-school';
+            }
+        }
         
+        let levelSpecificPrompt = '';
         switch(educationLevel) {
             case 'elementary-school':
-                levelSpecificPrompt = '用户是小学生，请使用简单、基础的汉语概念进行解释，多用直观例子和图解，避免复杂术语。重点讲解基础的汉字、句型和阅读理解。';
+                levelSpecificPrompt = '用户是小学生，请使用简单易懂的语言，避免复杂术语，多使用具体例子和形象比喻。';
                 break;
             case 'middle-school':
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的汉语概念，包括词语搭配、修辞手法和简单的文学鉴赏，平衡简洁性和教育性。';
+                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的语文知识，使用适当的学术词汇，平衡简洁性和教育性。';
                 break;
             case 'high-school':
-                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的汉语概念，包括文言文解析、深度文学赏析和写作技巧等高级内容，可以引用经典作品和文学理论。';
+                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的语文概念，包括文学分析、写作技巧等，使用更专业的术语和深入的讲解。';
                 break;
-            default:
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的汉语概念，包括词语搭配、修辞手法和简单的文学鉴赏，平衡简洁性和教育性。';
         }
         
-        // 添加主题特定提示
-        let topicSpecificPrompt = '';
-        
-        if (currentTopic) {
-            switch(currentTopic) {
-                case 'characters':
-                    topicSpecificPrompt = '用户正在学习汉字。请专注于汉字的起源、结构、部首、笔顺等概念，并提供记忆方法和练习建议。';
-                    break;
-                case 'reading':
-                    topicSpecificPrompt = '用户正在提高阅读能力。请专注于阅读理解策略、文本分析方法、词义理解等方面，并提供适合的阅读材料推荐。';
-                    break;
-                case 'grammar':
-                    topicSpecificPrompt = '用户正在学习汉语语法。请专注于句型结构、词性、时态、语态等语法概念，并提供常见语法错误分析和纠正方法。';
-                    break;
-                case 'writing':
-                    topicSpecificPrompt = '用户正在提高写作能力。请专注于文章结构、表达技巧、修辞手法等写作要素，并提供写作指导和范文分析。';
-                    break;
-                case 'literature':
-                    topicSpecificPrompt = '用户正在学习中国文学。请专注于文学流派、代表作品、作家背景等内容，并提供文学作品的赏析和解读。';
-                    break;
-                case 'calligraphy':
-                    topicSpecificPrompt = '用户正在学习书法。请专注于书法的历史、流派、技法、工具等方面，并提供书法练习的方法和欣赏指导。';
-                    break;
-                default:
-                    topicSpecificPrompt = '';
-            }
-        }
-        
-        // 更新系统消息
-        chatHistory[0].content = "你是一个专业的汉语教学助手，擅长解答关于汉字、语法、文学、阅读、写作和书法等问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答问题时，可以适当引用诗词名句或经典文学作品，增强回答的文化内涵。";
+        chatHistory[0].content = `你是一个专业的语文教学助手，擅长解答关于汉字、语法、阅读、写作和文学等方面的问题。${levelSpecificPrompt} 你会根据用户的教育水平提供适当的解释和指导。`;
     }
     
-    // 显示聊天历史
-    function displayChatHistory() {
-        if (!chatMessages) return;
-        
-        chatHistory.forEach(message => {
-            if (message.role === 'assistant' || message.role === 'user') {
-                displayMessage(message.role, message.content);
-            }
-        });
-        
-        // 滚动到底部
-        scrollToBottom();
+    function displayMessage(role, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${role}`;
+        messageDiv.innerHTML = `<p>${content}</p>`;
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
-    // 发送消息到API
     async function sendMessage() {
-        if (!questionInput || !chatMessages) return;
+        const question = questionInput.value.trim();
+        if (!question) return;
         
-        const userMessage = questionInput.value.trim();
-        
-        // 检查是否为空消息
-        if (userMessage === '') return;
-        
-        // 清空输入框
+        // Display user message
+        displayMessage('user', question);
         questionInput.value = '';
         
-        // 显示用户消息
-        displayMessage('user', userMessage);
+        // Update system prompt based on current education level
+        updateSystemPrompt();
         
-        // 添加到聊天历史
+        // Add user message to chat history
         chatHistory.push({
             "role": "user",
-            "content": userMessage
+            "content": question
         });
         
-        // 显示加载状态
-        const loadingMessage = document.createElement('div');
-        loadingMessage.className = 'message message-ai loading';
-        loadingMessage.innerHTML = '<p>思考中...</p>';
-        chatMessages.appendChild(loadingMessage);
-        scrollToBottom();
+        // Show loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message message-ai loading';
+        loadingDiv.innerHTML = '<p>思考中...</p>';
+        chatMessages.appendChild(loadingDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
         
         try {
-            // 调用API - 使用正确的API端点
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -228,356 +471,37 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             const aiResponse = data.choices[0].message.content;
             
-            // 移除加载消息
-            chatMessages.removeChild(loadingMessage);
+            // Remove loading indicator
+            chatMessages.removeChild(loadingDiv);
             
-            // 显示AI回复
-            displayMessage('assistant', aiResponse);
+            // Display AI response
+            displayMessage('ai', aiResponse);
             
-            // 添加到聊天历史
+            // Add AI response to chat history
             chatHistory.push({
                 "role": "assistant",
                 "content": aiResponse
             });
-            
         } catch (error) {
-            console.error("Error getting AI response:", error);
+            console.error('发送消息时出错:', error);
             
-            // 移除加载消息
-            chatMessages.removeChild(loadingMessage);
+            // Remove loading indicator
+            chatMessages.removeChild(loadingDiv);
             
-            // 显示错误消息
-            displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
+            // Display error message
+            displayMessage('ai', `抱歉，我遇到了问题。请稍后再试。错误信息: ${error.message}`);
         }
     }
     
-    // 显示消息在聊天界面
-    function displayMessage(role, content) {
-        if (!chatMessages) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = role === 'user' ? 'message message-user' : 'message message-ai';
-        
-        // 处理内容中可能的换行
-        const formattedContent = content.replace(/\n/g, '<br>');
-        messageDiv.innerHTML = `<p>${formattedContent}</p>`;
-        
-        chatMessages.appendChild(messageDiv);
-        scrollToBottom();
-    }
-    
-    // 滚动到底部
-    function scrollToBottom() {
-        if (chatMessages) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Event listeners
+    sendButton.addEventListener('click', sendMessage);
+    questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
         }
-    }
+    });
     
-    // 添加加载动画CSS
-    const style = document.createElement('style');
-    style.textContent = `
-        .loading p::after {
-            content: '';
-            animation: dots 1.5s infinite;
-        }
-        
-        @keyframes dots {
-            0%, 20% { content: '.'; }
-            40% { content: '..'; }
-            60%, 100% { content: '...'; }
-        }
-        
-        .topic-card.active {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 10px rgba(67, 97, 238, 0.3);
-            transform: translateY(-5px);
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // 处理汉字字典查询
-    const dictionaryInput = document.getElementById('dictionary-input');
-    const searchButton = document.getElementById('search-character');
-    const dictionaryResults = document.getElementById('dictionary-results');
-    
-    if (dictionaryInput && searchButton && dictionaryResults) {
-        searchButton.addEventListener('click', function() {
-            const character = dictionaryInput.value.trim();
-            if (!character) return;
-            
-            // 显示加载状态
-            dictionaryResults.innerHTML = '<p class="loading">正在查询...</p>';
-            
-            // 模拟加载延迟
-            setTimeout(() => {
-                // 构建一个简单的汉字数据库（实际应用中可以使用API或更完整的数据）
-                const characters = {
-                    '爱': {
-                        pinyin: 'ài',
-                        radical: '爪',
-                        strokes: 10,
-                        meaning: '喜爱、热爱、爱情',
-                        examples: ['爱心', '爱情', '爱国'],
-                        etymology: '会意字，从爪从心，表示用心抓取、珍视'
-                    },
-                    '学': {
-                        pinyin: 'xué',
-                        radical: '子',
-                        strokes: 8,
-                        meaning: '学习、效法、学问',
-                        examples: ['学校', '学生', '学问'],
-                        etymology: '会意字，从子从冖，表示在屋檐下学习'
-                    },
-                    '中': {
-                        pinyin: 'zhōng',
-                        radical: '丨',
-                        strokes: 4,
-                        meaning: '中间、中国、命中',
-                        examples: ['中心', '中国', '中间'],
-                        etymology: '象形字，表示箭射中靶心'
-                    },
-                    '道': {
-                        pinyin: 'dào',
-                        radical: '辶',
-                        strokes: 12,
-                        meaning: '道路、道理、方法',
-                        examples: ['道路', '道德', '道理'],
-                        etymology: '会意字，从辶从首，表示头脑指引前进的方向'
-                    },
-                    '家': {
-                        pinyin: 'jiā',
-                        radical: '宀',
-                        strokes: 10,
-                        meaning: '家庭、家族、专家',
-                        examples: ['家庭', '专家', '国家'],
-                        etymology: '会意字，从宀从豕，表示家中养猪'
-                    }
-                };
-                
-                // 查找匹配的汉字
-                const characterInfo = characters[character] || null;
-                
-                if (characterInfo) {
-                    dictionaryResults.innerHTML = `
-                        <div class="character-card">
-                            <div class="character-header">
-                                <div class="character-display">${character}</div>
-                                <div class="character-basics">
-                                    <div class="pinyin">${characterInfo.pinyin}</div>
-                                    <div class="info">部首：${characterInfo.radical} | 笔画：${characterInfo.strokes}</div>
-                                </div>
-                            </div>
-                            <div class="character-details">
-                                <div class="meaning">
-                                    <h4>释义</h4>
-                                    <p>${characterInfo.meaning}</p>
-                                </div>
-                                <div class="examples">
-                                    <h4>例词</h4>
-                                    <p>${characterInfo.examples.join('、')}</p>
-                                </div>
-                                <div class="etymology">
-                                    <h4>字源</h4>
-                                    <p>${characterInfo.etymology}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    dictionaryResults.innerHTML = `
-                        <div class="no-results">
-                            <h3>未找到结果</h3>
-                            <p>抱歉，未找到"${character}"的相关信息。请尝试其他汉字，如：爱、学、中、道、家</p>
-                        </div>
-                    `;
-                }
-            }, 1000);
-        });
-        
-        // 监听输入框回车事件
-        dictionaryInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                searchButton.click();
-            }
-        });
-        
-        // 分类按钮点击事件
-        const categoryButtons = document.querySelectorAll('.category-btn');
-        categoryButtons.forEach(button => {
-            button.addEventListener('click', function() {
-                const category = this.getAttribute('data-category');
-                
-                // 高亮当前选中的分类
-                categoryButtons.forEach(btn => btn.classList.remove('active'));
-                this.classList.add('active');
-                
-                // 显示加载状态
-                dictionaryResults.innerHTML = '<p class="loading">加载中...</p>';
-                
-                // 模拟加载延迟
-                setTimeout(() => {
-                    // 根据不同分类显示不同内容
-                    switch(category) {
-                        case 'common':
-                            dictionaryResults.innerHTML = `
-                                <div class="category-results">
-                                    <h3>常用汉字</h3>
-                                    <div class="character-grid">
-                                        <div class="character-item" data-char="爱">爱</div>
-                                        <div class="character-item" data-char="学">学</div>
-                                        <div class="character-item" data-char="中">中</div>
-                                        <div class="character-item" data-char="道">道</div>
-                                        <div class="character-item" data-char="家">家</div>
-                                        <div class="character-item" data-char="人">人</div>
-                                        <div class="character-item" data-char="日">日</div>
-                                        <div class="character-item" data-char="月">月</div>
-                                        <div class="character-item" data-char="水">水</div>
-                                        <div class="character-item" data-char="火">火</div>
-                                        <div class="character-item" data-char="山">山</div>
-                                        <div class="character-item" data-char="木">木</div>
-                                    </div>
-                                    <p class="hint">点击汉字查看详细信息</p>
-                                </div>
-                            `;
-                            break;
-                        case 'radicals':
-                            dictionaryResults.innerHTML = `
-                                <div class="category-results">
-                                    <h3>常用部首</h3>
-                                    <div class="radical-grid">
-                                        <div class="radical-item" title="人字旁">亻</div>
-                                        <div class="radical-item" title="提手旁">扌</div>
-                                        <div class="radical-item" title="草字头">艹</div>
-                                        <div class="radical-item" title="水字旁">氵</div>
-                                        <div class="radical-item" title="木字旁">木</div>
-                                        <div class="radical-item" title="口字旁">口</div>
-                                        <div class="radical-item" title="心字底">心</div>
-                                        <div class="radical-item" title="宝盖头">宀</div>
-                                        <div class="radical-item" title="日字旁">日</div>
-                                        <div class="radical-item" title="月字旁">月</div>
-                                    </div>
-                                    <div class="radical-info">
-                                        <h4>部首简介</h4>
-                                        <p>部首是汉字的重要组成部分，用于分类和检索汉字。汉字可按部首分为214个类别（康熙字典）。通过部首可以了解汉字的意义类别和结构特点。</p>
-                                    </div>
-                                </div>
-                            `;
-                            break;
-                        case 'strokes':
-                            dictionaryResults.innerHTML = `
-                                <div class="category-results">
-                                    <h3>基本笔画</h3>
-                                    <div class="strokes-grid">
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">横</div>
-                                            <div class="stroke-example">一</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">竖</div>
-                                            <div class="stroke-example">丨</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">撇</div>
-                                            <div class="stroke-example">丿</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">捺</div>
-                                            <div class="stroke-example">㇏</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">点</div>
-                                            <div class="stroke-example">丶</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">提</div>
-                                            <div class="stroke-example">㇀</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">折</div>
-                                            <div class="stroke-example">㇇</div>
-                                        </div>
-                                        <div class="stroke-item">
-                                            <div class="stroke-name">钩</div>
-                                            <div class="stroke-example">㇁</div>
-                                        </div>
-                                    </div>
-                                    <div class="strokes-info">
-                                        <h4>笔画与笔顺</h4>
-                                        <p>汉字笔画是构成汉字的基本单位，书写汉字时需要遵循一定的笔顺规则，如：横、竖、撇、捺、点等基本笔画，以及从左到右、从上到下等书写顺序。</p>
-                                    </div>
-                                </div>
-                            `;
-                            break;
-                        case 'idioms':
-                            dictionaryResults.innerHTML = `
-                                <div class="category-results">
-                                    <h3>常用成语</h3>
-                                    <div class="idioms-list">
-                                        <div class="idiom-item">
-                                            <div class="idiom-text">画龙点睛</div>
-                                            <div class="idiom-meaning">比喻在关键处加以点缀使作品更为生动传神</div>
-                                        </div>
-                                        <div class="idiom-item">
-                                            <div class="idiom-text">一目了然</div>
-                                            <div class="idiom-meaning">一眼就能看清楚，形容事物清楚明白</div>
-                                        </div>
-                                        <div class="idiom-item">
-                                            <div class="idiom-text">守株待兔</div>
-                                            <div class="idiom-meaning">比喻死守狭隘经验，不知变通的愚蠢行为</div>
-                                        </div>
-                                        <div class="idiom-item">
-                                            <div class="idiom-text">无懈可击</div>
-                                            <div class="idiom-meaning">形容非常严密，找不到任何缺点</div>
-                                        </div>
-                                        <div class="idiom-item">
-                                            <div class="idiom-text">学而不思则罔</div>
-                                            <div class="idiom-meaning">只学习不思考就会迷惑而无所得</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            break;
-                        case 'classical':
-                            dictionaryResults.innerHTML = `
-                                <div class="category-results">
-                                    <h3>古文经典</h3>
-                                    <div class="classical-list">
-                                        <div class="classical-item">
-                                            <div class="classical-title">《论语》</div>
-                                            <div class="classical-excerpt">子曰："学而时习之，不亦说乎？有朋自远方来，不亦乐乎？人不知而不愠，不亦君子乎？"</div>
-                                        </div>
-                                        <div class="classical-item">
-                                            <div class="classical-title">《孟子》</div>
-                                            <div class="classical-excerpt">故天将降大任于斯人也，必先苦其心志，劳其筋骨，饿其体肤，空乏其身，行拂乱其所为，所以动心忍性，曾益其所不能。</div>
-                                        </div>
-                                        <div class="classical-item">
-                                            <div class="classical-title">《道德经》</div>
-                                            <div class="classical-excerpt">道可道，非常道。名可名，非常名。无名天地之始，有名万物之母。</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                            break;
-                        default:
-                            dictionaryResults.innerHTML = '<p>请选择一个分类查看内容</p>';
-                    }
-                    
-                    // 为动态生成的汉字添加点击事件
-                    const characterItems = document.querySelectorAll('.character-item');
-                    if (characterItems.length > 0) {
-                        characterItems.forEach(item => {
-                            item.addEventListener('click', function() {
-                                const char = this.getAttribute('data-char');
-                                if (char) {
-                                    dictionaryInput.value = char;
-                                    searchButton.click();
-                                }
-                            });
-                        });
-                    }
-                    
-                }, 800);
-            });
-        });
-    }
+    // Initial system prompt update
+    updateSystemPrompt();
+} 
 }); 
