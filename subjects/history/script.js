@@ -36,7 +36,11 @@ function initQuizGenerator() {
             
             // Build system message
             const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
-            每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
+            每个问题应包含问题描述、4个选项（A、B、C、D）、正确答案和详细的解释说明。
+            解释说明应该包含：
+            1. 为什么这个选项是正确的
+            2. 其他选项为什么是错误的
+            3. 相关的历史背景知识
             考虑学生的教育水平，确保题目难度适中且符合教学大纲。
             请以JSON格式回复，格式如下:
             {
@@ -51,7 +55,8 @@ function initQuizGenerator() {
                     { "id": "C", "text": "选项C内容" },
                     { "id": "D", "text": "选项D内容" }
                   ],
-                  "correctAnswer": "正确选项的ID（A/B/C/D）"
+                  "correctAnswer": "正确选项的ID（A/B/C/D）",
+                  "explanation": "详细的解释说明，包括正确答案的原因、错误选项的分析和相关历史背景"
                 }
               ]
             }`;
@@ -257,24 +262,6 @@ function renderQuiz(quiz) {
                           percentage >= 60 ? '不错！继续努力，你可以做得更好！' :
                           '继续学习，相信你下次一定能取得更好的成绩！'}
                     </p>
-                </div>
-                <div class="result-details">
-                    <h4>详细答题情况：</h4>
-        `;
-        
-        results.forEach((result, index) => {
-            const question = quiz.questions[index];
-            html += `
-                <div class="result-item ${result.isCorrect ? 'correct' : 'incorrect'}">
-                    <p class="question">${index + 1}. ${result.question}</p>
-                    <p class="answer">你的答案：${result.userAnswer ? question.options.find(o => o.id === result.userAnswer).text : '未作答'}</p>
-                    <p class="correct-answer">正确答案：${question.options.find(o => o.id === result.correctAnswer).text}</p>
-                    <p class="explanation">解释：${result.explanation || '暂无详细解释'}</p>
-                </div>
-            `;
-        });
-        
-        html += `
                 </div>
                 <div class="result-actions">
                     <button class="btn btn-primary" id="retry-quiz">重新测验</button>
