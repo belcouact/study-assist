@@ -503,5 +503,4 @@ function initChineseChat() {
     
     // Initial system prompt update
     updateSystemPrompt();
-} 
-}); 
+}; 
