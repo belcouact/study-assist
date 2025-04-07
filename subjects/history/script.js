@@ -1,282 +1,489 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize API
-    initAPI();
+    // Initialize quiz generator
+    initQuizGenerator();
     
-    // History chat functionality
-    const chatInput = document.getElementById('history-question-input');
-    const sendButton = document.getElementById('send-history-question');
-    const chatMessages = document.getElementById('history-chat-messages');
+    // Initialize chat functionality
+    initHistoryChat();
+});
+
+/**
+ * Initialize the quiz generator
+ */
+function initQuizGenerator() {
+    const generateBtn = document.getElementById('generate-quiz');
+    const quizContainer = document.getElementById('quiz-container');
+    const topicSelect = document.getElementById('quiz-topic');
+    const difficultySelect = document.getElementById('quiz-difficulty');
+    const questionsSelect = document.getElementById('quiz-questions');
     
-    // 存储聊天历史
-    let chatHistory = [
-        {
-            "role": "system",
-            "content": "你是一个专业的历史教学助手，擅长解答关于世界历史、中国历史、重大历史事件、历史人物和历史遗迹等问题。你会提供清晰的解释、历史背景和适合用户教育水平的答案。"
-        },
-        {
-            "role": "assistant",
-            "content": "你好！我是你的历史学习助手。有什么历史问题我可以帮你解答吗？"
-        }
-    ];
+    if (!generateBtn || !quizContainer) return;
     
-    // 教育水平相关
-    let educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
-    
-    // 当前选择的主题
-    let currentTopic = null;
-    
-    // 监听发送按钮点击
-    if (sendButton) {
-        sendButton.addEventListener('click', sendMessage);
-    }
-    
-    // 监听输入框回车事件
-    if (chatInput) {
-        chatInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
-    
-    // 为主题卡片添加点击事件
-    const topicCards = document.querySelectorAll('.topic-card');
-    topicCards.forEach(card => {
-        card.addEventListener('click', function() {
-            const topic = this.getAttribute('data-topic');
-            setTopic(topic);
-            
-            // 高亮选中的主题卡片
-            topicCards.forEach(c => c.classList.remove('active'));
-            this.classList.add('active');
-            
-            // 滚动到聊天部分
-            document.querySelector('.ai-assistant-section').scrollIntoView({ behavior: 'smooth' });
-            
-            // 聚焦到输入框
-            if (chatInput) {
-                chatInput.focus();
-            }
-        });
-    });
-    
-    // 从页面加载时初始化聊天界面
-    initializeChat();
-    
-    // 初始化聊天界面
-    function initializeChat() {
-        // 清空聊天区域
-        if (chatMessages) {
-            chatMessages.innerHTML = '';
-        }
-        
-        // 显示聊天历史
-        displayChatHistory();
-        
-        // 更新系统提示
-        updateSystemPrompt();
-        
-        // 检测教育水平变化
-        window.addEventListener('education-level-change', function(event) {
-            educationLevel = event.detail.level;
-            updateSystemPrompt();
-        });
-    }
-    
-    // 设置当前主题
-    function setTopic(topic) {
-        currentTopic = topic;
-        updateSystemPrompt();
-        
-        // 添加话题引导消息
-        let topicPrompt = "";
-        
-        switch(topic) {
-            case 'ancient':
-                topicPrompt = "古代文明如何影响了现代社会？请介绍几个主要的古代文明。";
-                break;
-            case 'china':
-                topicPrompt = "中国历史上最重要的朝代有哪些？它们各有什么特点？";
-                break;
-            case 'world':
-                topicPrompt = "第一次世界大战和第二次世界大战的主要原因是什么？";
-                break;
-            case 'modern':
-                topicPrompt = "冷战时期的主要事件有哪些？它对现代世界格局有什么影响？";
-                break;
-            case 'figures':
-                topicPrompt = "请介绍几位对世界历史产生深远影响的历史人物及其贡献。";
-                break;
-            case 'culture':
-                topicPrompt = "历史上的文化交流如何促进了人类文明的发展？";
-                break;
-            default:
-                return;
-        }
-        
-        // 自动在输入框中填入主题相关问题
-        if (chatInput) {
-            chatInput.value = topicPrompt;
-        }
-    }
-    
-    // 更新系统提示
-    function updateSystemPrompt() {
-        let levelSpecificPrompt = '';
-        
-        switch(educationLevel) {
-            case 'elementary-school':
-                levelSpecificPrompt = '用户是小学生，请使用简单、基础的历史概念进行解释，多用故事和趣味性例子，避免复杂事件和术语。重点讲解历史人物、基本历史事件和有趣的历史故事。';
-                break;
-            case 'middle-school':
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的历史概念，包括重要历史事件的起因和影响，不同文明的特点等，平衡简洁性和教育性。';
-                break;
-            case 'high-school':
-                levelSpecificPrompt = '用户是高中生，可以讨论更复杂的历史概念，包括历史事件的深层原因分析、不同历史观点的比较和全球历史发展的宏观分析等高级内容。';
-                break;
-            default:
-                levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的历史概念，包括重要历史事件的起因和影响，不同文明的特点等，平衡简洁性和教育性。';
-        }
-        
-        // 添加主题特定提示
-        let topicSpecificPrompt = '';
-        
-        if (currentTopic) {
-            switch(currentTopic) {
-                case 'ancient':
-                    topicSpecificPrompt = '用户正在学习古代历史。请专注于古代文明的起源、发展、主要成就和对现代社会的影响等内容，提供生动的历史细节和文明特征。';
-                    break;
-                case 'china':
-                    topicSpecificPrompt = '用户正在学习中国历史。请专注于中国不同朝代的特点、重大历史事件、历史人物和文化发展等内容，注重中国历史的连续性和独特性。';
-                    break;
-                case 'world':
-                    topicSpecificPrompt = '用户正在学习世界历史。请专注于世界各地区的历史发展、重大国际事件、国际关系和全球化进程等内容，注重不同地区历史的联系和比较。';
-                    break;
-                case 'modern':
-                    topicSpecificPrompt = '用户正在学习现代历史。请专注于近现代重大事件、社会变革、科技发展和国际关系等内容，注重分析这些事件对当今世界的影响。';
-                    break;
-                case 'figures':
-                    topicSpecificPrompt = '用户正在学习历史人物。请专注于重要历史人物的生平、贡献、历史背景和影响等内容，通过人物故事展现历史发展。';
-                    break;
-                case 'culture':
-                    topicSpecificPrompt = '用户正在学习历史文化。请专注于不同时期和地区的文化特点、艺术成就、思想发展和文化交流等内容，展示文化在历史中的重要作用。';
-                    break;
-                default:
-                    topicSpecificPrompt = '';
-            }
-        }
-        
-        // 更新系统消息
-        chatHistory[0].content = "你是一个专业的历史教学助手，擅长解答关于世界历史、中国历史、重大历史事件、历史人物和历史遗迹等问题。提供清晰的解释和适当深度的回答。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 当回答历史问题时，请尽量提供准确的时间、地点和人物信息，可以引用历史事实和重要的历史文献。";
-    }
-    
-    // 显示聊天历史
-    function displayChatHistory() {
-        if (!chatMessages) return;
-        
-        chatHistory.forEach(message => {
-            if (message.role === 'assistant' || message.role === 'user') {
-                displayMessage(message.role, message.content);
-            }
-        });
-        
-        // 滚动到底部
-        scrollToBottom();
-    }
-    
-    // 发送消息到API
-    async function sendMessage() {
-        if (!chatInput || !chatMessages) return;
-        
-        const userMessage = chatInput.value.trim();
-        
-        // 检查是否为空消息
-        if (userMessage === '') return;
-        
-        // 清空输入框
-        chatInput.value = '';
-        
-        // 显示用户消息
-        displayMessage('user', userMessage);
-        
-        // 添加到聊天历史
-        chatHistory.push({
-            "role": "user",
-            "content": userMessage
-        });
-        
-        // 显示加载状态
-        const loadingMessage = document.createElement('div');
-        loadingMessage.className = 'message message-ai loading';
-        loadingMessage.innerHTML = '<p>思考中...</p>';
-        chatMessages.appendChild(loadingMessage);
-        scrollToBottom();
+    generateBtn.addEventListener('click', async () => {
+        // Show loading state
+        quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
         
         try {
-            // 调用API - 使用正确的API端点
+            // Get quiz options
+            const topic = topicSelect.value;
+            const difficulty = difficultySelect.value;
+            const count = parseInt(questionsSelect.value);
+            
+            // Get education level
+            const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+            const levelName = getEducationLevelName(educationLevel);
+            const topicName = getTopicName(topic);
+            const difficultyName = getDifficultyName(difficulty);
+            
+            // Build system message
+            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+            每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
+            考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+            请以JSON格式回复，格式如下:
+            {
+              "title": "测验标题",
+              "questions": [
+                {
+                  "id": "1",
+                  "question": "问题描述",
+                  "options": [
+                    { "id": "A", "text": "选项A内容" },
+                    { "id": "B", "text": "选项B内容" },
+                    { "id": "C", "text": "选项C内容" },
+                    { "id": "D", "text": "选项D内容" }
+                  ],
+                  "correctAnswer": "正确选项的ID（A/B/C/D）"
+                }
+              ]
+            }`;
+            
+            // Call DeepSeek API
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    messages: chatHistory
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": systemMessage
+                        },
+                        {
+                            "role": "user",
+                            "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。`
+                        }
+                    ]
                 })
             });
             
             if (!response.ok) {
-                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                throw new Error(`网络响应不正常: ${response.status}`);
             }
             
             const data = await response.json();
             const aiResponse = data.choices[0].message.content;
             
-            // 移除加载消息
-            chatMessages.removeChild(loadingMessage);
-            
-            // 显示AI回复
-            displayMessage('assistant', aiResponse);
-            
-            // 添加到聊天历史
-            chatHistory.push({
+            // Parse JSON response
+            let quiz;
+            try {
+                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    quiz = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('无法从响应中提取JSON');
+                }
+                
+                if (!quiz.title || !quiz.questions || !Array.isArray(quiz.questions)) {
+                    throw new Error('解析的JSON格式不正确');
+                }
+                
+                renderQuiz(quiz);
+            } catch (jsonError) {
+                console.error('解析AI响应时出错:', jsonError);
+                quizContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                        <p class="small">${jsonError.message}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('生成测验时出错:', error);
+            quizContainer.innerHTML = `
+                <div class="text-center text-error">
+                    <p>抱歉，生成测验时出现错误。请再试一次。</p>
+                    <p class="small">${error.message}</p>
+                </div>
+            `;
+        }
+    });
+}
+
+/**
+ * Render the quiz with navigation
+ */
+function renderQuiz(quiz) {
+    const quizContainer = document.getElementById('quiz-container');
+    if (!quizContainer) return;
+    
+    let currentQuestionIndex = 0;
+    const userAnswers = new Array(quiz.questions.length).fill(null);
+    
+    function renderCurrentQuestion() {
+        const question = quiz.questions[currentQuestionIndex];
+        
+        let html = `
+            <div class="quiz-header">
+                <h3>${quiz.title}</h3>
+                <p class="quiz-progress">第 ${currentQuestionIndex + 1} 题，共 ${quiz.questions.length} 题</p>
+            </div>
+            <div class="quiz-question">
+                <p>${question.question}</p>
+                <div class="quiz-options">
+        `;
+        
+        question.options.forEach(option => {
+            const isSelected = userAnswers[currentQuestionIndex] === option.id;
+            html += `
+                <div class="quiz-option ${isSelected ? 'selected' : ''}" data-option="${option.id}">
+                    <label>
+                        <input type="radio" name="q${currentQuestionIndex}" value="${option.id}" ${isSelected ? 'checked' : ''}>
+                        <span>${option.text}</span>
+                    </label>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+            <div class="quiz-navigation">
+                <button class="btn btn-outline" id="prev-question" ${currentQuestionIndex === 0 ? 'disabled' : ''}>
+                    上一题
+                </button>
+                <button class="btn btn-primary" id="next-question">
+                    ${currentQuestionIndex === quiz.questions.length - 1 ? '完成测验' : '下一题'}
+                </button>
+            </div>
+        `;
+        
+        quizContainer.innerHTML = html;
+        
+        // Add event listeners
+        const options = quizContainer.querySelectorAll('.quiz-option');
+        options.forEach(option => {
+            option.addEventListener('click', () => {
+                const optionId = option.dataset.option;
+                userAnswers[currentQuestionIndex] = optionId;
+                options.forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+            });
+        });
+        
+        const prevBtn = document.getElementById('prev-question');
+        const nextBtn = document.getElementById('next-question');
+        
+        prevBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                renderCurrentQuestion();
+            }
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (currentQuestionIndex === quiz.questions.length - 1) {
+                showResults();
+            } else {
+                currentQuestionIndex++;
+                renderCurrentQuestion();
+            }
+        });
+    }
+    
+    function showResults() {
+        let correctCount = 0;
+        const results = quiz.questions.map((question, index) => {
+            const isCorrect = userAnswers[index] === question.correctAnswer;
+            if (isCorrect) correctCount++;
+            return {
+                question: question.question,
+                userAnswer: userAnswers[index],
+                correctAnswer: question.correctAnswer,
+                isCorrect
+            };
+        });
+        
+        const percentage = Math.round((correctCount / quiz.questions.length) * 100);
+        
+        let html = `
+            <div class="quiz-results">
+                <h3>测验结果</h3>
+                <div class="result-summary">
+                    <p>得分：${correctCount} / ${quiz.questions.length} (${percentage}%)</p>
+                    <p class="result-message">
+                        ${percentage >= 80 ? '太棒了！你对这个主题掌握得很好！' :
+                          percentage >= 60 ? '不错！继续努力，你可以做得更好！' :
+                          '继续学习，相信你下次一定能取得更好的成绩！'}
+                    </p>
+                </div>
+                <div class="result-details">
+                    <h4>详细答题情况：</h4>
+        `;
+        
+        results.forEach((result, index) => {
+            const question = quiz.questions[index];
+            html += `
+                <div class="result-item ${result.isCorrect ? 'correct' : 'incorrect'}">
+                    <p class="question">${index + 1}. ${result.question}</p>
+                    <p class="answer">你的答案：${result.userAnswer ? question.options.find(o => o.id === result.userAnswer).text : '未作答'}</p>
+                    <p class="correct-answer">正确答案：${question.options.find(o => o.id === result.correctAnswer).text}</p>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+                <button class="btn btn-primary" id="retry-quiz">重新测验</button>
+            </div>
+        `;
+        
+        quizContainer.innerHTML = html;
+        
+        const retryBtn = document.getElementById('retry-quiz');
+        retryBtn.addEventListener('click', () => {
+            currentQuestionIndex = 0;
+            userAnswers.fill(null);
+            renderCurrentQuestion();
+        });
+    }
+    
+    // Start with the first question
+    renderCurrentQuestion();
+}
+
+// Helper functions for name conversions
+function getEducationLevelName(level) {
+    switch(level) {
+        case 'elementary-school': return '小学';
+        case 'middle-school': return '初中';
+        case 'high-school': return '高中';
+        default: return '初中';
+    }
+}
+
+function getTopicName(topic) {
+    switch(topic) {
+        case 'ancient': return '古代文明';
+        case 'medieval': return '中世纪';
+        case 'exploration': return '探索时代';
+        case 'revolutionary': return '革命时代';
+        case 'worldwars': return '世界大战';
+        case 'modern': return '现代历史';
+        default: return '历史';
+    }
+}
+
+function getDifficultyName(difficulty) {
+    switch(difficulty) {
+        case 'easy': return '简单';
+        case 'medium': return '中等';
+        case 'hard': return '困难';
+        default: return '中等';
+    }
+}
+
+/**
+ * Initialize the history chat functionality
+ */
+function initHistoryChat() {
+    const sendButton = document.getElementById('send-history-question');
+    const questionInput = document.getElementById('history-question-input');
+    const chatMessages = document.getElementById('history-chat-messages');
+    
+    if (!chatMessages || !sendButton || !questionInput) {
+        console.error('History chat initialization failed: Missing required elements');
+        return;
+    }
+    
+    // Global assistant state
+    const assistant = {
+        // Chat history for the API
+        chatHistory: [
+            {
+                "role": "system",
+                "content": "你是一个专业的历史教学助手，擅长解答关于历史事件、人物、时期和文明的问题。你会提供清晰的历史背景、因果关系分析和适合用户教育水平的答案。"
+            },
+            {
                 "role": "assistant",
-                "content": aiResponse
+                "content": "你好！我是你的历史学习助手。有什么历史问题我可以帮你解答吗？"
+            }
+        ],
+        
+        // Current settings
+        currentTopic: null,
+        educationLevel: localStorage.getItem('educationLevel') || 'middle-school',
+        
+        // Method to set the current topic
+        setTopic: function(topic) {
+            this.currentTopic = topic;
+            this.updateSystemPrompt();
+        },
+        
+        // Method to update the system prompt based on education level and topic
+        updateSystemPrompt: function() {
+            let levelSpecificPrompt = '';
+            
+            switch(this.educationLevel) {
+                case 'elementary-school':
+                    levelSpecificPrompt = '用户是小学生，请使用简单、基础的历史概念进行解释，避免复杂术语。使用直观例子和故事性叙述，重点讲解基本的历史事件和人物。';
+                    break;
+                case 'middle-school':
+                    levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的历史概念，包括主要历史事件、人物和文明发展，可以使用基本的历史术语，平衡简洁性和教育性。';
+                    break;
+                case 'high-school':
+                    levelSpecificPrompt = '用户是高中生，可以讨论更复杂的历史概念，包括历史分析、因果关系、历史解释和批判性思考，可以使用更深入的历史术语和概念。';
+                    break;
+                default:
+                    levelSpecificPrompt = '用户是初中生，可以介绍基础到中等难度的历史概念，包括主要历史事件、人物和文明发展，可以使用基本的历史术语，平衡简洁性和教育性。';
+            }
+            
+            // Add topic-specific prompt
+            let topicSpecificPrompt = '';
+            
+            if (this.currentTopic) {
+                switch(this.currentTopic) {
+                    case 'ancient':
+                        topicSpecificPrompt = '用户正在学习古代文明。请专注于早期人类社会、古代文明的发展和特点，以及它们对后世的影响。';
+                        break;
+                    case 'medieval':
+                        topicSpecificPrompt = '用户正在学习中世纪。请专注于封建制度、宗教影响、社会结构和中世纪欧洲的发展。';
+                        break;
+                    case 'exploration':
+                        topicSpecificPrompt = '用户正在学习探索时代。请专注于航海发现、全球贸易和文化交流，以及这些事件对世界历史的影响。';
+                        break;
+                    case 'revolutionary':
+                        topicSpecificPrompt = '用户正在学习革命时代。请专注于政治革命、工业革命和社会变革，以及这些事件如何塑造现代世界。';
+                        break;
+                    case 'worldwars':
+                        topicSpecificPrompt = '用户正在学习世界大战。请专注于战争的原因、主要事件、影响和战后世界秩序的重建。';
+                        break;
+                    case 'modern':
+                        topicSpecificPrompt = '用户正在学习现代历史。请专注于当代全球问题、国际关系、科技发展和社会变革。';
+                        break;
+                    default:
+                        topicSpecificPrompt = '';
+                }
+            }
+            
+            // Update system message
+            this.chatHistory[0].content = "你是一个专业的历史教学助手，擅长解答关于历史事件、人物、时期和文明的问题。提供清晰的历史背景和因果关系分析。" + levelSpecificPrompt + (topicSpecificPrompt ? " " + topicSpecificPrompt : "") + " 鼓励学习者思考历史事件之间的联系和影响。";
+        },
+        
+        // Method to send a question to the AI
+        sendQuestion: async function(question) {
+            if (!question.trim()) return;
+            
+            // Display user message
+            displayMessage('user', question, chatMessages);
+            
+            // Add to chat history
+            this.chatHistory.push({
+                "role": "user",
+                "content": question
             });
             
-        } catch (error) {
-            console.error("Error getting AI response:", error);
-            
-            // 移除加载消息
-            chatMessages.removeChild(loadingMessage);
-            
-            // 显示错误消息
-            displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message);
-        }
-    }
-    
-    // 显示消息在聊天界面
-    function displayMessage(role, content) {
-        if (!chatMessages) return;
-        
-        const messageDiv = document.createElement('div');
-        messageDiv.className = role === 'user' ? 'message message-user' : 'message message-ai';
-        
-        // 处理内容中可能的换行
-        const formattedContent = content.replace(/\n/g, '<br>');
-        messageDiv.innerHTML = `<p>${formattedContent}</p>`;
-        
-        chatMessages.appendChild(messageDiv);
-        scrollToBottom();
-    }
-    
-    // 滚动到底部
-    function scrollToBottom() {
-        if (chatMessages) {
+            // Show loading indicator
+            const loadingMessage = document.createElement('div');
+            loadingMessage.className = 'message message-ai loading';
+            loadingMessage.innerHTML = '<p>思考中...</p>';
+            chatMessages.appendChild(loadingMessage);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            try {
+                // Call the API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: this.chatHistory
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
+                
+                // Remove loading indicator
+                chatMessages.removeChild(loadingMessage);
+                
+                // Display AI response
+                displayMessage('assistant', aiResponse, chatMessages);
+                
+                // Add to chat history
+                this.chatHistory.push({
+                    "role": "assistant",
+                    "content": aiResponse
+                });
+                
+            } catch (error) {
+                console.error('Error getting AI response:', error);
+                
+                // Remove loading indicator
+                chatMessages.removeChild(loadingMessage);
+                
+                // Show error message
+                displayMessage('assistant', '抱歉，我遇到了问题。请稍后再试。' + error.message, chatMessages);
+            }
+        },
+        
+        // Method to initialize the chat interface
+        initChat: function() {
+            // Clear chat area
+            chatMessages.innerHTML = '';
+            
+            // Display welcome message
+            displayMessage('assistant', this.chatHistory[1].content, chatMessages);
+            
+            // Update system prompt based on current settings
+            this.updateSystemPrompt();
         }
-    }
+    };
     
-    // 添加加载动画CSS
+    // Initialize the chat interface
+    assistant.initChat();
+    
+    // Set up event listeners
+    sendButton.addEventListener('click', () => {
+        const question = questionInput.value.trim();
+        if (question) {
+            assistant.sendQuestion(question);
+            questionInput.value = '';
+        }
+    });
+    
+    questionInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const question = questionInput.value.trim();
+            if (question) {
+                assistant.sendQuestion(question);
+                questionInput.value = '';
+            }
+        }
+    });
+    
+    // Listen for education level changes
+    window.addEventListener('education-level-change', function(event) {
+        assistant.educationLevel = event.detail.level;
+        assistant.updateSystemPrompt();
+    });
+    
+    // Add loading animation CSS
     const style = document.createElement('style');
     style.textContent = `
         .loading p::after {
@@ -289,230 +496,26 @@ document.addEventListener('DOMContentLoaded', function() {
             40% { content: '..'; }
             60%, 100% { content: '...'; }
         }
-        
-        .topic-card.active {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 10px rgba(67, 97, 238, 0.3);
-            transform: translateY(-5px);
-        }
     `;
     document.head.appendChild(style);
     
-    // 处理历史时间线
-    const timelineSections = document.querySelectorAll('.timeline-section');
-    const timelineNav = document.querySelector('.timeline-navigation');
+    // Make assistant available globally
+    window.historyAssistant = assistant;
+}
+
+/**
+ * Display a message in the chat
+ */
+function displayMessage(role, content, container) {
+    const messageElement = document.createElement('div');
+    messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
     
-    if (timelineSections.length > 0 && timelineNav) {
-        // 创建时间线导航项
-        timelineSections.forEach((section, index) => {
-            const period = section.getAttribute('data-period');
-            const navItem = document.createElement('div');
-            navItem.className = 'timeline-nav-item';
-            navItem.setAttribute('data-target', period);
-            navItem.textContent = period;
-            
-            // 第一个导航项默认激活
-            if (index === 0) {
-                navItem.classList.add('active');
-            }
-            
-            // 添加点击事件
-            navItem.addEventListener('click', function() {
-                // 更新导航项状态
-                document.querySelectorAll('.timeline-nav-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                this.classList.add('active');
-                
-                // 显示对应时期
-                const targetPeriod = this.getAttribute('data-target');
-                timelineSections.forEach(s => {
-                    if (s.getAttribute('data-period') === targetPeriod) {
-                        s.classList.add('active');
-                    } else {
-                        s.classList.remove('active');
-                    }
-                });
-            });
-            
-            timelineNav.appendChild(navItem);
-        });
-        
-        // 默认显示第一个时期
-        timelineSections[0].classList.add('active');
-    }
+    // Convert newlines to <br> tags
+    content = content.replace(/\n/g, '<br>');
     
-    // 处理历史测验生成
-    const generateQuizBtn = document.getElementById('generate-quiz');
-    const quizContainer = document.getElementById('quiz-container');
+    messageElement.innerHTML = `<p>${content}</p>`;
+    container.appendChild(messageElement);
     
-    if (generateQuizBtn && quizContainer) {
-        generateQuizBtn.addEventListener('click', function() {
-            const topic = document.getElementById('quiz-topic').value;
-            const difficulty = document.getElementById('quiz-difficulty').value;
-            const questions = document.getElementById('quiz-questions').value;
-            
-            // 显示加载状态
-            quizContainer.innerHTML = '<p class="loading">正在生成历史测验...</p>';
-            
-            // 模拟API调用生成测验
-            setTimeout(() => {
-                // 示例问题库 - 实际应用中会从API获取
-                const quizQuestions = [
-                    {
-                        question: "谁是古代中国第一个统一的王朝建立者？",
-                        options: ["汉武帝", "秦始皇", "唐太宗", "成吉思汗"],
-                        correctAnswer: 1
-                    },
-                    {
-                        question: "第二次世界大战正式结束于哪一年？",
-                        options: ["1943年", "1944年", "1945年", "1946年"],
-                        correctAnswer: 2
-                    },
-                    {
-                        question: "文艺复兴最早始于欧洲哪个国家？",
-                        options: ["法国", "德国", "英国", "意大利"],
-                        correctAnswer: 3
-                    },
-                    {
-                        question: "以下哪位是古代埃及最有名的法老之一？",
-                        options: ["图坦卡蒙", "汉谟拉比", "亚历山大", "康斯坦丁"],
-                        correctAnswer: 0
-                    },
-                    {
-                        question: "中国古代四大发明不包括以下哪项？",
-                        options: ["指南针", "火药", "印刷术", "望远镜"],
-                        correctAnswer: 3
-                    }
-                ];
-                
-                let html = '<div class="quiz">';
-                html += `<h3>${getTopicName(topic)}历史测验 (${getDifficultyName(difficulty)}难度)</h3>`;
-                
-                quizQuestions.forEach((q, i) => {
-                    html += `
-                        <div class="quiz-question">
-                            <h4>${i + 1}. ${q.question}</h4>
-                            <div class="quiz-options">
-                    `;
-                    
-                    q.options.forEach((option, j) => {
-                        html += `
-                            <div class="quiz-option" data-question="${i}" data-option="${j}">
-                                <input type="radio" id="q${i}o${j}" name="question${i}" value="${j}">
-                                <label for="q${i}o${j}">${option}</label>
-                            </div>
-                        `;
-                    });
-                    
-                    html += `
-                            </div>
-                        </div>
-                    `;
-                });
-                
-                html += `
-                    <div class="quiz-actions">
-                        <button id="submit-quiz" class="btn btn-primary">提交答案</button>
-                    </div>
-                </div>`;
-                
-                quizContainer.innerHTML = html;
-                
-                // 添加选项点击事件
-                document.querySelectorAll('.quiz-option').forEach(option => {
-                    option.addEventListener('click', function() {
-                        const questionIndex = this.getAttribute('data-question');
-                        const optionIndex = this.getAttribute('data-option');
-                        
-                        // 选择单选按钮
-                        document.getElementById(`q${questionIndex}o${optionIndex}`).checked = true;
-                        
-                        // 移除同组其他选项的选中状态
-                        document.querySelectorAll(`.quiz-option[data-question="${questionIndex}"]`).forEach(opt => {
-                            opt.classList.remove('selected');
-                        });
-                        
-                        // 添加选中状态
-                        this.classList.add('selected');
-                    });
-                });
-                
-                // 添加提交按钮事件
-                document.getElementById('submit-quiz').addEventListener('click', function() {
-                    // 计算分数
-                    let score = 0;
-                    let total = quizQuestions.length;
-                    
-                    quizQuestions.forEach((q, i) => {
-                        const selectedOption = document.querySelector(`input[name="question${i}"]:checked`);
-                        if (selectedOption) {
-                            const selected = parseInt(selectedOption.value);
-                            if (selected === q.correctAnswer) {
-                                score++;
-                                selectedOption.closest('.quiz-option').classList.add('correct');
-                            } else {
-                                selectedOption.closest('.quiz-option').classList.add('incorrect');
-                                document.getElementById(`q${i}o${q.correctAnswer}`).closest('.quiz-option').classList.add('correct');
-                            }
-                        } else {
-                            document.getElementById(`q${i}o${q.correctAnswer}`).closest('.quiz-option').classList.add('correct');
-                        }
-                    });
-                    
-                    // 禁用所有输入
-                    document.querySelectorAll('.quiz-option input').forEach(input => {
-                        input.disabled = true;
-                    });
-                    
-                    // 显示结果
-                    const resultsHtml = `
-                        <div class="quiz-results">
-                            <h3>你的得分: ${score}/${total}</h3>
-                            <p>${score === total ? '完美！你对这段历史有很好的掌握。' : 
-                               score >= total * 0.7 ? '很好！你对这段历史有很好的理解。' :
-                               score >= total * 0.5 ? '不错的尝试！你可能需要复习一下这段历史的某些方面。' :
-                               '你可能需要多学习这段历史知识。继续加油！'}</p>
-                            <button id="new-quiz" class="btn btn-primary">生成新测验</button>
-                        </div>
-                    `;
-                    
-                    // 添加结果到页面
-                    const resultsElement = document.createElement('div');
-                    resultsElement.className = 'quiz-result-container';
-                    resultsElement.innerHTML = resultsHtml;
-                    quizContainer.appendChild(resultsElement);
-                    
-                    // 添加新测验按钮事件
-                    document.getElementById('new-quiz').addEventListener('click', function() {
-                        quizContainer.innerHTML = '<p class="text-center">配置测验选项并点击"生成测验"开始。</p>';
-                    });
-                });
-                
-            }, 1500);
-        });
-    }
-    
-    // 辅助函数 - 获取主题名称
-    function getTopicName(topicId) {
-        const topics = {
-            'ancient': '古代',
-            'china': '中国',
-            'world': '世界',
-            'modern': '现代',
-            'figures': '历史人物',
-            'culture': '文化历史'
-        };
-        return topics[topicId] || topicId;
-    }
-    
-    // 辅助函数 - 获取难度名称
-    function getDifficultyName(difficultyId) {
-        const difficulties = {
-            'easy': '简单',
-            'medium': '中等',
-            'hard': '困难'
-        };
-        return difficulties[difficultyId] || difficultyId;
-    }
-}); 
+    // Scroll to bottom of chat
+    container.scrollTop = container.scrollHeight;
+} 
