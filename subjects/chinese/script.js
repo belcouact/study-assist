@@ -17,30 +17,72 @@ function initQuizGenerator() {
             // Get education level from profile display
             const profileDisplay = document.getElementById('profile-display');
             let educationLevel = 'middle-school'; // default
+            let grade = '';
+            let semester = '';
+            
             if (profileDisplay) {
                 const levelText = profileDisplay.textContent.toLowerCase();
                 if (levelText.includes('小学')) {
                     educationLevel = 'elementary-school';
+                    // Extract grade from the text, e.g., "小学三年级"
+                    const gradeMatch = levelText.match(/小学(\d+)年级/);
+                    if (gradeMatch) {
+                        grade = gradeMatch[1];
+                    }
                 } else if (levelText.includes('初中')) {
                     educationLevel = 'middle-school';
+                    // Extract grade from the text, e.g., "初中二年级"
+                    const gradeMatch = levelText.match(/初中(\d+)年级/);
+                    if (gradeMatch) {
+                        grade = gradeMatch[1];
+                    }
                 } else if (levelText.includes('高中')) {
                     educationLevel = 'high-school';
+                    // Extract grade from the text, e.g., "高中一年级"
+                    const gradeMatch = levelText.match(/高中(\d+)年级/);
+                    if (gradeMatch) {
+                        grade = gradeMatch[1];
+                    }
+                }
+                
+                // Extract semester from the text, e.g., "上学期" or "下学期"
+                if (levelText.includes('上学期')) {
+                    semester = '上学期';
+                } else if (levelText.includes('下学期')) {
+                    semester = '下学期';
                 }
             }
             
-            // Adjust quiz content based on education level
+            // Adjust quiz content based on education level, grade, and semester
             let levelSpecificPrompt = '';
             switch(educationLevel) {
                 case 'elementary-school':
-                    levelSpecificPrompt = '题目应简单易懂，使用基础词汇和清晰答案。解释要简单明了，使用具体例子。难度自动调整为简单。';
+                    levelSpecificPrompt = `题目应简单易懂，使用基础词汇和清晰答案。解释要简单明了，使用具体例子。难度自动调整为简单。
+                    针对小学${grade}年级${semester}的教学内容，包括：
+                    - 基础汉字书写和认读
+                    - 简单的阅读理解
+                    - 基础语法知识
+                    - 常用词语和成语`;
                     difficulty = 'easy';
                     break;
                 case 'middle-school':
-                    levelSpecificPrompt = '题目可以包含基础到中等难度内容，使用适当的学术词汇，需要一些推理。解释要详细但不复杂。困难难度自动调整为中等。';
+                    levelSpecificPrompt = `题目可以包含基础到中等难度内容，使用适当的学术词汇，需要一些推理。解释要详细但不复杂。
+                    针对初中${grade}年级${semester}的教学内容，包括：
+                    - 较复杂的汉字和词语
+                    - 中等难度的阅读理解
+                    - 语法规则和运用
+                    - 成语和典故
+                    - 简单的文学赏析`;
                     if (difficulty === 'hard') difficulty = 'medium';
                     break;
                 case 'high-school':
-                    levelSpecificPrompt = '题目可以包含复杂内容，使用高级词汇和批判性思维。解释要全面专业。保持所选难度。';
+                    levelSpecificPrompt = `题目可以包含复杂内容，使用高级词汇和批判性思维。解释要全面专业。
+                    针对高中${grade}年级${semester}的教学内容，包括：
+                    - 高级词汇和成语
+                    - 复杂的阅读理解
+                    - 语法和修辞
+                    - 文学分析和鉴赏
+                    - 写作技巧和表达`;
                     break;
             }
             
@@ -50,9 +92,9 @@ function initQuizGenerator() {
             const levelName = getEducationLevelName(educationLevel);
             
             // Build system message
-            const systemMessage = `你是一个专业的语文教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+            const systemMessage = `你是一个专业的语文教育助手，现在需要为${levelName}${grade}年级${semester}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
             每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
-            考虑学生的教育水平，确保题目难度适中且符合教学大纲。
+            考虑学生的教育水平、年级和学期，确保题目难度适中且符合教学大纲。
             ${levelSpecificPrompt}
             请以JSON格式回复，格式如下:
             {
@@ -91,7 +133,7 @@ function initQuizGenerator() {
                             },
                             {
                                 "role": "user",
-                                "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}学生的水平。每个问题需要4个选项，并标明正确答案。`
+                                "content": `请生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题，适合${levelName}${grade}年级${semester}学生的水平。每个问题需要4个选项，并标明正确答案。`
                             }
                         ]
                     })
