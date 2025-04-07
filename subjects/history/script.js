@@ -156,6 +156,17 @@ function renderQuiz(quiz) {
         
         html += `
                 </div>
+                <div class="quiz-actions">
+                    <button class="btn btn-primary" id="confirm-answer" ${!userAnswers[currentQuestionIndex] ? 'disabled' : ''}>
+                        确认答案
+                    </button>
+                </div>
+                <div class="quiz-feedback" style="display: none;">
+                    <div class="answer-feedback">
+                        <h4>正确答案：${question.options.find(o => o.id === question.correctAnswer).text}</h4>
+                        <p class="explanation">${question.explanation || '暂无详细解释'}</p>
+                    </div>
+                </div>
             </div>
             <div class="quiz-navigation">
                 <button class="btn btn-outline" id="prev-question" ${currentQuestionIndex === 0 ? 'disabled' : ''}>
@@ -177,6 +188,24 @@ function renderQuiz(quiz) {
                 userAnswers[currentQuestionIndex] = optionId;
                 options.forEach(o => o.classList.remove('selected'));
                 option.classList.add('selected');
+                document.getElementById('confirm-answer').disabled = false;
+            });
+        });
+        
+        const confirmBtn = document.getElementById('confirm-answer');
+        confirmBtn.addEventListener('click', () => {
+            const feedback = quizContainer.querySelector('.quiz-feedback');
+            feedback.style.display = 'block';
+            confirmBtn.disabled = true;
+            
+            // Disable all options
+            options.forEach(option => {
+                option.style.pointerEvents = 'none';
+                if (option.dataset.option === question.correctAnswer) {
+                    option.classList.add('correct');
+                } else if (option.dataset.option === userAnswers[currentQuestionIndex]) {
+                    option.classList.add('incorrect');
+                }
             });
         });
         
@@ -209,17 +238,20 @@ function renderQuiz(quiz) {
                 question: question.question,
                 userAnswer: userAnswers[index],
                 correctAnswer: question.correctAnswer,
-                isCorrect
+                isCorrect,
+                explanation: question.explanation
             };
         });
         
         const percentage = Math.round((correctCount / quiz.questions.length) * 100);
+        const grade = getGrade(percentage);
         
         let html = `
             <div class="quiz-results">
                 <h3>测验结果</h3>
                 <div class="result-summary">
                     <p>得分：${correctCount} / ${quiz.questions.length} (${percentage}%)</p>
+                    <p class="grade">等级：${grade}</p>
                     <p class="result-message">
                         ${percentage >= 80 ? '太棒了！你对这个主题掌握得很好！' :
                           percentage >= 60 ? '不错！继续努力，你可以做得更好！' :
@@ -237,13 +269,17 @@ function renderQuiz(quiz) {
                     <p class="question">${index + 1}. ${result.question}</p>
                     <p class="answer">你的答案：${result.userAnswer ? question.options.find(o => o.id === result.userAnswer).text : '未作答'}</p>
                     <p class="correct-answer">正确答案：${question.options.find(o => o.id === result.correctAnswer).text}</p>
+                    <p class="explanation">解释：${result.explanation || '暂无详细解释'}</p>
                 </div>
             `;
         });
         
         html += `
                 </div>
-                <button class="btn btn-primary" id="retry-quiz">重新测验</button>
+                <div class="result-actions">
+                    <button class="btn btn-primary" id="retry-quiz">重新测验</button>
+                    <button class="btn btn-outline" id="learning-assessment">学习评估</button>
+                </div>
             </div>
         `;
         
@@ -255,6 +291,99 @@ function renderQuiz(quiz) {
             userAnswers.fill(null);
             renderCurrentQuestion();
         });
+        
+        const assessmentBtn = document.getElementById('learning-assessment');
+        assessmentBtn.addEventListener('click', async () => {
+            assessmentBtn.disabled = true;
+            assessmentBtn.textContent = '评估中...';
+            
+            try {
+                const topic = document.getElementById('quiz-topic').value;
+                const topicName = getTopicName(topic);
+                const educationLevel = localStorage.getItem('educationLevel') || 'middle-school';
+                const levelName = getEducationLevelName(educationLevel);
+                
+                const assessmentPrompt = `你是一个专业的历史教育专家。请根据以下测验结果，为${levelName}学生提供关于${topicName}主题的学习评估和改进建议：
+                
+                测验结果：
+                - 总分：${correctCount}/${quiz.questions.length} (${percentage}%)
+                - 等级：${grade}
+                
+                详细答题情况：
+                ${results.map((result, index) => `
+                ${index + 1}. 问题：${result.question}
+                   学生答案：${result.userAnswer ? quiz.questions[index].options.find(o => o.id === result.userAnswer).text : '未作答'}
+                   正确答案：${quiz.questions[index].options.find(o => o.id === result.correctAnswer).text}
+                   是否正确：${result.isCorrect ? '是' : '否'}
+                `).join('\n')}
+                
+                请提供：
+                1. 知识掌握情况分析
+                2. 具体薄弱环节
+                3. 针对性的学习建议
+                4. 推荐的学习资源和方法
+                
+                请用中文回答，语言要适合${levelName}学生的理解水平。`;
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": "你是一个专业的历史教育专家，擅长分析学生的学习情况并提供针对性的学习建议。"
+                            },
+                            {
+                                "role": "user",
+                                "content": assessmentPrompt
+                            }
+                        ]
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`网络响应不正常: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const assessment = data.choices[0].message.content;
+                
+                const assessmentContainer = document.createElement('div');
+                assessmentContainer.className = 'learning-assessment';
+                assessmentContainer.innerHTML = `
+                    <h4>学习评估报告</h4>
+                    <div class="assessment-content">
+                        ${assessment.replace(/\n/g, '<br>')}
+                    </div>
+                    <button class="btn btn-outline" id="close-assessment">关闭评估</button>
+                `;
+                
+                quizContainer.appendChild(assessmentContainer);
+                
+                document.getElementById('close-assessment').addEventListener('click', () => {
+                    assessmentContainer.remove();
+                    assessmentBtn.disabled = false;
+                    assessmentBtn.textContent = '学习评估';
+                });
+                
+            } catch (error) {
+                console.error('获取学习评估时出错:', error);
+                alert('获取学习评估时出错，请稍后再试。');
+                assessmentBtn.disabled = false;
+                assessmentBtn.textContent = '学习评估';
+            }
+        });
+    }
+    
+    function getGrade(percentage) {
+        if (percentage >= 90) return 'A';
+        if (percentage >= 80) return 'B';
+        if (percentage >= 70) return 'C';
+        if (percentage >= 60) return 'D';
+        return 'F';
     }
     
     // Start with the first question
