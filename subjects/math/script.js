@@ -396,24 +396,22 @@ function initQuizGenerator() {
                 
                 // Adjust difficulty and content based on education level
                 let levelSpecificPrompt = '';
-                let difficultyAdjustment = '';
                 
                 switch(educationLevel) {
                     case 'elementary-school':
                         levelSpecificPrompt = '题目应该简单易懂，使用基础数学概念和简单计算。每个问题都应该有明确的答案，避免复杂的推理。解释应该使用简单的语言，并包含具体的例子。';
-                        difficultyAdjustment = 'easy';
                         break;
+                        
                     case 'middle-school':
                         levelSpecificPrompt = '题目应该包含基础到中等难度的内容，使用适当的数学术语。可以包含一些需要推理的问题，但答案应该相对明确。解释应该详细但不过于复杂。';
-                        difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
+
                         break;
                     case 'high-school':
                         levelSpecificPrompt = '题目可以包含更复杂的内容，使用高级数学概念和复杂推理。可以包含需要批判性思维的问题，以及一些需要深入理解的概念。解释应该全面且专业。';
-                        difficultyAdjustment = difficulty;
+
                         break;
                     default:
                         levelSpecificPrompt = '题目应该适合初中生水平，使用适当的数学术语和概念。';
-                        difficultyAdjustment = difficulty === 'hard' ? 'medium' : difficulty;
                 }
                 
                 // Build system message
@@ -794,6 +792,7 @@ function getDifficultyName(difficulty) {
         case 'easy': return '简单';
         case 'medium': return '中等';
         case 'hard': return '困难';
+        case 'complex': return '复杂';
         default: return '中等';
     }
 }
