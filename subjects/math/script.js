@@ -802,290 +802,242 @@ function getDifficultyName(difficulty) {
  */
 function initFormulaSelector() {
     const formulaContainer = document.querySelector('.formula-container');
-    const loadFormulasBtn = document.getElementById('load-formulas');
+    if (!formulaContainer) return;
+
+    let currentIndex = 0;
+    let formulaImages = [];
     
-    let formulaCache = {};
-
-    // Get education profile details
-    function getEducationProfile() {
+    // Get education level and corresponding image path
+    function getFormulaPath() {
         const profileText = document.getElementById('profile-display').textContent;
-        const profile = profileText.split(" | ");
-        let level = 'middle-school';
-        let grade = '';
-        let semester = '';
-
+        
         if (profileText.includes('小学')) {
-            level = 'elementary-school';
-            grade = profile[1];
+            return 'math/resource/小学数学公式定理/';
         } else if (profileText.includes('初中')) {
-            level = 'middle-school';
-            grade = profile[1];
+            return 'math/resource/初中数学公式定理/';
         } else if (profileText.includes('高中')) {
-            level = 'high-school';
-            grade = profile[1];
+            return 'math/resource/高中数学公式定理/';
         }
-
-        if (profileText.includes('上学期')) {
-            semester = '上学期';
-        } else if (profileText.includes('下学期')) {
-            semester = '下学期';
-        }
-
-        return { level, grade, semester };
+        
+        return 'math/resource/初中数学公式定理/'; // Default path
     }
 
-    // Fetch formulas from DeepSeek API
-    async function fetchFormulas() {
-        const { level, grade, semester } = getEducationProfile();
-        
-        // Create cache key
-        const cacheKey = `${level}-${grade}-${semester}`;
-        
-        // Return cached formulas if available
-        if (formulaCache[cacheKey]) {
-            console.log('Using cached formulas for:', cacheKey);
-            return formulaCache[cacheKey];
-        }
+    // Create gallery HTML structure
+    function createGalleryStructure() {
+        formulaContainer.innerHTML = `
+            <div class="formula-gallery">
+                <button class="nav-button prev-button" disabled>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="image-container">
+                    <div class="image-slider">
+                        <!-- Images will be loaded here -->
+                    </div>
+                </div>
+                <button class="nav-button next-button">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        `;
 
-        const prompt = `作为一个数学教育专家，请为${grade}${semester}的学生提供数学公式参考。
+        // Add CSS for the gallery
+        const style = document.createElement('style');
+        style.textContent = `
+            .formula-gallery {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 20px;
+                padding: 20px;
+                position: relative;
+            }
 
-要求：
-1. 按以下类别提供公式：
-   - 基础数学（Basic）
-   - 代数（Algebra）
-   - 几何（Geometry）
-   - 三角（Trigonometry）
-   - 微积分（Calculus，仅限高中）
+            .image-container {
+                width: calc(100% - 100px);
+                overflow: hidden;
+                position: relative;
+            }
 
-2. 每个类别提供3-5个该年级最重要的公式
+            .image-slider {
+                display: flex;
+                transition: transform 0.5s ease;
+                gap: 20px;
+            }
 
-3. 每个公式需包含：
-   - 公式名称（name）
-   - LaTeX格式的公式（formula）
-   - 适用范围（scope）
-   - 公式解释（explanation）：包括公式的含义、使用场景和实际应用例子
-   - 关键概念（concepts）：理解该公式所需的关键数学概念
-   - 使用技巧（tips）：使用公式时的注意事项和常见错误
+            .formula-image-wrapper {
+                flex: 0 0 calc(33.333% - 14px);
+                aspect-ratio: 16/9;
+                position: relative;
+            }
 
-4. 使用JSON格式返回，格式如下：
-{
-  "categories": [
-    {
-      "name": "类别名称",
-      "formulas": [
-        {
-          "name": "公式名称",
-          "formula": "LaTeX格式的公式",
-          "scope": "适用范围",
-          "explanation": "详细解释",
-          "concepts": ["关键概念1", "关键概念2"],
-          "tips": ["使用技巧1", "使用技巧2"]
-        }
-      ]
+            .formula-image {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                transition: transform 0.3s ease;
+            }
+
+            .formula-image:hover {
+                transform: scale(1.05);
+            }
+
+            .nav-button {
+                width: 40px;
+                height: 40px;
+                border: none;
+                border-radius: 50%;
+                background: var(--primary-color);
+                color: white;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s ease;
+                z-index: 2;
+            }
+
+            .nav-button:hover:not(:disabled) {
+                background: var(--primary-color-dark);
+                transform: scale(1.1);
+            }
+
+            .nav-button:disabled {
+                background: #ccc;
+                cursor: not-allowed;
+                opacity: 0.5;
+            }
+
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateX(20px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+
+            .formula-image-wrapper {
+                animation: slideIn 0.5s ease forwards;
+            }
+        `;
+        document.head.appendChild(style);
     }
-  ]
-}`;
 
+    // Load formula images
+    async function loadFormulaImages() {
         try {
-            console.log('Fetching formulas for:', cacheKey);
-            console.log('API Request Prompt:', prompt);
+            const path = getFormulaPath();
+            console.log('Loading formula images from:', path);
 
-            const response = await fetch('/api/chat', {
+            const response = await fetch('/api/list-files', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    messages: [
-                        {
-                            "role": "system",
-                            "content": "你是一个专业的数学教育专家，擅长解释数学公式和概念。请确保所有数学公式使用正确的LaTeX格式。"
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt
-                        }
-                    ]
-                })
+                body: JSON.stringify({ path })
             });
 
             if (!response.ok) {
-                throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to load formula images: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log('API Response:', data);
+            console.log('Received files:', data);
 
-            const content = data.choices[0].message.content;
-            console.log('API Content:', content);
-            
-            // Extract JSON from response
-            const jsonMatch = content.match(/\{[\s\S]*\}/);
-            if (!jsonMatch) {
-                throw new Error('无法从响应中提取JSON格式数据');
-            }
+            formulaImages = data.files.filter(file => 
+                file.toLowerCase().endsWith('.jpg') || 
+                file.toLowerCase().endsWith('.png') ||
+                file.toLowerCase().endsWith('.jpeg')
+            );
 
-            const formulas = JSON.parse(jsonMatch[0]);
-            console.log('Parsed Formulas:', formulas);
-            
-            // Cache the results
-            formulaCache[cacheKey] = formulas;
-            
-            return formulas;
+            console.log('Filtered image files:', formulaImages);
+            updateGallery();
 
         } catch (error) {
-            console.error('获取公式时出错:', error);
-            throw error;
-        }
-    }
-
-    // Render formulas in table format
-    function renderFormulasTable(data) {
-        if (!data || !data.categories || !Array.isArray(data.categories)) {
-            console.error('Invalid formula data structure:', data);
-            return '<div class="error-message">公式数据格式错误</div>';
-        }
-
-        let html = '<div class="formulas-wrapper">';
-        
-        data.categories.forEach(category => {
-            if (!category.formulas || !Array.isArray(category.formulas)) {
-                console.warn('Invalid category structure:', category);
-                return;
-            }
-
-            html += `
-                <div class="formula-category">
-                    <h3>${category.name || '未命名类别'}</h3>
-                    <table class="formula-table">
-                        <thead>
-                            <tr>
-                                <th>公式名称</th>
-                                <th>公式</th>
-                                <th>适用范围</th>
-                                <th>详细说明</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            category.formulas.forEach(formula => {
-                // Sanitize formula data to prevent undefined values
-                const sanitizedFormula = {
-                    name: formula.name || '未命名公式',
-                    formula: formula.formula || '',
-                    scope: formula.scope || '未指定',
-                    explanation: formula.explanation || '暂无解释',
-                    concepts: Array.isArray(formula.concepts) ? formula.concepts : [],
-                    tips: Array.isArray(formula.tips) ? formula.tips : []
-                };
-
-                html += `
-                    <tr>
-                        <td class="formula-name">${sanitizedFormula.name}</td>
-                        <td class="formula-notation">
-                            <div class="math-content">${sanitizedFormula.formula}</div>
-                        </td>
-                        <td class="formula-scope">${sanitizedFormula.scope}</td>
-                        <td class="formula-details">
-                            <div class="formula-explanation">
-                                <h4>公式解释</h4>
-                                <p>${sanitizedFormula.explanation}</p>
-                            </div>
-                            ${sanitizedFormula.concepts.length > 0 ? `
-                                <div class="formula-concepts">
-                                    <h4>关键概念</h4>
-                                    <ul>
-                                        ${sanitizedFormula.concepts.map(concept => `<li>${concept}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                            ${sanitizedFormula.tips.length > 0 ? `
-                                <div class="formula-tips">
-                                    <h4>使用技巧</h4>
-                                    <ul>
-                                        ${sanitizedFormula.tips.map(tip => `<li>${tip}</li>`).join('')}
-                                    </ul>
-                                </div>
-                            ` : ''}
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                        </tbody>
-                    </table>
+            console.error('Error loading formula images:', error);
+            formulaContainer.innerHTML = `
+                <div class="error-message">
+                    <p>加载公式图片时出错，请稍后再试。</p>
+                    <p class="error-details">错误信息: ${error.message}</p>
                 </div>
             `;
-        });
-
-        html += '</div>';
-        return html;
+        }
     }
 
-    // Handle formula loading
-    if (loadFormulasBtn && formulaContainer) {
-        loadFormulasBtn.addEventListener('click', async () => {
-            try {
-                // Show loading state
-                loadFormulasBtn.disabled = true;
-                loadFormulasBtn.textContent = '加载中...';
-                formulaContainer.innerHTML = '<div class="loading-formulas">正在加载公式...</div>';
+    // Update gallery display
+    function updateGallery() {
+        const slider = formulaContainer.querySelector('.image-slider');
+        const prevButton = formulaContainer.querySelector('.prev-button');
+        const nextButton = formulaContainer.querySelector('.next-button');
 
-                const data = await fetchFormulas();
-                
-                // Render the formulas table
-                formulaContainer.innerHTML = renderFormulasTable(data);
+        if (!slider) return;
 
-                // Process and typeset math content
-                try {
-                    const mathElements = formulaContainer.querySelectorAll('.math-content');
-                    mathElements.forEach(element => {
-                        // Ensure the formula is wrapped in LaTeX delimiters if not already
-                        let formula = element.textContent.trim();
-                        if (!formula.startsWith('$') && !formula.startsWith('\\[')) {
-                            formula = `$$${formula}$$`;
-                        }
-                        element.textContent = formula;
-                    });
+        console.log('Updating gallery with images:', formulaImages);
 
-                    // Use MathJax to typeset the formulas
-                    if (window.MathJax) {
-                        await window.MathJax.typesetPromise([formulaContainer]);
-                    } else {
-                        console.warn('MathJax not available');
-                    }
-                } catch (mathError) {
-                    console.error('Error rendering math formulas:', mathError);
-                    // Don't throw the error, just log it and continue displaying the formulas
-                }
+        // Calculate total pages
+        const totalPages = Math.ceil(formulaImages.length / 3);
+        const currentPage = Math.floor(currentIndex / 3);
 
-            } catch (error) {
-                console.error('渲染公式时出错:', error);
-                formulaContainer.innerHTML = `
-                    <div class="error-message">
-                        <p>加载公式时出错，请稍后再试。</p>
-                        <p class="error-details">错误信息: ${error.message}</p>
-                    </div>
-                `;
-            } finally {
-                loadFormulasBtn.disabled = false;
-                loadFormulasBtn.textContent = '加载公式';
-            }
-        });
+        // Update navigation buttons
+        prevButton.disabled = currentIndex === 0;
+        nextButton.disabled = currentIndex >= formulaImages.length - 3;
 
-        // Listen for profile changes
-        const observer = new MutationObserver(() => {
-            // Clear cache when profile changes
-            console.log('Profile changed, clearing formula cache');
-            formulaCache = {};
-        });
+        // Update slider transform
+        slider.style.transform = `translateX(-${currentIndex * (100 / 3)}%)`;
 
-        const profileDisplay = document.getElementById('profile-display');
-        if (profileDisplay) {
-            observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
+        // Load visible images
+        const visibleImages = formulaImages.slice(currentIndex, currentIndex + 3);
+        
+        console.log('Displaying images:', visibleImages);
+
+        // Create image elements
+        slider.innerHTML = visibleImages.map((image, index) => `
+            <div class="formula-image-wrapper" style="animation-delay: ${index * 0.1}s">
+                <img src="${getFormulaPath()}${image}" 
+                     alt="数学公式 ${currentIndex + index + 1}" 
+                     class="formula-image"
+                     loading="lazy"
+                     onerror="console.error('Failed to load image:', this.src)">
+            </div>
+        `).join('');
+    }
+
+    // Initialize gallery
+    createGalleryStructure();
+    loadFormulaImages();
+
+    // Add navigation event listeners
+    const prevButton = formulaContainer.querySelector('.prev-button');
+    const nextButton = formulaContainer.querySelector('.next-button');
+
+    prevButton?.addEventListener('click', () => {
+        if (currentIndex > 0) {
+            currentIndex = Math.max(0, currentIndex - 3);
+            updateGallery();
         }
+    });
+
+    nextButton?.addEventListener('click', () => {
+        if (currentIndex < formulaImages.length - 3) {
+            currentIndex = Math.min(formulaImages.length - 3, currentIndex + 3);
+            updateGallery();
+        }
+    });
+
+    // Listen for profile changes
+    const observer = new MutationObserver(() => {
+        console.log('Profile changed, reloading formula images');
+        currentIndex = 0;
+        loadFormulaImages();
+    });
+
+    const profileDisplay = document.getElementById('profile-display');
+    if (profileDisplay) {
+        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
     }
 }
 
