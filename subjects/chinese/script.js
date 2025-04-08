@@ -92,9 +92,9 @@ function initQuizGenerator() {
             const levelName = getEducationLevelName(educationLevel);
             
             // Build system message
-            const systemMessage = `你是一个专业的语文教育助手，现在需要为${levelName}${grade}年级${semester}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+            const systemMessage = `你是一个专业的语文教育助手，现在需要为${levelName}${grade}${semester}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
             每个问题应包含问题描述和4个选项（A、B、C、D），并标明正确答案。
-            考虑学生的教育水平、年级和学期，确保题目难度适中且符合教学大纲。
+            考虑学生的教育水平、年级和学期，确保题目符合教学大纲，难度${difficultyName}。
             ${levelSpecificPrompt}
             请以JSON格式回复，格式如下:
             {
