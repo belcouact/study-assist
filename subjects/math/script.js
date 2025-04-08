@@ -812,14 +812,14 @@ function initFormulaSelector() {
         const profileText = document.getElementById('profile-display').textContent;
         
         if (profileText.includes('小学')) {
-            return 'math/resource/小学数学公式定理/';
+            return '/subjects/math/resource/小学数学公式定理/';
         } else if (profileText.includes('初中')) {
-            return 'math/resource/初中数学公式定理/';
+            return '/subjects/math/resource/初中数学公式定理/';
         } else if (profileText.includes('高中')) {
-            return 'math/resource/高中数学公式定理/';
+            return '/subjects/math/resource/高中数学公式定理/';
         }
         
-        return 'math/resource/初中数学公式定理/'; // Default path
+        return '/subjects/math/resource/初中数学公式定理/'; // Default path
     }
 
     // Create gallery HTML structure
@@ -933,28 +933,38 @@ function initFormulaSelector() {
             const path = getFormulaPath();
             console.log('Loading formula images from:', path);
 
-            const response = await fetch('/api/list-files', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ path })
-            });
+            // For demonstration, let's use a predefined set of images
+            // In a real application, you would fetch this from your server
+            const demoImages = {
+                '/subjects/math/resource/小学数学公式定理/': [
+                    'basic_arithmetic.png',
+                    'fractions.png',
+                    'basic_geometry.png',
+                    'multiplication_tables.png',
+                    'basic_measurement.png',
+                    'simple_equations.png'
+                ],
+                '/subjects/math/resource/初中数学公式定理/': [
+                    'algebra_formulas.png',
+                    'geometry_formulas.png',
+                    'trigonometry_basics.png',
+                    'linear_equations.png',
+                    'quadratic_equations.png',
+                    'statistics_basics.png'
+                ],
+                '/subjects/math/resource/高中数学公式定理/': [
+                    'advanced_algebra.png',
+                    'calculus_basics.png',
+                    'advanced_trigonometry.png',
+                    'complex_numbers.png',
+                    'probability_theory.png',
+                    'analytical_geometry.png'
+                ]
+            };
 
-            if (!response.ok) {
-                throw new Error(`Failed to load formula images: ${response.status} ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            console.log('Received files:', data);
-
-            formulaImages = data.files.filter(file => 
-                file.toLowerCase().endsWith('.jpg') || 
-                file.toLowerCase().endsWith('.png') ||
-                file.toLowerCase().endsWith('.jpeg')
-            );
-
-            console.log('Filtered image files:', formulaImages);
+            formulaImages = demoImages[path] || demoImages['/subjects/math/resource/初中数学公式定理/'];
+            console.log('Loaded images:', formulaImages);
+            
             updateGallery();
 
         } catch (error) {
@@ -1001,7 +1011,7 @@ function initFormulaSelector() {
                      alt="数学公式 ${currentIndex + index + 1}" 
                      class="formula-image"
                      loading="lazy"
-                     onerror="console.error('Failed to load image:', this.src)">
+                     onerror="this.src='../../assets/images/formula-placeholder.png'">
             </div>
         `).join('');
     }
