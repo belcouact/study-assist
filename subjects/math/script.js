@@ -1058,4 +1058,121 @@ function initMathVisualizer() {
             });
         }
     }
-} 
+}
+
+// Formula Section Handling
+document.addEventListener('DOMContentLoaded', function() {
+    const formulaContainer = document.querySelector('.formula-container');
+    const formulaSelector = document.querySelector('.formula-selector');
+    const prevPageBtn = document.querySelector('.prev-page');
+    const nextPageBtn = document.querySelector('.next-page');
+    const currentPageSpan = document.querySelector('.current-page');
+    const totalPagesSpan = document.querySelector('.total-pages');
+    
+    let currentPage = 1;
+    let itemsPerPage = 4;
+    let currentCategory = 'basic';
+    
+    // Get education level from profile
+    function getEducationLevel() {
+        const profileText = document.getElementById('profile-display').textContent.toLowerCase();
+        if (profileText.includes('小学')) return 'elementary';
+        if (profileText.includes('初中')) return 'middle-school';
+        if (profileText.includes('高中')) return 'high-school';
+        return 'middle-school'; // Default to middle school
+    }
+
+    // Filter formulas based on education level
+    function filterFormulas() {
+        const educationLevel = getEducationLevel();
+        const allFormulas = document.querySelectorAll('.formula-card');
+        
+        allFormulas.forEach(formula => {
+            if (educationLevel === 'elementary') {
+                formula.style.display = formula.classList.contains('elementary') ? 'block' : 'none';
+            } else if (educationLevel === 'middle-school') {
+                formula.style.display = (formula.classList.contains('elementary') || 
+                                      formula.classList.contains('middle-school')) ? 'block' : 'none';
+            } else if (educationLevel === 'high-school') {
+                formula.style.display = 'block'; // Show all formulas for high school
+            }
+        });
+        
+        updatePagination();
+    }
+
+    // Update pagination
+    function updatePagination() {
+        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card:not([style*="display: none"])`);
+        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
+        
+        totalPagesSpan.textContent = totalPages;
+        currentPageSpan.textContent = currentPage;
+        
+        // Update button states
+        prevPageBtn.disabled = currentPage === 1;
+        nextPageBtn.disabled = currentPage === totalPages;
+        
+        // Show/hide formulas based on current page
+        visibleFormulas.forEach((formula, index) => {
+            const shouldShow = index >= (currentPage - 1) * itemsPerPage && index < currentPage * itemsPerPage;
+            formula.style.display = shouldShow ? 'block' : 'none';
+        });
+    }
+
+    // Handle category switching
+    formulaSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('formula-category-btn')) {
+            // Update active button
+            document.querySelectorAll('.formula-category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            e.target.classList.add('active');
+            
+            // Update active category
+            currentCategory = e.target.dataset.category;
+            currentPage = 1;
+            
+            // Show selected category
+            document.querySelectorAll('.formula-category').forEach(category => {
+                category.classList.remove('active');
+                if (category.dataset.category === currentCategory) {
+                    category.classList.add('active');
+                }
+            });
+            
+            filterFormulas();
+        }
+    });
+
+    // Handle pagination
+    prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            updatePagination();
+        }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card:not([style*="display: none"])`);
+        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
+        
+        if (currentPage < totalPages) {
+            currentPage++;
+            updatePagination();
+        }
+    });
+
+    // Initialize formula display
+    filterFormulas();
+
+    // Listen for profile changes
+    const observer = new MutationObserver(() => {
+        filterFormulas();
+    });
+
+    const profileDisplay = document.getElementById('profile-display');
+    if (profileDisplay) {
+        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
+    }
+}); 
