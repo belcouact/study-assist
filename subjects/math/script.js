@@ -941,12 +941,22 @@ function initFormulaSelector() {
 
     // Render formulas in table format
     function renderFormulasTable(data) {
-        let html = '';
+        if (!data || !data.categories || !Array.isArray(data.categories)) {
+            console.error('Invalid formula data structure:', data);
+            return '<div class="error-message">公式数据格式错误</div>';
+        }
+
+        let html = '<div class="formulas-wrapper">';
         
         data.categories.forEach(category => {
+            if (!category.formulas || !Array.isArray(category.formulas)) {
+                console.warn('Invalid category structure:', category);
+                return;
+            }
+
             html += `
                 <div class="formula-category">
-                    <h3>${category.name}</h3>
+                    <h3>${category.name || '未命名类别'}</h3>
                     <table class="formula-table">
                         <thead>
                             <tr>
@@ -960,30 +970,44 @@ function initFormulaSelector() {
             `;
             
             category.formulas.forEach(formula => {
+                // Sanitize formula data to prevent undefined values
+                const sanitizedFormula = {
+                    name: formula.name || '未命名公式',
+                    formula: formula.formula || '',
+                    scope: formula.scope || '未指定',
+                    explanation: formula.explanation || '暂无解释',
+                    concepts: Array.isArray(formula.concepts) ? formula.concepts : [],
+                    tips: Array.isArray(formula.tips) ? formula.tips : []
+                };
+
                 html += `
                     <tr>
-                        <td>${formula.name}</td>
-                        <td class="formula-notation">$$${formula.formula}$$</td>
-                        <td>${formula.scope}</td>
-                        <td>
-                            <div class="formula-details">
-                                <div class="formula-explanation">
-                                    <h4>公式解释</h4>
-                                    <p>${formula.explanation}</p>
-                                </div>
+                        <td class="formula-name">${sanitizedFormula.name}</td>
+                        <td class="formula-notation">
+                            <div class="math-content">${sanitizedFormula.formula}</div>
+                        </td>
+                        <td class="formula-scope">${sanitizedFormula.scope}</td>
+                        <td class="formula-details">
+                            <div class="formula-explanation">
+                                <h4>公式解释</h4>
+                                <p>${sanitizedFormula.explanation}</p>
+                            </div>
+                            ${sanitizedFormula.concepts.length > 0 ? `
                                 <div class="formula-concepts">
                                     <h4>关键概念</h4>
                                     <ul>
-                                        ${formula.concepts.map(concept => `<li>${concept}</li>`).join('')}
+                                        ${sanitizedFormula.concepts.map(concept => `<li>${concept}</li>`).join('')}
                                     </ul>
                                 </div>
+                            ` : ''}
+                            ${sanitizedFormula.tips.length > 0 ? `
                                 <div class="formula-tips">
                                     <h4>使用技巧</h4>
                                     <ul>
-                                        ${formula.tips.map(tip => `<li>${tip}</li>`).join('')}
+                                        ${sanitizedFormula.tips.map(tip => `<li>${tip}</li>`).join('')}
                                     </ul>
                                 </div>
-                            </div>
+                            ` : ''}
                         </td>
                     </tr>
                 `;
@@ -995,7 +1019,8 @@ function initFormulaSelector() {
                 </div>
             `;
         });
-        
+
+        html += '</div>';
         return html;
     }
 
@@ -1009,11 +1034,31 @@ function initFormulaSelector() {
                 formulaContainer.innerHTML = '<div class="loading-formulas">正在加载公式...</div>';
 
                 const data = await fetchFormulas();
+                
+                // Render the formulas table
                 formulaContainer.innerHTML = renderFormulasTable(data);
 
-                // Render math formulas
-                if (window.MathJax) {
-                    window.MathJax.typeset(formulaContainer);
+                // Process and typeset math content
+                try {
+                    const mathElements = formulaContainer.querySelectorAll('.math-content');
+                    mathElements.forEach(element => {
+                        // Ensure the formula is wrapped in LaTeX delimiters if not already
+                        let formula = element.textContent.trim();
+                        if (!formula.startsWith('$') && !formula.startsWith('\\[')) {
+                            formula = `$$${formula}$$`;
+                        }
+                        element.textContent = formula;
+                    });
+
+                    // Use MathJax to typeset the formulas
+                    if (window.MathJax) {
+                        await window.MathJax.typesetPromise([formulaContainer]);
+                    } else {
+                        console.warn('MathJax not available');
+                    }
+                } catch (mathError) {
+                    console.error('Error rendering math formulas:', mathError);
+                    // Don't throw the error, just log it and continue displaying the formulas
                 }
 
             } catch (error) {
