@@ -22,24 +22,29 @@ function initQuizGenerator() {
             
             if (profileDisplay) {
                 const levelText = profileDisplay.textContent.toLowerCase();
+                const profile = levelText.split(" | "); // Split by " | "
+
                 if (levelText.includes('小学')) {
                     educationLevel = 'elementary-school';
                     // Extract grade from the text, e.g., "小学三年级"
-                    const gradeMatch = levelText.match(/小学(\d+)年级/);
+                    // const gradeMatch = levelText.match(/小学(\d+)年级/);
+                    const gradeMatch = profile[1]; // Get the second part
                     if (gradeMatch) {
                         grade = gradeMatch[1];
                     }
                 } else if (levelText.includes('初中')) {
                     educationLevel = 'middle-school';
                     // Extract grade from the text, e.g., "初中二年级"
-                    const gradeMatch = levelText.match(/初中(\d+)年级/);
+                    // const gradeMatch = levelText.match(/初中(\d+)年级/);
+                    const gradeMatch = profile[1]; // Get the second part
                     if (gradeMatch) {
                         grade = gradeMatch[1];
                     }
                 } else if (levelText.includes('高中')) {
                     educationLevel = 'high-school';
                     // Extract grade from the text, e.g., "高中一年级"
-                    const gradeMatch = levelText.match(/高中(\d+)年级/);
+                    // const gradeMatch = levelText.match(/高中(\d+)年级/);
+                    const gradeMatch = profile[1]; // Get the second part
                     if (gradeMatch) {
                         grade = gradeMatch[1];
                     }
