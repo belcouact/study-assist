@@ -423,6 +423,8 @@ function initQuizGenerator() {
                   ]
                 }`;
                 
+                console.log(systemMessage);
+                
                 // Call DeepSeek API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
