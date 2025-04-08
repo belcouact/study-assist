@@ -801,36 +801,252 @@ function getDifficultyName(difficulty) {
  * Initialize formula category selector
  */
 function initFormulaSelector() {
-    const categoryButtons = document.querySelectorAll('.formula-category-btn');
-    const categories = document.querySelectorAll('.formula-category');
+    const formulaContainer = document.querySelector('.formula-container');
+    const formulaSelector = document.querySelector('.formula-selector');
+    const prevPageBtn = document.querySelector('.prev-page');
+    const nextPageBtn = document.querySelector('.next-page');
+    const currentPageSpan = document.querySelector('.current-page');
+    const totalPagesSpan = document.querySelector('.total-pages');
     
-    if (categoryButtons.length) {
-        // Set first category as active by default
-        categories[0].classList.add('active');
+    let currentPage = 1;
+    let itemsPerPage = 4;
+    let currentCategory = 'basic';
+    let formulaCache = {};
+
+    // Get education profile details
+    function getEducationProfile() {
+        const profileText = document.getElementById('profile-display').textContent;
+        const profile = profileText.split(" | "); // Split by " | "
+        let level = 'middle-school';
+        let grade = '';
+        let semester = '';
+
+        if (profileText.includes('小学')) {
+            level = 'elementary-school';
+            grade = profile[1]; // Get the grade
+        } else if (profileText.includes('初中')) {
+            level = 'middle-school';
+            grade = profile[1];
+        } else if (profileText.includes('高中')) {
+            level = 'high-school';
+            grade = profile[1];
+        }
+
+        if (profileText.includes('上学期')) {
+            semester = '上学期';
+        } else if (profileText.includes('下学期')) {
+            semester = '下学期';
+        }
+
+        return { level, grade, semester };
+    }
+
+    // Fetch formulas from DeepSeek API
+    async function fetchFormulas(category) {
+        const { level, grade, semester } = getEducationProfile();
         
-        categoryButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                const target = button.getAttribute('data-target');
-                
-                // Update active button
-                categoryButtons.forEach(btn => btn.classList.remove('active'));
-                button.classList.add('active');
-                
-                // Update active category
-                categories.forEach(category => {
-                    if (category.getAttribute('data-category') === target) {
-                        category.classList.add('active');
-                    } else {
-                        category.classList.remove('active');
-                    }
-                });
-                
-                // Render math formulas if MathJax is available
-                if (window.MathJax) {
-                    window.MathJax.typeset();
+        // Create cache key
+        const cacheKey = `${level}-${grade}-${semester}-${category}`;
+        
+        // Return cached formulas if available
+        if (formulaCache[cacheKey]) {
+            return formulaCache[cacheKey];
+        }
+
+        // Build prompt based on education level and category
+        const categoryNames = {
+            basic: '基础',
+            algebra: '代数',
+            geometry: '几何',
+            trigonometry: '三角',
+            calculus: '微积分'
+        };
+
+        const prompt = `作为一个数学教育专家，请为${grade}${semester}的学生提供${categoryNames[category]}数学公式。
+
+要求：
+1. 返回4-6个适合该年级学习的数学公式
+2. 每个公式需包含：
+   - 公式名称（name）
+   - LaTeX格式的公式（formula）
+   - 适用范围说明（scope）
+   - 公式解释（explanation）
+3. 使用JSON格式返回，格式如下：
+{
+  "formulas": [
+    {
+      "name": "公式名称",
+      "formula": "LaTeX格式的公式",
+      "scope": "适用范围",
+      "explanation": "公式解释"
+    }
+  ]
+}`;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": "你是一个专业的数学教育专家，擅长解释数学公式和概念。请确保所有数学公式使用正确的LaTeX格式。"
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API请求失败');
+            }
+
+            const data = await response.json();
+            const content = data.choices[0].message.content;
+            
+            // Extract JSON from response
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) {
+                throw new Error('无法解析API响应');
+            }
+
+            const formulas = JSON.parse(jsonMatch[0]);
+            
+            // Cache the results
+            formulaCache[cacheKey] = formulas;
+            
+            return formulas;
+
+        } catch (error) {
+            console.error('获取公式时出错:', error);
+            return { formulas: [] };
+        }
+    }
+
+    // Render formulas
+    async function renderFormulas(category) {
+        const categoryContainer = document.querySelector(`.formula-category[data-category="${category}"]`);
+        if (!categoryContainer) return;
+
+        // Show loading state
+        categoryContainer.innerHTML = '<div class="loading-formulas">正在加载公式...</div>';
+
+        try {
+            const data = await fetchFormulas(category);
+            const formulaList = document.createElement('div');
+            formulaList.className = 'formula-list';
+
+            data.formulas.forEach(formula => {
+                const formulaCard = document.createElement('div');
+                formulaCard.className = 'formula-card';
+                formulaCard.innerHTML = `
+                    <h4>${formula.name}</h4>
+                    <div class="formula-notation">
+                        <p>$$${formula.formula}$$</p>
+                    </div>
+                    <p class="formula-scope">${formula.scope}</p>
+                    <p class="formula-description">${formula.explanation}</p>
+                `;
+                formulaList.appendChild(formulaCard);
+            });
+
+            categoryContainer.innerHTML = '';
+            categoryContainer.appendChild(formulaList);
+
+            // Render math formulas
+            if (window.MathJax) {
+                window.MathJax.typeset(categoryContainer);
+            }
+
+            updatePagination();
+
+        } catch (error) {
+            categoryContainer.innerHTML = '<div class="error-message">加载公式时出错，请稍后再试。</div>';
+        }
+    }
+
+    // Handle category switching
+    formulaSelector.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('formula-category-btn')) {
+            // Update active button
+            document.querySelectorAll('.formula-category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            e.target.classList.add('active');
+            
+            // Update active category
+            currentCategory = e.target.dataset.category;
+            currentPage = 1;
+            
+            // Show selected category
+            document.querySelectorAll('.formula-category').forEach(category => {
+                category.classList.remove('active');
+                if (category.dataset.category === currentCategory) {
+                    category.classList.add('active');
                 }
             });
+            
+            // Fetch and render formulas for the selected category
+            await renderFormulas(currentCategory);
+        }
+    });
+
+    // Handle pagination
+    function updatePagination() {
+        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card`);
+        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
+        
+        totalPagesSpan.textContent = totalPages;
+        currentPageSpan.textContent = currentPage;
+        
+        // Update button states
+        prevPageBtn.disabled = currentPage === 1;
+        nextPageBtn.disabled = currentPage === totalPages;
+        
+        // Show/hide formulas based on current page
+        visibleFormulas.forEach((formula, index) => {
+            formula.style.display = 
+                index >= (currentPage - 1) * itemsPerPage && 
+                index < currentPage * itemsPerPage ? 'block' : 'none';
         });
+    }
+
+    prevPageBtn.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            updatePagination();
+        }
+    });
+
+    nextPageBtn.addEventListener('click', () => {
+        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card`);
+        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
+        
+        if (currentPage < totalPages) {
+            currentPage++;
+            updatePagination();
+        }
+    });
+
+    // Initialize with basic formulas
+    renderFormulas('basic');
+
+    // Listen for profile changes
+    const observer = new MutationObserver(() => {
+        // Clear cache when profile changes
+        formulaCache = {};
+        renderFormulas(currentCategory);
+    });
+
+    const profileDisplay = document.getElementById('profile-display');
+    if (profileDisplay) {
+        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
     }
 }
 
@@ -1058,121 +1274,4 @@ function initMathVisualizer() {
             });
         }
     }
-}
-
-// Formula Section Handling
-document.addEventListener('DOMContentLoaded', function() {
-    const formulaContainer = document.querySelector('.formula-container');
-    const formulaSelector = document.querySelector('.formula-selector');
-    const prevPageBtn = document.querySelector('.prev-page');
-    const nextPageBtn = document.querySelector('.next-page');
-    const currentPageSpan = document.querySelector('.current-page');
-    const totalPagesSpan = document.querySelector('.total-pages');
-    
-    let currentPage = 1;
-    let itemsPerPage = 4;
-    let currentCategory = 'basic';
-    
-    // Get education level from profile
-    function getEducationLevel() {
-        const profileText = document.getElementById('profile-display').textContent.toLowerCase();
-        if (profileText.includes('小学')) return 'elementary';
-        if (profileText.includes('初中')) return 'middle-school';
-        if (profileText.includes('高中')) return 'high-school';
-        return 'middle-school'; // Default to middle school
-    }
-
-    // Filter formulas based on education level
-    function filterFormulas() {
-        const educationLevel = getEducationLevel();
-        const allFormulas = document.querySelectorAll('.formula-card');
-        
-        allFormulas.forEach(formula => {
-            if (educationLevel === 'elementary') {
-                formula.style.display = formula.classList.contains('elementary') ? 'block' : 'none';
-            } else if (educationLevel === 'middle-school') {
-                formula.style.display = (formula.classList.contains('elementary') || 
-                                      formula.classList.contains('middle-school')) ? 'block' : 'none';
-            } else if (educationLevel === 'high-school') {
-                formula.style.display = 'block'; // Show all formulas for high school
-            }
-        });
-        
-        updatePagination();
-    }
-
-    // Update pagination
-    function updatePagination() {
-        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card:not([style*="display: none"])`);
-        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
-        
-        totalPagesSpan.textContent = totalPages;
-        currentPageSpan.textContent = currentPage;
-        
-        // Update button states
-        prevPageBtn.disabled = currentPage === 1;
-        nextPageBtn.disabled = currentPage === totalPages;
-        
-        // Show/hide formulas based on current page
-        visibleFormulas.forEach((formula, index) => {
-            const shouldShow = index >= (currentPage - 1) * itemsPerPage && index < currentPage * itemsPerPage;
-            formula.style.display = shouldShow ? 'block' : 'none';
-        });
-    }
-
-    // Handle category switching
-    formulaSelector.addEventListener('click', (e) => {
-        if (e.target.classList.contains('formula-category-btn')) {
-            // Update active button
-            document.querySelectorAll('.formula-category-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            e.target.classList.add('active');
-            
-            // Update active category
-            currentCategory = e.target.dataset.category;
-            currentPage = 1;
-            
-            // Show selected category
-            document.querySelectorAll('.formula-category').forEach(category => {
-                category.classList.remove('active');
-                if (category.dataset.category === currentCategory) {
-                    category.classList.add('active');
-                }
-            });
-            
-            filterFormulas();
-        }
-    });
-
-    // Handle pagination
-    prevPageBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            updatePagination();
-        }
-    });
-
-    nextPageBtn.addEventListener('click', () => {
-        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card:not([style*="display: none"])`);
-        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
-        
-        if (currentPage < totalPages) {
-            currentPage++;
-            updatePagination();
-        }
-    });
-
-    // Initialize formula display
-    filterFormulas();
-
-    // Listen for profile changes
-    const observer = new MutationObserver(() => {
-        filterFormulas();
-    });
-
-    const profileDisplay = document.getElementById('profile-display');
-    if (profileDisplay) {
-        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
-    }
-}); 
+} 
