@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史事件 - Study Assist</title>
+    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .event-section {
+            padding: 4rem 0;
+            background-color: var(--bg-light);
+            min-height: calc(100vh - 200px);
+        }
+
+        .event-container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .event-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.5s ease, opacity 0.5s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .event-card.slide-left {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+
+        .event-card.slide-right {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        .event-card.active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        .event-title {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .event-period {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .event-content {
+            color: var(--text-primary);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+        }
+
+        .event-background, .event-impact {
+            margin-bottom: 2rem;
+        }
+
+        .event-background h3, .event-impact h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .navigation-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+        }
+
+        .nav-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .nav-btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .event-progress {
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-secondary);
+        }
+
+        /* Topic-specific styles */
+        .ancient-theme {
+            --primary-color: #8B4513;
+            --primary-dark: #654321;
+        }
+
+        .imperial-theme {
+            --primary-color: #B8860B;
+            --primary-dark: #8B6914;
+        }
+
+        .modern-early-theme {
+            --primary-color: #4682B4;
+            --primary-dark: #2F4F4F;
+        }
+
+        .modern-theme {
+            --primary-color: #DC143C;
+            --primary-dark: #8B0000;
+        }
+
+        .contemporary-theme {
+            --primary-color: #2E8B57;
+            --primary-dark: #006400;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="container">
+            <div class="logo">
+                <a href="../../index.html">Study Assist</a>
+            </div>
+            <nav class="main-nav">
+                <ul>
+                    <li><a href="../../index.html">首页</a></li>
+                    <li><a href="../../subjects.html">学科</a></li>
+                    <li><a href="../../profile.html">个人中心</a></li>
+                </ul>
+            </nav>
+            <div class="profile-display" id="profile-display">
+                <!-- Profile info will be loaded here -->
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="event-section">
+            <div class="container">
+                <div class="event-container">
+                    <div class="event-card" id="event-card">
+                        <h2 class="event-title">加载中...</h2>
+                        <div class="event-content">
+                            <p>正在获取历史事件信息...</p>
+                        </div>
+                    </div>
+                    <div class="navigation-buttons">
+                        <button class="nav-btn" id="prev-btn" disabled>
+                            <i class="fas fa-arrow-left"></i> 上一个事件
+                        </button>
+                        <button class="nav-btn" id="next-btn" disabled>
+                            下一个事件 <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                    <div class="event-progress" id="event-progress">
+                        事件 0/0
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <p>&copy; 2024 Study Assist. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script src="../../js/api.js"></script>
+    <script src="../../js/profile.js"></script>
+    <script src="../../js/education-level.js"></script>
+    <script>
+        let events = [];
+        let currentIndex = 0;
+        let period = '';
+        let educationLevel = '';
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        period = urlParams.get('period');
+
+        // Set theme based on period
+        document.body.classList.add(`${period}-theme`);
+
+        // Get education level from profile
+        function getEducationLevel() {
+            const profileText = document.getElementById('profile-display').textContent;
+            if (profileText.includes('小学')) return 'elementary';
+            if (profileText.includes('初中')) return 'middle';
+            if (profileText.includes('高中')) return 'high';
+            return 'general';
+        }
+
+        // Fetch events from DeepSeek API
+        async function fetchEvents() {
+            educationLevel = getEducationLevel();
+            const systemMessage = `你是一个专业的历史老师，请根据用户的教育水平（${educationLevel}）生成20个关于${period}时期的重要历史事件。
+            每个事件需要包含：
+            1. 事件标题
+            2. 事件时间
+            3. 详细背景（根据教育水平调整深度）
+            4. 历史影响（根据教育水平调整深度）
+            
+            请以JSON格式返回，格式如下：
+            {
+                "events": [
+                    {
+                        "title": "事件标题",
+                        "time": "具体时间",
+                        "background": "详细背景",
+                        "impact": "历史影响"
+                    }
+                ]
+            }`;
+
+            try {
+                const response = await fetch('/api/deepseek', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        systemMessage,
+                        userMessage: `请生成${period}时期的20个重要历史事件`
+                    })
+                });
+
+                const data = await response.json();
+                events = data.events;
+                displayEvent(0);
+                updateNavigationButtons();
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                document.getElementById('event-card').innerHTML = `
+                    <h2 class="event-title">加载失败</h2>
+                    <div class="event-content">
+                        <p>无法加载历史事件，请稍后重试。</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display event with animation
+        function displayEvent(index) {
+            const event = events[index];
+            const card = document.getElementById('event-card');
+            
+            // Add slide-out animation
+            card.classList.add('slide-left');
+            
+            setTimeout(() => {
+                card.innerHTML = `
+                    <h2 class="event-title">${event.title}</h2>
+                    <p class="event-period">${event.time}</p>
+                    <div class="event-content">
+                        <div class="event-background">
+                            <h3>历史背景</h3>
+                            <p>${event.background}</p>
+                        </div>
+                        <div class="event-impact">
+                            <h3>历史影响</h3>
+                            <p>${event.impact}</p>
+                        </div>
+                    </div>
+                `;
+                
+                // Add slide-in animation
+                card.classList.remove('slide-left');
+                card.classList.add('active');
+                
+                // Update progress
+                document.getElementById('event-progress').textContent = 
+                    `事件 ${index + 1}/${events.length}`;
+            }, 500);
+        }
+
+        // Update navigation buttons
+        function updateNavigationButtons() {
+            document.getElementById('prev-btn').disabled = currentIndex === 0;
+            document.getElementById('next-btn').disabled = currentIndex === events.length - 1;
+        }
+
+        // Event listeners for navigation
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayEvent(currentIndex);
+                updateNavigationButtons();
+            }
+        });
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            if (currentIndex < events.length - 1) {
+                currentIndex++;
+                displayEvent(currentIndex);
+                updateNavigationButtons();
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchEvents();
+        });
+    </script>
+</body>
+</html> 
