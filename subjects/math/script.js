@@ -389,42 +389,6 @@ function initQuizGenerator() {
                     semester = '下学期';
                 }
                 }
-            
-            if (profileDisplay) {
-                const levelText = profileDisplay.textContent.toLowerCase();
-                const profile = levelText.split(" | "); // Split by " | "
-
-                if (levelText.includes('小学')) {
-                    educationLevel = 'elementary-school';
-                    // Extract grade from the text, e.g., "小学 | 三年级"
-                    // const gradeMatch = levelText.match(/小学(\d+)年级/);
-                    grade = profile[1]; // Get the second part
-
-                } else if (levelText.includes('初中')) {
-                    educationLevel = 'middle-school';
-                    // Extract grade from the text, e.g., "初中 | 二年级"
-                    // const gradeMatch = levelText.match(/初中(\d+)年级/);
-                    grade = profile[1]; // Get the second part
-
-                } else if (levelText.includes('高中')) {
-                    educationLevel = 'high-school';
-                    // Extract grade from the text, e.g., "高中 | 一年级"
-                    // const gradeMatch = levelText.match(/高中(\d+)年级/);
-                    grade = profile[1]; // Get the second part
-                }
-                
-                console.log(grade);
-
-                // Extract semester from the text, e.g., "上学期" or "下学期"
-                if (levelText.includes('上学期')) {
-                    semester = '上学期';
-                } else if (levelText.includes('下学期')) {
-                    semester = '下学期';
-                }
-            }
-
-
-
                 
                 const levelName = getEducationLevelName(educationLevel);
                 const topicName = getTopicName(topic);
@@ -453,7 +417,7 @@ function initQuizGenerator() {
                 }
                 
                 // Build system message
-                const systemMessage = `你是一个专业的数学教育助手，现在需要为${levelName}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
+                const systemMessage = `你是一个专业的数学教育助手，现在需要为${levelName}${grade}${semester}学生生成一个关于${topicName}的${difficultyName}难度测验，包含${count}道选择题。
                 
                 ${levelSpecificPrompt}
                 
@@ -462,9 +426,9 @@ function initQuizGenerator() {
                 1. 为什么这个选项是正确的
                 2. 其他选项为什么是错误的
                 3. 相关的数学概念和公式
-                4. 适合${levelName}学生理解的具体例子
+                4. 适合${levelName}${grade}学生理解的具体例子
                 
-                请确保题目难度适合${levelName}学生的水平，避免过于简单或过于困难。
+                请确保题目难度适合${levelName}${grade}学生的水平，避免过于简单或过于困难。
                 请以JSON格式回复，格式如下:
                 {
                   "title": "测验标题",
