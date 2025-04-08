@@ -465,7 +465,7 @@ function updateQuizOptions(subject, difficulty) {
         Array.from(difficultySelect.options).forEach(option => {
             // Hide "困难" option for elementary school
             if (difficulty === DIFFICULTY_LEVELS.ELEMENTARY && option.value === 'hard') {
-                option.remove();
+                // option.remove();
             }
         });
     }

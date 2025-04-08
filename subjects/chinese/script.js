@@ -28,21 +28,23 @@ function initQuizGenerator() {
                     educationLevel = 'elementary-school';
                     // Extract grade from the text, e.g., "小学 | 三年级"
                     // const gradeMatch = levelText.match(/小学(\d+)年级/);
-                    const grade = profile[1]; // Get the second part
+                    grade = profile[1]; // Get the second part
 
                 } else if (levelText.includes('初中')) {
                     educationLevel = 'middle-school';
                     // Extract grade from the text, e.g., "初中 | 二年级"
                     // const gradeMatch = levelText.match(/初中(\d+)年级/);
-                    const grade = profile[1]; // Get the second part
+                    grade = profile[1]; // Get the second part
 
                 } else if (levelText.includes('高中')) {
                     educationLevel = 'high-school';
                     // Extract grade from the text, e.g., "高中 | 一年级"
                     // const gradeMatch = levelText.match(/高中(\d+)年级/);
-                    const grade = profile[1]; // Get the second part
+                    grade = profile[1]; // Get the second part
                 }
                 
+                console.log(grade);
+
                 // Extract semester from the text, e.g., "上学期" or "下学期"
                 if (levelText.includes('上学期')) {
                     semester = '上学期';
