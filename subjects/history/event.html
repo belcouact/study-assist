@@ -507,13 +507,31 @@
                 const data = await response.json();
                 const content = data.choices[0].message.content;
                 
-                // Parse JSON from response
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                // Clean the content to ensure valid JSON
+                let cleanedContent = content
+                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+                    .replace(/\n/g, ' ') // Replace newlines with spaces
+                    .replace(/\s+/g, ' ') // Normalize whitespace
+                    .trim();
+                
+                // Find the JSON object in the content
+                const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) {
                     throw new Error('无法从响应中提取JSON数据');
                 }
 
-                const result = JSON.parse(jsonMatch[0]);
+                let result;
+                try {
+                    result = JSON.parse(jsonMatch[0]);
+                } catch (parseError) {
+                    console.error('JSON解析错误:', parseError);
+                    throw new Error('返回的数据格式不正确，请稍后重试');
+                }
+
+                if (!result.events || !Array.isArray(result.events)) {
+                    throw new Error('返回的数据格式不正确，缺少事件列表');
+                }
+
                 events = result.events;
                 displayEvent(0);
                 updateNavigationButtons();
