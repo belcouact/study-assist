@@ -401,7 +401,7 @@ function initQuizGenerator() {
                     case 'elementary-school':
                         levelSpecificPrompt = '题目应该简单易懂，使用基础数学概念和简单计算。每个问题都应该有明确的答案，避免复杂的推理。解释应该使用简单的语言，并包含具体的例子。';
                         break;
-                        
+
                     case 'middle-school':
                         levelSpecificPrompt = '题目应该包含基础到中等难度的内容，使用适当的数学术语。可以包含一些需要推理的问题，但答案应该相对明确。解释应该详细但不过于复杂。';
 
@@ -426,7 +426,7 @@ function initQuizGenerator() {
                 3. 相关的数学概念和公式
                 4. 适合${levelName}${grade}学生理解的具体例子
                 
-                请确保题目难度适合${levelName}${grade}学生的水平，避免过于简单或过于困难。
+                请确保题目范围适合${levelName}${grade}学生的水平，题目难度为${difficultyName}。
                 请以JSON格式回复，格式如下:
                 {
                   "title": "测验标题",
