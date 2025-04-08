@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>历史事件 - Study Assist</title>
-    <link rel="stylesheet" href="../../assets/css/style.css">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .event-section {
@@ -239,19 +243,40 @@
             }`;
 
             try {
-                const response = await fetch('/api/deepseek', {
+                const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        systemMessage,
-                        userMessage: `请生成${period}时期的20个重要历史事件`
+                        messages: [
+                            {
+                                "role": "system",
+                                "content": systemMessage
+                            },
+                            {
+                                "role": "user",
+                                "content": `请生成${period}时期的20个重要历史事件`
+                            }
+                        ]
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status}`);
+                }
+
                 const data = await response.json();
-                events = data.events;
+                const content = data.choices[0].message.content;
+                
+                // Parse JSON from response
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    throw new Error('无法从响应中提取JSON数据');
+                }
+
+                const result = JSON.parse(jsonMatch[0]);
+                events = result.events;
                 displayEvent(0);
                 updateNavigationButtons();
             } catch (error) {
@@ -260,6 +285,7 @@
                     <h2 class="event-title">加载失败</h2>
                     <div class="event-content">
                         <p>无法加载历史事件，请稍后重试。</p>
+                        <p class="error-details">${error.message}</p>
                     </div>
                 `;
             }
