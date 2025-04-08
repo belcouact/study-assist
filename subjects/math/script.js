@@ -354,16 +354,77 @@ function initQuizGenerator() {
                 // Get education level from header profile display
                 const profileDisplay = document.querySelector('.profile-display');
                 let educationLevel = 'middle-school'; // Default value
+                let grade = '';
+                let semester = '';
+
                 if (profileDisplay) {
-                    const levelText = profileDisplay.textContent.trim();
-                    if (levelText.includes('小学')) {
-                        educationLevel = 'elementary-school';
-                    } else if (levelText.includes('初中')) {
-                        educationLevel = 'middle-school';
-                    } else if (levelText.includes('高中')) {
-                        educationLevel = 'high-school';
-                    }
+                    const levelText = profileDisplay.textContent.toLowerCase();
+                const profile = levelText.split(" | "); // Split by " | "
+
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                    // Extract grade from the text, e.g., "小学 | 三年级"
+                    // const gradeMatch = levelText.match(/小学(\d+)年级/);
+                    grade = profile[1]; // Get the second part
+
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                    // Extract grade from the text, e.g., "初中 | 二年级"
+                    // const gradeMatch = levelText.match(/初中(\d+)年级/);
+                    grade = profile[1]; // Get the second part
+
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                    // Extract grade from the text, e.g., "高中 | 一年级"
+                    // const gradeMatch = levelText.match(/高中(\d+)年级/);
+                    grade = profile[1]; // Get the second part
                 }
+                
+                console.log(grade);
+
+                // Extract semester from the text, e.g., "上学期" or "下学期"
+                if (levelText.includes('上学期')) {
+                    semester = '上学期';
+                } else if (levelText.includes('下学期')) {
+                    semester = '下学期';
+                }
+                }
+            
+            if (profileDisplay) {
+                const levelText = profileDisplay.textContent.toLowerCase();
+                const profile = levelText.split(" | "); // Split by " | "
+
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                    // Extract grade from the text, e.g., "小学 | 三年级"
+                    // const gradeMatch = levelText.match(/小学(\d+)年级/);
+                    grade = profile[1]; // Get the second part
+
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                    // Extract grade from the text, e.g., "初中 | 二年级"
+                    // const gradeMatch = levelText.match(/初中(\d+)年级/);
+                    grade = profile[1]; // Get the second part
+
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                    // Extract grade from the text, e.g., "高中 | 一年级"
+                    // const gradeMatch = levelText.match(/高中(\d+)年级/);
+                    grade = profile[1]; // Get the second part
+                }
+                
+                console.log(grade);
+
+                // Extract semester from the text, e.g., "上学期" or "下学期"
+                if (levelText.includes('上学期')) {
+                    semester = '上学期';
+                } else if (levelText.includes('下学期')) {
+                    semester = '下学期';
+                }
+            }
+
+
+
                 
                 const levelName = getEducationLevelName(educationLevel);
                 const topicName = getTopicName(topic);
@@ -424,7 +485,7 @@ function initQuizGenerator() {
                 }`;
                 
                 console.log(systemMessage);
-                
+
                 // Call DeepSeek API
                 const response = await fetch('/api/chat', {
                     method: 'POST',
