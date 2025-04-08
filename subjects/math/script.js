@@ -798,32 +798,25 @@ function getDifficultyName(difficulty) {
 }
 
 /**
- * Initialize formula category selector
+ * Initialize formula reference section
  */
 function initFormulaSelector() {
     const formulaContainer = document.querySelector('.formula-container');
-    const formulaSelector = document.querySelector('.formula-selector');
-    const prevPageBtn = document.querySelector('.prev-page');
-    const nextPageBtn = document.querySelector('.next-page');
-    const currentPageSpan = document.querySelector('.current-page');
-    const totalPagesSpan = document.querySelector('.total-pages');
+    const loadFormulasBtn = document.getElementById('load-formulas');
     
-    let currentPage = 1;
-    let itemsPerPage = 4;
-    let currentCategory = 'basic';
     let formulaCache = {};
 
     // Get education profile details
     function getEducationProfile() {
         const profileText = document.getElementById('profile-display').textContent;
-        const profile = profileText.split(" | "); // Split by " | "
+        const profile = profileText.split(" | ");
         let level = 'middle-school';
         let grade = '';
         let semester = '';
 
         if (profileText.includes('小学')) {
             level = 'elementary-school';
-            grade = profile[1]; // Get the grade
+            grade = profile[1];
         } else if (profileText.includes('初中')) {
             level = 'middle-school';
             grade = profile[1];
@@ -842,48 +835,61 @@ function initFormulaSelector() {
     }
 
     // Fetch formulas from DeepSeek API
-    async function fetchFormulas(category) {
+    async function fetchFormulas() {
         const { level, grade, semester } = getEducationProfile();
         
         // Create cache key
-        const cacheKey = `${level}-${grade}-${semester}-${category}`;
+        const cacheKey = `${level}-${grade}-${semester}`;
         
         // Return cached formulas if available
         if (formulaCache[cacheKey]) {
+            console.log('Using cached formulas for:', cacheKey);
             return formulaCache[cacheKey];
         }
 
-        // Build prompt based on education level and category
-        const categoryNames = {
-            basic: '基础',
-            algebra: '代数',
-            geometry: '几何',
-            trigonometry: '三角',
-            calculus: '微积分'
-        };
-
-        const prompt = `作为一个数学教育专家，请为${grade}${semester}的学生提供${categoryNames[category]}数学公式。
+        const prompt = `作为一个数学教育专家，请为${grade}${semester}的学生提供数学公式参考。
 
 要求：
-1. 返回4-6个适合该年级学习的数学公式
-2. 每个公式需包含：
+1. 按以下类别提供公式：
+   - 基础数学（Basic）
+   - 代数（Algebra）
+   - 几何（Geometry）
+   - 三角（Trigonometry）
+   - 微积分（Calculus，仅限高中）
+
+2. 每个类别提供3-5个该年级最重要的公式
+
+3. 每个公式需包含：
    - 公式名称（name）
    - LaTeX格式的公式（formula）
-   - 适用范围说明（scope）
-   - 公式解释（explanation）
-3. 使用JSON格式返回，格式如下：
+   - 适用范围（scope）
+   - 公式解释（explanation）：包括公式的含义、使用场景和实际应用例子
+   - 关键概念（concepts）：理解该公式所需的关键数学概念
+   - 使用技巧（tips）：使用公式时的注意事项和常见错误
+
+4. 使用JSON格式返回，格式如下：
 {
-  "formulas": [
+  "categories": [
     {
-      "name": "公式名称",
-      "formula": "LaTeX格式的公式",
-      "scope": "适用范围",
-      "explanation": "公式解释"
+      "name": "类别名称",
+      "formulas": [
+        {
+          "name": "公式名称",
+          "formula": "LaTeX格式的公式",
+          "scope": "适用范围",
+          "explanation": "详细解释",
+          "concepts": ["关键概念1", "关键概念2"],
+          "tips": ["使用技巧1", "使用技巧2"]
+        }
+      ]
     }
   ]
 }`;
 
         try {
+            console.log('Fetching formulas for:', cacheKey);
+            console.log('API Request Prompt:', prompt);
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
@@ -904,19 +910,23 @@ function initFormulaSelector() {
             });
 
             if (!response.ok) {
-                throw new Error('API请求失败');
+                throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
+            console.log('API Response:', data);
+
             const content = data.choices[0].message.content;
+            console.log('API Content:', content);
             
             // Extract JSON from response
             const jsonMatch = content.match(/\{[\s\S]*\}/);
             if (!jsonMatch) {
-                throw new Error('无法解析API响应');
+                throw new Error('无法从响应中提取JSON格式数据');
             }
 
             const formulas = JSON.parse(jsonMatch[0]);
+            console.log('Parsed Formulas:', formulas);
             
             // Cache the results
             formulaCache[cacheKey] = formulas;
@@ -925,128 +935,112 @@ function initFormulaSelector() {
 
         } catch (error) {
             console.error('获取公式时出错:', error);
-            return { formulas: [] };
+            throw error;
         }
     }
 
-    // Render formulas
-    async function renderFormulas(category) {
-        const categoryContainer = document.querySelector(`.formula-category[data-category="${category}"]`);
-        if (!categoryContainer) return;
-
-        // Show loading state
-        categoryContainer.innerHTML = '<div class="loading-formulas">正在加载公式...</div>';
-
-        try {
-            const data = await fetchFormulas(category);
-            const formulaList = document.createElement('div');
-            formulaList.className = 'formula-list';
-
-            data.formulas.forEach(formula => {
-                const formulaCard = document.createElement('div');
-                formulaCard.className = 'formula-card';
-                formulaCard.innerHTML = `
-                    <h4>${formula.name}</h4>
-                    <div class="formula-notation">
-                        <p>$$${formula.formula}$$</p>
-                    </div>
-                    <p class="formula-scope">${formula.scope}</p>
-                    <p class="formula-description">${formula.explanation}</p>
+    // Render formulas in table format
+    function renderFormulasTable(data) {
+        let html = '';
+        
+        data.categories.forEach(category => {
+            html += `
+                <div class="formula-category">
+                    <h3>${category.name}</h3>
+                    <table class="formula-table">
+                        <thead>
+                            <tr>
+                                <th>公式名称</th>
+                                <th>公式</th>
+                                <th>适用范围</th>
+                                <th>详细说明</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            category.formulas.forEach(formula => {
+                html += `
+                    <tr>
+                        <td>${formula.name}</td>
+                        <td class="formula-notation">$$${formula.formula}$$</td>
+                        <td>${formula.scope}</td>
+                        <td>
+                            <div class="formula-details">
+                                <div class="formula-explanation">
+                                    <h4>公式解释</h4>
+                                    <p>${formula.explanation}</p>
+                                </div>
+                                <div class="formula-concepts">
+                                    <h4>关键概念</h4>
+                                    <ul>
+                                        ${formula.concepts.map(concept => `<li>${concept}</li>`).join('')}
+                                    </ul>
+                                </div>
+                                <div class="formula-tips">
+                                    <h4>使用技巧</h4>
+                                    <ul>
+                                        ${formula.tips.map(tip => `<li>${tip}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-                formulaList.appendChild(formulaCard);
-            });
-
-            categoryContainer.innerHTML = '';
-            categoryContainer.appendChild(formulaList);
-
-            // Render math formulas
-            if (window.MathJax) {
-                window.MathJax.typeset(categoryContainer);
-            }
-
-            updatePagination();
-
-        } catch (error) {
-            categoryContainer.innerHTML = '<div class="error-message">加载公式时出错，请稍后再试。</div>';
-        }
-    }
-
-    // Handle category switching
-    formulaSelector.addEventListener('click', async (e) => {
-        if (e.target.classList.contains('formula-category-btn')) {
-            // Update active button
-            document.querySelectorAll('.formula-category-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            e.target.classList.add('active');
-            
-            // Update active category
-            currentCategory = e.target.dataset.category;
-            currentPage = 1;
-            
-            // Show selected category
-            document.querySelectorAll('.formula-category').forEach(category => {
-                category.classList.remove('active');
-                if (category.dataset.category === currentCategory) {
-                    category.classList.add('active');
-                }
             });
             
-            // Fetch and render formulas for the selected category
-            await renderFormulas(currentCategory);
-        }
-    });
-
-    // Handle pagination
-    function updatePagination() {
-        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card`);
-        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
-        
-        totalPagesSpan.textContent = totalPages;
-        currentPageSpan.textContent = currentPage;
-        
-        // Update button states
-        prevPageBtn.disabled = currentPage === 1;
-        nextPageBtn.disabled = currentPage === totalPages;
-        
-        // Show/hide formulas based on current page
-        visibleFormulas.forEach((formula, index) => {
-            formula.style.display = 
-                index >= (currentPage - 1) * itemsPerPage && 
-                index < currentPage * itemsPerPage ? 'block' : 'none';
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
         });
+        
+        return html;
     }
 
-    prevPageBtn.addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            updatePagination();
+    // Handle formula loading
+    if (loadFormulasBtn && formulaContainer) {
+        loadFormulasBtn.addEventListener('click', async () => {
+            try {
+                // Show loading state
+                loadFormulasBtn.disabled = true;
+                loadFormulasBtn.textContent = '加载中...';
+                formulaContainer.innerHTML = '<div class="loading-formulas">正在加载公式...</div>';
+
+                const data = await fetchFormulas();
+                formulaContainer.innerHTML = renderFormulasTable(data);
+
+                // Render math formulas
+                if (window.MathJax) {
+                    window.MathJax.typeset(formulaContainer);
+                }
+
+            } catch (error) {
+                console.error('渲染公式时出错:', error);
+                formulaContainer.innerHTML = `
+                    <div class="error-message">
+                        <p>加载公式时出错，请稍后再试。</p>
+                        <p class="error-details">错误信息: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                loadFormulasBtn.disabled = false;
+                loadFormulasBtn.textContent = '加载公式';
+            }
+        });
+
+        // Listen for profile changes
+        const observer = new MutationObserver(() => {
+            // Clear cache when profile changes
+            console.log('Profile changed, clearing formula cache');
+            formulaCache = {};
+        });
+
+        const profileDisplay = document.getElementById('profile-display');
+        if (profileDisplay) {
+            observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
         }
-    });
-
-    nextPageBtn.addEventListener('click', () => {
-        const visibleFormulas = document.querySelectorAll(`.formula-category[data-category="${currentCategory}"] .formula-card`);
-        const totalPages = Math.ceil(visibleFormulas.length / itemsPerPage);
-        
-        if (currentPage < totalPages) {
-            currentPage++;
-            updatePagination();
-        }
-    });
-
-    // Initialize with basic formulas
-    renderFormulas('basic');
-
-    // Listen for profile changes
-    const observer = new MutationObserver(() => {
-        // Clear cache when profile changes
-        formulaCache = {};
-        renderFormulas(currentCategory);
-    });
-
-    const profileDisplay = document.getElementById('profile-display');
-    if (profileDisplay) {
-        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
     }
 }
 
