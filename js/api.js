@@ -7,7 +7,7 @@
 const API_CONFIG = {
     baseUrl: 'https://api.deepseek.com', // Placeholder URL for DeepSeek API
     version: 'v1',
-    timeout: 30000, // 30 seconds timeout
+    timeout: 120000, // 30 seconds timeout
     retries: 2 // Number of retries on failure
 };
 
