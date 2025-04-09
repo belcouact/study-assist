@@ -698,6 +698,23 @@ function initTimeline() {
             const continent = continentSelect.value;
             const periodName = getTopicName(period);
             const continentName = getContinentName(continent);
+
+            // Define the mapping between periods and research purposes
+            const periodToResearch = {
+            medieval: "研究中世纪、封建制度和早期现代社会的发展",
+            exploration: "发现连接大陆的航海旅程和随后的全球交流",
+            revolutionary: "分析塑造现代世界的政治、工业和社会革命",
+            worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
+            modern: "研究战后发展、冷战、非殖民化和当代全球问题",
+            "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
+            imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
+            "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
+            modern: "从五四运动到新中国成立，中国现代史的重要转折",
+            contemporary: "新中国成立后的社会主义建设与改革开放",
+            };
+    
+            // Directly link 'research_purpose' to 'period'
+            const research_purpose = periodToResearch[period];
             
             // Get education level from header profile display
             const profileDisplay = document.querySelector('.profile-display');
@@ -716,7 +733,7 @@ function initTimeline() {
             const levelName = getEducationLevelName(educationLevel);
             
             // Build system message for timeline generation
-            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期${continentName}的重要历史事件时间线。
+            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期${continentName}的重要历史事件时间线，研究目的：${research_purpose}。
             
             请提供以下内容：
             1. 该时期最重要的10-15个历史事件
