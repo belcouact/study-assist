@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize chat functionality
     initHistoryChat();
+    
+    // Initialize timeline functionality
+    initTimeline();
 });
 
 /**
@@ -673,4 +676,175 @@ function displayMessage(role, content, container) {
     
     // Scroll to bottom of chat
     container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Initialize the timeline functionality
+ */
+function initTimeline() {
+    const loadButton = document.getElementById('load-timeline');
+    const periodSelect = document.getElementById('timeline-period');
+    const timelineContainer = document.getElementById('timeline-container');
+    
+    if (!loadButton || !periodSelect || !timelineContainer) return;
+    
+    loadButton.addEventListener('click', async () => {
+        // Show loading state
+        timelineContainer.innerHTML = '<div class="text-center"><p>正在加载时间线...</p></div>';
+        
+        try {
+            const period = periodSelect.value;
+            const periodName = getTopicName(period);
+            
+            // Get education level from header profile display
+            const profileDisplay = document.querySelector('.profile-display');
+            let educationLevel = 'middle-school'; // Default value
+            if (profileDisplay) {
+                const levelText = profileDisplay.textContent.trim();
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                }
+            }
+            
+            const levelName = getEducationLevelName(educationLevel);
+            
+            // Build system message for timeline generation
+            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}的重要历史事件时间线。
+            
+            请提供以下内容：
+            1. 该时期最重要的10-15个历史事件
+            2. 每个事件应包括：
+               - 具体年份或时间段
+               - 事件名称
+               - 简要描述（适合${levelName}学生理解）
+               - 历史意义和影响
+            
+            请以JSON格式回复，格式如下:
+            {
+              "title": "时间线标题",
+              "period": "历史时期",
+              "events": [
+                {
+                  "year": "年份或时间段",
+                  "title": "事件名称",
+                  "description": "事件描述",
+                  "significance": "历史意义"
+                }
+              ]
+            }`;
+            
+            // Call DeepSeek API
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": systemMessage
+                        },
+                        {
+                            "role": "user",
+                            "content": `请生成一个关于${periodName}的重要历史事件时间线，适合${levelName}学生的水平。`
+                        }
+                    ]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const aiResponse = data.choices[0].message.content;
+            
+            // Parse JSON response
+            let timeline;
+            try {
+                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    timeline = JSON.parse(jsonMatch[0]);
+                } else {
+                    throw new Error('无法从响应中提取JSON');
+                }
+                
+                if (!timeline.title || !timeline.events || !Array.isArray(timeline.events)) {
+                    throw new Error('解析的JSON格式不正确');
+                }
+                
+                renderTimeline(timeline);
+            } catch (jsonError) {
+                console.error('解析AI响应时出错:', jsonError);
+                timelineContainer.innerHTML = `
+                    <div class="text-center text-error">
+                        <p>抱歉，生成时间线时出现错误。请再试一次。</p>
+                        <p class="small">${jsonError.message}</p>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('生成时间线时出错:', error);
+            timelineContainer.innerHTML = `
+                <div class="text-center text-error">
+                    <p>抱歉，生成时间线时出现错误。请再试一次。</p>
+                    <p class="small">${error.message}</p>
+                </div>
+            `;
+        }
+    });
+}
+
+/**
+ * Render the timeline
+ */
+function renderTimeline(timeline) {
+    const timelineContainer = document.getElementById('timeline-container');
+    if (!timelineContainer) return;
+    
+    let html = `
+        <div class="timeline-header">
+            <h3>${timeline.title}</h3>
+            <p class="timeline-period">${timeline.period}</p>
+        </div>
+        <div class="timeline-content">
+    `;
+    
+    timeline.events.forEach((event, index) => {
+        html += `
+            <div class="timeline-event ${index % 2 === 0 ? 'left' : 'right'}">
+                <div class="event-year">${event.year}</div>
+                <div class="event-content">
+                    <h4>${event.title}</h4>
+                    <p class="event-description">${event.description}</p>
+                    <div class="event-significance">
+                        <strong>历史意义：</strong>
+                        <p>${event.significance}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+        </div>
+        <div class="timeline-actions">
+            <button class="btn btn-outline" id="print-timeline">打印时间线</button>
+        </div>
+    `;
+    
+    timelineContainer.innerHTML = html;
+    
+    // Add event listener for print button
+    const printButton = document.getElementById('print-timeline');
+    if (printButton) {
+        printButton.addEventListener('click', () => {
+            window.print();
+        });
+    }
 } 
