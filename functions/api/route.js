@@ -65,4 +65,9 @@ export async function onRequest(context) {
       }
     });
   }
-} 
+}
+
+export const config = {
+  runtime: 'edge',
+  maxDuration: 180 // Set maximum duration to 60 seconds
+}; 
