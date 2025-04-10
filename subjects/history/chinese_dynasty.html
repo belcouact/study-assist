@@ -331,14 +331,16 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // First, let's try to find any records containing the dynasty name
+                // Properly encode the SQL query
+                const encodedDynasty = encodeURIComponent(dynasty.trim());
+                const sql = `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${encodedDynasty}%'`;
                 const params = new URLSearchParams({
-                    sql: `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${dynasty.trim()}%'`
+                    sql: sql
                 });
                 
                 const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
                 console.log('Querying dynasty:', dynasty);
-                console.log('Full URL:', decodeURIComponent(requestUrl));
+                console.log('SQL Query:', sql);
 
                 const response = await fetch(requestUrl);
                 if (!response.ok) {
@@ -361,13 +363,16 @@
                     
                     // Filter events to match the dynasty (more lenient matching)
                     events = events.filter(event => {
-                        const eventDynasty = (event.Dynasty || '').trim().toLowerCase();
-                        const targetDynasty = dynasty.trim().toLowerCase();
+                        const eventDynasty = (event.Dynasty || '').trim();
+                        const targetDynasty = dynasty.trim();
                         
                         // Debug: Log each comparison
                         console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
                         
-                        return eventDynasty.includes(targetDynasty) || targetDynasty.includes(eventDynasty);
+                        // Try different matching strategies
+                        return eventDynasty === targetDynasty || 
+                               eventDynasty.includes(targetDynasty) || 
+                               targetDynasty.includes(eventDynasty);
                     });
                 }
 
@@ -376,7 +381,7 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">Query: ${decodeURIComponent(params.get('sql'))}</p>
+                            <p class="small">SQL Query: ${sql}</p>
                             <p class="small">提示: 请检查数据库中的朝代名称格式</p>
                         </div>`;
                     return;
@@ -404,7 +409,6 @@
                         <p>加载历史事件时出错，请稍后重试</p>
                         <p class="small">${error.message}</p>
                         <p class="small">Dynasty: ${dynasty}</p>
-                        <p class="small">Query: ${decodeURIComponent(params.get('sql'))}</p>
                         <button onclick="loadDynastyEvents('${dynasty}')" class="btn btn-primary mt-3">重试</button>
                     </div>
                 `;
