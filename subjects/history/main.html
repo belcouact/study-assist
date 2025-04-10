@@ -18,17 +18,60 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css" onerror="this.onerror=null;this.href='https://unpkg.com/nouislider@14.6.3/distribute/nouislider.min.css';">
     <!-- Primary noUiSlider Script -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js"></script>
-    <!-- Fallback noUiSlider Script with retry mechanism -->
+    <!-- Fallback noUiSlider Script with enhanced retry mechanism -->
     <script>
-        if (typeof noUiSlider === 'undefined') {
-            const fallbackScript = document.createElement('script');
-            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js';
-            fallbackScript.onerror = function() {
-                const unpkgScript = document.createElement('script');
-                unpkgScript.src = 'https://unpkg.com/nouislider@14.6.3/distribute/nouislider.min.js';
-                document.head.appendChild(unpkgScript);
+        let noUiSliderRetries = 0;
+        const MAX_RETRIES = 5;
+        
+        function loadNoUiSlider() {
+            if (typeof noUiSlider !== 'undefined') {
+                console.log('noUiSlider loaded successfully');
+                return;
+            }
+            
+            if (noUiSliderRetries >= MAX_RETRIES) {
+                console.error('Failed to load noUiSlider after maximum retries');
+                const timelineContainer = document.getElementById('timeline-container');
+                if (timelineContainer) {
+                    timelineContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，时间线组件加载失败。请刷新页面重试。</p>
+                            <p class="small">Error: Failed to load noUiSlider library</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            noUiSliderRetries++;
+            console.log(`Attempting to load noUiSlider (attempt ${noUiSliderRetries})`);
+            
+            const sources = [
+                'https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js',
+                'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js',
+                'https://unpkg.com/nouislider@14.6.3/distribute/nouislider.min.js'
+            ];
+            
+            const script = document.createElement('script');
+            script.src = sources[noUiSliderRetries % sources.length];
+            script.onload = () => {
+                console.log(`noUiSlider script loaded from ${script.src}`);
+                if (typeof noUiSlider !== 'undefined') {
+                    console.log('noUiSlider object is available');
+                } else {
+                    console.log('noUiSlider object not available yet, retrying...');
+                    setTimeout(loadNoUiSlider, 1000);
+                }
             };
-            document.head.appendChild(fallbackScript);
+            script.onerror = () => {
+                console.error(`Failed to load noUiSlider from ${script.src}`);
+                setTimeout(loadNoUiSlider, 1000);
+            };
+            document.head.appendChild(script);
+        }
+        
+        if (typeof noUiSlider === 'undefined') {
+            loadNoUiSlider();
         }
     </script>
     <script src="script.js" defer></script>
@@ -422,11 +465,16 @@
 
         // Initialize all components when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            // Ensure noUiSlider is loaded before initializing
+            // Enhanced noUiSlider initialization check
+            let sliderInitRetries = 0;
+            const MAX_SLIDER_INIT_RETRIES = 10;
+            
             function checkNoUiSlider() {
                 if (typeof noUiSlider !== 'undefined') {
                     try {
+                        console.log('Attempting to initialize timeline slider...');
                         initTimelineSlider();
+                        console.log('Timeline slider initialized successfully');
                     } catch (error) {
                         console.error('Failed to initialize timeline slider:', error);
                         const timelineContainer = document.getElementById('timeline-container');
@@ -435,15 +483,35 @@
                                 <div class="text-center text-error">
                                     <p>抱歉，时间线初始化失败。请刷新页面重试。</p>
                                     <p class="small">${error.message}</p>
+                                    <button onclick="window.location.reload()" class="btn btn-primary mt-3">刷新页面</button>
                                 </div>
                             `;
                         }
                     }
                 } else {
-                    // Retry after a short delay
-                    setTimeout(checkNoUiSlider, 100);
+                    sliderInitRetries++;
+                    console.log(`Waiting for noUiSlider (attempt ${sliderInitRetries}/${MAX_SLIDER_INIT_RETRIES})`);
+                    
+                    if (sliderInitRetries < MAX_SLIDER_INIT_RETRIES) {
+                        setTimeout(checkNoUiSlider, 1000);
+                    } else {
+                        console.error('Failed to initialize slider after maximum retries');
+                        const timelineContainer = document.getElementById('timeline-container');
+                        if (timelineContainer) {
+                            timelineContainer.innerHTML = `
+                                <div class="text-center text-error">
+                                    <p>抱歉，时间线组件加载超时。请刷新页面重试。</p>
+                                    <p class="small">Error: noUiSlider initialization timeout</p>
+                                    <button onclick="window.location.reload()" class="btn btn-primary mt-3">刷新页面</button>
+                                </div>
+                            `;
+                        }
+                    }
                 }
             }
+
+            // Start checking for noUiSlider
+            checkNoUiSlider();
 
             // Initialize topic cards
             const topicCards = document.querySelectorAll('.topic-card');
