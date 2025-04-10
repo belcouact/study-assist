@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国历朝历代 - 学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .dynasty-container {
+            display: flex;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: calc(100vh - 200px);
+        }
+
+        .timeline-container {
+            flex: 0 0 300px;
+            position: relative;
+            padding: 20px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .vertical-timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-line {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #4361ee, #7209b7);
+            transform: translateX(-50%);
+        }
+
+        .dynasty-marker {
+            position: relative;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .dynasty-marker::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            width: 16px;
+            height: 16px;
+            background: #fff;
+            border: 3px solid #4361ee;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+        }
+
+        .dynasty-marker:hover::before {
+            background: #4361ee;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        .dynasty-marker.active::before {
+            background: #4361ee;
+            border-color: #7209b7;
+            transform: translate(-50%, -50%) scale(1.2);
+        }
+
+        .dynasty-label {
+            position: absolute;
+            left: calc(100% + 20px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-weight: 500;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .dynasty-year {
+            font-size: 0.8em;
+            color: #666;
+            display: block;
+        }
+
+        .events-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .event-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .event-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .event-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+        }
+
+        .event-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .event-year {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #4361ee;
+            margin-bottom: 0.5rem;
+        }
+
+        .event-title {
+            font-size: 1.2em;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .event-description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .event-significance {
+            font-size: 0.9em;
+            color: #7209b7;
+            font-style: italic;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error {
+            text-align: center;
+            padding: 2rem;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../index.html#features">功能</a></li>
+                        <li><a href="../../index.html#about">关于</a></li>
+                    </ul>
+                </nav>
+                <div class="profile-section">
+                    <button id="profile-button" class="profile-button">
+                        <i class="fas fa-user-circle"></i>
+                        学习阶段
+                    </button>
+                    <div id="profile-display" class="profile-display"></div>
+                </div>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="subject-hero">
+            <div class="container">
+                <div class="subject-hero-content">
+                    <h1>中国<span class="gradient-text">历朝历代</span></h1>
+                    <p class="subject-description">探索从夏朝到清朝的中国历史发展历程，了解重要历史事件和文化变迁。</p>
+                </div>
+            </div>
+        </section>
+
+        <div class="dynasty-container">
+            <div class="timeline-container">
+                <div class="vertical-timeline">
+                    <div class="timeline-line"></div>
+                    <!-- Dynasty markers will be dynamically added here -->
+                </div>
+            </div>
+            <div class="events-container">
+                <div class="event-cards">
+                    <!-- Event cards will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 Alex的学习助手。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script src="../../js/profile.js"></script>
+    <script>
+        // Dynasty data
+        const dynasties = [
+            { name: '夏朝', startYear: -2070, endYear: -1600 },
+            { name: '商朝', startYear: -1600, endYear: -1046 },
+            { name: '周朝', startYear: -1046, endYear: -256 },
+            { name: '秦朝', startYear: -221, endYear: -207 },
+            { name: '汉朝', startYear: -202, endYear: 220 },
+            { name: '三国', startYear: 220, endYear: 280 },
+            { name: '晋朝', startYear: 265, endYear: 420 },
+            { name: '南北朝', startYear: 420, endYear: 589 },
+            { name: '隋朝', startYear: 581, endYear: 618 },
+            { name: '唐朝', startYear: 618, endYear: 907 },
+            { name: '五代十国', startYear: 907, endYear: 960 },
+            { name: '宋朝', startYear: 960, endYear: 1279 },
+            { name: '元朝', startYear: 1271, endYear: 1368 },
+            { name: '明朝', startYear: 1368, endYear: 1644 },
+            { name: '清朝', startYear: 1644, endYear: 1911 }
+        ];
+
+        // Initialize timeline
+        function initTimeline() {
+            const timeline = document.querySelector('.vertical-timeline');
+            
+            dynasties.forEach((dynasty, index) => {
+                const marker = document.createElement('div');
+                marker.className = 'dynasty-marker';
+                marker.setAttribute('data-dynasty', dynasty.name);
+                
+                const label = document.createElement('div');
+                label.className = 'dynasty-label';
+                label.innerHTML = `
+                    ${dynasty.name}
+                    <span class="dynasty-year">${formatYear(dynasty.startYear)} - ${formatYear(dynasty.endYear)}</span>
+                `;
+                
+                marker.appendChild(label);
+                timeline.appendChild(marker);
+
+                // Position marker based on timeline
+                const totalYears = 3981; // 2070 BCE to 1911 CE
+                const percentage = ((dynasty.startYear + 2070) / totalYears) * 100;
+                marker.style.top = `${percentage}%`;
+
+                // Add click event
+                marker.addEventListener('click', () => {
+                    // Remove active class from all markers
+                    document.querySelectorAll('.dynasty-marker').forEach(m => m.classList.remove('active'));
+                    // Add active class to clicked marker
+                    marker.classList.add('active');
+                    // Load events for the dynasty
+                    loadDynastyEvents(dynasty.name);
+                });
+            });
+        }
+
+        // Format year display
+        function formatYear(year) {
+            if (year < 0) {
+                return `前${Math.abs(year)}`;
+            }
+            return year;
+        }
+
+        // Load events for a dynasty
+        async function loadDynastyEvents(dynasty) {
+            const eventsContainer = document.querySelector('.event-cards');
+            eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
+
+            try {
+                const response = await fetch(`/api/db/query/chinese_dynasty?dynasty=${encodeURIComponent(dynasty)}`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch events');
+                }
+
+                const events = await response.json();
+                if (!events || events.length === 0) {
+                    eventsContainer.innerHTML = '<div class="error">未找到该朝代的历史事件</div>';
+                    return;
+                }
+
+                eventsContainer.innerHTML = events.map(event => `
+                    <div class="event-card">
+                        <h3 class="event-title">${event.Title}</h3>
+                        <p class="event-description">${event.Event}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading events:', error);
+                eventsContainer.innerHTML = `
+                    <div class="error">
+                        <p>加载历史事件时出错，请稍后重试</p>
+                        <p class="small">${error.message}</p>
+                        <button onclick="loadDynastyEvents('${dynasty}')" class="btn btn-primary mt-3">重试</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            initTimeline();
+            // Load events for the first dynasty by default
+            loadDynastyEvents(dynasties[0].name);
+        });
+    </script>
+</body>
+</html> 
