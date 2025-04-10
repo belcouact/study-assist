@@ -331,11 +331,13 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Properly encode the SQL query
+                // Properly encode the SQL query with pagination parameters
                 const encodedDynasty = encodeURIComponent(dynasty.trim());
-                const sql = `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${encodedDynasty}%'`;
+                const sql = `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${encodedDynasty}%' ORDER BY Number ASC`;
                 const params = new URLSearchParams({
-                    sql: sql
+                    sql: sql,
+                    page_size: '1000', // Request more records
+                    page: '1'
                 });
                 
                 const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
@@ -360,6 +362,7 @@
                     // Debug: Log all unique Dynasty values found
                     const uniqueDynasties = [...new Set(events.map(e => e.Dynasty))];
                     console.log('Unique dynasties found:', uniqueDynasties);
+                    console.log('Total events before filtering:', events.length);
                     
                     // Filter events to match the dynasty (more lenient matching)
                     events = events.filter(event => {
@@ -370,9 +373,15 @@
                         console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
                         
                         // Try different matching strategies
-                        return eventDynasty === targetDynasty || 
-                               eventDynasty.includes(targetDynasty) || 
-                               targetDynasty.includes(eventDynasty);
+                        const isMatch = eventDynasty === targetDynasty || 
+                                      eventDynasty.includes(targetDynasty) || 
+                                      targetDynasty.includes(eventDynasty);
+                        
+                        if (isMatch) {
+                            console.log(`Match found: "${eventDynasty}" matches "${targetDynasty}"`);
+                        }
+                        
+                        return isMatch;
                     });
                 }
 
@@ -387,12 +396,19 @@
                     return;
                 }
 
+                // Sort events by Number if available
+                events.sort((a, b) => {
+                    const numA = parseInt(a.Number) || 0;
+                    const numB = parseInt(b.Number) || 0;
+                    return numA - numB;
+                });
+
                 eventsContainer.innerHTML = events.map(event => `
                     <div class="event-card">
                         <h3 class="event-title">${event.Title ? event.Title.trim() : '未知事件'}</h3>
                         <p class="event-description">${event.Event ? event.Event.trim() : '暂无描述'}</p>
                         <p class="small text-muted">朝代: ${event.Dynasty ? event.Dynasty.trim() : dynasty}</p>
-                        <p class="small text-muted">原始朝代值: "${event.Dynasty}"</p>
+                        <p class="small text-muted">序号: ${event.Number || 'N/A'}</p>
                     </div>
                 `).join('');
 
@@ -401,6 +417,7 @@
                 if (events.length > 0) {
                     console.log('Sample event:', events[0]);
                     console.log('Sample Dynasty value:', `"${events[0].Dynasty}"`);
+                    console.log('Total events after filtering:', events.length);
                 }
             } catch (error) {
                 console.error('Error loading events:', error);
