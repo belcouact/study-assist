@@ -331,30 +331,20 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Use the correct API endpoint structure
-                const requestUrl = `/api/db/query/chinese_dynasty`;
-                console.log('Querying dynasty:', dynasty); // Debug dynasty name
+                // Use the direct query endpoint with WHERE clause
+                const encodedQuery = encodeURIComponent(`SELECT * FROM chinese_dynasty WHERE Dynasty = "${dynasty}"`);
+                const requestUrl = `/api/db/query/chinese_dynasty?sql=${encodedQuery}`;
+                
+                console.log('Querying dynasty:', dynasty);
+                console.log('Full URL:', decodeURIComponent(requestUrl));
 
-                const response = await fetch(requestUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    body: JSON.stringify({
-                        table: 'chinese_dynasty',
-                        conditions: {
-                            Dynasty: dynasty
-                        }
-                    })
-                });
-
+                const response = await fetch(requestUrl);
                 if (!response.ok) {
                     throw new Error('Failed to fetch events');
                 }
 
                 const data = await response.json();
-                console.log('Raw API Response for', dynasty, ':', data); // Debug raw response
+                console.log('Raw API Response for', dynasty, ':', data);
 
                 // Handle different response formats
                 let events = [];
@@ -375,7 +365,7 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">Response: ${JSON.stringify(data)}</p>
+                            <p class="small">Query: SELECT * FROM chinese_dynasty WHERE Dynasty = "${dynasty}"</p>
                         </div>`;
                     return;
                 }
@@ -400,6 +390,7 @@
                         <p>加载历史事件时出错，请稍后重试</p>
                         <p class="small">${error.message}</p>
                         <p class="small">Dynasty: ${dynasty}</p>
+                        <p class="small">Query: SELECT * FROM chinese_dynasty WHERE Dynasty = "${dynasty}"</p>
                         <button onclick="loadDynastyEvents('${dynasty}')" class="btn btn-primary mt-3">重试</button>
                     </div>
                 `;
