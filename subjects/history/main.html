@@ -13,8 +13,8 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css">
-    <script src="script.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js"></script>
+    <script src="script.js" defer></script>
     <style>
         /* ... existing styles ... */
         .timeline-period-slider {
@@ -327,6 +327,15 @@
                             <option value="middle-east">中东</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="timeline-events-count">事件数量</label>
+                        <select id="timeline-events-count" class="form-control">
+                            <option value="5">5个事件</option>
+                            <option value="10" selected>10个事件</option>
+                            <option value="15">15个事件</option>
+                            <option value="20">20个事件</option>
+                        </select>
+                    </div>
                     <button id="load-timeline" class="btn btn-primary">加载时间线</button>
                 </div>
                 <div id="timeline-container" class="timeline-container">
@@ -350,34 +359,13 @@
     <script src="../../js/profile.js"></script>
     <script src="../../js/education-level.js"></script>
     <script>
-        // Add click event handlers to topic cards
-        document.addEventListener('DOMContentLoaded', () => {
-            const topicCards = document.querySelectorAll('.topic-card');
-            
-            topicCards.forEach(card => {
-                card.addEventListener('click', () => {
-                    const period = card.getAttribute('data-topic');
-                    window.location.href = `event.html?period=${period}`;
-                });
-
-                // Add hover effect
-                card.addEventListener('mouseenter', () => {
-                    card.style.transform = 'translateY(-5px)';
-                    card.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
-                });
-
-                card.addEventListener('mouseleave', () => {
-                    card.style.transform = 'translateY(0)';
-                    card.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
-                });
-            });
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Initialize the slider
+        // Initialize timeline slider
+        function initTimelineSlider() {
             const slider = document.getElementById('timeline-slider');
             const timeDisplay = document.getElementById('time-display');
             
+            if (!slider || !timeDisplay) return;
+
             // Create the slider
             noUiSlider.create(slider, {
                 start: [-3000, 2025],
@@ -414,12 +402,61 @@
 
                 timeDisplay.textContent = `${formatYear(startYear)} - ${formatYear(endYear)}`;
             });
+        }
+
+        // Initialize all components when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize topic cards
+            const topicCards = document.querySelectorAll('.topic-card');
+            
+            topicCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const period = card.getAttribute('data-topic');
+                    window.location.href = `event.html?period=${period}`;
+                });
+
+                // Add hover effect
+                card.addEventListener('mouseenter', () => {
+                    card.style.transform = 'translateY(-5px)';
+                    card.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
+                });
+
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                    card.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+                });
+            });
+
+            // Initialize timeline slider
+            try {
+                initTimelineSlider();
+            } catch (error) {
+                console.error('Failed to initialize timeline slider:', error);
+                const timelineContainer = document.getElementById('timeline-container');
+                if (timelineContainer) {
+                    timelineContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，时间线初始化失败。请刷新页面重试。</p>
+                            <p class="small">${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
 
             // Add click event handler for the load button
             document.getElementById('load-timeline').addEventListener('click', async () => {
                 const timelineContainer = document.getElementById('timeline-container');
                 const continentSelect = document.getElementById('timeline-continent');
+                const eventsCountSelect = document.getElementById('timeline-events-count');
+                const slider = document.getElementById('timeline-slider');
+                
+                if (!slider || !slider.noUiSlider) {
+                    timelineContainer.innerHTML = '<div class="text-center text-error"><p>时间线组件未正确初始化，请刷新页面重试。</p></div>';
+                    return;
+                }
+
                 const [startYear, endYear] = slider.noUiSlider.get();
+                const eventsCount = parseInt(eventsCountSelect.value);
                 
                 // Show loading state
                 timelineContainer.innerHTML = '<div class="text-center"><p>正在加载时间线...</p></div>';
@@ -450,7 +487,7 @@
                     const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${startYearFormatted}年到${endYearFormatted}期间${continentName}地区的重要历史事件时间线。
 
                     请提供以下内容：
-                    1. 该时期最重要的10-15个历史事件
+                    1. 该时期最重要的${eventsCount}个历史事件（按时间顺序排列）
                     2. 每个事件应包括：
                        - 具体年份或时间段
                        - 事件名称
@@ -462,6 +499,7 @@
                       "title": "时间线标题",
                       "period": "${startYearFormatted}年-${endYearFormatted}",
                       "continent": "${continentName}",
+                      "eventCount": ${eventsCount},
                       "events": [
                         {
                           "year": "年份或时间段",
