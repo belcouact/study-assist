@@ -331,9 +331,9 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Use parameterized query format with TRIM to handle spaces
+                // First, let's try to find any records containing the dynasty name
                 const params = new URLSearchParams({
-                    sql: `SELECT * FROM chinese_dynasty WHERE TRIM(Dynasty) = '${dynasty.trim()}'`
+                    sql: `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${dynasty.trim()}%'`
                 });
                 
                 const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
@@ -354,11 +354,20 @@
                     events = data;
                 } else if (data && typeof data === 'object' && data.success) {
                     events = data.data || [];
-                    // Filter events to match the dynasty exactly (case-insensitive and trim spaces)
+                    
+                    // Debug: Log all unique Dynasty values found
+                    const uniqueDynasties = [...new Set(events.map(e => e.Dynasty))];
+                    console.log('Unique dynasties found:', uniqueDynasties);
+                    
+                    // Filter events to match the dynasty (more lenient matching)
                     events = events.filter(event => {
                         const eventDynasty = (event.Dynasty || '').trim().toLowerCase();
                         const targetDynasty = dynasty.trim().toLowerCase();
-                        return eventDynasty === targetDynasty;
+                        
+                        // Debug: Log each comparison
+                        console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
+                        
+                        return eventDynasty.includes(targetDynasty) || targetDynasty.includes(eventDynasty);
                     });
                 }
 
@@ -367,7 +376,8 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">Query: SELECT * FROM chinese_dynasty WHERE TRIM(Dynasty) = '${dynasty.trim()}'</p>
+                            <p class="small">Query: ${decodeURIComponent(params.get('sql'))}</p>
+                            <p class="small">提示: 请检查数据库中的朝代名称格式</p>
                         </div>`;
                     return;
                 }
@@ -377,6 +387,7 @@
                         <h3 class="event-title">${event.Title ? event.Title.trim() : '未知事件'}</h3>
                         <p class="event-description">${event.Event ? event.Event.trim() : '暂无描述'}</p>
                         <p class="small text-muted">朝代: ${event.Dynasty ? event.Dynasty.trim() : dynasty}</p>
+                        <p class="small text-muted">原始朝代值: "${event.Dynasty}"</p>
                     </div>
                 `).join('');
 
@@ -384,6 +395,7 @@
                 console.log(`Found ${events.length} events for dynasty:`, dynasty);
                 if (events.length > 0) {
                     console.log('Sample event:', events[0]);
+                    console.log('Sample Dynasty value:', `"${events[0].Dynasty}"`);
                 }
             } catch (error) {
                 console.error('Error loading events:', error);
@@ -392,7 +404,7 @@
                         <p>加载历史事件时出错，请稍后重试</p>
                         <p class="small">${error.message}</p>
                         <p class="small">Dynasty: ${dynasty}</p>
-                        <p class="small">Query: SELECT * FROM chinese_dynasty WHERE TRIM(Dynasty) = '${dynasty.trim()}'</p>
+                        <p class="small">Query: ${decodeURIComponent(params.get('sql'))}</p>
                         <button onclick="loadDynastyEvents('${dynasty}')" class="btn btn-primary mt-3">重试</button>
                     </div>
                 `;
