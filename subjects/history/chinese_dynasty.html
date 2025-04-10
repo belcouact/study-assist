@@ -27,34 +27,41 @@
             background: #fff;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: 80vh;
+            overflow-y: auto;
         }
 
         .vertical-timeline {
             position: relative;
             padding: 20px 0;
+            min-height: 150vh;
         }
 
         .timeline-line {
-            position: absolute;
-            left: 50%;
+            position: fixed;
+            left: 170px;
             top: 0;
             bottom: 0;
             width: 4px;
             background: linear-gradient(180deg, #4361ee, #7209b7);
-            transform: translateX(-50%);
+            height: 100%;
+            pointer-events: none;
         }
 
         .dynasty-marker {
-            position: relative;
-            margin: 20px 0;
+            position: absolute;
+            left: 0;
+            width: 100%;
             cursor: pointer;
             transition: all 0.3s ease;
+            padding: 20px 0;
         }
 
         .dynasty-marker::before {
             content: '';
             position: absolute;
-            left: 50%;
+            left: 170px;
+            top: 50%;
             width: 16px;
             height: 16px;
             background: #fff;
@@ -62,6 +69,7 @@
             border-radius: 50%;
             transform: translate(-50%, -50%);
             transition: all 0.3s ease;
+            z-index: 1;
         }
 
         .dynasty-marker:hover::before {
@@ -264,6 +272,8 @@
         // Initialize timeline
         function initTimeline() {
             const timeline = document.querySelector('.vertical-timeline');
+            const containerHeight = timeline.offsetHeight;
+            const spacing = containerHeight / dynasties.length;
             
             dynasties.forEach((dynasty, index) => {
                 const marker = document.createElement('div');
@@ -280,10 +290,9 @@
                 marker.appendChild(label);
                 timeline.appendChild(marker);
 
-                // Position marker based on timeline
-                const totalYears = 3981; // 2070 BCE to 1911 CE
-                const percentage = ((dynasty.startYear + 2070) / totalYears) * 100;
-                marker.style.top = `${percentage}%`;
+                // Position marker evenly along the timeline
+                const position = (index * spacing) + 40;
+                marker.style.top = `${position}px`;
 
                 // Add click event
                 marker.addEventListener('click', () => {
@@ -319,20 +328,29 @@
                 const data = await response.json();
                 console.log('API Response:', data); // Debug log
 
-                // Check if the response has the expected structure
-                if (!data || !data.results || !Array.isArray(data.results)) {
-                    throw new Error('Invalid response format from server');
+                // Handle different response formats
+                let events = [];
+                if (Array.isArray(data)) {
+                    events = data;
+                } else if (data && typeof data === 'object') {
+                    if (Array.isArray(data.results)) {
+                        events = data.results;
+                    } else if (Array.isArray(data.data)) {
+                        events = data.data;
+                    } else if (data.result && Array.isArray(data.result)) {
+                        events = data.result;
+                    }
                 }
 
-                if (data.results.length === 0) {
+                if (events.length === 0) {
                     eventsContainer.innerHTML = '<div class="error">未找到该朝代的历史事件</div>';
                     return;
                 }
 
-                eventsContainer.innerHTML = data.results.map(event => `
+                eventsContainer.innerHTML = events.map(event => `
                     <div class="event-card">
-                        <h3 class="event-title">${event.Title || '未知事件'}</h3>
-                        <p class="event-description">${event.Event || '暂无描述'}</p>
+                        <h3 class="event-title">${event.Title || event.title || '未知事件'}</h3>
+                        <p class="event-description">${event.Event || event.event || event.description || '暂无描述'}</p>
                     </div>
                 `).join('');
             } catch (error) {
