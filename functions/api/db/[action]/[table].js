@@ -48,7 +48,7 @@ export async function onRequest(context) {
                 // Query table data
                 const queryResult = await db.prepare(`
                     SELECT * FROM ${table}
-                    ORDER BY Index ASC
+                    ORDER BY Number ASC
                     LIMIT 100
                 `).all();
 
