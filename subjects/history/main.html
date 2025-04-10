@@ -12,8 +12,25 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js"></script>
+    <!-- Primary noUiSlider CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.css">
+    <!-- Fallback noUiSlider CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css" onerror="this.onerror=null;this.href='https://unpkg.com/nouislider@14.6.3/distribute/nouislider.min.css';">
+    <!-- Primary noUiSlider Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/14.6.3/nouislider.min.js"></script>
+    <!-- Fallback noUiSlider Script with retry mechanism -->
+    <script>
+        if (typeof noUiSlider === 'undefined') {
+            const fallbackScript = document.createElement('script');
+            fallbackScript.src = 'https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js';
+            fallbackScript.onerror = function() {
+                const unpkgScript = document.createElement('script');
+                unpkgScript.src = 'https://unpkg.com/nouislider@14.6.3/distribute/nouislider.min.js';
+                document.head.appendChild(unpkgScript);
+            };
+            document.head.appendChild(fallbackScript);
+        }
+    </script>
     <script src="script.js" defer></script>
     <style>
         /* ... existing styles ... */
@@ -330,10 +347,9 @@
                     <div class="form-group">
                         <label for="timeline-events-count">事件数量</label>
                         <select id="timeline-events-count" class="form-control">
-                            <option value="5">5个事件</option>
                             <option value="10" selected>10个事件</option>
-                            <option value="15">15个事件</option>
                             <option value="20">20个事件</option>
+                            <option value="30">30个事件</option>
                         </select>
                     </div>
                     <button id="load-timeline" class="btn btn-primary">加载时间线</button>
@@ -406,6 +422,29 @@
 
         // Initialize all components when DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
+            // Ensure noUiSlider is loaded before initializing
+            function checkNoUiSlider() {
+                if (typeof noUiSlider !== 'undefined') {
+                    try {
+                        initTimelineSlider();
+                    } catch (error) {
+                        console.error('Failed to initialize timeline slider:', error);
+                        const timelineContainer = document.getElementById('timeline-container');
+                        if (timelineContainer) {
+                            timelineContainer.innerHTML = `
+                                <div class="text-center text-error">
+                                    <p>抱歉，时间线初始化失败。请刷新页面重试。</p>
+                                    <p class="small">${error.message}</p>
+                                </div>
+                            `;
+                        }
+                    }
+                } else {
+                    // Retry after a short delay
+                    setTimeout(checkNoUiSlider, 100);
+                }
+            }
+
             // Initialize topic cards
             const topicCards = document.querySelectorAll('.topic-card');
             
@@ -426,22 +465,6 @@
                     card.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
                 });
             });
-
-            // Initialize timeline slider
-            try {
-                initTimelineSlider();
-            } catch (error) {
-                console.error('Failed to initialize timeline slider:', error);
-                const timelineContainer = document.getElementById('timeline-container');
-                if (timelineContainer) {
-                    timelineContainer.innerHTML = `
-                        <div class="text-center text-error">
-                            <p>抱歉，时间线初始化失败。请刷新页面重试。</p>
-                            <p class="small">${error.message}</p>
-                        </div>
-                    `;
-                }
-            }
 
             // Add click event handler for the load button
             document.getElementById('load-timeline').addEventListener('click', async () => {
