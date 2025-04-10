@@ -75,31 +75,24 @@ export async function onRequest(context) {
                     throw new Error('Invalid data format. Expected non-empty array.');
                 }
 
-                // Begin transaction
-                await db.prepare('BEGIN TRANSACTION').run();
                 let insertedCount = 0;
 
+                // Use D1's JavaScript transaction API
                 try {
-                    // Prepare the insert statement
-                    const stmt = await db.prepare(`
-                        INSERT INTO ${table} (Number, Dynasty, Period, Title, Event)
-                        VALUES (?, ?, ?, ?, ?)
-                    `);
-
-                    // Insert each row
-                    for (const row of data) {
-                        await stmt.bind(
+                    await db.batch(data.map(row => {
+                        return db.prepare(`
+                            INSERT INTO ${table} (Number, Dynasty, Period, Title, Event)
+                            VALUES (?, ?, ?, ?, ?)
+                        `).bind(
                             row.Number || null,
                             row.Dynasty || null,
                             row.Period || null,
                             row.Title || null,
                             row.Event || null
-                        ).run();
-                        insertedCount++;
-                    }
+                        );
+                    }));
 
-                    // Commit transaction
-                    await db.prepare('COMMIT').run();
+                    insertedCount = data.length;
 
                     return new Response(JSON.stringify({
                         success: true,
@@ -112,9 +105,7 @@ export async function onRequest(context) {
                         },
                     });
                 } catch (error) {
-                    // Rollback on error
-                    await db.prepare('ROLLBACK').run();
-                    throw error;
+                    throw new Error(`Upload failed: ${error.message}`);
                 }
 
             default:
