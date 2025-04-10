@@ -4,7 +4,7 @@ export async function onRequest(context) {
         return new Response(null, {
             headers: {
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, OPTIONS",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type",
             },
         });
@@ -62,6 +62,60 @@ export async function onRequest(context) {
                         "Access-Control-Allow-Origin": "*",
                     },
                 });
+
+            case 'upload':
+                // Handle data upload
+                if (context.request.method !== 'POST') {
+                    throw new Error('Upload requires POST method');
+                }
+
+                // Parse the request body
+                const { data } = await context.request.json();
+                if (!Array.isArray(data) || data.length === 0) {
+                    throw new Error('Invalid data format. Expected non-empty array.');
+                }
+
+                // Begin transaction
+                await db.prepare('BEGIN TRANSACTION').run();
+                let insertedCount = 0;
+
+                try {
+                    // Prepare the insert statement
+                    const stmt = await db.prepare(`
+                        INSERT INTO ${table} (Number, Dynasty, Period, Title, Event)
+                        VALUES (?, ?, ?, ?, ?)
+                    `);
+
+                    // Insert each row
+                    for (const row of data) {
+                        await stmt.bind(
+                            row.Number || null,
+                            row.Dynasty || null,
+                            row.Period || null,
+                            row.Title || null,
+                            row.Event || null
+                        ).run();
+                        insertedCount++;
+                    }
+
+                    // Commit transaction
+                    await db.prepare('COMMIT').run();
+
+                    return new Response(JSON.stringify({
+                        success: true,
+                        message: 'Data uploaded successfully',
+                        insertedCount
+                    }), {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    });
+                } catch (error) {
+                    // Rollback on error
+                    await db.prepare('ROLLBACK').run();
+                    throw error;
+                }
 
             default:
                 throw new Error(`Unsupported action: ${action}`);

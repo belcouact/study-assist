@@ -6,6 +6,7 @@
     <title>数据库连接测试 - 历史学习助手</title>
     <link rel="stylesheet" href="../../css/common.css">
     <link rel="stylesheet" href="../../css/components.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .test-container {
             max-width: 800px;
@@ -25,6 +26,8 @@
             border-radius: 4px;
             background: #f5f5f5;
             min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
         }
         .error {
             color: #dc3545;
@@ -39,6 +42,29 @@
             background: #e6ffe6;
             border-radius: 4px;
             margin-top: 10px;
+        }
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .preview-table th, .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .preview-table th {
+            background-color: #f8f9fa;
+        }
+        .preview-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
         }
     </style>
 </head>
@@ -61,6 +87,21 @@
             <button id="fetch-dynasties" class="btn btn-primary">获取朝代数据</button>
             <div id="dynasties-result" class="result-container">
                 <p>查询结果将显示在这里...</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>导入Excel数据</h2>
+            <p>上传Excel文件导入朝代数据：</p>
+            <div class="file-upload">
+                <input type="file" id="excel-file" accept=".xlsx,.xls" class="form-control" />
+                <div class="preview-controls">
+                    <button id="preview-data" class="btn btn-outline">预览数据</button>
+                    <button id="upload-data" class="btn btn-primary" disabled>上传到数据库</button>
+                </div>
+                <div id="upload-result" class="result-container">
+                    <p>预览数据将显示在这里...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -132,6 +173,145 @@
                 console.error('API Error:', error);
             }
         });
+
+        let excelData = null;
+
+        document.getElementById('excel-file').addEventListener('change', () => {
+            document.getElementById('preview-data').disabled = false;
+            document.getElementById('upload-data').disabled = true;
+            document.getElementById('upload-result').innerHTML = '<p>请点击"预览数据"按钮查看Excel内容...</p>';
+        });
+
+        document.getElementById('preview-data').addEventListener('click', async () => {
+            const resultContainer = document.getElementById('upload-result');
+            const file = document.getElementById('excel-file').files[0];
+            
+            if (!file) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <p>请先选择Excel文件</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const data = await readExcelFile(file);
+                excelData = data;
+                
+                const previewHtml = `
+                    <div class="success">
+                        <h3>数据预览</h3>
+                        <p>共找到 ${data.length} 条记录</p>
+                        <table class="preview-table">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>朝代</th>
+                                    <th>时期</th>
+                                    <th>标题</th>
+                                    <th>事件</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.slice(0, 5).map((row, index) => `
+                                    <tr>
+                                        <td>${row.Number || index + 1}</td>
+                                        <td>${row.Dynasty || ''}</td>
+                                        <td>${row.Period || ''}</td>
+                                        <td>${row.Title || ''}</td>
+                                        <td>${row.Event || ''}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        ${data.length > 5 ? '<p>（仅显示前5条记录）</p>' : ''}
+                    </div>
+                `;
+                
+                resultContainer.innerHTML = previewHtml;
+                document.getElementById('upload-data').disabled = false;
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>预览失败</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                console.error('Preview Error:', error);
+            }
+        });
+
+        document.getElementById('upload-data').addEventListener('click', async () => {
+            const resultContainer = document.getElementById('upload-result');
+            
+            if (!excelData || excelData.length === 0) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <p>没有可上传的数据</p>
+                    </div>
+                `;
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/db/upload/chinese_dynasty', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data: excelData })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>上传成功</h3>
+                            <p>成功导入 ${result.insertedCount} 条记录</p>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(result.error || '上传失败');
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>上传失败</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                console.error('Upload Error:', error);
+            }
+        });
+
+        async function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(new Error('Excel文件解析失败: ' + error.message));
+                    }
+                };
+                
+                reader.onerror = function(error) {
+                    reject(new Error('文件读取失败: ' + error));
+                };
+                
+                reader.readAsArrayBuffer(file);
+            });
+        }
     </script>
 </body>
 </html> 
