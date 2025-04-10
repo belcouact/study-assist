@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据库连接测试 - 历史学习助手</title>
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <style>
+        .test-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .result-container {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            background: #f5f5f5;
+            min-height: 100px;
+        }
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            background: #ffe6e6;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .success {
+            color: #28a745;
+            padding: 10px;
+            background: #e6ffe6;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>数据库连接测试</h1>
+        
+        <div class="test-section">
+            <h2>测试朝代数据库连接</h2>
+            <p>点击下面的按钮测试与朝代数据表的连接：</p>
+            <button id="test-connection" class="btn btn-primary">测试连接</button>
+            <div id="connection-result" class="result-container">
+                <p>结果将显示在这里...</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>查询朝代数据</h2>
+            <p>获取所有朝代信息：</p>
+            <button id="fetch-dynasties" class="btn btn-primary">获取朝代数据</button>
+            <div id="dynasties-result" class="result-container">
+                <p>查询结果将显示在这里...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('test-connection').addEventListener('click', async () => {
+            const resultContainer = document.getElementById('connection-result');
+            try {
+                const response = await fetch('/api/db/test');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>连接成功！</h3>
+                            <p>${data.message || '数据库连接测试通过'}</p>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || '连接测试失败');
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>连接失败</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+
+        document.getElementById('fetch-dynasties').addEventListener('click', async () => {
+            const resultContainer = document.getElementById('dynasties-result');
+            try {
+                const response = await fetch('/api/db/dynasties');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    const dynastiesHtml = data.dynasties.map(dynasty => `
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
+                            <h4>${dynasty.name} (${dynasty.period})</h4>
+                            <p><strong>时期：</strong>${dynasty.start_year} - ${dynasty.end_year}</p>
+                            <p><strong>首都：</strong>${dynasty.capital}</p>
+                        </div>
+                    `).join('');
+                    
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>查询成功</h3>
+                            <div class="dynasties-list">
+                                ${dynastiesHtml}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || '查询失败');
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>查询失败</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html> 
