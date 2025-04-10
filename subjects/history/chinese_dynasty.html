@@ -331,54 +331,49 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Use GET request with proper query parameters
+                // Properly encode the SQL query
                 const encodedDynasty = encodeURIComponent(dynasty.trim());
-                const baseUrl = '/api/db/query/chinese_dynasty';
+                const sql = `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${encodedDynasty}%'`;
+                const params = new URLSearchParams({
+                    sql: sql
+                });
                 
-                // Try with exact match first
-                let requestUrl = `${baseUrl}?where=Dynasty='${encodedDynasty}'&orderBy=Number&orderDirection=ASC&limit=10000`;
+                const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
                 console.log('Querying dynasty:', dynasty);
-                console.log('Request URL:', requestUrl);
+                console.log('SQL Query:', sql);
 
-                let response = await fetch(requestUrl);
-                let data = await response.json();
-                console.log('Raw API Response:', data);
+                const response = await fetch(requestUrl);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch events');
+                }
 
+                const data = await response.json();
+                console.log('Raw API Response for', dynasty, ':', data);
+
+                // Handle different response formats
                 let events = [];
                 if (Array.isArray(data)) {
                     events = data;
                 } else if (data && typeof data === 'object' && data.success) {
                     events = data.data || [];
-                }
-
-                // If no results, try without '朝' suffix
-                if (events.length === 0 && dynasty.endsWith('朝')) {
-                    const altDynasty = encodeURIComponent(dynasty.replace('朝', '').trim());
-                    requestUrl = `${baseUrl}?where=Dynasty='${altDynasty}'&orderBy=Number&orderDirection=ASC&limit=10000`;
-                    console.log('Trying alternative dynasty name:', altDynasty);
-                    console.log('Alternative URL:', requestUrl);
-
-                    response = await fetch(requestUrl);
-                    data = await response.json();
-                    if (Array.isArray(data)) {
-                        events = data;
-                    } else if (data && typeof data === 'object' && data.success) {
-                        events = data.data || [];
-                    }
-                }
-
-                // If still no results, try with LIKE
-                if (events.length === 0) {
-                    requestUrl = `${baseUrl}?where=Dynasty LIKE '%${encodedDynasty}%'&orderBy=Number&orderDirection=ASC&limit=10000`;
-                    console.log('Trying LIKE query:', requestUrl);
-
-                    response = await fetch(requestUrl);
-                    data = await response.json();
-                    if (Array.isArray(data)) {
-                        events = data;
-                    } else if (data && typeof data === 'object' && data.success) {
-                        events = data.data || [];
-                    }
+                    
+                    // Debug: Log all unique Dynasty values found
+                    const uniqueDynasties = [...new Set(events.map(e => e.Dynasty))];
+                    console.log('Unique dynasties found:', uniqueDynasties);
+                    
+                    // Filter events to match the dynasty (more lenient matching)
+                    events = events.filter(event => {
+                        const eventDynasty = (event.Dynasty || '').trim();
+                        const targetDynasty = dynasty.trim();
+                        
+                        // Debug: Log each comparison
+                        console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
+                        
+                        // Try different matching strategies
+                        return eventDynasty === targetDynasty || 
+                               eventDynasty.includes(targetDynasty) || 
+                               targetDynasty.includes(eventDynasty);
+                    });
                 }
 
                 if (events.length === 0) {
@@ -386,33 +381,26 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">Tried URLs:</p>
-                            <p class="small">1. ${requestUrl}</p>
+                            <p class="small">SQL Query: ${sql}</p>
                             <p class="small">提示: 请检查数据库中的朝代名称格式</p>
                         </div>`;
                     return;
                 }
-
-                // Sort events by Number
-                events.sort((a, b) => {
-                    const numA = parseInt(a.Number) || 0;
-                    const numB = parseInt(b.Number) || 0;
-                    return numA - numB;
-                });
 
                 eventsContainer.innerHTML = events.map(event => `
                     <div class="event-card">
                         <h3 class="event-title">${event.Title ? event.Title.trim() : '未知事件'}</h3>
                         <p class="event-description">${event.Event ? event.Event.trim() : '暂无描述'}</p>
                         <p class="small text-muted">朝代: ${event.Dynasty ? event.Dynasty.trim() : dynasty}</p>
-                        <p class="small text-muted">序号: ${event.Number || 'N/A'}</p>
+                        <p class="small text-muted">原始朝代值: "${event.Dynasty}"</p>
                     </div>
                 `).join('');
 
-                console.log(`Displayed ${events.length} events for dynasty:`, dynasty);
+                // Debug log for events found
+                console.log(`Found ${events.length} events for dynasty:`, dynasty);
                 if (events.length > 0) {
-                    console.log('First event:', events[0]);
-                    console.log('Last event:', events[events.length - 1]);
+                    console.log('Sample event:', events[0]);
+                    console.log('Sample Dynasty value:', `"${events[0].Dynasty}"`);
                 }
             } catch (error) {
                 console.error('Error loading events:', error);
