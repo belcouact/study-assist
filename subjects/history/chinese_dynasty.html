@@ -331,27 +331,22 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Construct SQL query with proper escaping
-                const sql = encodeURIComponent(`SELECT * FROM chinese_dynasty WHERE Dynasty = '${dynasty}'`);
-                console.log('Original SQL:', `SELECT * FROM chinese_dynasty WHERE Dynasty = '${dynasty}'`); // Debug original SQL
-
-                // Add timestamp to prevent caching
-                const timestamp = new Date().getTime();
-                const queryParams = new URLSearchParams({
-                    sql: sql,
-                    _t: timestamp // Cache buster
-                });
-
-                const requestUrl = `/api/db/query/chinese_dynasty?${queryParams}`;
-                console.log('Request URL:', decodeURIComponent(requestUrl)); // Debug decoded URL
+                // Use the correct API endpoint structure
+                const requestUrl = `/api/db/query/chinese_dynasty`;
+                console.log('Querying dynasty:', dynasty); // Debug dynasty name
 
                 const response = await fetch(requestUrl, {
-                    method: 'GET',
+                    method: 'POST',
                     headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
-                        'Pragma': 'no-cache',
-                        'Expires': '0'
-                    }
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    },
+                    body: JSON.stringify({
+                        table: 'chinese_dynasty',
+                        conditions: {
+                            Dynasty: dynasty
+                        }
+                    })
                 });
 
                 if (!response.ok) {
@@ -359,24 +354,19 @@
                 }
 
                 const data = await response.json();
-                console.log('Raw API Response for', dynasty, ':', data); // Debug raw response with dynasty name
+                console.log('Raw API Response for', dynasty, ':', data); // Debug raw response
 
                 // Handle different response formats
                 let events = [];
                 if (Array.isArray(data)) {
                     events = data;
-                    console.log('Data is direct array with length:', events.length);
                 } else if (data && typeof data === 'object') {
-                    console.log('Data structure:', Object.keys(data)); // Debug data structure
                     if (Array.isArray(data.results)) {
                         events = data.results;
-                        console.log('Using data.results, length:', events.length);
                     } else if (Array.isArray(data.data)) {
                         events = data.data;
-                        console.log('Using data.data, length:', events.length);
                     } else if (data.result && Array.isArray(data.result)) {
                         events = data.result;
-                        console.log('Using data.result, length:', events.length);
                     }
                 }
 
@@ -384,7 +374,6 @@
                     eventsContainer.innerHTML = `
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
-                            <p class="small">SQL Query: SELECT * FROM chinese_dynasty WHERE Dynasty = '${dynasty}'</p>
                             <p class="small">Dynasty: ${dynasty}</p>
                             <p class="small">Response: ${JSON.stringify(data)}</p>
                         </div>`;
@@ -401,7 +390,9 @@
 
                 // Debug log for events found
                 console.log(`Found ${events.length} events for dynasty:`, dynasty);
-                console.log('First event sample:', events[0]);
+                if (events.length > 0) {
+                    console.log('Sample event:', events[0]);
+                }
             } catch (error) {
                 console.error('Error loading events:', error);
                 eventsContainer.innerHTML = `
@@ -409,7 +400,6 @@
                         <p>加载历史事件时出错，请稍后重试</p>
                         <p class="small">${error.message}</p>
                         <p class="small">Dynasty: ${dynasty}</p>
-                        <p class="small">SQL Query: SELECT * FROM chinese_dynasty WHERE Dynasty = '${dynasty}'</p>
                         <button onclick="loadDynastyEvents('${dynasty}')" class="btn btn-primary mt-3">重试</button>
                     </div>
                 `;
