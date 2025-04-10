@@ -331,35 +331,17 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Use POST request with exact matching
-                const requestUrl = '/api/db/query';
+                // Use GET request with proper query parameters
+                const encodedDynasty = encodeURIComponent(dynasty.trim());
+                const baseUrl = '/api/db/query/chinese_dynasty';
+                
+                // Try with exact match first
+                let requestUrl = `${baseUrl}?where=Dynasty='${encodedDynasty}'&orderBy=Number&orderDirection=ASC&limit=10000`;
                 console.log('Querying dynasty:', dynasty);
+                console.log('Request URL:', requestUrl);
 
-                const requestBody = {
-                    table: 'chinese_dynasty',
-                    conditions: {
-                        Dynasty: dynasty.trim()
-                    },
-                    orderBy: 'Number',
-                    orderDirection: 'ASC',
-                    limit: 10000  // Set a very high limit
-                };
-
-                console.log('Request body:', JSON.stringify(requestBody, null, 2));
-
-                const response = await fetch(requestUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch events');
-                }
-
-                const data = await response.json();
+                let response = await fetch(requestUrl);
+                let data = await response.json();
                 console.log('Raw API Response:', data);
 
                 let events = [];
@@ -369,28 +351,33 @@
                     events = data.data || [];
                 }
 
-                console.log('Total events found:', events.length);
+                // If no results, try without '朝' suffix
+                if (events.length === 0 && dynasty.endsWith('朝')) {
+                    const altDynasty = encodeURIComponent(dynasty.replace('朝', '').trim());
+                    requestUrl = `${baseUrl}?where=Dynasty='${altDynasty}'&orderBy=Number&orderDirection=ASC&limit=10000`;
+                    console.log('Trying alternative dynasty name:', altDynasty);
+                    console.log('Alternative URL:', requestUrl);
 
+                    response = await fetch(requestUrl);
+                    data = await response.json();
+                    if (Array.isArray(data)) {
+                        events = data;
+                    } else if (data && typeof data === 'object' && data.success) {
+                        events = data.data || [];
+                    }
+                }
+
+                // If still no results, try with LIKE
                 if (events.length === 0) {
-                    // Try alternative dynasty formats
-                    const alternativeDynasty = dynasty.replace('朝', '').trim();
-                    console.log('Trying alternative dynasty name:', alternativeDynasty);
-                    
-                    requestBody.conditions.Dynasty = alternativeDynasty;
-                    
-                    const altResponse = await fetch(requestUrl, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestBody)
-                    });
+                    requestUrl = `${baseUrl}?where=Dynasty LIKE '%${encodedDynasty}%'&orderBy=Number&orderDirection=ASC&limit=10000`;
+                    console.log('Trying LIKE query:', requestUrl);
 
-                    if (altResponse.ok) {
-                        const altData = await altResponse.json();
-                        if (altData && altData.success) {
-                            events = altData.data || [];
-                        }
+                    response = await fetch(requestUrl);
+                    data = await response.json();
+                    if (Array.isArray(data)) {
+                        events = data;
+                    } else if (data && typeof data === 'object' && data.success) {
+                        events = data.data || [];
                     }
                 }
 
@@ -399,7 +386,8 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">Request: ${JSON.stringify(requestBody, null, 2)}</p>
+                            <p class="small">Tried URLs:</p>
+                            <p class="small">1. ${requestUrl}</p>
                             <p class="small">提示: 请检查数据库中的朝代名称格式</p>
                         </div>`;
                     return;
