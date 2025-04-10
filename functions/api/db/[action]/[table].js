@@ -1,4 +1,3 @@
-// API endpoint for Cloudflare D1 database access
 export async function onRequest(context) {
     // Handle CORS preflight requests
     if (context.request.method === "OPTIONS") {
@@ -20,19 +19,8 @@ export async function onRequest(context) {
         // Access the D1 database using the environment binding
         const db = context.env.DB;
 
-        // Get the URL path and parse it
-        const url = new URL(context.request.url);
-        const pathParts = url.pathname.split('/').filter(Boolean);
-        
-        // Expected path format: /functions/api/db/{action}/{table}
-        // e.g., /functions/api/db/test/chinese_dynasty
-        // e.g., /functions/api/db/query/chinese_dynasty
-        if (pathParts.length < 4) {
-            throw new Error("Invalid API path. Format should be: /functions/api/db/{action}/{table}");
-        }
-
-        const action = pathParts[3];
-        const table = pathParts[4];
+        // Get the action and table from the URL parameters
+        const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
         const validTables = ['chinese_dynasty']; // Add more tables as needed
