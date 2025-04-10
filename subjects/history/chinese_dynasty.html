@@ -331,58 +331,67 @@
             eventsContainer.innerHTML = '<div class="loading">加载历史事件中...</div>';
 
             try {
-                // Properly encode the SQL query with pagination parameters
-                const encodedDynasty = encodeURIComponent(dynasty.trim());
-                const sql = `SELECT * FROM chinese_dynasty WHERE Dynasty LIKE '%${encodedDynasty}%' ORDER BY Number ASC`;
-                const params = new URLSearchParams({
-                    sql: sql,
-                    page_size: '1000', // Request more records
-                    page: '1'
-                });
-                
-                const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
+                // Use POST request with exact matching
+                const requestUrl = '/api/db/query';
                 console.log('Querying dynasty:', dynasty);
-                console.log('SQL Query:', sql);
 
-                const response = await fetch(requestUrl);
+                const requestBody = {
+                    table: 'chinese_dynasty',
+                    conditions: {
+                        Dynasty: dynasty.trim()
+                    },
+                    orderBy: 'Number',
+                    orderDirection: 'ASC',
+                    limit: 10000  // Set a very high limit
+                };
+
+                console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+                const response = await fetch(requestUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
                 if (!response.ok) {
                     throw new Error('Failed to fetch events');
                 }
 
                 const data = await response.json();
-                console.log('Raw API Response for', dynasty, ':', data);
+                console.log('Raw API Response:', data);
 
-                // Handle different response formats
                 let events = [];
                 if (Array.isArray(data)) {
                     events = data;
                 } else if (data && typeof data === 'object' && data.success) {
                     events = data.data || [];
+                }
+
+                console.log('Total events found:', events.length);
+
+                if (events.length === 0) {
+                    // Try alternative dynasty formats
+                    const alternativeDynasty = dynasty.replace('朝', '').trim();
+                    console.log('Trying alternative dynasty name:', alternativeDynasty);
                     
-                    // Debug: Log all unique Dynasty values found
-                    const uniqueDynasties = [...new Set(events.map(e => e.Dynasty))];
-                    console.log('Unique dynasties found:', uniqueDynasties);
-                    console.log('Total events before filtering:', events.length);
+                    requestBody.conditions.Dynasty = alternativeDynasty;
                     
-                    // Filter events to match the dynasty (more lenient matching)
-                    events = events.filter(event => {
-                        const eventDynasty = (event.Dynasty || '').trim();
-                        const targetDynasty = dynasty.trim();
-                        
-                        // Debug: Log each comparison
-                        console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
-                        
-                        // Try different matching strategies
-                        const isMatch = eventDynasty === targetDynasty || 
-                                      eventDynasty.includes(targetDynasty) || 
-                                      targetDynasty.includes(eventDynasty);
-                        
-                        if (isMatch) {
-                            console.log(`Match found: "${eventDynasty}" matches "${targetDynasty}"`);
-                        }
-                        
-                        return isMatch;
+                    const altResponse = await fetch(requestUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
                     });
+
+                    if (altResponse.ok) {
+                        const altData = await altResponse.json();
+                        if (altData && altData.success) {
+                            events = altData.data || [];
+                        }
+                    }
                 }
 
                 if (events.length === 0) {
@@ -390,13 +399,13 @@
                         <div class="error">
                             <p>未找到${dynasty}的历史事件</p>
                             <p class="small">Dynasty: ${dynasty}</p>
-                            <p class="small">SQL Query: ${sql}</p>
+                            <p class="small">Request: ${JSON.stringify(requestBody, null, 2)}</p>
                             <p class="small">提示: 请检查数据库中的朝代名称格式</p>
                         </div>`;
                     return;
                 }
 
-                // Sort events by Number if available
+                // Sort events by Number
                 events.sort((a, b) => {
                     const numA = parseInt(a.Number) || 0;
                     const numB = parseInt(b.Number) || 0;
@@ -412,12 +421,10 @@
                     </div>
                 `).join('');
 
-                // Debug log for events found
-                console.log(`Found ${events.length} events for dynasty:`, dynasty);
+                console.log(`Displayed ${events.length} events for dynasty:`, dynasty);
                 if (events.length > 0) {
-                    console.log('Sample event:', events[0]);
-                    console.log('Sample Dynasty value:', `"${events[0].Dynasty}"`);
-                    console.log('Total events after filtering:', events.length);
+                    console.log('First event:', events[0]);
+                    console.log('Last event:', events[events.length - 1]);
                 }
             } catch (error) {
                 console.error('Error loading events:', error);
