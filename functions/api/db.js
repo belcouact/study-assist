@@ -20,59 +20,65 @@ export async function onRequest(context) {
         // Access the D1 database using the environment binding
         const db = context.env.DB;
 
-        // Get the URL path
+        // Get the URL path and parse it
         const url = new URL(context.request.url);
-        const path = url.pathname;
+        const pathParts = url.pathname.split('/').filter(Boolean);
+        
+        // Expected path format: /functions/api/db/{action}/{table}
+        // e.g., /functions/api/db/test/chinese_dynasty
+        // e.g., /functions/api/db/query/chinese_dynasty
+        if (pathParts.length < 4) {
+            throw new Error("Invalid API path. Format should be: /functions/api/db/{action}/{table}");
+        }
 
-        // Handle different endpoints
-        if (path.endsWith('/test')) {
-            // Test connection endpoint
-            const testResult = await db.prepare('SELECT 1').first();
-            if (testResult) {
+        const action = pathParts[3];
+        const table = pathParts[4];
+
+        // Validate table name to prevent SQL injection
+        const validTables = ['chinese_dynasty']; // Add more tables as needed
+        if (!validTables.includes(table)) {
+            throw new Error("Invalid table name");
+        }
+
+        // Handle different actions
+        switch (action) {
+            case 'test':
+                // Test connection for specific table
+                const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
                 return new Response(JSON.stringify({
                     success: true,
-                    message: "数据库连接成功！"
+                    message: `Successfully connected to ${table} table!`,
+                    table: table
                 }), {
                     headers: {
                         "Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                     },
                 });
-            }
-            throw new Error("数据库连接测试失败");
-        } else if (path.endsWith('/dynasties')) {
-            // Query dynasties endpoint
-            const result = await db.prepare(`
-                SELECT Index, Dynasty, Period, Title, Event
-                FROM chinese_dynasty 
-                ORDER BY Index ASC
-                LIMIT 100
-            `).all();
 
-            // Check if results exist
-            if (!result || !result.results) {
-                return new Response(JSON.stringify({ dynasties: [] }), {
+            case 'query':
+                // Query table data
+                const queryResult = await db.prepare(`
+                    SELECT * FROM ${table}
+                    ORDER BY Index ASC
+                    LIMIT 100
+                `).all();
+
+                return new Response(JSON.stringify({
+                    success: true,
+                    table: table,
+                    data: queryResult.results || []
+                }), {
                     headers: {
                         "Content-Type": "application/json",
                         "Access-Control-Allow-Origin": "*",
                     },
                 });
-            }
 
-            // Return the results
-            return new Response(JSON.stringify({ 
-                success: true,
-                dynasties: result.results 
-            }), {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                },
-            });
-        } else {
-            // Invalid endpoint
-            throw new Error("Invalid endpoint. Use /test for connection testing or /dynasties for querying dynasty data.");
+            default:
+                throw new Error(`Unsupported action: ${action}`);
         }
+
     } catch (error) {
         console.error("Database error:", error);
         return new Response(
