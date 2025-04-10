@@ -12,7 +12,55 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.css">
     <script src="script.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/nouislider@14.6.3/distribute/nouislider.min.js"></script>
+    <style>
+        /* ... existing styles ... */
+        .timeline-period-slider {
+            margin: 20px 0;
+            padding: 0 20px;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .slider-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .noUi-connect {
+            background: #4361ee;
+        }
+        .noUi-handle {
+            border-radius: 50%;
+            background: #4361ee;
+            box-shadow: none;
+            cursor: pointer;
+        }
+        .noUi-handle:before, .noUi-handle:after {
+            display: none;
+        }
+        .time-display {
+            font-size: 1.1em;
+            font-weight: 500;
+            color: #333;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
     <header class="main-header">
@@ -253,21 +301,18 @@
                     <p>探索重要历史事件的时间线</p>
                 </div>
                 <div class="timeline-controls">
-                    <div class="form-group">
-                        <label for="timeline-period">历史时期</label>
-                        <select id="timeline-period" class="form-control">
-                            <option value="ancient">古代文明</option>
-                            <option value="medieval">中世纪</option>
-                            <option value="exploration">探索时代</option>
-                            <option value="revolutionary">革命时代</option>
-                            <option value="worldwars">世界大战</option>
-                            <option value="modern">现代历史</option>
-                            <option value="pre-qin">先秦时期</option>
-                            <option value="imperial">帝国时期</option>
-                            <option value="modern-early">中国近代史</option>
-                            <option value="modern">中国现代史</option>
-                            <option value="contemporary">中国当代史</option>
-                        </select>
+                    <div class="slider-container">
+                        <div class="slider-header">
+                            <label>选择时间范围</label>
+                            <div class="time-display" id="time-display">
+                                公元前3000年 - 现在
+                            </div>
+                        </div>
+                        <div id="timeline-slider" class="timeline-period-slider"></div>
+                        <div class="slider-values">
+                            <span>公元前3000年</span>
+                            <span>现在</span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="timeline-continent">地区</label>
@@ -327,6 +372,191 @@
                 });
             });
         });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the slider
+            const slider = document.getElementById('timeline-slider');
+            const timeDisplay = document.getElementById('time-display');
+            
+            // Create the slider
+            noUiSlider.create(slider, {
+                start: [-3000, 2025],
+                connect: true,
+                step: 1,
+                range: {
+                    'min': -3000,
+                    'max': 2025
+                },
+                format: {
+                    to: function (value) {
+                        return Math.round(value);
+                    },
+                    from: function (value) {
+                        return Math.round(value);
+                    }
+                }
+            });
+
+            // Update the time display when slider values change
+            slider.noUiSlider.on('update', function (values) {
+                const startYear = parseInt(values[0]);
+                const endYear = parseInt(values[1]);
+                
+                const formatYear = (year) => {
+                    if (year < 0) {
+                        return `公元前${Math.abs(year)}年`;
+                    } else if (year === 2025) {
+                        return '现在';
+                    } else {
+                        return `公元${year}年`;
+                    }
+                };
+
+                timeDisplay.textContent = `${formatYear(startYear)} - ${formatYear(endYear)}`;
+            });
+
+            // Add click event handler for the load button
+            document.getElementById('load-timeline').addEventListener('click', async () => {
+                const timelineContainer = document.getElementById('timeline-container');
+                const continentSelect = document.getElementById('timeline-continent');
+                const [startYear, endYear] = slider.noUiSlider.get();
+                
+                // Show loading state
+                timelineContainer.innerHTML = '<div class="text-center"><p>正在加载时间线...</p></div>';
+                
+                try {
+                    const continent = continentSelect.value;
+                    const continentName = getContinentName(continent);
+                    
+                    // Get education level
+                    const profileDisplay = document.querySelector('.profile-display');
+                    let educationLevel = 'middle-school';
+                    if (profileDisplay) {
+                        const levelText = profileDisplay.textContent.trim();
+                        if (levelText.includes('小学')) {
+                            educationLevel = 'elementary-school';
+                        } else if (levelText.includes('初中')) {
+                            educationLevel = 'middle-school';
+                        } else if (levelText.includes('高中')) {
+                            educationLevel = 'high-school';
+                        }
+                    }
+                    
+                    const levelName = getEducationLevelName(educationLevel);
+                    const startYearFormatted = startYear < 0 ? `公元前${Math.abs(startYear)}` : `公元${startYear}`;
+                    const endYearFormatted = endYear === 2025 ? '现在' : (endYear < 0 ? `公元前${Math.abs(endYear)}` : `公元${endYear}`);
+                    
+                    // Build system message for timeline generation
+                    const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${startYearFormatted}年到${endYearFormatted}期间${continentName}地区的重要历史事件时间线。
+
+                    请提供以下内容：
+                    1. 该时期最重要的10-15个历史事件
+                    2. 每个事件应包括：
+                       - 具体年份或时间段
+                       - 事件名称
+                       - 简要描述（适合${levelName}学生理解）
+                       - 历史意义和影响
+                    
+                    请以JSON格式回复，格式如下:
+                    {
+                      "title": "时间线标题",
+                      "period": "${startYearFormatted}年-${endYearFormatted}",
+                      "continent": "${continentName}",
+                      "events": [
+                        {
+                          "year": "年份或时间段",
+                          "title": "事件名称",
+                          "description": "事件描述",
+                          "significance": "历史意义"
+                        }
+                      ]
+                    }`;
+
+                    // Call API endpoint
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    "role": "system",
+                                    "content": systemMessage
+                                },
+                                {
+                                    "role": "user",
+                                    "content": `请生成一个关于${startYearFormatted}年到${endYearFormatted}期间${continentName}地区的重要历史事件时间线，适合${levelName}学生的水平。`
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`网络响应不正常: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const aiResponse = data.choices[0].message.content;
+
+                    // Parse JSON response and render timeline
+                    let timeline;
+                    try {
+                        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            timeline = JSON.parse(jsonMatch[0]);
+                        } else {
+                            throw new Error('无法从响应中提取JSON');
+                        }
+                        
+                        if (!timeline.title || !timeline.events || !Array.isArray(timeline.events)) {
+                            throw new Error('解析的JSON格式不正确');
+                        }
+                        
+                        renderTimeline(timeline);
+                    } catch (jsonError) {
+                        console.error('解析AI响应时出错:', jsonError);
+                        timelineContainer.innerHTML = `
+                            <div class="text-center text-error">
+                                <p>抱歉，生成时间线时出现错误。请再试一次。</p>
+                                <p class="small">${jsonError.message}</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('生成时间线时出错:', error);
+                    timelineContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，生成时间线时出现错误。请再试一次。</p>
+                            <p class="small">${error.message}</p>
+                        </div>
+                    `;
+                }
+            });
+        });
+
+        function getContinentName(continent) {
+            const continentNames = {
+                'global': '全球',
+                'asia': '亚洲',
+                'europe': '欧洲',
+                'africa': '非洲',
+                'north-america': '北美洲',
+                'south-america': '南美洲',
+                'oceania': '大洋洲',
+                'middle-east': '中东'
+            };
+            return continentNames[continent] || '全球';
+        }
+
+        function getEducationLevelName(level) {
+            const levelNames = {
+                'elementary-school': '小学',
+                'middle-school': '初中',
+                'high-school': '高中'
+            };
+            return levelNames[level] || '初中';
+        }
     </script>
 </body>
 </html> 
