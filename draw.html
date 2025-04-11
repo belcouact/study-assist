@@ -228,6 +228,7 @@
 
     <script src="js/common.js"></script>
     <script src="js/navigation.js"></script>
+    <script src="js/api.js"></script>
     <script src="js/profile.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -250,15 +251,23 @@
 
             async function generateImage(prompt) {
                 try {
-                    const response = await fetch('/api/deepseek/chat', {
+                    addMessage('正在生成图片，请稍候...');
+                    
+                    const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
+                            'Content-Type': 'application/json'
                         },
                         body: JSON.stringify({
                             messages: [
-                                { role: "system", content: systemPrompt },
-                                { role: "user", content: prompt }
+                                {
+                                    "role": "system",
+                                    "content": systemPrompt
+                                },
+                                {
+                                    "role": "user",
+                                    "content": prompt
+                                }
                             ]
                         })
                     });
@@ -268,15 +277,22 @@
                     }
 
                     const data = await response.json();
-                    if (data.success && data.response) {
+                    if (data.choices && data.choices[0] && data.choices[0].message) {
+                        const aiResponse = data.choices[0].message.content;
+                        
                         // Extract the image URL from the response
-                        const imageUrl = data.response.trim();
-                        
-                        // Display the generated image
-                        imageResult.innerHTML = `<img src="${imageUrl}" alt="Generated image">`;
-                        
-                        // Add AI response message
-                        addMessage('图片已生成！你可以继续输入新的描述来生成更多图片。');
+                        const imageUrlMatch = aiResponse.match(/!\[imagel\\\(([^\)]+)\\\)/);
+                        if (imageUrlMatch) {
+                            const imageUrl = imageUrlMatch[1].replace(/\\\\/g, '');
+                            
+                            // Display the generated image
+                            imageResult.innerHTML = `<img src="${imageUrl}" alt="Generated image">`;
+                            
+                            // Add AI response message
+                            addMessage('图片已生成！你可以继续输入新的描述来生成更多图片。');
+                        } else {
+                            throw new Error('Invalid image URL format in response');
+                        }
                     } else {
                         throw new Error('Invalid response format');
                     }
@@ -290,7 +306,6 @@
                 const prompt = promptInput.value.trim();
                 if (prompt) {
                     addMessage(prompt, true);
-                    addMessage('正在生成图片，请稍候...');
                     generateImage(prompt);
                     promptInput.value = '';
                 }
