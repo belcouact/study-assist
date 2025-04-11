@@ -66,6 +66,45 @@
             display: flex;
             gap: 10px;
         }
+        .upload-section {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .upload-section h2 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+        .file-input {
+            margin-bottom: 1rem;
+        }
+        .preview-container {
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 1rem 0;
+        }
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .status {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 6px;
+        }
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
     </style>
 </head>
 <body>
@@ -104,6 +143,58 @@
                 </div>
             </div>
         </div>
+
+        <!-- Excel Data Upload Section -->
+        <section class="upload-section">
+            <h2>导入Excel数据</h2>
+            <input type="file" id="excelFile" class="file-input" accept=".xlsx, .xls">
+            <div class="preview-container">
+                <table id="excelPreview" class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Number</th>
+                            <th>Dynasty</th>
+                            <th>Period</th>
+                            <th>Title</th>
+                            <th>Event</th>
+                            <th>Significance</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="button-group">
+                <button id="previewExcel" class="btn btn-secondary">预览数据</button>
+                <button id="uploadExcel" class="btn btn-primary">上传数据</button>
+            </div>
+            <div id="excelStatus" class="status"></div>
+        </section>
+
+        <!-- Quote Data Upload Section -->
+        <section class="upload-section">
+            <h2>导入名言数据</h2>
+            <input type="file" id="quoteFile" class="file-input" accept=".xlsx, .xls">
+            <div class="preview-container">
+                <table id="quotePreview" class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Number</th>
+                            <th>Type</th>
+                            <th>Chinese</th>
+                            <th>English</th>
+                            <th>Remark_1</th>
+                            <th>Remark_2</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="button-group">
+                <button id="previewQuote" class="btn btn-secondary">预览数据</button>
+                <button id="uploadQuote" class="btn btn-primary">上传数据</button>
+            </div>
+            <div id="quoteStatus" class="status"></div>
+        </section>
     </div>
 
     <script>
@@ -311,6 +402,169 @@
                 
                 reader.readAsArrayBuffer(file);
             });
+        }
+
+        // Excel data handling functions
+        function handleExcelFile(file, previewCallback) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                previewCallback(jsonData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Quote data handling
+        document.getElementById('quoteFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleExcelFile(file, previewQuoteData);
+            }
+        });
+
+        function previewQuoteData(data) {
+            const tbody = document.getElementById('quotePreview').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            data.slice(0, 10).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Number || ''}</td>
+                    <td>${row.Type || ''}</td>
+                    <td>${row.Chinese || ''}</td>
+                    <td>${row.English || ''}</td>
+                    <td>${row.Remark_1 || ''}</td>
+                    <td>${row.Remark_2 || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('previewQuote').addEventListener('click', function() {
+            const file = document.getElementById('quoteFile').files[0];
+            if (file) {
+                handleExcelFile(file, previewQuoteData);
+            }
+        });
+
+        document.getElementById('uploadQuote').addEventListener('click', async function() {
+            const file = document.getElementById('quoteFile').files[0];
+            if (!file) {
+                showQuoteStatus('请先选择文件', false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                try {
+                    const response = await fetch('/api/db/insert/quote', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        showQuoteStatus('数据上传成功！', true);
+                    } else {
+                        showQuoteStatus('上传失败：' + result.message, false);
+                    }
+                } catch (error) {
+                    showQuoteStatus('上传出错：' + error.message, false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function showQuoteStatus(message, isSuccess) {
+            const status = document.getElementById('quoteStatus');
+            status.textContent = message;
+            status.className = 'status ' + (isSuccess ? 'success' : 'error');
+        }
+
+        // Original Excel data upload code...
+        document.getElementById('excelFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleExcelFile(file, previewExcelData);
+            }
+        });
+
+        function previewExcelData(data) {
+            const tbody = document.getElementById('excelPreview').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            data.slice(0, 10).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Number || ''}</td>
+                    <td>${row.Dynasty || ''}</td>
+                    <td>${row.Period || ''}</td>
+                    <td>${row.Title || ''}</td>
+                    <td>${row.Event || ''}</td>
+                    <td>${row.Significance || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('previewExcel').addEventListener('click', function() {
+            const file = document.getElementById('excelFile').files[0];
+            if (file) {
+                handleExcelFile(file, previewExcelData);
+            }
+        });
+
+        document.getElementById('uploadExcel').addEventListener('click', async function() {
+            const file = document.getElementById('excelFile').files[0];
+            if (!file) {
+                showExcelStatus('请先选择文件', false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                try {
+                    const response = await fetch('/api/db/insert/chinese_dynasty', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(jsonData)
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        showExcelStatus('数据上传成功！', true);
+                    } else {
+                        showExcelStatus('上传失败：' + result.message, false);
+                    }
+                } catch (error) {
+                    showExcelStatus('上传出错：' + error.message, false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function showExcelStatus(message, isSuccess) {
+            const status = document.getElementById('excelStatus');
+            status.textContent = message;
+            status.className = 'status ' + (isSuccess ? 'success' : 'error');
         }
     </script>
 </body>
