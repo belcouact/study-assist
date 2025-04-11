@@ -49,7 +49,6 @@ export async function onRequest(context) {
                 const queryResult = await db.prepare(`
                     SELECT * FROM ${table}
                     ORDER BY Number ASC
-                    LIMIT 100
                 `).all();
 
                 return new Response(JSON.stringify({
