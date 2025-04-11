@@ -23,7 +23,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty','quote']; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote']; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -78,18 +78,34 @@ export async function onRequest(context) {
 
                 // Use D1's JavaScript transaction API
                 try {
-                    await db.batch(data.map(row => {
-                        return db.prepare(`
-                            INSERT INTO ${table} (Number, Dynasty, Period, Title, Event)
-                            VALUES (?, ?, ?, ?, ?)
-                        `).bind(
-                            row.Number || null,
-                            row.Dynasty || null,
-                            row.Period || null,
-                            row.Title || null,
-                            row.Event || null
-                        );
-                    }));
+                    if (table === 'chinese_dynasty') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO chinese_dynasty (Number, Dynasty, Period, Title, Event)
+                                VALUES (?, ?, ?, ?, ?)
+                            `).bind(
+                                row.Number || null,
+                                row.Dynasty || null,
+                                row.Period || null,
+                                row.Title || null,
+                                row.Event || null
+                            );
+                        }));
+                    } else if (table === 'quote') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO quote (Number, Type, Chinese, English, Remark_1, Remark_2)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                row.Number || null,
+                                row.Type || null,
+                                row.Chinese || null,
+                                row.English || null,
+                                row.Remark_1 || null,
+                                row.Remark_2 || null
+                            );
+                        }));
+                    }
 
                     insertedCount = data.length;
 
