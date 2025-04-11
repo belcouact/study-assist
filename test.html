@@ -242,6 +242,8 @@
 
                 uploadButton.disabled = true;
                 uploadButton.textContent = '上传中...';
+                resultMessage.className = 'result-message';
+                resultMessage.textContent = '正在上传...';
 
                 try {
                     const response = await fetch('/api/upload', {
@@ -249,17 +251,42 @@
                         body: formData
                     });
 
-                    const result = await response.json();
+                    // Log the raw response for debugging
+                    console.log('Response status:', response.status);
+                    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+                    
+                    // Try to get the response text first
+                    const responseText = await response.text();
+                    console.log('Raw response:', responseText);
+
+                    let result;
+                    try {
+                        // Try to parse the response as JSON
+                        result = JSON.parse(responseText);
+                    } catch (parseError) {
+                        console.error('JSON Parse Error:', parseError);
+                        throw new Error(`服务器响应格式错误: ${responseText.slice(0, 100)}...`);
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(result.message || `服务器错误 (${response.status})`);
+                    }
 
                     if (result.success) {
                         resultMessage.className = 'result-message success';
                         resultMessage.textContent = '数据上传成功！';
+                        
+                        // Clear the form after successful upload
+                        fileInput.value = '';
+                        selectedFile.textContent = '';
+                        uploadButton.disabled = true;
                     } else {
-                        throw new Error(result.message || '上传失败');
+                        throw new Error(result.message || '上传失败，请检查文件格式是否正确');
                     }
                 } catch (error) {
+                    console.error('Upload Error:', error);
                     resultMessage.className = 'result-message error';
-                    resultMessage.textContent = `上传失败: ${error.message}`;
+                    resultMessage.innerHTML = `上传失败:<br>${error.message}<br><small>请确保Excel文件格式正确且包含所需列信息</small>`;
                 } finally {
                     uploadButton.disabled = false;
                     uploadButton.textContent = '上传数据';
