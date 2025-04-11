@@ -281,16 +281,27 @@
                         const aiResponse = data.choices[0].message.content;
                         
                         // Extract the image URL from the response
-                        const imageUrlMatch = aiResponse.match(/!\[imagel\\\(([^\)]+)\\\)/);
-                        if (imageUrlMatch) {
-                            const imageUrl = imageUrlMatch[1].replace(/\\\\/g, '');
-                            
+                        // First try to match the markdown format
+                        let imageUrl = null;
+                        const markdownMatch = aiResponse.match(/!\[imagel\\\(([^\)]+)\\\)/);
+                        if (markdownMatch) {
+                            imageUrl = markdownMatch[1].replace(/\\\\/g, '');
+                        } else {
+                            // If markdown format not found, try to find the direct URL
+                            const urlMatch = aiResponse.match(/https:\/\/image\.pollinations\.ai\/prompt\/[^?\s]+\?[^\s]+/);
+                            if (urlMatch) {
+                                imageUrl = urlMatch[0];
+                            }
+                        }
+                        
+                        if (imageUrl) {
                             // Display the generated image
                             imageResult.innerHTML = `<img src="${imageUrl}" alt="Generated image">`;
                             
                             // Add AI response message
                             addMessage('图片已生成！你可以继续输入新的描述来生成更多图片。');
                         } else {
+                            console.error('AI Response:', aiResponse);
                             throw new Error('Invalid image URL format in response');
                         }
                     } else {
