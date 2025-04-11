@@ -81,13 +81,15 @@
             max-width: 80%;
         }
 
-        .message-ai {
+        .message-ai, .message-user {
             background: #f8f9fa;
+        }
+
+        .message-ai {
             margin-right: auto;
         }
 
         .message-user {
-            background: #e3f2fd;
             margin-left: auto;
         }
 
@@ -101,6 +103,22 @@
             display: flex;
             gap: 1rem;
             border-top: 1px solid #eee;
+            align-items: center;
+        }
+
+        .chat-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .resolution-select {
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: #fff;
+            min-width: 140px;
         }
 
         .chat-input input {
@@ -199,7 +217,7 @@
                 <div class="chat-container">
                     <div class="chat-header">
                         <i class="fas fa-paint-brush"></i>
-                        <h3>DeepSeek绘画助手</h3>
+                        <h3>DeepSeek + Pollinations.ai绘画助手</h3>
                     </div>
                     <div class="chat-messages" id="draw-chat-messages">
                         <div class="message message-ai">
@@ -208,7 +226,17 @@
                     </div>
                     <div class="chat-input">
                         <input type="text" id="draw-prompt-input" placeholder="描述你想要的图像...">
-                        <button id="generate-image">生成图像</button>
+                        <div class="chat-controls">
+                            <select id="resolution-select" class="resolution-select">
+                                <option value="1280:720">1280 × 720 (16:9)</option>
+                                <option value="1920:1080">1920 × 1080 (16:9)</option>
+                                <option value="800:800">800 × 800 (1:1)</option>
+                                <option value="1024:1024">1024 × 1024 (1:1)</option>
+                                <option value="1080:1350">1080 × 1350 (4:5)</option>
+                                <option value="1080:1920">1080 × 1920 (9:16)</option>
+                            </select>
+                            <button id="generate-image">生成图像</button>
+                        </div>
                     </div>
                 </div>
                 <div class="image-result" id="image-result">
@@ -236,10 +264,14 @@
             const promptInput = document.getElementById('draw-prompt-input');
             const generateButton = document.getElementById('generate-image');
             const imageResult = document.getElementById('image-result');
+            const resolutionSelect = document.getElementById('resolution-select');
 
-            const systemPrompt = `请记住，你现在是一个可以进行AI图片生成的机器人，你会等待我给你发送绘制图像的关键词，然后根据关键词发挥你的想象力，从文生图的角度去完善这幅图片的描述语，并将描述语转换成英文encoded，最后将下面"图像字符串"的占位符{description}用英文encoded的内容替换:
+            function getSystemPrompt() {
+                const [width, height] = resolutionSelect.value.split(':');
+                return `请记住，你现在是一个可以进行AI图片生成的机器人，你会等待我给你发送绘制图像的关键词，然后根据关键词发挥你的想象力，从文生图的角度去完善这幅图片的描述语，并将描述语转换成英文encoded，最后将下面"图像字符串"的占位符{description}用英文encoded的内容替换:
 
-![imagel\\(https\\://image.pollinations.ai/prompt/{description}?width=1280\\&height=720\\& model=flux\\&enhance=true\\&private=true\\&nologo=true\\&safe=true)`;
+![imagel\\(https\\://image.pollinations.ai/prompt/{description}?width=${width}\\&height=${height}\\& model=flux\\&enhance=true\\&private=true\\&nologo=true\\&safe=true)`;
+            }
 
             function addMessage(content, isUser = false) {
                 const messageDiv = document.createElement('div');
@@ -262,7 +294,7 @@
                             messages: [
                                 {
                                     "role": "system",
-                                    "content": systemPrompt
+                                    "content": getSystemPrompt()
                                 },
                                 {
                                     "role": "user",
