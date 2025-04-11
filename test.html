@@ -246,47 +246,70 @@
                 resultMessage.textContent = '正在上传...';
 
                 try {
+                    // Log request details for debugging
+                    console.log('Uploading file:', fileInput.files[0].name);
+                    console.log('Table name:', 'quote');
+
                     const response = await fetch('/api/upload', {
                         method: 'POST',
-                        body: formData
+                        body: formData,
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     });
 
-                    // Log the raw response for debugging
+                    // Log response details
                     console.log('Response status:', response.status);
                     console.log('Response headers:', Object.fromEntries(response.headers.entries()));
                     
-                    // Try to get the response text first
+                    // Get response text
                     const responseText = await response.text();
-                    console.log('Raw response:', responseText);
+                    console.log('Raw response text:', responseText);
+
+                    // Handle empty response
+                    if (!responseText.trim()) {
+                        throw new Error(`服务器没有返回数据 (状态码: ${response.status})`);
+                    }
 
                     let result;
                     try {
-                        // Try to parse the response as JSON
                         result = JSON.parse(responseText);
                     } catch (parseError) {
                         console.error('JSON Parse Error:', parseError);
-                        throw new Error(`服务器响应格式错误: ${responseText.slice(0, 100)}...`);
+                        throw new Error(`服务器返回的数据格式错误。\n服务器响应: ${responseText.slice(0, 100)}${responseText.length > 100 ? '...' : ''}`);
                     }
 
                     if (!response.ok) {
-                        throw new Error(result.message || `服务器错误 (${response.status})`);
+                        throw new Error(result?.message || `服务器错误 (${response.status}): ${response.statusText}`);
                     }
 
-                    if (result.success) {
+                    if (result?.success) {
                         resultMessage.className = 'result-message success';
-                        resultMessage.textContent = '数据上传成功！';
+                        resultMessage.innerHTML = `
+                            <div>数据上传成功！</div>
+                            ${result.rowCount ? `<small>已导入 ${result.rowCount} 条记录</small>` : ''}
+                        `;
                         
-                        // Clear the form after successful upload
+                        // Clear the form
                         fileInput.value = '';
                         selectedFile.textContent = '';
                         uploadButton.disabled = true;
                     } else {
-                        throw new Error(result.message || '上传失败，请检查文件格式是否正确');
+                        throw new Error(result?.message || '上传失败，请检查文件格式是否正确');
                     }
                 } catch (error) {
                     console.error('Upload Error:', error);
                     resultMessage.className = 'result-message error';
-                    resultMessage.innerHTML = `上传失败:<br>${error.message}<br><small>请确保Excel文件格式正确且包含所需列信息</small>`;
+                    resultMessage.innerHTML = `
+                        <div>上传失败</div>
+                        <div style="margin-top: 0.5rem; font-size: 0.9em;">${error.message}</div>
+                        <div style="margin-top: 0.5rem; font-size: 0.8em; color: #666;">
+                            请检查：<br>
+                            1. Excel文件格式是否正确<br>
+                            2. 是否包含所需列: Number, Type, Chinese, English, Remark_1, Remark_2<br>
+                            3. 服务器连接是否正常
+                        </div>
+                    `;
                 } finally {
                     uploadButton.disabled = false;
                     uploadButton.textContent = '上传数据';
