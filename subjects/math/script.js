@@ -38,15 +38,7 @@ function displayMathMessage(role, content, container) {
 
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize math subject functionality
-    initTopicCards();
-    initMathAssistant();
-    initQuizGenerator();
-    initFormulaSelector();
-    
-    // Initialize visualization with a small delay to ensure proper setup
-    setTimeout(() => {
-        initVisualization();
-    }, 100);
+    initMathPage();
 });
 
 /**
@@ -3398,6 +3390,10 @@ function initMathPage() {
     initMathAssistant();
     initQuizGenerator();
     initFormulaSelector();
-    initCommonFormulas(); // Add this line
-    initVisualization();
+    initCommonFormulas();
+    
+    // Initialize visualization with a small delay to ensure proper setup
+    setTimeout(() => {
+        initVisualization();
+    }, 100);
 }
