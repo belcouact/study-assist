@@ -3150,14 +3150,17 @@ function initCommonFormulas() {
     const categories = {
         '代数': {
             elementary: [
-                { name: '加法交换律', formula: 'a + b = b + a', explanation: '数的加法与顺序无关' },
-                { name: '乘法交换律', formula: 'a × b = b × a', explanation: '数的乘法与顺序无关' },
-                { name: '乘法分配律', formula: 'a × (b + c) = a × b + a × c', explanation: '数的乘法对加法有分配性质' }
+                { name: '加法交换律', formula: 'a + b = b + a', explanation: '数的加法与顺序无关，例如：3 + 4 = 4 + 3 = 7' },
+                { name: '乘法交换律', formula: 'a × b = b × a', explanation: '数的乘法与顺序无关，例如：2 × 3 = 3 × 2 = 6' },
+                { name: '乘法分配律', formula: 'a × (b + c) = a × b + a × c', explanation: '数的乘法对加法有分配性质，例如：2 × (3 + 4) = 2 × 3 + 2 × 4 = 14' }
             ],
             middle: [
-                { name: '平方差公式', formula: 'a² - b² = (a+b)(a-b)', explanation: '两数平方的差等于这两个数的和与差的积' },
-                { name: '完全平方公式', formula: 'a² ± 2ab + b² = (a ± b)²', explanation: '两项之和的平方' },
-                { name: '因式分解', formula: 'ax + bx = x(a + b)', explanation: '提取公因式' }
+                { name: '因式分解', formula: 'ax + bx = x(a + b)', explanation: '提取公因式，将代数式化为因式的乘积，例如：2x + 3x = 5x' },
+                { name: '十字相乘法', formula: '(ax + b)(cx + d) = acx² + (ad + bc)x + bd', explanation: '用于展开两个一次式的乘积，例如：(2x + 3)(x + 1) = 2x² + 5x + 3' },
+                { name: '一元二次方程求根公式', formula: 'x = \\frac{-b \\pm \\sqrt{b² - 4ac}}{2a}', explanation: '用于解二次方程ax² + bx + c = 0，例如：x² + 2x + 1 = 0 的解为 x = -1' },
+                { name: '判别式', formula: '\\Delta = b² - 4ac', explanation: '用于判断二次方程的解的情况：Δ>0有两个不同实根，Δ=0有两个相同实根，Δ<0无实根' },
+                { name: '韦达定理', formula: 'x₁ + x₂ = -\\frac{b}{a}, x₁x₂ = \\frac{c}{a}', explanation: '二次方程的根与系数的关系，例如：x² + 2x + 1 = 0中，x₁ + x₂ = -2, x₁x₂ = 1' },
+                { name: '绝对值不等式', formula: '|x| < a \\Leftrightarrow -a < x < a', explanation: '绝对值小于a等价于x在(-a,a)区间内，例如：|x| < 2表示-2 < x < 2' }
             ],
             high: [
                 { name: '二次方程求根公式', formula: 'x = (-b ± √(b² - 4ac)) / (2a)', explanation: '解二次方程ax² + bx + c = 0' },
@@ -3165,34 +3168,29 @@ function initCommonFormulas() {
                 { name: '等比数列求和', formula: 'Sₙ = a₁(1-q^n)/(1-q)', explanation: '首项为a₁，公比为q的等比数列前n项和' }
             ]
         },
-        '三角函数': {
-            elementary: [
-                { name: '直角三角形的边', formula: '斜边² = 直角边1² + 直角边2²', explanation: '勾股定理的基本形式' }
-            ],
-            middle: [
-                { name: '正弦定义', formula: 'sin A = \\frac{对边}{斜边}', explanation: '直角三角形中，某一锐角的对边与斜边的比值' },
-                { name: '余弦定义', formula: 'cos A = \\frac{邻边}{斜边}', explanation: '直角三角形中，某一锐角的邻边与斜边的比值' },
-                { name: '正切定义', formula: 'tan A = \\frac{对边}{邻边} = \\frac{sin A}{cos A}', explanation: '直角三角形中，某一锐角的对边与邻边的比值' },
-                { name: '特殊角正弦值', formula: 'sin(30°) = \\frac{1}{2}, sin(45°) = \\frac{\\sqrt{2}}{2}, sin(60°) = \\frac{\\sqrt{3}}{2}', explanation: '常用角度的正弦值' },
-                { name: '特殊角余弦值', formula: 'cos(30°) = \\frac{\\sqrt{3}}{2}, cos(45°) = \\frac{\\sqrt{2}}{2}, cos(60°) = \\frac{1}{2}', explanation: '常用角度的余弦值' },
-                { name: '平方关系', formula: 'sin²θ + cos²θ = 1', explanation: '三角函数的基本关系式' }
-            ],
-            high: [
-                { name: '和角公式', formula: 'sin(A+B) = sinA·cosB + cosA·sinB', explanation: '两角和的正弦' },
-                { name: '倍角公式', formula: 'sin2A = 2sinA·cosA', explanation: '二倍角的正弦' },
-                { name: '和差化积', formula: 'sinA + sinB = 2sin\\frac{A+B}{2}cos\\frac{A-B}{2}', explanation: '正弦和的变换' }
-            ]
-        },
         '几何': {
             elementary: [
-                { name: '正方形周长', formula: 'C = 4a', explanation: 'a为正方形的边长' },
-                { name: '长方形面积', formula: 'S = ab', explanation: 'a和b分别为长和宽' },
-                { name: '三角形面积', formula: 'S = ah/2', explanation: 'a为底边，h为高' }
+                { name: '长方形周长', formula: 'C = 2(a + b)', explanation: '长方形的周长等于长和宽的和的2倍，其中a为长，b为宽。例如：长3米，宽2米的长方形周长为10米' },
+                { name: '正方形周长', formula: 'C = 4a', explanation: '正方形的周长等于边长的4倍，其中a为边长。例如：边长5米的正方形周长为20米' },
+                { name: '圆的周长', formula: 'C = 2πr', explanation: '圆的周长等于直径乘以π，其中r为半径。例如：半径2米的圆周长约为12.57米' },
+                { name: '长方形面积', formula: 'S = a × b', explanation: '长方形的面积等于长乘以宽，其中a为长，b为宽。例如：长4米，宽3米的长方形面积为12平方米' },
+                { name: '正方形面积', formula: 'S = a²', explanation: '正方形的面积等于边长的平方，其中a为边长。例如：边长5米的正方形面积为25平方米' },
+                { name: '三角形面积', formula: 'S = \\frac{1}{2}ah', explanation: '三角形的面积等于底乘以高的一半，其中a为底边长，h为高。例如：底6米，高4米的三角形面积为12平方米' },
+                { name: '平行四边形面积', formula: 'S = ah', explanation: '平行四边形的面积等于底乘以高，其中a为底边长，h为高。例如：底8米，高3米的平行四边形面积为24平方米' },
+                { name: '梯形面积', formula: 'S = \\frac{1}{2}h(a + b)', explanation: '梯形的面积等于上底加下底乘以高的一半，其中a、b为上下底，h为高。例如：上底3米，下底5米，高4米的梯形面积为16平方米' },
+                { name: '长方体体积', formula: 'V = abc', explanation: '长方体的体积等于长乘以宽乘以高，其中a为长，b为宽，c为高。例如：长3米，宽2米，高4米的长方体体积为24立方米' },
+                { name: '正方体体积', formula: 'V = a³', explanation: '正方体的体积等于边长的立方，其中a为边长。例如：边长2米的正方体体积为8立方米' },
+                { name: '圆柱体积', formula: 'V = πr²h', explanation: '圆柱的体积等于底面积乘以高，其中r为底面半径，h为高。例如：底面半径2米，高3米的圆柱体积约为37.7立方米' }
             ],
             middle: [
-                { name: '圆的面积', formula: 'S = πr²', explanation: 'r为圆的半径' },
-                { name: '圆的周长', formula: 'C = 2πr', explanation: 'r为圆的半径' },
-                { name: '勾股定理', formula: 'a² + b² = c²', explanation: '直角三角形中，两直角边的平方和等于斜边的平方' }
+                { name: '圆弧长公式', formula: 'L = \\frac{nπr}{180}', explanation: '圆弧长度等于弧度数除以180度乘以π再乘以半径，其中n为圆心角的度数，r为半径。例如：90度圆心角，半径2米的圆弧长约为3.14米' },
+                { name: '扇形面积', formula: 'S = \\frac{nπr²}{360}', explanation: '扇形面积等于圆心角度数除以360度乘以圆的面积，其中n为圆心角的度数，r为半径。例如：90度圆心角，半径2米的扇形面积约为3.14平方米' },
+                { name: '垂径定理', formula: 'h² = p × q', explanation: '圆中，垂直于弦的直径将弦分成两段，两段长度的乘积等于垂线长度的平方。其中h为垂线长，p和q为弦的两段长度' },
+                { name: '长方体表面积', formula: 'S = 2(ab + bc + ac)', explanation: '长方体的表面积等于长宽、长高、宽高的乘积之和的2倍。例如：长3米，宽2米，高4米的长方体表面积为52平方米' },
+                { name: '圆柱表面积', formula: 'S = 2πr² + 2πrh', explanation: '圆柱的表面积等于两个底面积加上侧面积。例如：底面半径2米，高3米的圆柱表面积约为62.8平方米' },
+                { name: '圆柱侧面积', formula: 'S = 2πrh', explanation: '圆柱的侧面积等于底面周长乘以高。例如：底面半径2米，高3米的圆柱侧面积约为37.7平方米' },
+                { name: '圆锥体积', formula: 'V = \\frac{1}{3}πr²h', explanation: '圆锥的体积等于底面积乘以高的三分之一。例如：底面半径3米，高4米的圆锥体积约为37.7立方米' },
+                { name: '圆锥表面积', formula: 'S = πr² + πr\\sqrt{r² + h²}', explanation: '圆锥的表面积等于底面积加上侧面积。例如：底面半径3米，高4米的圆锥表面积约为75.4平方米' }
             ],
             high: [
                 { name: '球的体积', formula: 'V = 4πr³/3', explanation: 'r为球的半径' },
@@ -3202,11 +3200,12 @@ function initCommonFormulas() {
         },
         '函数': {
             elementary: [
-                { name: '一次函数', formula: 'y = kx + b', explanation: 'k为斜率，b为截距' }
+                { name: '一次函数', formula: 'y = kx + b', explanation: 'k为斜率，表示函数图像的倾斜程度；b为截距，表示函数图像与y轴的交点。例如：y = 2x + 1表示斜率为2，y轴截距为1的直线' }
             ],
             middle: [
-                { name: '二次函数', formula: 'y = ax² + bx + c', explanation: 'a,b,c为常数，a≠0' },
-                { name: '反比例函数', formula: 'y = k/x', explanation: 'k为常数，k≠0' }
+                { name: '一次函数', formula: 'y = kx + b', explanation: 'k为斜率，b为y轴截距。当k>0时，函数单调递增；当k<0时，函数单调递减。例如：y = 2x + 1' },
+                { name: '二次函数', formula: 'y = ax² + bx + c', explanation: '开口方向由a决定：a>0向上，a<0向下。顶点坐标(-b/2a, -Δ/4a)，对称轴x=-b/2a。例如：y = x² + 2x + 1' },
+                { name: '反比例函数', formula: 'y = \\frac{k}{x}', explanation: 'k为比例系数，k>0时在第一、三象限，k<0时在第二、四象限。例如：y = 1/x' }
             ],
             high: [
                 { name: '指数函数', formula: 'y = aˣ', explanation: 'a为常数且a>0,a≠1' },
@@ -3216,11 +3215,12 @@ function initCommonFormulas() {
         },
         '统计概率': {
             elementary: [
-                { name: '平均数', formula: '\\bar{x} = \\frac{\\sum x_i}{n}', explanation: '所有数据的和除以数据个数' }
+                { name: '平均数', formula: '\\bar{x} = \\frac{\\sum x_i}{n}', explanation: '所有数据的和除以数据个数。例如：1,2,3,4,5的平均数为3' }
             ],
             middle: [
-                { name: '方差', formula: 's² = \\frac{\\sum(x_i - \\bar{x})²}{n}', explanation: '反映数据的离散程度' },
-                { name: '频率', formula: 'f = \\frac{n_A}{n}', explanation: '事件A发生的次数与总次数的比值' }
+                { name: '平均数', formula: '\\bar{x} = \\frac{\\sum x_i}{n}', explanation: '总体的算术平均值，反映数据的集中趋势。例如：成绩60,70,80,90,100的平均数为80' },
+                { name: '方差', formula: 's² = \\frac{\\sum(x_i - \\bar{x})²}{n}', explanation: '反映数据的离散程度，方差越大，数据分布越分散。例如：数据与平均值的差的平方的平均值' },
+                { name: '概率公式', formula: 'P(A) = \\frac{n(A)}{n(S)}', explanation: '事件A发生的可能性大小，等于事件A的基本事件数除以样本空间的基本事件总数。例如：抛骰子出现偶数的概率为3/6=1/2' }
             ],
             high: [
                 { name: '排列数', formula: 'A_n^m = \\frac{n!}{(n-m)!}', explanation: 'n个不同元素中取m个排列的方法数' },
@@ -3230,11 +3230,12 @@ function initCommonFormulas() {
         },
         '其他': {
             elementary: [
-                { name: '百分数', formula: '百分数 = \\frac{部分}{整体} × 100%', explanation: '将分数表示为百分比' }
+                { name: '速度时间路程', formula: 'v = \\frac{s}{t}, s = vt, t = \\frac{s}{v}', explanation: '速度等于路程除以时间，路程等于速度乘以时间。例如：速度60千米/小时，行驶2小时的路程为120千米' },
+                { name: '单价数量总价', formula: '总价 = 单价 × 数量', explanation: '商品的总价等于单价乘以数量。例如：单价5元的铅笔买3支，总价为15元' }
             ],
             middle: [
-                { name: '速度公式', formula: 'v = s/t', explanation: '速度等于路程除以时间' },
-                { name: '密度公式', formula: 'ρ = m/V', explanation: '密度等于质量除以体积' }
+                { name: '指数运算', formula: 'a^m × a^n = a^{m+n}, \\frac{a^m}{a^n} = a^{m-n}, (a^m)^n = a^{mn}', explanation: '同底数幂的乘除法则和幂的幂运算。例如：2³ × 2⁴ = 2⁷' },
+                { name: '对数运算', formula: 'log_a(MN) = log_aM + log_aN, log_a\\frac{M}{N} = log_aM - log_aN', explanation: '对数的乘除法则。例如：log₂8 = log₂(2³) = 3' }
             ],
             high: [
                 { name: '导数定义', formula: 'f\'(x) = \\lim_{h→0}\\frac{f(x+h)-f(x)}{h}', explanation: '函数在某点的瞬时变化率' },
