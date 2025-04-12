@@ -1307,7 +1307,7 @@ const mathConcepts = {
 
 // Visualization functions for each concept
 const visualizations = {
-    // Elementary School
+    // Elementary School Visualizations
     'basic-numbers': function(container) {
         const data = [{
             type: 'scatter',
@@ -1325,6 +1325,7 @@ const visualizations = {
         };
         Plotly.newPlot(container, data, layout);
     },
+
     'fractions': function(container) {
         const data = [{
             values: [1, 1, 1, 1],
@@ -1341,6 +1342,7 @@ const visualizations = {
         };
         Plotly.newPlot(container, data, layout);
     },
+
     'basic-geometry': function(container) {
         const shapes = [
             {type: 'rect', x0: 1, y0: 1, x1: 3, y1: 3},
@@ -1357,7 +1359,44 @@ const visualizations = {
         Plotly.newPlot(container, [], layout);
     },
 
-    // Middle School
+    'measurement': function(container) {
+        const data = [{
+            type: 'bar',
+            x: ['1厘米', '1分米', '1米'],
+            y: [1, 10, 100],
+            text: ['1cm', '10cm', '100cm'],
+            textposition: 'auto',
+            marker: {
+                color: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)']
+            }
+        }];
+        const layout = {
+            title: '长度单位换算',
+            yaxis: {title: '厘米'},
+            showlegend: false
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'basic-statistics': function(container) {
+        const data = [{
+            type: 'bar',
+            x: ['一月', '二月', '三月', '四月', '五月'],
+            y: [12, 15, 18, 22, 25],
+            marker: {
+                color: 'rgb(67, 97, 238)'
+            }
+        }];
+        const layout = {
+            title: '简单统计图表',
+            xaxis: {title: '月份'},
+            yaxis: {title: '温度 (°C)'},
+            showlegend: false
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    // Middle School Visualizations
     'linear-functions': function(container) {
         const x = Array.from({length: 21}, (_, i) => i - 10);
         const data = [{
@@ -1375,6 +1414,7 @@ const visualizations = {
         };
         Plotly.newPlot(container, data, layout);
     },
+
     'quadratic-functions': function(container) {
         const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
         const data = [{
@@ -1393,7 +1433,132 @@ const visualizations = {
         Plotly.newPlot(container, data, layout);
     },
 
-    // High School
+    'geometry-2d': function(container) {
+        const shapes = [
+            {type: 'rect', x0: 0, y0: 0, x1: 2, y1: 2, line: {color: 'blue'}, fillcolor: 'rgba(67, 97, 238, 0.2)'},
+            {type: 'circle', x0: 3, y0: 0, x1: 5, y1: 2, line: {color: 'purple'}, fillcolor: 'rgba(114, 9, 183, 0.2)'},
+            {type: 'path', path: 'M 6 0 L 8 0 L 7 2 Z', line: {color: 'green'}, fillcolor: 'rgba(86, 11, 173, 0.2)'}
+        ];
+        const layout = {
+            title: '平面几何图形',
+            xaxis: {range: [-1, 9]},
+            yaxis: {range: [-1, 3]},
+            shapes: shapes,
+            showlegend: false
+        };
+        Plotly.newPlot(container, [], layout);
+    },
+
+    'algebra-basics': function(container) {
+        const x = Array.from({length: 21}, (_, i) => i - 10);
+        const data = [
+            {
+                x: x,
+                y: x.map(x => x),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = x'
+            },
+            {
+                x: x,
+                y: x.map(x => x * x),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = x²'
+            },
+            {
+                x: x,
+                y: x.map(x => Math.abs(x)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = |x|'
+            }
+        ];
+        const layout = {
+            title: '基础代数函数',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'probability': function(container) {
+        const x = Array.from({length: 11}, (_, i) => i);
+        const y = x.map(n => {
+            let coef = 1;
+            for(let i = 0; i < n; i++) coef *= (10-i)/(i+1);
+            return coef;
+        });
+        const data = [{
+            type: 'bar',
+            x: x,
+            y: y,
+            marker: {
+                color: 'rgb(67, 97, 238)'
+            },
+            name: '概率分布'
+        }];
+        const layout = {
+            title: '二项分布 n=10, p=0.5',
+            xaxis: {title: '成功次数'},
+            yaxis: {title: '概率'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'triangles': function(container) {
+        const data = [{
+            type: 'scatter',
+            x: [0, 4, 2, 0],
+            y: [0, 0, 3, 0],
+            mode: 'lines+markers',
+            marker: {size: 10},
+            line: {color: 'rgb(67, 97, 238)'},
+            name: '三角形'
+        }];
+        const layout = {
+            title: '三角形的性质',
+            xaxis: {range: [-1, 5]},
+            yaxis: {range: [-1, 4]},
+            showlegend: false,
+            annotations: [
+                {x: 2, y: -0.3, text: '底边: 4', showarrow: false},
+                {x: -0.3, y: 1.5, text: '高: 3', textangle: -90, showarrow: false}
+            ]
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    // High School Visualizations
+    'advanced-functions': function(container) {
+        const x = Array.from({length: 100}, (_, i) => (i - 50) / 10);
+        const data = [
+            {
+                x: x,
+                y: x.map(x => Math.exp(x)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = eˣ'
+            },
+            {
+                x: x,
+                y: x.map(x => Math.log(Math.abs(x) + 0.1)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = ln(x)'
+            }
+        ];
+        const layout = {
+            title: '高等函数',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
     'trigonometry': function(container) {
         const x = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
         const data = [
@@ -1413,13 +1578,14 @@ const visualizations = {
             }
         ];
         const layout = {
-            title: '三角函数图像',
+            title: '三角函数',
             xaxis: {title: 'x'},
             yaxis: {title: 'y'},
             showlegend: true
         };
         Plotly.newPlot(container, data, layout);
     },
+
     'calculus-basics': function(container) {
         const x = Array.from({length: 100}, (_, i) => i * (4 / 99) - 2);
         const data = [
@@ -1442,6 +1608,83 @@ const visualizations = {
             title: '函数及其导数',
             xaxis: {title: 'x'},
             yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'vectors': function(container) {
+        const data = [
+            {
+                type: 'scatter3d',
+                mode: 'lines',
+                x: [0, 2],
+                y: [0, 2],
+                z: [0, 2],
+                line: {color: 'rgb(67, 97, 238)', width: 4},
+                name: '向量 a'
+            },
+            {
+                type: 'scatter3d',
+                mode: 'lines',
+                x: [0, -1],
+                y: [0, 2],
+                z: [0, 1],
+                line: {color: 'rgb(114, 9, 183)', width: 4},
+                name: '向量 b'
+            }
+        ];
+        const layout = {
+            title: '三维向量',
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'complex-numbers': function(container) {
+        const t = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
+        const data = [
+            {
+                type: 'scatter',
+                mode: 'lines',
+                x: t.map(t => Math.cos(t)),
+                y: t.map(t => Math.sin(t)),
+                name: '单位圆'
+            },
+            {
+                type: 'scatter',
+                mode: 'markers',
+                x: [1, -1, 0, 0],
+                y: [0, 0, 1, -1],
+                marker: {size: 10},
+                name: '特殊点'
+            }
+        ];
+        const layout = {
+            title: '复平面上的单位圆',
+            xaxis: {title: '实部'},
+            yaxis: {title: '虚部'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'probability-advanced': function(container) {
+        const x = Array.from({length: 100}, (_, i) => (i - 50) / 10);
+        const normalDist = x.map(x => (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-(x * x) / 2));
+        const data = [
+            {
+                x: x,
+                y: normalDist,
+                type: 'scatter',
+                mode: 'lines',
+                name: '标准正态分布'
+            }
+        ];
+        const layout = {
+            title: '概率分布',
+            xaxis: {title: 'x'},
+            yaxis: {title: '概率密度'},
             showlegend: true
         };
         Plotly.newPlot(container, data, layout);
