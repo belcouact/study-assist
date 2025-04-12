@@ -1097,26 +1097,84 @@ const visualizations = {
     'basic-numbers': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const data = [{
-                type: 'scatter',
-                mode: 'markers+lines',
-                x: Array.from({length: 10}, (_, i) => i + 1),
-                y: Array.from({length: 10}, (_, i) => i + 1),
-                marker: {size: 12, color: 'rgb(67, 97, 238)'},
-                name: '数列'
-            }];
+            const x = Array.from({length: 20}, (_, i) => i + 1);
+            const data = [
+                {
+                    type: 'scatter',
+                    mode: 'markers+lines+text',
+                    x: x,
+                    y: x,
+                    text: x.map(n => n.toString()),
+                    textposition: 'top',
+                    marker: {size: 12, color: 'rgb(67, 97, 238)'},
+                    name: '数列'
+                },
+                {
+                    type: 'scatter',
+                    mode: 'markers+lines+text',
+                    x: x,
+                    y: x.map(n => n * 2),
+                    text: x.map(n => (n * 2).toString()),
+                    textposition: 'top',
+                    marker: {size: 12, color: 'rgb(114, 9, 183)'},
+                    name: '2倍数列'
+                }
+            ];
+            
             const layout = {
-                title: '数的序列与关系',
-                xaxis: {title: '序号'},
-                yaxis: {title: '数值'},
-                showlegend: false,
+                title: '数的认识与序列关系',
+                xaxis: {
+                    title: '序号',
+                    range: [0, 20],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: '数值',
+                    range: [0, 40],
+                    zeroline: true
+                },
+                showlegend: true,
                 autosize: true
             };
+
             const config = {
                 responsive: true,
                 displayModeBar: true
             };
+
             Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>数的认识解析</h4>
+                <p><strong>基本概念：</strong></p>
+                <ul>
+                    <li><strong>自然数：</strong>
+                        <ul>
+                            <li>从1开始的正整数序列</li>
+                            <li>可以用来计数和排序</li>
+                            <li>具有加法和乘法性质</li>
+                        </ul>
+                    </li>
+                    <li><strong>数的规律：</strong>
+                        <ul>
+                            <li>递增：每个数比前一个数大</li>
+                            <li>倍数关系：2倍、3倍等</li>
+                            <li>奇偶数：奇数和偶数的特点</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li>数数和计数：课堂人数统计</li>
+                    <li>排序：比赛名次排列</li>
+                    <li>购物计算：物品数量和价格</li>
+                    <li>时间计算：日期和时间的表示</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating basic-numbers visualization:', error);
             throw error;
@@ -1126,25 +1184,82 @@ const visualizations = {
     'fractions': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const data = [{
-                values: [1, 1, 1, 1],
-                labels: ['1/4', '1/4', '1/4', '1/4'],
-                type: 'pie',
-                marker: {
-                    colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
+            const data = [
+                {
+                    values: [1, 1, 1, 1],
+                    labels: ['1/4', '1/4', '1/4', '1/4'],
+                    type: 'pie',
+                    name: '四等分',
+                    domain: {row: 0, column: 0},
+                    marker: {
+                        colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
+                    }
+                },
+                {
+                    values: [2, 1],
+                    labels: ['2/3', '1/3'],
+                    type: 'pie',
+                    name: '三等分',
+                    domain: {row: 0, column: 1},
+                    marker: {
+                        colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)']
+                    }
                 }
-            }];
+            ];
+            
             const layout = {
                 title: '分数的可视化表示',
+                grid: {rows: 1, columns: 2},
                 height: 400,
                 showlegend: true,
                 autosize: true
             };
+
             const config = {
                 responsive: true,
                 displayModeBar: true
             };
+
             Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>分数与小数解析</h4>
+                <p><strong>基本概念：</strong></p>
+                <ul>
+                    <li><strong>分数的组成：</strong>
+                        <ul>
+                            <li>分子：表示部分的数量</li>
+                            <li>分母：表示平均分成的份数</li>
+                            <li>分数线：表示除法关系</li>
+                        </ul>
+                    </li>
+                    <li><strong>分数的类型：</strong>
+                        <ul>
+                            <li>真分数：分子小于分母</li>
+                            <li>假分数：分子大于分母</li>
+                            <li>带分数：整数和真分数的组合</li>
+                        </ul>
+                    </li>
+                    <li><strong>小数：</strong>
+                        <ul>
+                            <li>小数点的意义</li>
+                            <li>小数和分数的转换</li>
+                            <li>十进制计数法</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li>分配食物：将披萨分成等份</li>
+                    <li>测量长度：使用尺子测量</li>
+                    <li>配制饮料：调配不同配比</li>
+                    <li>购物计算：价格和重量</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating fractions visualization:', error);
             throw error;
@@ -1152,56 +1267,263 @@ const visualizations = {
     },
 
     'basic-geometry': function(container) {
-        const shapes = [
-            {type: 'rect', x0: 1, y0: 1, x1: 3, y1: 3},
-            {type: 'circle', x0: 4, y0: 1, x1: 6, y1: 3},
-            {type: 'path', path: 'M 7 1 L 9 3 L 7 3 Z'}
-        ];
-        const layout = {
-            title: '基本几何图形',
-            xaxis: {range: [0, 10]},
-            yaxis: {range: [0, 4]},
-            shapes: shapes,
-            showlegend: false
-        };
-        Plotly.newPlot(container, [], layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const shapes = [
+                {
+                    type: 'rect',
+                    x0: 1, y0: 1,
+                    x1: 3, y1: 3,
+                    line: {color: 'rgb(67, 97, 238)'},
+                    fillcolor: 'rgba(67, 97, 238, 0.2)'
+                },
+                {
+                    type: 'circle',
+                    x0: 4, y0: 1,
+                    x1: 6, y1: 3,
+                    line: {color: 'rgb(114, 9, 183)'},
+                    fillcolor: 'rgba(114, 9, 183, 0.2)'
+                },
+                {
+                    type: 'path',
+                    path: 'M 7 1 L 9 3 L 7 3 Z',
+                    line: {color: 'rgb(86, 11, 173)'},
+                    fillcolor: 'rgba(86, 11, 173, 0.2)'
+                }
+            ];
+
+            const data = [];
+            const annotations = [
+                {
+                    x: 2, y: 0.5,
+                    text: '正方形',
+                    showarrow: false
+                },
+                {
+                    x: 5, y: 0.5,
+                    text: '圆形',
+                    showarrow: false
+                },
+                {
+                    x: 8, y: 0.5,
+                    text: '三角形',
+                    showarrow: false
+                }
+            ];
+            
+            const layout = {
+                title: '基本几何图形',
+                xaxis: {range: [0, 10], zeroline: true},
+                yaxis: {range: [0, 4], zeroline: true},
+                shapes: shapes,
+                annotations: annotations,
+                showlegend: false,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>基本几何图形解析</h4>
+                <p><strong>基本图形：</strong></p>
+                <ul>
+                    <li><strong>正方形：</strong>
+                        <ul>
+                            <li>四条边相等</li>
+                            <li>四个角都是90度</li>
+                            <li>周长 = 4×边长</li>
+                            <li>面积 = 边长×边长</li>
+                        </ul>
+                    </li>
+                    <li><strong>圆形：</strong>
+                        <ul>
+                            <li>圆心到圆上任意点距离相等</li>
+                            <li>周长 = 2×π×半径</li>
+                            <li>面积 = π×半径×半径</li>
+                        </ul>
+                    </li>
+                    <li><strong>三角形：</strong>
+                        <ul>
+                            <li>三个角的和是180度</li>
+                            <li>面积 = 底×高÷2</li>
+                            <li>三条边组成封闭图形</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li>生活中的形状识别</li>
+                    <li>物品包装设计</li>
+                    <li>房间面积计算</li>
+                    <li>操场跑道设计</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating basic-geometry visualization:', error);
+            throw error;
+        }
     },
 
     'measurement': function(container) {
-        const data = [{
-            type: 'bar',
-            x: ['1厘米', '1分米', '1米'],
-            y: [1, 10, 100],
-            text: ['1cm', '10cm', '100cm'],
-            textposition: 'auto',
-            marker: {
-                color: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)']
-            }
-        }];
-        const layout = {
-            title: '长度单位换算',
-            yaxis: {title: '厘米'},
-            showlegend: false
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [
+                {
+                    type: 'bar',
+                    x: ['1毫米', '1厘米', '1分米', '1米'],
+                    y: [1, 10, 100, 1000],
+                    text: ['1mm', '10mm', '100mm', '1000mm'],
+                    textposition: 'auto',
+                    marker: {
+                        color: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 
+                               'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
+                    }
+                }
+            ];
+            
+            const layout = {
+                title: '长度单位换算关系',
+                xaxis: {title: '单位'},
+                yaxis: {title: '毫米数值'},
+                showlegend: false,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>测量与单位解析</h4>
+                <p><strong>长度单位：</strong></p>
+                <ul>
+                    <li><strong>基本单位换算：</strong>
+                        <ul>
+                            <li>1米 = 10分米</li>
+                            <li>1分米 = 10厘米</li>
+                            <li>1厘米 = 10毫米</li>
+                        </ul>
+                    </li>
+                    <li><strong>常用单位：</strong>
+                        <ul>
+                            <li>毫米：最小的日常长度单位</li>
+                            <li>厘米：适合测量小物品</li>
+                            <li>分米：适合测量中等物品</li>
+                            <li>米：基本长度单位</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li>使用尺子测量物品长度</li>
+                    <li>估算距离和长度</li>
+                    <li>选择合适的测量单位</li>
+                    <li>日常物品尺寸描述</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating measurement visualization:', error);
+            throw error;
+        }
     },
 
     'basic-statistics': function(container) {
-        const data = [{
-            type: 'bar',
-            x: ['一月', '二月', '三月', '四月', '五月'],
-            y: [12, 15, 18, 22, 25],
-            marker: {
-                color: 'rgb(67, 97, 238)'
-            }
-        }];
-        const layout = {
-            title: '简单统计图表',
-            xaxis: {title: '月份'},
-            yaxis: {title: '温度 (°C)'},
-            showlegend: false
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [
+                {
+                    type: 'bar',
+                    x: ['一月', '二月', '三月', '四月', '五月'],
+                    y: [12, 15, 18, 22, 25],
+                    name: '温度变化',
+                    marker: {
+                        color: 'rgb(67, 97, 238)'
+                    }
+                },
+                {
+                    type: 'scatter',
+                    x: ['一月', '二月', '三月', '四月', '五月'],
+                    y: [12, 15, 18, 22, 25],
+                    name: '趋势线',
+                    line: {
+                        color: 'rgb(114, 9, 183)'
+                    }
+                }
+            ];
+            
+            const layout = {
+                title: '月份温度变化统计',
+                xaxis: {title: '月份'},
+                yaxis: {title: '温度 (°C)'},
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>简单统计图表解析</h4>
+                <p><strong>基本统计概念：</strong></p>
+                <ul>
+                    <li><strong>数据收集：</strong>
+                        <ul>
+                            <li>观察记录数据</li>
+                            <li>整理数据表格</li>
+                            <li>选择合适的图表类型</li>
+                        </ul>
+                    </li>
+                    <li><strong>图表类型：</strong>
+                        <ul>
+                            <li>条形图：比较数量大小</li>
+                            <li>折线图：显示变化趋势</li>
+                            <li>饼图：显示部分与整体</li>
+                        </ul>
+                    </li>
+                    <li><strong>数据分析：</strong>
+                        <ul>
+                            <li>找出最大值和最小值</li>
+                            <li>观察数据变化规律</li>
+                            <li>得出简单结论</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li>天气温度记录</li>
+                    <li>班级成绩统计</li>
+                    <li>运动记录分析</li>
+                    <li>生活习惯调查</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating basic-statistics visualization:', error);
+            throw error;
+        }
     },
 
     // Middle School Visualizations
@@ -1550,7 +1872,7 @@ const visualizations = {
     'algebra-basics': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const x = Array.from({length: 100}, (_, i) => (i * 5 / 99));
+            const x = Array.from({length: 100}, (_, i) => (i * 10 / 99) - 5);
             const data = [
                 {
                     x: x,
@@ -1582,12 +1904,12 @@ const visualizations = {
                 title: '基础代数函数',
                 xaxis: {
                     title: 'x',
-                    range: [0, 5],
+                    range: [-5, 5],
                     zeroline: true
                 },
                 yaxis: {
                     title: 'y',
-                    range: [0, 5],
+                    range: [-5, 5],
                     zeroline: true
                 },
                 showlegend: true,
@@ -1824,7 +2146,7 @@ const visualizations = {
     'advanced-functions': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const x = Array.from({length: 100}, (_, i) => (i * 5 / 99));
+            const x = Array.from({length: 100}, (_, i) => (i * 10 / 99) - 5);
             const data = [
                 {
                     x: x,
@@ -1836,7 +2158,7 @@ const visualizations = {
                 },
                 {
                     x: x,
-                    y: x.map(x => Math.log(x + 0.1)),
+                    y: x.map(x => Math.log(Math.abs(x) + 0.1)),
                     type: 'scatter',
                     mode: 'lines',
                     name: 'y = ln(x)',
@@ -1848,12 +2170,12 @@ const visualizations = {
                 title: '高等函数',
                 xaxis: {
                     title: 'x',
-                    range: [0, 5],
+                    range: [-5, 5],
                     zeroline: true
                 },
                 yaxis: {
                     title: 'y',
-                    range: [-2, 5],
+                    range: [-5, 5],
                     zeroline: true
                 },
                 showlegend: true,
