@@ -3157,6 +3157,24 @@ function initCommonFormulas() {
                 { name: '等比数列求和', formula: 'Sₙ = a₁(1-q^n)/(1-q)', explanation: '首项为a₁，公比为q的等比数列前n项和' }
             ]
         },
+        '三角函数': {
+            elementary: [
+                { name: '直角三角形的边', formula: '斜边² = 直角边1² + 直角边2²', explanation: '勾股定理的基本形式' }
+            ],
+            middle: [
+                { name: '正弦定义', formula: 'sin A = \\frac{对边}{斜边}', explanation: '直角三角形中，某一锐角的对边与斜边的比值' },
+                { name: '余弦定义', formula: 'cos A = \\frac{邻边}{斜边}', explanation: '直角三角形中，某一锐角的邻边与斜边的比值' },
+                { name: '正切定义', formula: 'tan A = \\frac{对边}{邻边} = \\frac{sin A}{cos A}', explanation: '直角三角形中，某一锐角的对边与邻边的比值' },
+                { name: '特殊角正弦值', formula: 'sin(30°) = \\frac{1}{2}, sin(45°) = \\frac{\\sqrt{2}}{2}, sin(60°) = \\frac{\\sqrt{3}}{2}', explanation: '常用角度的正弦值' },
+                { name: '特殊角余弦值', formula: 'cos(30°) = \\frac{\\sqrt{3}}{2}, cos(45°) = \\frac{\\sqrt{2}}{2}, cos(60°) = \\frac{1}{2}', explanation: '常用角度的余弦值' },
+                { name: '平方关系', formula: 'sin²θ + cos²θ = 1', explanation: '三角函数的基本关系式' }
+            ],
+            high: [
+                { name: '和角公式', formula: 'sin(A+B) = sinA·cosB + cosA·sinB', explanation: '两角和的正弦' },
+                { name: '倍角公式', formula: 'sin2A = 2sinA·cosA', explanation: '二倍角的正弦' },
+                { name: '和差化积', formula: 'sinA + sinB = 2sin\\frac{A+B}{2}cos\\frac{A-B}{2}', explanation: '正弦和的变换' }
+            ]
+        },
         '几何': {
             elementary: [
                 { name: '正方形周长', formula: 'C = 4a', explanation: 'a为正方形的边长' },
