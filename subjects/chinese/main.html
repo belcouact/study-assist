@@ -195,27 +195,51 @@
                     <p>探索中国文学的瑰宝</p>
                 </div>
                 <div class="literature-container">
-                    <div class="literature-tabs">
-                        <button class="tab-btn active" data-tab="poetry">诗词</button>
-                        <button class="tab-btn" data-tab="classics">经典作品</button>
-                        <button class="tab-btn" data-tab="modern">现代文学</button>
-                        <button class="tab-btn" data-tab="essays">散文随笔</button>
+                    <div class="filter-section">
+                        <div class="filter-group">
+                            <select id="dynasty-select" class="form-control">
+                                <option value="">选择朝代</option>
+                            </select>
+                            <select id="author-select" class="form-control">
+                                <option value="">选择作者</option>
+                            </select>
+                            <select id="title-select" class="form-control">
+                                <option value="">选择诗词</option>
+                            </select>
+                            <button id="query-poem" class="btn btn-primary">查询</button>
+                        </div>
                     </div>
-                    <div class="tab-content active" id="poetry-content">
-                        <div class="poem-display">
-                            <div class="poem">
-                                <h3>《静夜思》</h3>
-                                <p class="author">李白</p>
-                                <div class="poem-text">
-                                    <p>床前明月光，</p>
-                                    <p>疑是地上霜。</p>
-                                    <p>举头望明月，</p>
-                                    <p>低头思故乡。</p>
-                                </div>
-                                <div class="poem-analysis">
-                                    <button class="btn btn-secondary" id="analyze-poem"><i class="fas fa-search-plus"></i> AI分析</button>
+
+                    <div class="poem-display">
+                        <button id="prev-poem" class="nav-btn left-nav">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        
+                        <div class="poem-card">
+                            <div class="poem-header">
+                                <h3 id="poem-title"></h3>
+                                <div class="poem-info">
+                                    <span id="poem-dynasty"></span>
+                                    <span id="poem-author"></span>
                                 </div>
                             </div>
+                            <div class="poem-content">
+                                <p id="poem-text"></p>
+                            </div>
+                            <button id="explain-poem" class="btn btn-secondary">
+                                <i class="fas fa-lightbulb"></i>
+                                解析诗词
+                            </button>
+                        </div>
+
+                        <button id="next-poem" class="nav-btn right-nav">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+
+                    <div class="explanation-section">
+                        <div class="chat-container" id="poem-explanation">
+                            <!-- AI explanations will be inserted here -->
                         </div>
                     </div>
                 </div>
@@ -237,5 +261,266 @@
     <script src="../../js/profile.js"></script>
     <script src="../../js/education-level.js"></script>
     <script src="script.js"></script>
+
+    <style>
+        .filter-section {
+            margin-bottom: 2rem;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-group select {
+            min-width: 200px;
+        }
+        
+        .poem-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            margin: 2rem 0;
+            position: relative;
+        }
+        
+        .nav-btn {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .nav-btn:hover {
+            transform: scale(1.2);
+        }
+        
+        .poem-card {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .poem-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .poem-info {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        
+        .poem-info span {
+            margin: 0 0.5rem;
+        }
+        
+        .poem-content {
+            font-size: 1.2rem;
+            line-height: 2;
+            text-align: center;
+            flex-grow: 1;
+            margin-bottom: 2rem;
+        }
+        
+        #explain-poem {
+            align-self: center;
+        }
+        
+        .explanation-section {
+            margin-top: 2rem;
+        }
+        
+        .explanation-section .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+    </style>
+
+    <script>
+        // Poem display and interaction logic
+        let currentPoemIndex = 0;
+        let poemResults = [];
+        
+        // Initialize dropdowns
+        async function initializeDropdowns() {
+            try {
+                // Fetch distinct values for each dropdown
+                const dynastyResponse = await fetch('/api/db/query/chinese_poem');
+                const dynastyData = await dynastyResponse.json();
+                
+                if (dynastyData.success) {
+                    const poems = dynastyData.data;
+                    
+                    // Get distinct values
+                    const dynasties = [...new Set(poems.map(p => p.Dynasty))].filter(Boolean);
+                    const authors = [...new Set(poems.map(p => p.Author))].filter(Boolean);
+                    const titles = [...new Set(poems.map(p => p.Title))].filter(Boolean);
+                    
+                    // Populate dropdowns
+                    populateDropdown('dynasty-select', dynasties);
+                    populateDropdown('author-select', authors);
+                    populateDropdown('title-select', titles);
+                }
+            } catch (error) {
+                console.error('Error initializing dropdowns:', error);
+            }
+        }
+        
+        function populateDropdown(id, values) {
+            const select = document.getElementById(id);
+            const defaultOption = select.firstElementChild;
+            select.innerHTML = '';
+            select.appendChild(defaultOption);
+            
+            values.sort().forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                select.appendChild(option);
+            });
+        }
+        
+        // Update dropdowns based on selection
+        document.getElementById('dynasty-select').addEventListener('change', async function(e) {
+            const dynasty = e.target.value;
+            if (dynasty) {
+                const response = await fetch('/api/db/query/chinese_poem');
+                const data = await response.json();
+                if (data.success) {
+                    const poems = data.data.filter(p => p.Dynasty === dynasty);
+                    const authors = [...new Set(poems.map(p => p.Author))].filter(Boolean);
+                    const titles = [...new Set(poems.map(p => p.Title))].filter(Boolean);
+                    
+                    populateDropdown('author-select', authors);
+                    populateDropdown('title-select', titles);
+                }
+            }
+        });
+        
+        document.getElementById('author-select').addEventListener('change', async function(e) {
+            const author = e.target.value;
+            if (author) {
+                const response = await fetch('/api/db/query/chinese_poem');
+                const data = await response.json();
+                if (data.success) {
+                    const poems = data.data.filter(p => p.Author === author);
+                    const titles = [...new Set(poems.map(p => p.Title))].filter(Boolean);
+                    
+                    populateDropdown('title-select', titles);
+                }
+            }
+        });
+        
+        // Query and display poems
+        document.getElementById('query-poem').addEventListener('click', async function() {
+            const dynasty = document.getElementById('dynasty-select').value;
+            const author = document.getElementById('author-select').value;
+            const title = document.getElementById('title-select').value;
+            
+            try {
+                const response = await fetch('/api/db/query/chinese_poem');
+                const data = await response.json();
+                
+                if (data.success) {
+                    poemResults = data.data.filter(poem => {
+                        return (!dynasty || poem.Dynasty === dynasty) &&
+                               (!author || poem.Author === author) &&
+                               (!title || poem.Title === title);
+                    });
+                    
+                    currentPoemIndex = 0;
+                    displayCurrentPoem();
+                }
+            } catch (error) {
+                console.error('Error querying poems:', error);
+            }
+        });
+        
+        function displayCurrentPoem() {
+            if (poemResults.length === 0) {
+                document.getElementById('poem-title').textContent = '未找到符合条件的诗词';
+                document.getElementById('poem-dynasty').textContent = '';
+                document.getElementById('poem-author').textContent = '';
+                document.getElementById('poem-text').textContent = '';
+                return;
+            }
+            
+            const poem = poemResults[currentPoemIndex];
+            document.getElementById('poem-title').textContent = poem.Title;
+            document.getElementById('poem-dynasty').textContent = poem.Dynasty;
+            document.getElementById('poem-author').textContent = poem.Author;
+            document.getElementById('poem-text').textContent = poem.Poem;
+            
+            // Update navigation buttons
+            document.getElementById('prev-poem').style.visibility = currentPoemIndex > 0 ? 'visible' : 'hidden';
+            document.getElementById('next-poem').style.visibility = currentPoemIndex < poemResults.length - 1 ? 'visible' : 'hidden';
+        }
+        
+        // Navigation handlers
+        document.getElementById('prev-poem').addEventListener('click', function() {
+            if (currentPoemIndex > 0) {
+                currentPoemIndex--;
+                displayCurrentPoem();
+            }
+        });
+        
+        document.getElementById('next-poem').addEventListener('click', function() {
+            if (currentPoemIndex < poemResults.length - 1) {
+                currentPoemIndex++;
+                displayCurrentPoem();
+            }
+        });
+        
+        // Poem explanation
+        document.getElementById('explain-poem').addEventListener('click', async function() {
+            if (poemResults.length === 0) return;
+            
+            const poem = poemResults[currentPoemIndex];
+            const educationLevel = document.getElementById('profile-display').textContent;
+            
+            const explanationContainer = document.getElementById('poem-explanation');
+            explanationContainer.innerHTML = '<div class="message message-ai"><p>正在分析诗词，请稍候...</p></div>';
+            
+            try {
+                // Get the chat container and add user's request
+                const chatMessages = document.getElementById('chinese-chat-messages');
+                const userMessage = `请帮我解析这首诗：${poem.Title}（${poem.Dynasty} ${poem.Author}）：${poem.Poem}`;
+                
+                // Add user message to chat
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'message message-user';
+                userMessageDiv.innerHTML = `<p>${userMessage}</p>`;
+                chatMessages.appendChild(userMessageDiv);
+                
+                // Trigger the existing chat functionality
+                const event = new CustomEvent('explain-poem', {
+                    detail: {
+                        question: userMessage,
+                        educationLevel: educationLevel
+                    }
+                });
+                document.dispatchEvent(event);
+            } catch (error) {
+                console.error('Error explaining poem:', error);
+                explanationContainer.innerHTML = '<div class="message message-ai"><p>抱歉，解析诗词时出现错误。</p></div>';
+            }
+        });
+        
+        // Initialize dropdowns when page loads
+        document.addEventListener('DOMContentLoaded', initializeDropdowns);
+    </script>
 </body>
 </html> 
