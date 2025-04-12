@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initQuizGenerator();
     initFormulaSelector();
     initMathVisualizer();
+    initVisualization();
 });
 
 /**
@@ -1275,4 +1276,222 @@ function initMathVisualizer() {
             });
         }
     }
+}
+
+// Math concepts by education level
+const mathConcepts = {
+    elementary: {
+        'basic-numbers': '数的认识与运算',
+        'fractions': '分数与小数',
+        'basic-geometry': '基本几何图形',
+        'measurement': '测量与单位',
+        'basic-statistics': '简单统计图表'
+    },
+    middle: {
+        'linear-functions': '一次函数',
+        'quadratic-functions': '二次函数',
+        'geometry-2d': '平面几何',
+        'algebra-basics': '代数基础',
+        'probability': '概率统计',
+        'triangles': '三角形性质'
+    },
+    high: {
+        'advanced-functions': '高等函数',
+        'trigonometry': '三角函数',
+        'calculus-basics': '微积分基础',
+        'vectors': '向量与空间',
+        'complex-numbers': '复数',
+        'probability-advanced': '概率与统计进阶'
+    }
+};
+
+// Visualization functions for each concept
+const visualizations = {
+    // Elementary School
+    'basic-numbers': function(container) {
+        const data = [{
+            type: 'scatter',
+            mode: 'markers+lines',
+            x: Array.from({length: 10}, (_, i) => i + 1),
+            y: Array.from({length: 10}, (_, i) => i + 1),
+            marker: {size: 12, color: 'rgb(67, 97, 238)'},
+            name: '数列'
+        }];
+        const layout = {
+            title: '数的序列与关系',
+            xaxis: {title: '序号'},
+            yaxis: {title: '数值'},
+            showlegend: false
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+    'fractions': function(container) {
+        const data = [{
+            values: [1, 1, 1, 1],
+            labels: ['1/4', '1/4', '1/4', '1/4'],
+            type: 'pie',
+            marker: {
+                colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
+            }
+        }];
+        const layout = {
+            title: '分数的可视化表示',
+            height: 400,
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+    'basic-geometry': function(container) {
+        const shapes = [
+            {type: 'rect', x0: 1, y0: 1, x1: 3, y1: 3},
+            {type: 'circle', x0: 4, y0: 1, x1: 6, y1: 3},
+            {type: 'path', path: 'M 7 1 L 9 3 L 7 3 Z'}
+        ];
+        const layout = {
+            title: '基本几何图形',
+            xaxis: {range: [0, 10]},
+            yaxis: {range: [0, 4]},
+            shapes: shapes,
+            showlegend: false
+        };
+        Plotly.newPlot(container, [], layout);
+    },
+
+    // Middle School
+    'linear-functions': function(container) {
+        const x = Array.from({length: 21}, (_, i) => i - 10);
+        const data = [{
+            x: x,
+            y: x.map(x => 2 * x + 1),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'y = 2x + 1'
+        }];
+        const layout = {
+            title: '一次函数图像',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+    'quadratic-functions': function(container) {
+        const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
+        const data = [{
+            x: x,
+            y: x.map(x => x * x),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'y = x²'
+        }];
+        const layout = {
+            title: '二次函数图像',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    // High School
+    'trigonometry': function(container) {
+        const x = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
+        const data = [
+            {
+                x: x,
+                y: x.map(x => Math.sin(x)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'sin(x)'
+            },
+            {
+                x: x,
+                y: x.map(x => Math.cos(x)),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'cos(x)'
+            }
+        ];
+        const layout = {
+            title: '三角函数图像',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+    'calculus-basics': function(container) {
+        const x = Array.from({length: 100}, (_, i) => i * (4 / 99) - 2);
+        const data = [
+            {
+                x: x,
+                y: x.map(x => x * x),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'f(x) = x²'
+            },
+            {
+                x: x,
+                y: x.map(x => 2 * x),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'f\'(x) = 2x'
+            }
+        ];
+        const layout = {
+            title: '函数及其导数',
+            xaxis: {title: 'x'},
+            yaxis: {title: 'y'},
+            showlegend: true
+        };
+        Plotly.newPlot(container, data, layout);
+    }
+};
+
+// Initialize visualization section
+function initVisualization() {
+    const visualizerTopic = document.getElementById('visualizer-topic');
+    const loadVisualizationBtn = document.getElementById('load-visualization');
+    const visualizationContent = document.getElementById('visualization-content');
+
+    // Get education level from profile
+    function getEducationLevel() {
+        const profileText = document.getElementById('profile-display').textContent;
+        if (profileText.includes('小学')) return 'elementary';
+        if (profileText.includes('初中')) return 'middle';
+        if (profileText.includes('高中')) return 'high';
+        return 'middle'; // Default to middle school
+    }
+
+    // Populate concepts based on education level
+    function populateConcepts() {
+        const level = getEducationLevel();
+        const concepts = mathConcepts[level];
+        
+        visualizerTopic.innerHTML = Object.entries(concepts)
+            .map(([value, label]) => `<option value="${value}">${label}</option>`)
+            .join('');
+    }
+
+    // Load visualization
+    function loadVisualization() {
+        const selectedConcept = visualizerTopic.value;
+        if (visualizations[selectedConcept]) {
+            visualizations[selectedConcept](visualizationContent);
+        }
+    }
+
+    // Event listeners
+    loadVisualizationBtn.addEventListener('click', loadVisualization);
+    
+    // Initialize
+    populateConcepts();
+    
+    // Load first visualization
+    if (visualizerTopic.options.length > 0) {
+        loadVisualization();
+    }
+
+    // Update concepts when profile changes
+    document.addEventListener('profileUpdated', populateConcepts);
 } 
