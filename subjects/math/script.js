@@ -3188,6 +3188,13 @@ function initCommonFormulas() {
             ]
         },
         '三角函数': {
+            middle: [
+                { name: '正弦', formula: 'sin A = \\frac{对边}{斜边}', explanation: '直角三角形中，某一锐角的对边与斜边的比值。例如：30°角的正弦值为0.5，表示对边是斜边的一半' },
+                { name: '余弦', formula: 'cos A = \\frac{邻边}{斜边}', explanation: '直角三角形中，某一锐角的邻边与斜边的比值。例如：60°角的余弦值为0.5，表示邻边是斜边的一半' },
+                { name: '正切', formula: 'tan A = \\frac{对边}{邻边} = \\frac{sin A}{cos A}', explanation: '直角三角形中，某一锐角的对边与邻边的比值。例如：45°角的正切值为1，表示对边等于邻边' },
+                { name: '特殊角值', formula: '\\begin{array}{l} sin30° = \\frac{1}{2}, sin45° = \\frac{\\sqrt{2}}{2}, sin60° = \\frac{\\sqrt{3}}{2} \\\\ cos30° = \\frac{\\sqrt{3}}{2}, cos45° = \\frac{\\sqrt{2}}{2}, cos60° = \\frac{1}{2} \\\\ tan30° = \\frac{1}{\\sqrt{3}}, tan45° = 1, tan60° = \\sqrt{3} \\end{array}', explanation: '常用角度的三角函数值，这些值在解题时经常使用' },
+                { name: '解直角三角形步骤', formula: '\\begin{array}{l} 1. \\ 确定已知边角 \\\\ 2. \\ 选择合适的函数关系 \\\\ 3. \\ 列式计算未知量 \\end{array}', explanation: '例如：已知直角三角形斜边c=5，一个锐角A=30°，求对边a。解：a = c × sinA = 5 × 0.5 = 2.5' }
+            ],
             high: [
                 { name: '同角三角函数关系', formula: '\\sin²θ + \\cos²θ = 1, \\tan θ = \\frac{\\sin θ}{\\cos θ}', explanation: '基本三角恒等式。例如：sin²30° + cos²30° = 1' },
                 { name: '和角公式(正弦)', formula: '\\sin(A+B) = \\sin A\\cos B + \\cos A\\sin B', explanation: '两角和的正弦。例如：sin(90°+30°) = sin90°cos30° + cos90°sin30°' },
@@ -3197,6 +3204,12 @@ function initCommonFormulas() {
             ]
         },
         '数列': {
+            middle: [
+                { name: '等差数列', formula: '\\begin{array}{l} a_n = a_1 + (n-1)d \\\\ d = a_2 - a_1 = a_3 - a_2 = ... \\end{array}', explanation: '相邻两项的差相等的数列。例如：2,5,8,11,...中，首项a₁=2，公差d=3' },
+                { name: '等差数列求和', formula: 'S_n = \\frac{n(a_1 + a_n)}{2} = \\frac{n(2a_1 + (n-1)d)}{2}', explanation: '前n项和公式。例如：1,3,5,7,9的和为25' },
+                { name: '等比数列', formula: '\\begin{array}{l} a_n = a_1q^{n-1} \\\\ q = \\frac{a_2}{a_1} = \\frac{a_3}{a_2} = ... \\end{array}', explanation: '相邻两项的比值相等的数列。例如：2,6,18,54,...中，首项a₁=2，公比q=3' },
+                { name: '等比数列求和', formula: 'S_n = \\frac{a_1(1-q^n)}{1-q} = a_1\\frac{q^n-1}{q-1}', explanation: '前n项和公式。例如：2,6,18,54的和为80' }
+            ],
             high: [
                 { name: '等差数列求和', formula: 'S_n = \\frac{n(a_1 + a_n)}{2} = \\frac{n(2a_1 + (n-1)d)}{2}', explanation: '首项a₁，公差d，项数n。例如：1,3,5,7,9的和为25' },
                 { name: '等比数列求和', formula: 'S_n = \\frac{a_1(1-q^n)}{1-q} = \\frac{a_1(q^n-1)}{q-1}', explanation: '首项a₁，公比q，项数n。例如：2,6,18,54的和为80' },
@@ -3204,6 +3217,12 @@ function initCommonFormulas() {
             ]
         },
         '解析几何': {
+            middle: [
+                { name: '直线的点斜式方程', formula: 'y - y_1 = k(x - x_1)', explanation: '已知直线过点(x₁,y₁)且斜率为k。例如：过点(2,3)且斜率为2的直线方程为y - 3 = 2(x - 2)' },
+                { name: '直线的斜截式方程', formula: 'y = kx + b', explanation: 'k为斜率，b为y轴截距。例如：y = 2x + 1表示斜率为2，y轴截距为1的直线' },
+                { name: '两点式方程', formula: '\\frac{y - y_1}{y_2 - y_1} = \\frac{x - x_1}{x_2 - x_1}', explanation: '已知直线过两点(x₁,y₁)和(x₂,y₂)。例如：过点(1,2)和(3,6)的直线方程' },
+                { name: '两点间距离', formula: 'd = \\sqrt{(x_2-x_1)^2 + (y_2-y_1)^2}', explanation: '计算平面上两点之间的距离。例如：(0,0)到(3,4)的距离为5' }
+            ],
             high: [
                 { name: '两点距离公式', formula: 'd = \\sqrt{(x_2-x_1)² + (y_2-y_1)²}', explanation: '平面上两点间的距离。例如：(0,0)到(3,4)的距离为5' },
                 { name: '直线一般式方程', formula: 'Ax + By + C = 0', explanation: '直线的一般形式。例如：2x + 3y + 6 = 0' },
