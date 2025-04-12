@@ -1206,46 +1206,204 @@ const visualizations = {
 
     // Middle School Visualizations
     'linear-functions': function(container) {
-        const x = Array.from({length: 21}, (_, i) => i - 10);
-        const data = [{
-            x: x,
-            y: x.map(x => 2 * x + 1),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'y = 2x + 1'
-        }];
-        const layout = {
-            title: '一次函数图像',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 21}, (_, i) => i - 10);
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => 2 * x + 1),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = 2x + 1 (k>0)',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => -1.5 * x + 2),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = -1.5x + 2 (k<0)',
+                    line: { color: 'rgb(114, 9, 183)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = x (k=1, b=0)',
+                    line: { color: 'rgb(86, 11, 173)' }
+                }
+            ];
+            
+            const layout = {
+                title: '一次函数图像比较',
+                xaxis: {title: 'x', zeroline: true},
+                yaxis: {title: 'y', zeroline: true},
+                showlegend: true,
+                autosize: true,
+                annotations: [
+                    {
+                        x: 0,
+                        y: 1,
+                        text: 'b = 1',
+                        showarrow: true,
+                        arrowhead: 2
+                    },
+                    {
+                        x: 0,
+                        y: 2,
+                        text: 'b = 2',
+                        showarrow: true,
+                        arrowhead: 2
+                    }
+                ]
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>一次函数解析</h4>
+                <p><strong>函数形式：</strong> y = kx + b</p>
+                <ul>
+                    <li><strong>斜率 k 的影响：</strong>
+                        <ul>
+                            <li>k > 0：函数图像向右上方倾斜，k 越大，倾斜程度越大</li>
+                            <li>k < 0：函数图像向右下方倾斜，|k| 越大，倾斜程度越大</li>
+                            <li>k = 0：函数图像是水平直线</li>
+                        </ul>
+                    </li>
+                    <li><strong>截距 b 的影响：</strong>
+                        <ul>
+                            <li>b 决定函数图像与 y 轴的交点坐标 (0, b)</li>
+                            <li>b > 0：图像向上平移 b 个单位</li>
+                            <li>b < 0：图像向下平移 |b| 个单位</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>距离-时间关系：</strong> 匀速运动中，距离(s) = 速度(v) × 时间(t) + 初始位置(s₀)</li>
+                    <li><strong>温度转换：</strong> 摄氏度(C) = 5/9 × (华氏度(F) - 32)</li>
+                    <li><strong>商品定价：</strong> 总价 = 单价 × 数量 + 固定成本</li>
+                    <li><strong>手机资费：</strong> 月费 = 通话时长 × 费率 + 月租费</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating linear-functions visualization:', error);
+            throw error;
+        }
     },
 
     'quadratic-functions': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
             const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
-            const data = [{
-                x: x,
-                y: x.map(x => x * x),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = x²'
-            }];
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => x * x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = x² (a=1)',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => -0.5 * x * x + 2),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = -0.5x² + 2 (a<0)',
+                    line: { color: 'rgb(114, 9, 183)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => 2 * x * x - 1),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = 2x² - 1 (a>1)',
+                    line: { color: 'rgb(86, 11, 173)' }
+                }
+            ];
+            
             const layout = {
-                title: '二次函数图像',
-                xaxis: {title: 'x'},
-                yaxis: {title: 'y'},
+                title: '二次函数图像比较',
+                xaxis: {title: 'x', zeroline: true},
+                yaxis: {title: 'y', zeroline: true},
                 showlegend: true,
-                autosize: true
+                autosize: true,
+                annotations: [
+                    {
+                        x: 0,
+                        y: 2,
+                        text: '顶点 (0,2)',
+                        showarrow: true,
+                        arrowhead: 2
+                    },
+                    {
+                        x: 0,
+                        y: -1,
+                        text: '顶点 (0,-1)',
+                        showarrow: true,
+                        arrowhead: 2
+                    }
+                ]
             };
+
             const config = {
                 responsive: true,
                 displayModeBar: true
             };
+
             Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>二次函数解析</h4>
+                <p><strong>标准形式：</strong> y = ax² + bx + c</p>
+                <ul>
+                    <li><strong>系数 a 的影响：</strong>
+                        <ul>
+                            <li>a > 0：开口向上的抛物线，a 越大，抛物线越窄</li>
+                            <li>a < 0：开口向下的抛物线，|a| 越大，抛物线越窄</li>
+                            <li>|a| < 1：抛物线变宽</li>
+                            <li>|a| > 1：抛物线变窄</li>
+                        </ul>
+                    </li>
+                    <li><strong>系数 b 的影响：</strong>
+                        <ul>
+                            <li>影响对称轴的位置：x = -b/(2a)</li>
+                            <li>影响顶点的横坐标</li>
+                        </ul>
+                    </li>
+                    <li><strong>常数项 c 的影响：</strong>
+                        <ul>
+                            <li>决定抛物线与y轴的交点(0,c)</li>
+                            <li>影响顶点的纵坐标</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>物体抛射：</strong> 高度 = -4.9t² + v₀t + h₀（重力作用下的运动）</li>
+                    <li><strong>聚光灯光束：</strong> 横截面形成的抛物线</li>
+                    <li><strong>桥梁设计：</strong> 悬索桥的钢缆形状</li>
+                    <li><strong>经济学：</strong> 边际收益或成本函数</li>
+                    <li><strong>信号处理：</strong> 声波或电磁波的调制</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating quadratic-functions visualization:', error);
             throw error;
@@ -1253,19 +1411,105 @@ const visualizations = {
     },
 
     'geometry-2d': function(container) {
-        const shapes = [
-            {type: 'rect', x0: 0, y0: 0, x1: 2, y1: 2, line: {color: 'blue'}, fillcolor: 'rgba(67, 97, 238, 0.2)'},
-            {type: 'circle', x0: 3, y0: 0, x1: 5, y1: 2, line: {color: 'purple'}, fillcolor: 'rgba(114, 9, 183, 0.2)'},
-            {type: 'path', path: 'M 6 0 L 8 0 L 7 2 Z', line: {color: 'green'}, fillcolor: 'rgba(86, 11, 173, 0.2)'}
-        ];
-        const layout = {
-            title: '平面几何图形',
-            xaxis: {range: [-1, 9]},
-            yaxis: {range: [-1, 3]},
-            shapes: shapes,
-            showlegend: false
-        };
-        Plotly.newPlot(container, [], layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            // Create multiple geometric shapes
+            const shapes = [
+                // Rectangle
+                {type: 'rect', x0: 0, y0: 0, x1: 2, y1: 2, 
+                 line: {color: 'blue'}, fillcolor: 'rgba(67, 97, 238, 0.2)',
+                 label: '正方形<br>边长=2'},
+                
+                // Circle
+                {type: 'circle', x0: 3, y0: 0, x1: 5, y1: 2,
+                 line: {color: 'purple'}, fillcolor: 'rgba(114, 9, 183, 0.2)',
+                 label: '圆<br>半径=1'},
+                
+                // Triangle
+                {type: 'path', path: 'M 6 0 L 8 0 L 7 2 Z',
+                 line: {color: 'green'}, fillcolor: 'rgba(86, 11, 173, 0.2)',
+                 label: '三角形<br>底=2, 高=2'}
+            ];
+
+            const data = [];
+            const annotations = shapes.map((shape, i) => ({
+                x: shape.x0 ? (shape.x0 + shape.x1) / 2 : shape.path.split('L')[1].split(' ')[1],
+                y: -0.5,
+                text: shape.label,
+                showarrow: false,
+                font: { size: 12 }
+            }));
+
+            const layout = {
+                title: '平面几何图形及其性质',
+                xaxis: {range: [-1, 9], zeroline: true},
+                yaxis: {range: [-1, 3], zeroline: true},
+                shapes: shapes,
+                annotations: annotations,
+                showlegend: false,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>平面几何解析</h4>
+                <p><strong>基本图形及其性质：</strong></p>
+                <ul>
+                    <li><strong>正方形：</strong>
+                        <ul>
+                            <li>四条边相等，四个角都是90°</li>
+                            <li>周长 = 4a（a为边长）</li>
+                            <li>面积 = a²</li>
+                            <li>对角线长 = a√2</li>
+                        </ul>
+                    </li>
+                    <li><strong>圆：</strong>
+                        <ul>
+                            <li>圆周上的点到圆心距离相等</li>
+                            <li>周长 = 2πr（r为半径）</li>
+                            <li>面积 = πr²</li>
+                            <li>圆周角 = 对应圆心角的一半</li>
+                        </ul>
+                    </li>
+                    <li><strong>三角形：</strong>
+                        <ul>
+                            <li>内角和 = 180°</li>
+                            <li>面积 = (底×高)/2</li>
+                            <li>外角 = 其他两个内角之和</li>
+                            <li>三边关系：任意两边之和大于第三边</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>建筑设计：</strong> 房屋布局、结构设计</li>
+                    <li><strong>园林规划：</strong> 绿地面积计算</li>
+                    <li><strong>工程制图：</strong> 机械零件设计</li>
+                    <li><strong>艺术创作：</strong> 图案设计、构图</li>
+                    <li><strong>地图测绘：</strong> 土地面积计算</li>
+                </ul>
+                <h4>重要定理</h4>
+                <ul>
+                    <li><strong>勾股定理：</strong> 直角三角形中，a² + b² = c²</li>
+                    <li><strong>相似三角形：</strong> 对应角相等，对应边成比例</li>
+                    <li><strong>圆的切线：</strong> 切线垂直于切点的半径</li>
+                    <li><strong>平行线：</strong> 同位角、内错角相等</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating geometry visualization:', error);
+            throw error;
+        }
     },
 
     'algebra-basics': function(container) {
@@ -1303,28 +1547,94 @@ const visualizations = {
     },
 
     'probability': function(container) {
-        const x = Array.from({length: 11}, (_, i) => i);
-        const y = x.map(n => {
-            let coef = 1;
-            for(let i = 0; i < n; i++) coef *= (10-i)/(i+1);
-            return coef;
-        });
-        const data = [{
-            type: 'bar',
-            x: x,
-            y: y,
-            marker: {
-                color: 'rgb(67, 97, 238)'
-            },
-            name: '概率分布'
-        }];
-        const layout = {
-            title: '二项分布 n=10, p=0.5',
-            xaxis: {title: '成功次数'},
-            yaxis: {title: '概率'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            // 创建二项分布数据
+            function binomialProbability(n, p, k) {
+                let coef = 1;
+                for(let i = 0; i < k; i++) coef *= (n-i)/(i+1);
+                return coef * Math.pow(p, k) * Math.pow(1-p, n-k);
+            }
+
+            const n = 10; // 试验次数
+            const probabilities = [0.3, 0.5, 0.7]; // 不同成功概率
+            const k = Array.from({length: n+1}, (_, i) => i);
+
+            const data = probabilities.map(p => ({
+                x: k,
+                y: k.map(k => binomialProbability(n, p, k)),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: `p = ${p}`,
+                line: { shape: 'spline' }
+            }));
+
+            const layout = {
+                title: '二项分布概率质量函数',
+                xaxis: {
+                    title: '成功次数 k',
+                    tickmode: 'linear',
+                    tick0: 0,
+                    dtick: 1
+                },
+                yaxis: {
+                    title: '概率 P(X = k)',
+                    range: [0, 0.4]
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>概率与统计解析</h4>
+                <p><strong>二项分布 B(n,p)：</strong></p>
+                <ul>
+                    <li><strong>参数说明：</strong>
+                        <ul>
+                            <li>n：试验次数</li>
+                            <li>p：单次试验成功概率</li>
+                            <li>k：成功次数</li>
+                        </ul>
+                    </li>
+                    <li><strong>概率质量函数：</strong>
+                        <ul>
+                            <li>P(X = k) = C(n,k) * p^k * (1-p)^(n-k)</li>
+                            <li>期望值：E(X) = np</li>
+                            <li>方差：Var(X) = np(1-p)</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>质量控制：</strong> 产品合格率检测</li>
+                    <li><strong>医学研究：</strong> 药物治愈率分析</li>
+                    <li><strong>市场调研：</strong> 消费者行为预测</li>
+                    <li><strong>教育评估：</strong> 考试及格率分析</li>
+                    <li><strong>保险精算：</strong> 风险事件发生概率</li>
+                </ul>
+                <h4>概率分布特征</h4>
+                <ul>
+                    <li><strong>对称性：</strong> 当p=0.5时，分布关于np对称</li>
+                    <li><strong>偏斜性：</strong> p≠0.5时，分布呈现偏斜</li>
+                    <li><strong>峰度：</strong> n越大，曲线越平滑</li>
+                    <li><strong>极限性质：</strong> n很大时趋近于正态分布</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating probability visualization:', error);
+            throw error;
+        }
     },
 
     'triangles': function(container) {
@@ -1379,57 +1689,261 @@ const visualizations = {
     },
 
     'trigonometry': function(container) {
-        const x = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
-        const data = [
-            {
-                x: x,
-                y: x.map(x => Math.sin(x)),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'sin(x)'
-            },
-            {
-                x: x,
-                y: x.map(x => Math.cos(x)),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'cos(x)'
-            }
-        ];
-        const layout = {
-            title: '三角函数',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => Math.sin(x)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'sin(x)',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => Math.cos(x)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'cos(x)',
+                    line: { color: 'rgb(114, 9, 183)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => Math.tan(x)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'tan(x)',
+                    line: { color: 'rgb(86, 11, 173)' },
+                    visible: 'legendonly'  // Hidden by default
+                }
+            ];
+            
+            const layout = {
+                title: '三角函数图像比较',
+                xaxis: {
+                    title: 'x',
+                    zeroline: true,
+                    ticktext: ['0', 'π/2', 'π', '3π/2', '2π'],
+                    tickvals: [0, Math.PI/2, Math.PI, 3*Math.PI/2, 2*Math.PI]
+                },
+                yaxis: {
+                    title: 'y',
+                    zeroline: true,
+                    range: [-2, 2]
+                },
+                showlegend: true,
+                autosize: true,
+                annotations: [
+                    {
+                        x: Math.PI/2,
+                        y: 1,
+                        text: 'sin(π/2) = 1',
+                        showarrow: true,
+                        arrowhead: 2
+                    },
+                    {
+                        x: Math.PI,
+                        y: -1,
+                        text: 'sin(π) = 0',
+                        showarrow: true,
+                        arrowhead: 2
+                    }
+                ]
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>三角函数解析</h4>
+                <p><strong>基本三角函数：</strong></p>
+                <ul>
+                    <li><strong>正弦函数 sin(x)：</strong>
+                        <ul>
+                            <li>周期：2π</li>
+                            <li>值域：[-1, 1]</li>
+                            <li>特殊点：sin(0) = 0, sin(π/2) = 1, sin(π) = 0, sin(3π/2) = -1</li>
+                        </ul>
+                    </li>
+                    <li><strong>余弦函数 cos(x)：</strong>
+                        <ul>
+                            <li>周期：2π</li>
+                            <li>值域：[-1, 1]</li>
+                            <li>特殊点：cos(0) = 1, cos(π/2) = 0, cos(π) = -1, cos(3π/2) = 0</li>
+                        </ul>
+                    </li>
+                    <li><strong>正切函数 tan(x)：</strong>
+                        <ul>
+                            <li>周期：π</li>
+                            <li>值域：(-∞, +∞)</li>
+                            <li>无定义点：x = π/2 + nπ（n为整数）</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>建筑设计：</strong> 计算斜坡角度、屋顶倾斜度</li>
+                    <li><strong>导航系统：</strong> GPS定位、航海导航</li>
+                    <li><strong>声波分析：</strong> 音乐合成、声音处理</li>
+                    <li><strong>电子工程：</strong> 交流电信号分析</li>
+                    <li><strong>天文计算：</strong> 行星运动轨道、日出日落时间</li>
+                </ul>
+                <h4>重要公式</h4>
+                <ul>
+                    <li>sin²x + cos²x = 1</li>
+                    <li>tan(x) = sin(x)/cos(x)</li>
+                    <li>sin(A+B) = sin(A)cos(B) + cos(A)sin(B)</li>
+                    <li>cos(A+B) = cos(A)cos(B) - sin(A)sin(B)</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating trigonometry visualization:', error);
+            throw error;
+        }
     },
 
     'calculus-basics': function(container) {
-        const x = Array.from({length: 100}, (_, i) => i * (4 / 99) - 2);
-        const data = [
-            {
-                x: x,
-                y: x.map(x => x * x),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'f(x) = x²'
-            },
-            {
-                x: x,
-                y: x.map(x => 2 * x),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'f\'(x) = 2x'
-            }
-        ];
-        const layout = {
-            title: '函数及其导数',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 100}, (_, i) => i * (4 / 99) - 2);
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => x * x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'f(x) = x²',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => 2 * x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'f\'(x) = 2x',
+                    line: { color: 'rgb(114, 9, 183)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => (1/3) * x * x * x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: '原函数 F(x) = x³/3',
+                    line: { color: 'rgb(86, 11, 173)' }
+                }
+            ];
+            
+            const layout = {
+                title: '函数、导数与原函数关系',
+                xaxis: {
+                    title: 'x',
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    zeroline: true
+                },
+                showlegend: true,
+                autosize: true,
+                annotations: [
+                    {
+                        x: 1,
+                        y: 1,
+                        text: 'f(1) = 1',
+                        showarrow: true,
+                        arrowhead: 2
+                    },
+                    {
+                        x: 1,
+                        y: 2,
+                        text: 'f\'(1) = 2',
+                        showarrow: true,
+                        arrowhead: 2
+                    }
+                ]
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>微积分基础解析</h4>
+                <p><strong>核心概念：</strong></p>
+                <ul>
+                    <li><strong>导数：</strong>
+                        <ul>
+                            <li>定义：f'(x) = lim[h→0] (f(x+h) - f(x))/h</li>
+                            <li>几何意义：函数在某点的切线斜率</li>
+                            <li>物理意义：瞬时变化率</li>
+                        </ul>
+                    </li>
+                    <li><strong>积分：</strong>
+                        <ul>
+                            <li>定积分：∫[a,b] f(x)dx = F(b) - F(a)</li>
+                            <li>几何意义：曲线下的面积</li>
+                            <li>物理意义：累积量</li>
+                        </ul>
+                    </li>
+                    <li><strong>微积分基本定理：</strong>
+                        <ul>
+                            <li>导数和积分是互逆运算</li>
+                            <li>如果F'(x) = f(x)，则∫f(x)dx = F(x) + C</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>物理学：</strong>
+                        <ul>
+                            <li>速度是位移对时间的导数</li>
+                            <li>加速度是速度对时间的导数</li>
+                            <li>位移是速度对时间的积分</li>
+                        </ul>
+                    </li>
+                    <li><strong>经济学：</strong>
+                        <ul>
+                            <li>边际成本是总成本的导数</li>
+                            <li>总收益是边际收益的积分</li>
+                        </ul>
+                    </li>
+                    <li><strong>工程应用：</strong>
+                        <ul>
+                            <li>热传导分析</li>
+                            <li>流体力学计算</li>
+                            <li>电磁场强度分析</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>常见导数公式</h4>
+                <ul>
+                    <li>(x^n)' = nx^(n-1)</li>
+                    <li>(sin x)' = cos x</li>
+                    <li>(e^x)' = e^x</li>
+                    <li>(ln x)' = 1/x</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating calculus visualization:', error);
+            throw error;
+        }
     },
 
     'vectors': function(container) {
@@ -1650,4 +2164,30 @@ function initVisualization() {
         }
     `;
     document.head.appendChild(style);
-} 
+}
+
+// Add styles for the concept explanations
+const style = document.createElement('style');
+style.textContent = `
+    .concept-explanation {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .concept-explanation h4 {
+        color: var(--primary-color);
+        margin-bottom: 15px;
+    }
+    .concept-explanation ul {
+        padding-left: 20px;
+    }
+    .concept-explanation li {
+        margin-bottom: 8px;
+    }
+    .concept-explanation strong {
+        color: var(--primary-color-dark);
+    }
+`;
+document.head.appendChild(style); 
