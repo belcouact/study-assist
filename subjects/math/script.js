@@ -42,8 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initMathAssistant();
     initQuizGenerator();
     initFormulaSelector();
-    initMathVisualizer();
-    initVisualization();
+    
+    // Initialize visualization with a small delay to ensure proper setup
+    setTimeout(() => {
+        initVisualization();
+    }, 100);
 });
 
 /**
@@ -1052,232 +1055,6 @@ function initFormulaSelector() {
     }
 }
 
-/**
- * Initialize math concept visualizer
- */
-function initMathVisualizer() {
-    const loadButton = document.getElementById('load-visualization');
-    const visualizationContainer = document.getElementById('visualization-container');
-    const topicSelect = document.getElementById('visualizer-topic');
-    
-    if (loadButton && visualizationContainer && topicSelect) {
-        loadButton.addEventListener('click', () => {
-            const topic = topicSelect.value;
-            
-            // Show loading state
-            visualizationContainer.innerHTML = '<div class="text-center"><p>Loading visualization...</p></div>';
-            
-            // Simulate loading delay
-            setTimeout(() => {
-                // For this demo, we'll just render some placeholder visualizations
-                renderVisualization(topic);
-            }, 1000);
-        });
-        
-        // Function to render visualization
-        function renderVisualization(topic) {
-            let visualization = '';
-            
-            switch (topic) {
-                case 'function-graphs':
-                    visualization = renderFunctionGraphs();
-                    break;
-                case 'geometric-shapes':
-                    visualization = renderGeometricShapes();
-                    break;
-                case 'trigonometric-functions':
-                    visualization = renderTrigonometricFunctions();
-                    break;
-                case 'statistical-distributions':
-                    visualization = renderStatisticalDistributions();
-                    break;
-                default:
-                    visualization = '<p>Visualization not available.</p>';
-            }
-            
-            visualizationContainer.innerHTML = visualization;
-            
-            // Initialize any interactive elements
-            initInteractiveVisualizations();
-        }
-        
-        // Function to render function graphs
-        function renderFunctionGraphs() {
-            return `
-                <div class="visualization-content">
-                    <h3>Function Graphs</h3>
-                    <div class="graph-container">
-                        <img src="../../assets/images/function-graph-placeholder.svg" alt="Function Graph" class="graph-image">
-                        <div class="graph-controls">
-                            <div class="form-group">
-                                <label for="function-select">Select Function</label>
-                                <select id="function-select" class="form-control">
-                                    <option value="linear">Linear: f(x) = mx + b</option>
-                                    <option value="quadratic">Quadratic: f(x) = ax² + bx + c</option>
-                                    <option value="cubic">Cubic: f(x) = ax³ + bx² + cx + d</option>
-                                    <option value="exponential">Exponential: f(x) = aˣ</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Function Parameters</label>
-                                <div class="parameter-sliders">
-                                    <div class="parameter-slider">
-                                        <label for="param-a">a: <span id="param-a-value">1</span></label>
-                                        <input type="range" id="param-a" min="-5" max="5" step="0.1" value="1">
-                                    </div>
-                                    <div class="parameter-slider">
-                                        <label for="param-b">b: <span id="param-b-value">0</span></label>
-                                        <input type="range" id="param-b" min="-5" max="5" step="0.1" value="0">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="visualization-info">
-                        <p>Explore how changing parameters affects the graph of different functions.</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Function to render geometric shapes
-        function renderGeometricShapes() {
-            return `
-                <div class="visualization-content">
-                    <h3>Geometric Shapes</h3>
-                    <div class="shapes-container">
-                        <img src="../../assets/images/geometric-shapes-placeholder.svg" alt="Geometric Shapes" class="shapes-image">
-                        <div class="shapes-controls">
-                            <div class="form-group">
-                                <label for="shape-select">Select Shape</label>
-                                <select id="shape-select" class="form-control">
-                                    <option value="triangle">Triangle</option>
-                                    <option value="square">Square</option>
-                                    <option value="circle">Circle</option>
-                                    <option value="polygon">Regular Polygon</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Shape Properties</label>
-                                <div class="shape-properties">
-                                    <div class="property-input">
-                                        <label for="shape-size">Size:</label>
-                                        <input type="range" id="shape-size" min="50" max="200" value="100">
-                                    </div>
-                                    <div class="property-input">
-                                        <label for="shape-sides">Sides (for polygon):</label>
-                                        <input type="number" id="shape-sides" min="3" max="12" value="5">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="visualization-info">
-                        <p>Explore properties of different geometric shapes including area, perimeter, and angles.</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Function to render trigonometric functions
-        function renderTrigonometricFunctions() {
-            return `
-                <div class="visualization-content">
-                    <h3>Trigonometric Functions</h3>
-                    <div class="trig-container">
-                        <img src="../../assets/images/trigonometric-functions-placeholder.svg" alt="Trigonometric Functions" class="trig-image">
-                        <div class="trig-controls">
-                            <div class="form-group">
-                                <label for="trig-function">Select Function</label>
-                                <select id="trig-function" class="form-control">
-                                    <option value="sin">Sine: sin(x)</option>
-                                    <option value="cos">Cosine: cos(x)</option>
-                                    <option value="tan">Tangent: tan(x)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Function Parameters</label>
-                                <div class="parameter-sliders">
-                                    <div class="parameter-slider">
-                                        <label for="amplitude">Amplitude (A): <span id="amplitude-value">1</span></label>
-                                        <input type="range" id="amplitude" min="0.1" max="3" step="0.1" value="1">
-                                    </div>
-                                    <div class="parameter-slider">
-                                        <label for="frequency">Frequency (B): <span id="frequency-value">1</span></label>
-                                        <input type="range" id="frequency" min="0.1" max="3" step="0.1" value="1">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="visualization-info">
-                        <p>Explore how trigonometric functions behave and their relationships to the unit circle.</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Function to render statistical distributions
-        function renderStatisticalDistributions() {
-            return `
-                <div class="visualization-content">
-                    <h3>Statistical Distributions</h3>
-                    <div class="stats-container">
-                        <img src="../../assets/images/statistical-distribution-placeholder.svg" alt="Statistical Distribution" class="stats-image">
-                        <div class="stats-controls">
-                            <div class="form-group">
-                                <label for="distribution-type">Distribution Type</label>
-                                <select id="distribution-type" class="form-control">
-                                    <option value="normal">Normal Distribution</option>
-                                    <option value="uniform">Uniform Distribution</option>
-                                    <option value="binomial">Binomial Distribution</option>
-                                    <option value="poisson">Poisson Distribution</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Distribution Parameters</label>
-                                <div class="parameter-inputs">
-                                    <div class="parameter-input">
-                                        <label for="mean">Mean (μ):</label>
-                                        <input type="number" id="mean" min="0" max="100" value="50">
-                                    </div>
-                                    <div class="parameter-input">
-                                        <label for="std-dev">Standard Deviation (σ):</label>
-                                        <input type="number" id="std-dev" min="1" max="30" value="10">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="visualization-info">
-                        <p>Explore different statistical distributions and how their parameters affect their shape.</p>
-                    </div>
-                </div>
-            `;
-        }
-        
-        // Function to initialize interactive elements
-        function initInteractiveVisualizations() {
-            // For a real implementation, this would include code to make
-            // the visualizations interactive, potentially using libraries
-            // like D3.js, Chart.js, or GeoGebra
-            
-            // For this demo, we'll just add some basic slider interactions
-            const sliders = visualizationContainer.querySelectorAll('input[type="range"]');
-            
-            sliders.forEach(slider => {
-                const valueDisplay = document.getElementById(`${slider.id}-value`);
-                
-                if (valueDisplay) {
-                    slider.addEventListener('input', () => {
-                        valueDisplay.textContent = slider.value;
-                    });
-                }
-            });
-        }
-    }
-}
-
 // Math concepts by education level
 const mathConcepts = {
     elementary: {
@@ -1767,7 +1544,29 @@ function initVisualization() {
                 // Wait for the container to be properly added to the DOM
                 setTimeout(() => {
                     try {
-                        visualizations[selectedConcept](plotContainer);
+                        // Check if container still exists before plotting
+                        if (document.getElementById('plot-container')) {
+                            visualizations[selectedConcept](plotContainer);
+                            
+                            // Add a class to mark this as a valid visualization
+                            plotContainer.classList.add('visualization-active');
+                            
+                            // Set up a mutation observer to prevent unwanted changes
+                            const observer = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    if (mutation.type === 'childList' && 
+                                        !visualizationContainer.querySelector('.visualization-active')) {
+                                        // If our visualization was removed, reapply it
+                                        visualizations[selectedConcept](plotContainer);
+                                    }
+                                });
+                            });
+                            
+                            observer.observe(visualizationContainer, {
+                                childList: true,
+                                subtree: true
+                            });
+                        }
                     } catch (plotError) {
                         console.error('Error creating plot:', plotError);
                         visualizationContainer.innerHTML = `
