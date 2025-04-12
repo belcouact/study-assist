@@ -546,16 +546,34 @@
                 userMessageDiv.className = 'message message-user';
                 userMessageDiv.innerHTML = `<p>${userMessage}</p>`;
                 chatMessages.appendChild(userMessageDiv);
+
+                // Build system message based on education level
+                let systemMessage = '你是一位专业的语文教师，擅长解析古诗词。';
+                if (educationLevel.includes('小学')) {
+                    systemMessage += '你需要用简单易懂的语言，通过生动的例子来解释诗词，避免使用复杂的文学术语。重点解释字面意思和基本情感。';
+                } else if (educationLevel.includes('初中')) {
+                    systemMessage += '你需要用适中的语言解释诗词，可以引入基本的文学术语，解释写作手法和意象，但要确保解释清晰。';
+                } else if (educationLevel.includes('高中')) {
+                    systemMessage += '你可以深入分析诗词的艺术特色，使用专业的文学术语，探讨深层的思想内涵和艺术价值。';
+                }
                 
-                // Send question to DeepSeek API
+                // Send question to DeepSeek API with correct format
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        question: userMessage,
-                        educationLevel: educationLevel
+                        messages: [
+                            {
+                                role: "system",
+                                content: systemMessage
+                            },
+                            {
+                                role: "user",
+                                content: userMessage
+                            }
+                        ]
                     })
                 });
                 
@@ -564,16 +582,17 @@
                 }
                 
                 const data = await response.json();
+                const aiResponse = data.choices[0].message.content;
                 
                 // Display the AI response in both containers
                 const aiMessageDiv = document.createElement('div');
                 aiMessageDiv.className = 'message message-ai';
-                aiMessageDiv.innerHTML = `<p>${data.answer}</p>`;
+                aiMessageDiv.innerHTML = `<p>${aiResponse}</p>`;
                 chatMessages.appendChild(aiMessageDiv);
                 
                 explanationContainer.innerHTML = `
                     <div class="message message-ai">
-                        <p>${data.answer}</p>
+                        <p>${aiResponse}</p>
                     </div>
                 `;
                 
@@ -581,7 +600,7 @@
                 explanationSection.scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
                 console.error('Error explaining poem:', error);
-                explanationContainer.innerHTML = '<div class="message message-ai"><p>抱歉，解析诗词时出现错误。</p></div>';
+                explanationContainer.innerHTML = '<div class="message message-ai"><p>抱歉，解析诗词时出现错误。请稍后再试。</p></div>';
             }
         });
         
