@@ -3163,39 +3163,12 @@ function initCommonFormulas() {
                 { name: '绝对值不等式', formula: '|x| < a \\Leftrightarrow -a < x < a', explanation: '绝对值小于a等价于x在(-a,a)区间内，例如：|x| < 2表示-2 < x < 2' }
             ],
             high: [
-                { name: '二次方程求根公式', formula: 'x = (-b ± √(b² - 4ac)) / (2a)', explanation: '解二次方程ax² + bx + c = 0' },
-                { name: '韦达定理', formula: 'x₁ + x₂ = -b/a, x₁x₂ = c/a', explanation: '二次方程的根与系数的关系' },
-                { name: '等比数列求和', formula: 'Sₙ = a₁(1-q^n)/(1-q)', explanation: '首项为a₁，公比为q的等比数列前n项和' }
-            ]
-        },
-        '几何': {
-            elementary: [
-                { name: '长方形周长', formula: 'C = 2(a + b)', explanation: '长方形的周长等于长和宽的和的2倍，其中a为长，b为宽。例如：长3米，宽2米的长方形周长为10米' },
-                { name: '正方形周长', formula: 'C = 4a', explanation: '正方形的周长等于边长的4倍，其中a为边长。例如：边长5米的正方形周长为20米' },
-                { name: '圆的周长', formula: 'C = 2πr', explanation: '圆的周长等于直径乘以π，其中r为半径。例如：半径2米的圆周长约为12.57米' },
-                { name: '长方形面积', formula: 'S = a × b', explanation: '长方形的面积等于长乘以宽，其中a为长，b为宽。例如：长4米，宽3米的长方形面积为12平方米' },
-                { name: '正方形面积', formula: 'S = a²', explanation: '正方形的面积等于边长的平方，其中a为边长。例如：边长5米的正方形面积为25平方米' },
-                { name: '三角形面积', formula: 'S = \\frac{1}{2}ah', explanation: '三角形的面积等于底乘以高的一半，其中a为底边长，h为高。例如：底6米，高4米的三角形面积为12平方米' },
-                { name: '平行四边形面积', formula: 'S = ah', explanation: '平行四边形的面积等于底乘以高，其中a为底边长，h为高。例如：底8米，高3米的平行四边形面积为24平方米' },
-                { name: '梯形面积', formula: 'S = \\frac{1}{2}h(a + b)', explanation: '梯形的面积等于上底加下底乘以高的一半，其中a、b为上下底，h为高。例如：上底3米，下底5米，高4米的梯形面积为16平方米' },
-                { name: '长方体体积', formula: 'V = abc', explanation: '长方体的体积等于长乘以宽乘以高，其中a为长，b为宽，c为高。例如：长3米，宽2米，高4米的长方体体积为24立方米' },
-                { name: '正方体体积', formula: 'V = a³', explanation: '正方体的体积等于边长的立方，其中a为边长。例如：边长2米的正方体体积为8立方米' },
-                { name: '圆柱体积', formula: 'V = πr²h', explanation: '圆柱的体积等于底面积乘以高，其中r为底面半径，h为高。例如：底面半径2米，高3米的圆柱体积约为37.7立方米' }
-            ],
-            middle: [
-                { name: '圆弧长公式', formula: 'L = \\frac{nπr}{180}', explanation: '圆弧长度等于弧度数除以180度乘以π再乘以半径，其中n为圆心角的度数，r为半径。例如：90度圆心角，半径2米的圆弧长约为3.14米' },
-                { name: '扇形面积', formula: 'S = \\frac{nπr²}{360}', explanation: '扇形面积等于圆心角度数除以360度乘以圆的面积，其中n为圆心角的度数，r为半径。例如：90度圆心角，半径2米的扇形面积约为3.14平方米' },
-                { name: '垂径定理', formula: 'h² = p × q', explanation: '圆中，垂直于弦的直径将弦分成两段，两段长度的乘积等于垂线长度的平方。其中h为垂线长，p和q为弦的两段长度' },
-                { name: '长方体表面积', formula: 'S = 2(ab + bc + ac)', explanation: '长方体的表面积等于长宽、长高、宽高的乘积之和的2倍。例如：长3米，宽2米，高4米的长方体表面积为52平方米' },
-                { name: '圆柱表面积', formula: 'S = 2πr² + 2πrh', explanation: '圆柱的表面积等于两个底面积加上侧面积。例如：底面半径2米，高3米的圆柱表面积约为62.8平方米' },
-                { name: '圆柱侧面积', formula: 'S = 2πrh', explanation: '圆柱的侧面积等于底面周长乘以高。例如：底面半径2米，高3米的圆柱侧面积约为37.7平方米' },
-                { name: '圆锥体积', formula: 'V = \\frac{1}{3}πr²h', explanation: '圆锥的体积等于底面积乘以高的三分之一。例如：底面半径3米，高4米的圆锥体积约为37.7立方米' },
-                { name: '圆锥表面积', formula: 'S = πr² + πr\\sqrt{r² + h²}', explanation: '圆锥的表面积等于底面积加上侧面积。例如：底面半径3米，高4米的圆锥表面积约为75.4平方米' }
-            ],
-            high: [
-                { name: '球的体积', formula: 'V = 4πr³/3', explanation: 'r为球的半径' },
-                { name: '圆锥体积', formula: 'V = πr²h/3', explanation: 'r为底面半径，h为高' },
-                { name: '正弦定理', formula: 'a/sinA = b/sinB = c/sinC = 2R', explanation: '三角形中，各边与其对角正弦值的比相等' }
+                { name: '向量模长', formula: '|\\vec{a}| = \\sqrt{x² + y² + z²}', explanation: '三维向量的长度。例如：向量(3,4,0)的模长为5' },
+                { name: '向量点积', formula: '\\vec{a}·\\vec{b} = |\\vec{a}||\\vec{b}|\\cos θ', explanation: '两向量夹角的余弦与模长的乘积。例如：(1,0)·(0,1) = 0表示垂直' },
+                { name: '向量叉积', formula: '\\vec{a}×\\vec{b} = (y₁z₂-z₁y₂, z₁x₂-x₁z₂, x₁y₂-y₁x₂)', explanation: '得到垂直于两向量的新向量。例如：(1,0,0)×(0,1,0)=(0,0,1)' },
+                { name: '复数的模', formula: '|a + bi| = \\sqrt{a² + b²}', explanation: '复数在复平面上的距离。例如：|3 + 4i| = 5' },
+                { name: '复数共轭', formula: 'z = a + bi, \\bar{z} = a - bi', explanation: '将虚部变号。例如：2+3i的共轭为2-3i' },
+                { name: '欧拉公式', formula: 'e^{iθ} = \\cos θ + i\\sin θ', explanation: '连接复数与三角函数。例如：e^{iπ} = -1' }
             ]
         },
         '函数': {
@@ -3208,9 +3181,46 @@ function initCommonFormulas() {
                 { name: '反比例函数', formula: 'y = \\frac{k}{x}', explanation: 'k为比例系数，k>0时在第一、三象限，k<0时在第二、四象限。例如：y = 1/x' }
             ],
             high: [
-                { name: '指数函数', formula: 'y = aˣ', explanation: 'a为常数且a>0,a≠1' },
-                { name: '对数函数', formula: 'y = log_a x', explanation: 'a为常数且a>0,a≠1' },
-                { name: '三角函数', formula: 'y = sin x', explanation: '正弦函数，x为弧度' }
+                { name: '奇函数', formula: 'f(-x) = -f(x)', explanation: '关于原点对称。例如：f(x)=x³是奇函数' },
+                { name: '偶函数', formula: 'f(-x) = f(x)', explanation: '关于y轴对称。例如：f(x)=x²是偶函数' },
+                { name: '周期函数', formula: 'f(x + T) = f(x)', explanation: 'T为最小正周期。例如：sin(x)的周期为2π' },
+                { name: '复合函数', formula: '(f∘g)(x) = f(g(x))', explanation: '函数复合。例如：f(x)=x², g(x)=x+1，则f(g(x))=(x+1)²' }
+            ]
+        },
+        '三角函数': {
+            high: [
+                { name: '同角三角函数关系', formula: '\\sin²θ + \\cos²θ = 1, \\tan θ = \\frac{\\sin θ}{\\cos θ}', explanation: '基本三角恒等式。例如：sin²30° + cos²30° = 1' },
+                { name: '和角公式(正弦)', formula: '\\sin(A+B) = \\sin A\\cos B + \\cos A\\sin B', explanation: '两角和的正弦。例如：sin(90°+30°) = sin90°cos30° + cos90°sin30°' },
+                { name: '和角公式(余弦)', formula: '\\cos(A+B) = \\cos A\\cos B - \\sin A\\sin B', explanation: '两角和的余弦。例如：cos(60°+30°) = cos60°cos30° - sin60°sin30°' },
+                { name: '正弦定理', formula: '\\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C} = 2R', explanation: '三角形中，边与对应角正弦的比值相等。例如：在三角形中，若a=3,sinA=0.5,则b=4时sinB=0.667' },
+                { name: '余弦定理', formula: 'c² = a² + b² - 2ab\\cos C', explanation: '三角形中，一边平方等于其他两边平方和减去它们与夹角余弦的积的两倍。例如：若a=3,b=4,C=60°，则c=5' }
+            ]
+        },
+        '数列': {
+            high: [
+                { name: '等差数列求和', formula: 'S_n = \\frac{n(a_1 + a_n)}{2} = \\frac{n(2a_1 + (n-1)d)}{2}', explanation: '首项a₁，公差d，项数n。例如：1,3,5,7,9的和为25' },
+                { name: '等比数列求和', formula: 'S_n = \\frac{a_1(1-q^n)}{1-q} = \\frac{a_1(q^n-1)}{q-1}', explanation: '首项a₁，公比q，项数n。例如：2,6,18,54的和为80' },
+                { name: '数学归纳法步骤', formula: '1) P(1)成立\\\\2) P(k)→P(k+1)成立', explanation: '证明步骤：1.验证n=1时成立；2.假设n=k时成立，证明n=k+1时也成立。例如：证明1+2+...+n=n(n+1)/2' }
+            ]
+        },
+        '解析几何': {
+            high: [
+                { name: '两点距离公式', formula: 'd = \\sqrt{(x_2-x_1)² + (y_2-y_1)²}', explanation: '平面上两点间的距离。例如：(0,0)到(3,4)的距离为5' },
+                { name: '直线一般式方程', formula: 'Ax + By + C = 0', explanation: '直线的一般形式。例如：2x + 3y + 6 = 0' },
+                { name: '直线点斜式方程', formula: 'y - y_1 = k(x - x_1)', explanation: '过点(x₁,y₁)，斜率为k的直线。例如：过(1,2)斜率为3的直线：y-2=3(x-1)' },
+                { name: '圆的标准方程', formula: '(x - a)² + (y - b)² = r²', explanation: '圆心(a,b)，半径r的圆。例如：(x-1)²+(y-2)²=4表示圆心(1,2)半径2' },
+                { name: '椭圆标准方程', formula: '\\frac{x²}{a²} + \\frac{y²}{b²} = 1', explanation: '长轴2a，短轴2b，焦距2c=2√(a²-b²)。例如：x²/9+y²/4=1' },
+                { name: '双曲线标准方程', formula: '\\frac{x²}{a²} - \\frac{y²}{b²} = 1', explanation: '实轴2a，虚轴2b，渐近线y=±(b/a)x。例如：x²/4-y²/9=1' },
+                { name: '抛物线标准方程', formula: 'y² = 2px', explanation: '焦点到准线的距离为p/2。例如：y²=4x表示焦点(1,0)' }
+            ]
+        },
+        '微积分': {
+            high: [
+                { name: '导数定义', formula: 'f\'(x) = \\lim_{h→0}\\frac{f(x+h)-f(x)}{h}', explanation: '函数在某点的瞬时变化率。例如：y=x²在x=2处的导数为4' },
+                { name: '乘法求导法则', formula: '(uv)\' = u\'v + uv\'', explanation: '两函数乘积的导数。例如：(x²sinx)\'=2xsinx+x²cosx' },
+                { name: '除法求导法则', formula: '(\\frac{u}{v})\' = \\frac{u\'v - uv\'}{v²}', explanation: '两函数商的导数。例如：(x/sinx)\'=(sinx-xcosx)/sin²x' },
+                { name: '不定积分', formula: '\\int f(x)dx = F(x) + C', explanation: '原函数。例如：∫xdx=x²/2+C' },
+                { name: '定积分', formula: '\\int_a^b f(x)dx = F(b) - F(a)', explanation: '函数在区间上的和的极限。例如：∫₀¹x²dx=1/3' }
             ]
         },
         '统计概率': {
@@ -3223,9 +3233,10 @@ function initCommonFormulas() {
                 { name: '概率公式', formula: 'P(A) = \\frac{n(A)}{n(S)}', explanation: '事件A发生的可能性大小，等于事件A的基本事件数除以样本空间的基本事件总数。例如：抛骰子出现偶数的概率为3/6=1/2' }
             ],
             high: [
-                { name: '排列数', formula: 'A_n^m = \\frac{n!}{(n-m)!}', explanation: 'n个不同元素中取m个排列的方法数' },
-                { name: '组合数', formula: 'C_n^m = \\frac{n!}{m!(n-m)!}', explanation: 'n个不同元素中取m个组合的方法数' },
-                { name: '二项分布', formula: 'P(X=k) = C_n^k p^k (1-p)^{n-k}', explanation: 'n次独立重复试验中成功k次的概率' }
+                { name: '排列数', formula: 'A_n^m = \\frac{n!}{(n-m)!}', explanation: 'n个不同元素中取m个排列的方法数。例如：5个人选3个座位的方法数为60' },
+                { name: '组合数', formula: 'C_n^m = \\frac{n!}{m!(n-m)!}', explanation: 'n个不同元素中取m个组合的方法数。例如：5个人选3个代表的方法数为10' },
+                { name: '二项分布', formula: 'P(X=k) = C_n^k p^k (1-p)^{n-k}', explanation: 'n次独立重复试验中成功k次的概率。例如：抛3次硬币，恰好2次正面的概率为3/8' },
+                { name: '正态分布', formula: 'f(x) = \\frac{1}{\\sigma\\sqrt{2π}}e^{-\\frac{(x-μ)²}{2\\sigma²}}', explanation: '均值μ，标准差σ的正态分布密度函数。例如：标准正态分布μ=0,σ=1' }
             ]
         },
         '其他': {
