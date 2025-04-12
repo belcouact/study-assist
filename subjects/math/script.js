@@ -1376,6 +1376,67 @@ const visualizations = {
     'measurement': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
+            // Create interactive unit conversion calculator
+            const calculatorDiv = document.createElement('div');
+            calculatorDiv.className = 'unit-calculator';
+            calculatorDiv.innerHTML = `
+                <div class="calculator-input">
+                    <input type="number" id="unitValue" value="1" min="0" step="0.1">
+                    <select id="fromUnit">
+                        <option value="mm">毫米 (mm)</option>
+                        <option value="cm">厘米 (cm)</option>
+                        <option value="dm">分米 (dm)</option>
+                        <option value="m">米 (m)</option>
+                    </select>
+                    <span>转换为</span>
+                    <select id="toUnit">
+                        <option value="mm">毫米 (mm)</option>
+                        <option value="cm" selected>厘米 (cm)</option>
+                        <option value="dm">分米 (dm)</option>
+                        <option value="m">米 (m)</option>
+                    </select>
+                    <div id="conversionResult" class="result">= 10 厘米</div>
+                </div>
+            `;
+            container.appendChild(calculatorDiv);
+
+            // Add event listeners for interactive conversion
+            const unitValue = calculatorDiv.querySelector('#unitValue');
+            const fromUnit = calculatorDiv.querySelector('#fromUnit');
+            const toUnit = calculatorDiv.querySelector('#toUnit');
+            const result = calculatorDiv.querySelector('#conversionResult');
+
+            function updateConversion() {
+                const value = parseFloat(unitValue.value);
+                const from = fromUnit.value;
+                const to = toUnit.value;
+                
+                // Convert everything to mm first
+                const conversions = {
+                    mm: 1,
+                    cm: 10,
+                    dm: 100,
+                    m: 1000
+                };
+                
+                const inMM = value * conversions[from];
+                const converted = inMM / conversions[to];
+                
+                const unitNames = {
+                    mm: '毫米',
+                    cm: '厘米',
+                    dm: '分米',
+                    m: '米'
+                };
+                
+                result.textContent = `= ${converted.toFixed(2)} ${unitNames[to]}`;
+            }
+
+            unitValue.addEventListener('input', updateConversion);
+            fromUnit.addEventListener('change', updateConversion);
+            toUnit.addEventListener('change', updateConversion);
+
+            // Create visual representation
             const data = [
                 {
                     type: 'bar',
@@ -1386,21 +1447,30 @@ const visualizations = {
                     marker: {
                         color: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 
                                'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
-                    }
+                    },
+                    hovertemplate: '%{x}: %{y}毫米<extra></extra>'
                 }
             ];
             
             const layout = {
                 title: '长度单位换算关系',
-                xaxis: {title: '单位'},
-                yaxis: {title: '毫米数值'},
+                xaxis: {
+                    title: '单位',
+                    showgrid: true
+                },
+                yaxis: {
+                    title: '毫米数值',
+                    showgrid: true
+                },
                 showlegend: false,
-                autosize: true
+                autosize: true,
+                hovermode: 'closest'
             };
 
             const config = {
                 responsive: true,
-                displayModeBar: true
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['lasso2d', 'select2d']
             };
 
             Plotly.newPlot(container, data, layout, config);
@@ -1436,7 +1506,7 @@ const visualizations = {
                     <li>日常物品尺寸描述</li>
                 </ul>
             `;
-            container.parentNode.appendChild(explanationDiv);
+            container.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating measurement visualization:', error);
             throw error;
@@ -1446,41 +1516,112 @@ const visualizations = {
     'basic-statistics': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const data = [
-                {
-                    type: 'bar',
-                    x: ['一月', '二月', '三月', '四月', '五月'],
-                    y: [12, 15, 18, 22, 25],
-                    name: '温度变化',
-                    marker: {
-                        color: 'rgb(67, 97, 238)'
-                    }
-                },
-                {
-                    type: 'scatter',
-                    x: ['一月', '二月', '三月', '四月', '五月'],
-                    y: [12, 15, 18, 22, 25],
-                    name: '趋势线',
-                    line: {
-                        color: 'rgb(114, 9, 183)'
-                    }
+            // Create data input interface
+            const inputDiv = document.createElement('div');
+            inputDiv.className = 'stats-input';
+            inputDiv.innerHTML = `
+                <div class="data-input">
+                    <h4>输入数据</h4>
+                    <input type="number" id="dataInput" placeholder="输入数值" min="0" max="100">
+                    <button id="addData">添加</button>
+                    <button id="clearData">清除</button>
+                    <div id="currentData" class="data-display"></div>
+                </div>
+                <div class="stats-display">
+                    <div>平均值: <span id="mean">-</span></div>
+                    <div>最大值: <span id="max">-</span></div>
+                    <div>最小值: <span id="min">-</span></div>
+                </div>
+            `;
+            container.appendChild(inputDiv);
+
+            let data = [];
+            const dataInput = inputDiv.querySelector('#dataInput');
+            const addButton = inputDiv.querySelector('#addData');
+            const clearButton = inputDiv.querySelector('#clearData');
+            const currentData = inputDiv.querySelector('#currentData');
+            const meanDisplay = inputDiv.querySelector('#mean');
+            const maxDisplay = inputDiv.querySelector('#max');
+            const minDisplay = inputDiv.querySelector('#min');
+
+            function updateStats() {
+                if (data.length === 0) {
+                    meanDisplay.textContent = '-';
+                    maxDisplay.textContent = '-';
+                    minDisplay.textContent = '-';
+                    currentData.textContent = '暂无数据';
+                    return;
                 }
-            ];
-            
-            const layout = {
-                title: '月份温度变化统计',
-                xaxis: {title: '月份'},
-                yaxis: {title: '温度 (°C)'},
-                showlegend: true,
-                autosize: true
-            };
 
-            const config = {
-                responsive: true,
-                displayModeBar: true
-            };
+                const mean = data.reduce((a, b) => a + b, 0) / data.length;
+                const max = Math.max(...data);
+                const min = Math.min(...data);
 
-            Plotly.newPlot(container, data, layout, config);
+                meanDisplay.textContent = mean.toFixed(2);
+                maxDisplay.textContent = max;
+                minDisplay.textContent = min;
+                currentData.textContent = data.join(', ');
+
+                // Update chart
+                const trace1 = {
+                    y: data,
+                    type: 'box',
+                    name: '数据分布',
+                    marker: {color: 'rgb(67, 97, 238)'}
+                };
+
+                const trace2 = {
+                    x: Array.from({length: data.length}, (_, i) => i + 1),
+                    y: data,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    name: '数据趋势',
+                    line: {color: 'rgb(114, 9, 183)'}
+                };
+
+                const layout = {
+                    title: '数据统计分析',
+                    showlegend: true,
+                    autosize: true,
+                    yaxis: {
+                        title: '数值',
+                        zeroline: true
+                    },
+                    xaxis: {
+                        title: '数据点',
+                        zeroline: true
+                    }
+                };
+
+                Plotly.newPlot(container, [trace1, trace2], layout, {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['lasso2d', 'select2d']
+                });
+            }
+
+            addButton.addEventListener('click', () => {
+                const value = parseFloat(dataInput.value);
+                if (!isNaN(value)) {
+                    data.push(value);
+                    dataInput.value = '';
+                    updateStats();
+                }
+            });
+
+            clearButton.addEventListener('click', () => {
+                data = [];
+                updateStats();
+            });
+
+            dataInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addButton.click();
+                }
+            });
+
+            // Initialize empty chart
+            updateStats();
 
             // Add explanation text
             const explanationDiv = document.createElement('div');
@@ -1489,37 +1630,32 @@ const visualizations = {
                 <h4>简单统计图表解析</h4>
                 <p><strong>基本统计概念：</strong></p>
                 <ul>
-                    <li><strong>数据收集：</strong>
+                    <li><strong>数据收集与分析：</strong>
                         <ul>
-                            <li>观察记录数据</li>
-                            <li>整理数据表格</li>
-                            <li>选择合适的图表类型</li>
+                            <li>输入数据：添加您要分析的数值</li>
+                            <li>平均值：所有数据的算术平均</li>
+                            <li>最大值和最小值：数据范围</li>
+                            <li>数据分布：箱线图显示</li>
+                            <li>趋势线：数据变化趋势</li>
                         </ul>
                     </li>
                     <li><strong>图表类型：</strong>
                         <ul>
-                            <li>条形图：比较数量大小</li>
-                            <li>折线图：显示变化趋势</li>
-                            <li>饼图：显示部分与整体</li>
-                        </ul>
-                    </li>
-                    <li><strong>数据分析：</strong>
-                        <ul>
-                            <li>找出最大值和最小值</li>
-                            <li>观察数据变化规律</li>
-                            <li>得出简单结论</li>
+                            <li>箱线图：显示数据分布</li>
+                            <li>折线图：显示数据趋势</li>
+                            <li>实时更新：数据变化即时反映</li>
                         </ul>
                     </li>
                 </ul>
                 <h4>实际应用例子</h4>
                 <ul>
-                    <li>天气温度记录</li>
-                    <li>班级成绩统计</li>
-                    <li>运动记录分析</li>
-                    <li>生活习惯调查</li>
+                    <li>记录并分析每日温度变化</li>
+                    <li>统计班级考试成绩</li>
+                    <li>跟踪个人运动记录</li>
+                    <li>分析消费支出模式</li>
                 </ul>
             `;
-            container.parentNode.appendChild(explanationDiv);
+            container.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating basic-statistics visualization:', error);
             throw error;
