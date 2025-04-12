@@ -23,7 +23,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote']; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "chinese_poem"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -103,6 +103,22 @@ export async function onRequest(context) {
                                 row.English || null,
                                 row.Remark_1 || null,
                                 row.Remark_2 || null
+                            );
+                        }));
+                    } else if (table === 'chinese_poem') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO chinese_poem (Title, Number, Poem, Remark_1, Remark_2, Remark_3, Author, Dynasty)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                row.Title || null,
+                                row.Number || null,
+                                row.Poem || null,
+                                row.Remark_1 || null,
+                                row.Remark_2 || null,
+                                row.Remark_3 || null,
+                                row.Author || null,
+                                row.Dynasty || null
                             );
                         }));
                     }

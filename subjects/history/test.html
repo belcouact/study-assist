@@ -195,6 +195,34 @@
             </div>
             <div id="quoteStatus" class="status"></div>
         </section>
+
+        <!-- Chinese Poem Data Upload Section -->
+        <section class="upload-section">
+            <h2>导入古诗词数据</h2>
+            <input type="file" id="poemFile" class="file-input" accept=".xlsx, .xls">
+            <div class="preview-container">
+                <table id="poemPreview" class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Number</th>
+                            <th>Poem</th>
+                            <th>Remark_1</th>
+                            <th>Remark_2</th>
+                            <th>Remark_3</th>
+                            <th>Author</th>
+                            <th>Dynasty</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="button-group">
+                <button id="previewPoem" class="btn btn-secondary">预览数据</button>
+                <button id="uploadPoem" class="btn btn-primary">上传数据</button>
+            </div>
+            <div id="poemStatus" class="status"></div>
+        </section>
     </div>
 
     <script>
@@ -576,6 +604,100 @@
             status.innerHTML = `<p>${message}</p>`;
             status.className = 'status ' + (isSuccess ? 'success' : 'error');
         }
+
+        // Chinese Poem Data Upload Handling
+        document.getElementById('poemFile').addEventListener('change', function(e) {
+            document.getElementById('uploadPoem').disabled = true;
+        });
+
+        document.getElementById('previewPoem').addEventListener('click', function() {
+            const file = document.getElementById('poemFile').files[0];
+            if (!file) {
+                document.getElementById('poemStatus').textContent = '请先选择文件';
+                document.getElementById('poemStatus').className = 'status error';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                    // Display preview
+                    const tbody = document.getElementById('poemPreview').getElementsByTagName('tbody')[0];
+                    tbody.innerHTML = '';
+                    jsonData.slice(0, 5).forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.Title || ''}</td>
+                            <td>${row.Number || ''}</td>
+                            <td>${row.Poem || ''}</td>
+                            <td>${row.Remark_1 || ''}</td>
+                            <td>${row.Remark_2 || ''}</td>
+                            <td>${row.Remark_3 || ''}</td>
+                            <td>${row.Author || ''}</td>
+                            <td>${row.Dynasty || ''}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+
+                    document.getElementById('poemStatus').textContent = `已预览 ${Math.min(5, jsonData.length)} 条数据，共 ${jsonData.length} 条`;
+                    document.getElementById('poemStatus').className = 'status success';
+                    document.getElementById('uploadPoem').disabled = false;
+                } catch (error) {
+                    document.getElementById('poemStatus').textContent = '预览数据时出错：' + error.message;
+                    document.getElementById('poemStatus').className = 'status error';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        document.getElementById('uploadPoem').addEventListener('click', async function() {
+            const file = document.getElementById('poemFile').files[0];
+            if (!file) {
+                document.getElementById('poemStatus').textContent = '请先选择文件';
+                document.getElementById('poemStatus').className = 'status error';
+                return;
+            }
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                        const response = await fetch('/api/db/upload/chinese_poem', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ data: jsonData })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            document.getElementById('poemStatus').textContent = `成功上传 ${result.insertedCount} 条数据`;
+                            document.getElementById('poemStatus').className = 'status success';
+                        } else {
+                            throw new Error(result.error || '上传失败');
+                        }
+                    } catch (error) {
+                        document.getElementById('poemStatus').textContent = '上传数据时出错：' + error.message;
+                        document.getElementById('poemStatus').className = 'status error';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                document.getElementById('poemStatus').textContent = '处理文件时出错：' + error.message;
+                document.getElementById('poemStatus').className = 'status error';
+            }
+        });
     </script>
 </body>
 </html> 
