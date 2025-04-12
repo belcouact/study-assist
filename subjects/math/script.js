@@ -3280,13 +3280,17 @@ function initCommonFormulas() {
                 color: white;
                 cursor: pointer;
                 transition: all 0.3s ease;
+                font-weight: 500;
             }
             .category-btn:hover {
                 background: var(--primary-color-dark);
+                color: white;
             }
             .category-btn.active {
-                background: var(--primary-color-dark);
+                background: white;
+                color: var(--primary-color);
                 box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                border: 2px solid var(--primary-color);
             }
             .formula-display {
                 margin-top: 20px;
