@@ -1513,37 +1513,102 @@ const visualizations = {
     },
 
     'algebra-basics': function(container) {
-        const x = Array.from({length: 21}, (_, i) => i - 10);
-        const data = [
-            {
-                x: x,
-                y: x.map(x => x),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = x'
-            },
-            {
-                x: x,
-                y: x.map(x => x * x),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = x²'
-            },
-            {
-                x: x,
-                y: x.map(x => Math.abs(x)),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = |x|'
-            }
-        ];
-        const layout = {
-            title: '基础代数函数',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 100}, (_, i) => (i * 5 / 99));
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = x',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => x * x),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = x²',
+                    line: { color: 'rgb(114, 9, 183)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => Math.abs(x)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = |x|',
+                    line: { color: 'rgb(86, 11, 173)' }
+                }
+            ];
+            
+            const layout = {
+                title: '基础代数函数',
+                xaxis: {
+                    title: 'x',
+                    range: [0, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    range: [0, 5],
+                    zeroline: true
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>基础代数函数解析</h4>
+                <p><strong>基本函数及其性质：</strong></p>
+                <ul>
+                    <li><strong>一次函数 (y = x)：</strong>
+                        <ul>
+                            <li>斜率为1的直线</li>
+                            <li>经过原点(0,0)</li>
+                            <li>每增加1个单位，y值增加1</li>
+                        </ul>
+                    </li>
+                    <li><strong>二次函数 (y = x²)：</strong>
+                        <ul>
+                            <li>抛物线形状</li>
+                            <li>对称轴是y轴</li>
+                            <li>顶点在原点(0,0)</li>
+                            <li>随x增大，增长速度加快</li>
+                        </ul>
+                    </li>
+                    <li><strong>绝对值函数 (y = |x|)：</strong>
+                        <ul>
+                            <li>V形图像</li>
+                            <li>对称轴是y轴</li>
+                            <li>顶点在原点(0,0)</li>
+                            <li>所有y值都非负</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>一次函数：</strong> 距离-时间关系、商品定价</li>
+                    <li><strong>二次函数：</strong> 物体抛射、面积计算</li>
+                    <li><strong>绝对值：</strong> 误差分析、距离计算</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating algebra-basics visualization:', error);
+            throw error;
+        }
     },
 
     'probability': function(container) {
@@ -1638,54 +1703,182 @@ const visualizations = {
     },
 
     'triangles': function(container) {
-        const data = [{
-            type: 'scatter',
-            x: [0, 4, 2, 0],
-            y: [0, 0, 3, 0],
-            mode: 'lines+markers',
-            marker: {size: 10},
-            line: {color: 'rgb(67, 97, 238)'},
-            name: '三角形'
-        }];
-        const layout = {
-            title: '三角形的性质',
-            xaxis: {range: [-1, 5]},
-            yaxis: {range: [-1, 4]},
-            showlegend: false,
-            annotations: [
-                {x: 2, y: -0.3, text: '底边: 4', showarrow: false},
-                {x: -0.3, y: 1.5, text: '高: 3', textangle: -90, showarrow: false}
-            ]
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [{
+                type: 'scatter',
+                x: [0, 4, 2, 0],
+                y: [0, 0, 3, 0],
+                mode: 'lines+markers',
+                marker: {size: 10},
+                line: {color: 'rgb(67, 97, 238)'},
+                name: '三角形',
+                fill: 'toself'
+            }];
+            
+            const layout = {
+                title: '三角形的性质',
+                xaxis: {
+                    range: [0, 5],
+                    zeroline: true,
+                    title: 'x'
+                },
+                yaxis: {
+                    range: [0, 5],
+                    zeroline: true,
+                    title: 'y'
+                },
+                showlegend: false,
+                annotations: [
+                    {x: 2, y: -0.3, text: '底边: 4', showarrow: false},
+                    {x: -0.3, y: 1.5, text: '高: 3', textangle: -90, showarrow: false}
+                ]
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>三角形性质解析</h4>
+                <p><strong>基本性质：</strong></p>
+                <ul>
+                    <li><strong>角的性质：</strong>
+                        <ul>
+                            <li>内角和为180°</li>
+                            <li>外角等于其他两个内角的和</li>
+                            <li>等腰三角形的底角相等</li>
+                        </ul>
+                    </li>
+                    <li><strong>边的性质：</strong>
+                        <ul>
+                            <li>任意两边之和大于第三边</li>
+                            <li>任意两边之差小于第三边</li>
+                            <li>等腰三角形两边相等</li>
+                        </ul>
+                    </li>
+                    <li><strong>重要定理：</strong>
+                        <ul>
+                            <li>勾股定理：a² + b² = c²</li>
+                            <li>正弦定理：a/sinA = b/sinB = c/sinC = 2R</li>
+                            <li>余弦定理：c² = a² + b² - 2ab·cosC</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>面积计算公式</h4>
+                <ul>
+                    <li>S = ah/2（底×高÷2）</li>
+                    <li>S = ab·sinC/2（两边×夹角正弦÷2）</li>
+                    <li>S = √[p(p-a)(p-b)(p-c)]（海伦公式，p为半周长）</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating triangles visualization:', error);
+            throw error;
+        }
     },
 
     // High School Visualizations
     'advanced-functions': function(container) {
-        const x = Array.from({length: 100}, (_, i) => (i - 50) / 10);
-        const data = [
-            {
-                x: x,
-                y: x.map(x => Math.exp(x)),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = eˣ'
-            },
-            {
-                x: x,
-                y: x.map(x => Math.log(Math.abs(x) + 0.1)),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'y = ln(x)'
-            }
-        ];
-        const layout = {
-            title: '高等函数',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 100}, (_, i) => (i * 5 / 99));
+            const data = [
+                {
+                    x: x,
+                    y: x.map(x => Math.exp(x)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = eˣ',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    x: x,
+                    y: x.map(x => Math.log(x + 0.1)),
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'y = ln(x)',
+                    line: { color: 'rgb(114, 9, 183)' }
+                }
+            ];
+            
+            const layout = {
+                title: '高等函数',
+                xaxis: {
+                    title: 'x',
+                    range: [0, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    range: [-2, 5],
+                    zeroline: true
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>高等函数解析</h4>
+                <p><strong>指数函数与对数函数：</strong></p>
+                <ul>
+                    <li><strong>指数函数 (y = eˣ)：</strong>
+                        <ul>
+                            <li>e ≈ 2.71828...（自然常数）</li>
+                            <li>恒正值，单调递增</li>
+                            <li>增长速度随x增大而加快</li>
+                            <li>在x = 0处，y = 1</li>
+                        </ul>
+                    </li>
+                    <li><strong>对数函数 (y = ln x)：</strong>
+                        <ul>
+                            <li>是y = eˣ的反函数</li>
+                            <li>定义域为x > 0</li>
+                            <li>在x = 1处，y = 0</li>
+                            <li>增长速度随x增大而减慢</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>指数函数应用：</strong>
+                        <ul>
+                            <li>人口增长模型</li>
+                            <li>复利计算</li>
+                            <li>放射性衰变</li>
+                        </ul>
+                    </li>
+                    <li><strong>对数函数应用：</strong>
+                        <ul>
+                            <li>地震强度计算</li>
+                            <li>声音分贝计算</li>
+                            <li>pH值测定</li>
+                        </ul>
+                    </li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating advanced-functions visualization:', error);
+            throw error;
+        }
     },
 
     'trigonometry': function(container) {
@@ -1947,80 +2140,284 @@ const visualizations = {
     },
 
     'vectors': function(container) {
-        const data = [
-            {
-                type: 'scatter3d',
-                mode: 'lines',
-                x: [0, 2],
-                y: [0, 2],
-                z: [0, 2],
-                line: {color: 'rgb(67, 97, 238)', width: 4},
-                name: '向量 a'
-            },
-            {
-                type: 'scatter3d',
-                mode: 'lines',
-                x: [0, -1],
-                y: [0, 2],
-                z: [0, 1],
-                line: {color: 'rgb(114, 9, 183)', width: 4},
-                name: '向量 b'
-            }
-        ];
-        const layout = {
-            title: '三维向量',
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [
+                {
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: [0, 2],
+                    y: [0, 2],
+                    z: [0, 2],
+                    line: {color: 'rgb(67, 97, 238)', width: 4},
+                    name: '向量 a'
+                },
+                {
+                    type: 'scatter3d',
+                    mode: 'lines',
+                    x: [0, -1],
+                    y: [0, 2],
+                    z: [0, 1],
+                    line: {color: 'rgb(114, 9, 183)', width: 4},
+                    name: '向量 b'
+                }
+            ];
+            
+            const layout = {
+                title: '三维向量',
+                scene: {
+                    xaxis: {range: [-2, 5]},
+                    yaxis: {range: [-2, 5]},
+                    zaxis: {range: [-2, 5]}
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>向量与空间解析</h4>
+                <p><strong>基本概念：</strong></p>
+                <ul>
+                    <li><strong>向量的表示：</strong>
+                        <ul>
+                            <li>方向：指向某一点的箭头</li>
+                            <li>大小：向量的长度</li>
+                            <li>坐标表示：(x, y, z)</li>
+                        </ul>
+                    </li>
+                    <li><strong>向量运算：</strong>
+                        <ul>
+                            <li>加法：平行四边形法则</li>
+                            <li>减法：反向相加</li>
+                            <li>数乘：改变大小和方向</li>
+                            <li>点积：a·b = |a||b|cosθ</li>
+                            <li>叉积：|a×b| = |a||b|sinθ</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用例子</h4>
+                <ul>
+                    <li><strong>物理学：</strong>
+                        <ul>
+                            <li>力的分解与合成</li>
+                            <li>速度和加速度分析</li>
+                            <li>电磁场计算</li>
+                        </ul>
+                    </li>
+                    <li><strong>计算机图形学：</strong>
+                        <ul>
+                            <li>3D建模</li>
+                            <li>动画制作</li>
+                            <li>游戏物理引擎</li>
+                        </ul>
+                    </li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating vectors visualization:', error);
+            throw error;
+        }
     },
 
     'complex-numbers': function(container) {
-        const t = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
-        const data = [
-            {
-                type: 'scatter',
-                mode: 'lines',
-                x: t.map(t => Math.cos(t)),
-                y: t.map(t => Math.sin(t)),
-                name: '单位圆'
-            },
-            {
-                type: 'scatter',
-                mode: 'markers',
-                x: [1, -1, 0, 0],
-                y: [0, 0, 1, -1],
-                marker: {size: 10},
-                name: '特殊点'
-            }
-        ];
-        const layout = {
-            title: '复平面上的单位圆',
-            xaxis: {title: '实部'},
-            yaxis: {title: '虚部'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const t = Array.from({length: 100}, (_, i) => i * (2 * Math.PI / 99));
+            const data = [
+                {
+                    type: 'scatter',
+                    mode: 'lines',
+                    x: t.map(t => Math.cos(t)),
+                    y: t.map(t => Math.sin(t)),
+                    name: '单位圆',
+                    line: { color: 'rgb(67, 97, 238)' }
+                },
+                {
+                    type: 'scatter',
+                    mode: 'markers+text',
+                    x: [1, -1, 0, 0],
+                    y: [0, 0, 1, -1],
+                    text: ['1', '-1', 'i', '-i'],
+                    textposition: 'top right',
+                    marker: {
+                        size: 10,
+                        color: 'rgb(114, 9, 183)'
+                    },
+                    name: '特殊点'
+                }
+            ];
+            
+            const layout = {
+                title: '复平面上的单位圆',
+                xaxis: {
+                    title: '实部',
+                    range: [-2, 2],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: '虚部',
+                    range: [-2, 2],
+                    zeroline: true
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>复数解析</h4>
+                <p><strong>基本概念：</strong></p>
+                <ul>
+                    <li><strong>复数的表示：</strong>
+                        <ul>
+                            <li>代数形式：z = a + bi</li>
+                            <li>三角形式：z = r(cosθ + i·sinθ)</li>
+                            <li>指数形式：z = re^(iθ)</li>
+                        </ul>
+                    </li>
+                    <li><strong>重要性质：</strong>
+                        <ul>
+                            <li>i² = -1</li>
+                            <li>模长：|z| = √(a² + b²)</li>
+                            <li>辐角：θ = arctan(b/a)</li>
+                            <li>共轭复数：z̄ = a - bi</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>运算规则</h4>
+                <ul>
+                    <li><strong>加减法：</strong> 实部虚部分别运算</li>
+                    <li><strong>乘法：</strong> (a+bi)(c+di) = (ac-bd) + (ad+bc)i</li>
+                    <li><strong>除法：</strong> 分子分母同乘共轭复数</li>
+                    <li><strong>欧拉公式：</strong> e^(iθ) = cosθ + i·sinθ</li>
+                </ul>
+                <h4>实际应用</h4>
+                <ul>
+                    <li>电气工程中的交流电分析</li>
+                    <li>量子力学中的波函数</li>
+                    <li>信号处理与控制理论</li>
+                    <li>分形几何学</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating complex-numbers visualization:', error);
+            throw error;
+        }
     },
 
     'probability-advanced': function(container) {
-        const x = Array.from({length: 100}, (_, i) => (i - 50) / 10);
-        const normalDist = x.map(x => (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-(x * x) / 2));
-        const data = [
-            {
-                x: x,
-                y: normalDist,
-                type: 'scatter',
-                mode: 'lines',
-                name: '标准正态分布'
-            }
-        ];
-        const layout = {
-            title: '概率分布',
-            xaxis: {title: 'x'},
-            yaxis: {title: '概率密度'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 100}, (_, i) => (i * 5 / 99));
+            const normalDist = x.map(x => (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-((x-2.5)*(x-2.5)) / 2));
+            const data = [
+                {
+                    x: x,
+                    y: normalDist,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: '标准正态分布',
+                    line: { color: 'rgb(67, 97, 238)' }
+                }
+            ];
+            
+            const layout = {
+                title: '概率分布',
+                xaxis: {
+                    title: 'x',
+                    range: [0, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: '概率密度',
+                    range: [0, 0.5],
+                    zeroline: true
+                },
+                showlegend: true,
+                autosize: true
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+
+            Plotly.newPlot(container, data, layout, config);
+
+            // Add explanation text
+            const explanationDiv = document.createElement('div');
+            explanationDiv.className = 'concept-explanation';
+            explanationDiv.innerHTML = `
+                <h4>高等概率与统计解析</h4>
+                <p><strong>正态分布特征：</strong></p>
+                <ul>
+                    <li><strong>基本性质：</strong>
+                        <ul>
+                            <li>钟形曲线，关于均值对称</li>
+                            <li>均值、中位数、众数相等</li>
+                            <li>68-95-99.7法则</li>
+                            <li>标准正态分布：μ=0，σ=1</li>
+                        </ul>
+                    </li>
+                    <li><strong>概率密度函数：</strong>
+                        <ul>
+                            <li>f(x) = (1/√(2πσ²))e^(-(x-μ)²/2σ²)</li>
+                            <li>μ：均值，决定中心位置</li>
+                            <li>σ：标准差，决定分布宽度</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>统计推断</h4>
+                <ul>
+                    <li><strong>参数估计：</strong>
+                        <ul>
+                            <li>点估计：样本均值、方差</li>
+                            <li>区间估计：置信区间</li>
+                        </ul>
+                    </li>
+                    <li><strong>假设检验：</strong>
+                        <ul>
+                            <li>显著性水平α</li>
+                            <li>p值判断</li>
+                            <li>第一类错误与第二类错误</li>
+                        </ul>
+                    </li>
+                </ul>
+                <h4>实际应用</h4>
+                <ul>
+                    <li>质量控制</li>
+                    <li>医学研究</li>
+                    <li>金融分析</li>
+                    <li>社会调查</li>
+                    <li>自然科学研究</li>
+                </ul>
+            `;
+            container.parentNode.appendChild(explanationDiv);
+        } catch (error) {
+            console.error('Error creating probability-advanced visualization:', error);
+            throw error;
+        }
     }
 };
 
