@@ -1376,31 +1376,36 @@ const visualizations = {
     'measurement': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
+            // Create container for the visualization
+            const visualContainer = document.createElement('div');
+            visualContainer.className = 'visualization-container active';
+            container.appendChild(visualContainer);
+
             // Create interactive unit conversion calculator
             const calculatorDiv = document.createElement('div');
             calculatorDiv.className = 'unit-calculator';
             calculatorDiv.innerHTML = `
-                <div class="calculator-input">
-                    <input type="number" id="unitValue" value="1" min="0" step="0.1">
-                    <select id="fromUnit">
+                <div class="calculator-input" style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
+                    <input type="number" id="unitValue" value="1" min="0" step="0.1" style="width: 100px; padding: 5px;">
+                    <select id="fromUnit" style="padding: 5px; margin: 0 10px;">
                         <option value="mm">毫米 (mm)</option>
                         <option value="cm">厘米 (cm)</option>
                         <option value="dm">分米 (dm)</option>
                         <option value="m">米 (m)</option>
                     </select>
                     <span>转换为</span>
-                    <select id="toUnit">
+                    <select id="toUnit" style="padding: 5px; margin: 0 10px;">
                         <option value="mm">毫米 (mm)</option>
                         <option value="cm" selected>厘米 (cm)</option>
                         <option value="dm">分米 (dm)</option>
                         <option value="m">米 (m)</option>
                     </select>
-                    <div id="conversionResult" class="result">= 10 厘米</div>
+                    <div id="conversionResult" class="result" style="margin-top: 10px; font-size: 1.2em; color: #2196F3;">= 10 厘米</div>
                 </div>
             `;
-            container.appendChild(calculatorDiv);
+            visualContainer.appendChild(calculatorDiv);
 
-            // Add event listeners for interactive conversion
+            // Rest of the measurement function code remains the same
             const unitValue = calculatorDiv.querySelector('#unitValue');
             const fromUnit = calculatorDiv.querySelector('#fromUnit');
             const toUnit = calculatorDiv.querySelector('#toUnit');
@@ -1411,7 +1416,6 @@ const visualizations = {
                 const from = fromUnit.value;
                 const to = toUnit.value;
                 
-                // Convert everything to mm first
                 const conversions = {
                     mm: 1,
                     cm: 10,
@@ -1436,7 +1440,12 @@ const visualizations = {
             fromUnit.addEventListener('change', updateConversion);
             toUnit.addEventListener('change', updateConversion);
 
-            // Create visual representation
+            // Create chart container
+            const chartContainer = document.createElement('div');
+            chartContainer.id = 'measurementChart';
+            chartContainer.style.height = '400px';
+            visualContainer.appendChild(chartContainer);
+
             const data = [
                 {
                     type: 'bar',
@@ -1460,7 +1469,8 @@ const visualizations = {
                 },
                 yaxis: {
                     title: '毫米数值',
-                    showgrid: true
+                    showgrid: true,
+                    type: 'log'
                 },
                 showlegend: false,
                 autosize: true,
@@ -1473,11 +1483,12 @@ const visualizations = {
                 modeBarButtonsToRemove: ['lasso2d', 'select2d']
             };
 
-            Plotly.newPlot(container, data, layout, config);
+            Plotly.newPlot(chartContainer, data, layout, config);
 
             // Add explanation text
             const explanationDiv = document.createElement('div');
             explanationDiv.className = 'concept-explanation';
+            explanationDiv.style.marginTop = '20px';
             explanationDiv.innerHTML = `
                 <h4>测量与单位解析</h4>
                 <p><strong>长度单位：</strong></p>
@@ -1506,7 +1517,7 @@ const visualizations = {
                     <li>日常物品尺寸描述</li>
                 </ul>
             `;
-            container.appendChild(explanationDiv);
+            visualContainer.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating measurement visualization:', error);
             throw error;
@@ -1516,24 +1527,39 @@ const visualizations = {
     'basic-statistics': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
+            // Create container for the visualization
+            const visualContainer = document.createElement('div');
+            visualContainer.className = 'visualization-container active';
+            container.appendChild(visualContainer);
+
             // Create data input interface
             const inputDiv = document.createElement('div');
             inputDiv.className = 'stats-input';
+            inputDiv.style.margin = '20px 0';
+            inputDiv.style.padding = '15px';
+            inputDiv.style.border = '1px solid #ddd';
+            inputDiv.style.borderRadius = '8px';
             inputDiv.innerHTML = `
                 <div class="data-input">
-                    <h4>输入数据</h4>
-                    <input type="number" id="dataInput" placeholder="输入数值" min="0" max="100">
-                    <button id="addData">添加</button>
-                    <button id="clearData">清除</button>
-                    <div id="currentData" class="data-display"></div>
+                    <h4 style="margin-top: 0;">输入数据</h4>
+                    <input type="number" id="dataInput" placeholder="输入数值" min="0" max="100" style="width: 100px; padding: 5px;">
+                    <button id="addData" style="margin: 0 10px; padding: 5px 15px; background-color: #2196F3; color: white; border: none; border-radius: 4px;">添加</button>
+                    <button id="clearData" style="padding: 5px 15px; background-color: #f44336; color: white; border: none; border-radius: 4px;">清除</button>
+                    <div id="currentData" class="data-display" style="margin-top: 10px; font-style: italic;"></div>
                 </div>
-                <div class="stats-display">
-                    <div>平均值: <span id="mean">-</span></div>
-                    <div>最大值: <span id="max">-</span></div>
-                    <div>最小值: <span id="min">-</span></div>
+                <div class="stats-display" style="margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 4px;">平均值: <span id="mean" style="font-weight: bold;">-</span></div>
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 4px;">最大值: <span id="max" style="font-weight: bold;">-</span></div>
+                    <div style="padding: 10px; background: #f5f5f5; border-radius: 4px;">最小值: <span id="min" style="font-weight: bold;">-</span></div>
                 </div>
             `;
-            container.appendChild(inputDiv);
+            visualContainer.appendChild(inputDiv);
+
+            // Create chart container
+            const chartContainer = document.createElement('div');
+            chartContainer.id = 'statsChart';
+            chartContainer.style.height = '400px';
+            visualContainer.appendChild(chartContainer);
 
             let data = [];
             const dataInput = inputDiv.querySelector('#dataInput');
@@ -1550,6 +1576,28 @@ const visualizations = {
                     maxDisplay.textContent = '-';
                     minDisplay.textContent = '-';
                     currentData.textContent = '暂无数据';
+                    
+                    // Show empty state in chart
+                    const emptyTrace = {
+                        type: 'scatter',
+                        x: [],
+                        y: [],
+                        mode: 'markers',
+                        name: '暂无数据'
+                    };
+                    
+                    Plotly.newPlot(chartContainer, [emptyTrace], {
+                        title: '数据统计分析',
+                        showlegend: false,
+                        xaxis: {
+                            title: '数据点',
+                            zeroline: true
+                        },
+                        yaxis: {
+                            title: '数值',
+                            zeroline: true
+                        }
+                    });
                     return;
                 }
 
@@ -1567,7 +1615,10 @@ const visualizations = {
                     y: data,
                     type: 'box',
                     name: '数据分布',
-                    marker: {color: 'rgb(67, 97, 238)'}
+                    marker: {color: 'rgb(67, 97, 238)'},
+                    boxpoints: 'all',
+                    jitter: 0.3,
+                    pointpos: -1.8
                 };
 
                 const trace2 = {
@@ -1593,7 +1644,7 @@ const visualizations = {
                     }
                 };
 
-                Plotly.newPlot(container, [trace1, trace2], layout, {
+                Plotly.newPlot(chartContainer, [trace1, trace2], layout, {
                     responsive: true,
                     displayModeBar: true,
                     modeBarButtonsToRemove: ['lasso2d', 'select2d']
@@ -1626,6 +1677,7 @@ const visualizations = {
             // Add explanation text
             const explanationDiv = document.createElement('div');
             explanationDiv.className = 'concept-explanation';
+            explanationDiv.style.marginTop = '20px';
             explanationDiv.innerHTML = `
                 <h4>简单统计图表解析</h4>
                 <p><strong>基本统计概念：</strong></p>
@@ -1655,7 +1707,7 @@ const visualizations = {
                     <li>分析消费支出模式</li>
                 </ul>
             `;
-            container.appendChild(explanationDiv);
+            visualContainer.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating basic-statistics visualization:', error);
             throw error;
