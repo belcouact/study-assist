@@ -1084,52 +1084,71 @@ const mathConcepts = {
 
 // Visualization functions for each concept
 const visualizations = {
+    // Helper function to ensure container is ready
+    ensureContainer: function(container, title) {
+        if (!container || !document.body.contains(container)) {
+            console.error('Container is not ready:', container);
+            return false;
+        }
+        return true;
+    },
+
     // Elementary School Visualizations
     'basic-numbers': function(container) {
-        if (!container) return;
-        const data = [{
-            type: 'scatter',
-            mode: 'markers+lines',
-            x: Array.from({length: 10}, (_, i) => i + 1),
-            y: Array.from({length: 10}, (_, i) => i + 1),
-            marker: {size: 12, color: 'rgb(67, 97, 238)'},
-            name: '数列'
-        }];
-        const layout = {
-            title: '数的序列与关系',
-            xaxis: {title: '序号'},
-            yaxis: {title: '数值'},
-            showlegend: false,
-            autosize: true
-        };
-        const config = {
-            responsive: true,
-            displayModeBar: true
-        };
-        Plotly.newPlot(container, data, layout, config);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [{
+                type: 'scatter',
+                mode: 'markers+lines',
+                x: Array.from({length: 10}, (_, i) => i + 1),
+                y: Array.from({length: 10}, (_, i) => i + 1),
+                marker: {size: 12, color: 'rgb(67, 97, 238)'},
+                name: '数列'
+            }];
+            const layout = {
+                title: '数的序列与关系',
+                xaxis: {title: '序号'},
+                yaxis: {title: '数值'},
+                showlegend: false,
+                autosize: true
+            };
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+            Plotly.newPlot(container, data, layout, config);
+        } catch (error) {
+            console.error('Error creating basic-numbers visualization:', error);
+            throw error;
+        }
     },
 
     'fractions': function(container) {
-        if (!container) return;
-        const data = [{
-            values: [1, 1, 1, 1],
-            labels: ['1/4', '1/4', '1/4', '1/4'],
-            type: 'pie',
-            marker: {
-                colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
-            }
-        }];
-        const layout = {
-            title: '分数的可视化表示',
-            height: 400,
-            showlegend: true,
-            autosize: true
-        };
-        const config = {
-            responsive: true,
-            displayModeBar: true
-        };
-        Plotly.newPlot(container, data, layout, config);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const data = [{
+                values: [1, 1, 1, 1],
+                labels: ['1/4', '1/4', '1/4', '1/4'],
+                type: 'pie',
+                marker: {
+                    colors: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)', 'rgb(72, 12, 168)']
+                }
+            }];
+            const layout = {
+                title: '分数的可视化表示',
+                height: 400,
+                showlegend: true,
+                autosize: true
+            };
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+            Plotly.newPlot(container, data, layout, config);
+        } catch (error) {
+            console.error('Error creating fractions visualization:', error);
+            throw error;
+        }
     },
 
     'basic-geometry': function(container) {
@@ -1205,21 +1224,32 @@ const visualizations = {
     },
 
     'quadratic-functions': function(container) {
-        const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
-        const data = [{
-            x: x,
-            y: x.map(x => x * x),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'y = x²'
-        }];
-        const layout = {
-            title: '二次函数图像',
-            xaxis: {title: 'x'},
-            yaxis: {title: 'y'},
-            showlegend: true
-        };
-        Plotly.newPlot(container, data, layout);
+        if (!this.ensureContainer(container)) return;
+        try {
+            const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
+            const data = [{
+                x: x,
+                y: x.map(x => x * x),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'y = x²'
+            }];
+            const layout = {
+                title: '二次函数图像',
+                xaxis: {title: 'x'},
+                yaxis: {title: 'y'},
+                showlegend: true,
+                autosize: true
+            };
+            const config = {
+                responsive: true,
+                displayModeBar: true
+            };
+            Plotly.newPlot(container, data, layout, config);
+        } catch (error) {
+            console.error('Error creating quadratic-functions visualization:', error);
+            throw error;
+        }
     },
 
     'geometry-2d': function(container) {
@@ -1525,9 +1555,10 @@ function initVisualization() {
         // Show loading state
         visualizationContainer.innerHTML = '<div class="loading-indicator">正在加载可视化...</div>';
 
-        // Create a new container for Plotly
+        // Create a new container for Plotly with a unique ID
+        const plotContainerId = 'plot-container-' + Date.now();
         const plotContainer = document.createElement('div');
-        plotContainer.id = 'plot-container';
+        plotContainer.id = plotContainerId;
         plotContainer.style.width = '100%';
         plotContainer.style.height = '400px';
 
@@ -1535,60 +1566,40 @@ function initVisualization() {
         visualizationContainer.innerHTML = '';
         visualizationContainer.appendChild(plotContainer);
 
-        try {
-            if (typeof Plotly === 'undefined') {
-                throw new Error('Plotly is not loaded. Please ensure the Plotly library is included.');
-            }
-
-            if (visualizations[selectedConcept]) {
-                // Wait for the container to be properly added to the DOM
-                setTimeout(() => {
-                    try {
-                        // Check if container still exists before plotting
-                        if (document.getElementById('plot-container')) {
-                            visualizations[selectedConcept](plotContainer);
-                            
-                            // Add a class to mark this as a valid visualization
-                            plotContainer.classList.add('visualization-active');
-                            
-                            // Set up a mutation observer to prevent unwanted changes
-                            const observer = new MutationObserver((mutations) => {
-                                mutations.forEach((mutation) => {
-                                    if (mutation.type === 'childList' && 
-                                        !visualizationContainer.querySelector('.visualization-active')) {
-                                        // If our visualization was removed, reapply it
-                                        visualizations[selectedConcept](plotContainer);
-                                    }
-                                });
-                            });
-                            
-                            observer.observe(visualizationContainer, {
-                                childList: true,
-                                subtree: true
-                            });
-                        }
-                    } catch (plotError) {
-                        console.error('Error creating plot:', plotError);
-                        visualizationContainer.innerHTML = `
-                            <div class="error-message">
-                                <p>创建可视化时出现错误：${plotError.message}</p>
-                                <p>请刷新页面后重试</p>
-                            </div>
-                        `;
-                    }
-                }, 0);
-            } else {
-                throw new Error(`没有找到 ${selectedConcept} 的可视化内容`);
-            }
-        } catch (error) {
-            console.error('Visualization error:', error);
+        // Ensure Plotly is loaded
+        if (typeof Plotly === 'undefined') {
             visualizationContainer.innerHTML = `
                 <div class="error-message">
-                    <p>加载可视化时出现错误：${error.message}</p>
-                    <p>请刷新页面后重试</p>
+                    <p>Plotly库未加载，请刷新页面后重试。</p>
                 </div>
             `;
+            return;
         }
+
+        // Wait for the container to be properly added to the DOM
+        requestAnimationFrame(() => {
+            try {
+                const container = document.getElementById(plotContainerId);
+                if (!container) {
+                    throw new Error('Visualization container not found');
+                }
+
+                if (visualizations[selectedConcept]) {
+                    visualizations[selectedConcept](container);
+                    container.classList.add('visualization-active');
+                } else {
+                    throw new Error(`没有找到 ${selectedConcept} 的可视化内容`);
+                }
+            } catch (error) {
+                console.error('Visualization error:', error);
+                visualizationContainer.innerHTML = `
+                    <div class="error-message">
+                        <p>加载可视化时出现错误：${error.message}</p>
+                        <p>请刷新页面后重试</p>
+                    </div>
+                `;
+            }
+        });
     }
 
     // Event listeners
