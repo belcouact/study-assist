@@ -3135,8 +3135,24 @@ style.textContent = `
 document.head.appendChild(style);
 
 function initCommonFormulas() {
-    const formulaSection = document.querySelector('.common-formulas');
-    if (!formulaSection) return;
+    const formulaSection = document.querySelector('.formula-content');
+    if (!formulaSection) {
+        console.error('Formula content container not found');
+        return;
+    }
+
+    // Add MathJax configuration if not already present
+    if (!window.MathJax) {
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    }
 
     // Formula categories
     const categories = {
@@ -3235,11 +3251,17 @@ function initCommonFormulas() {
         }
     };
 
-    // Create category buttons
-    const categoryButtons = document.createElement('div');
-    categoryButtons.className = 'formula-categories';
-    categoryButtons.innerHTML = `
+    // Create category buttons with container
+    const categoryContainer = document.createElement('div');
+    categoryContainer.className = 'formula-section';
+    categoryContainer.innerHTML = `
         <style>
+            .formula-section {
+                background: white;
+                border-radius: 12px;
+                padding: 20px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
             .formula-categories {
                 display: flex;
                 gap: 10px;
@@ -3272,6 +3294,7 @@ function initCommonFormulas() {
                 margin-bottom: 15px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 transition: all 0.3s ease;
+                border: 1px solid #eee;
             }
             .formula-card:hover {
                 box-shadow: 0 4px 8px rgba(0,0,0,0.15);
@@ -3281,6 +3304,7 @@ function initCommonFormulas() {
                 font-weight: bold;
                 color: var(--primary-color);
                 margin-bottom: 8px;
+                font-size: 1.1em;
             }
             .formula-latex {
                 font-family: 'KaTeX_Math', serif;
@@ -3289,14 +3313,22 @@ function initCommonFormulas() {
                 padding: 10px;
                 background: #f8f9fa;
                 border-radius: 4px;
+                text-align: center;
             }
             .formula-explanation {
                 color: #666;
                 font-size: 0.9em;
                 margin-top: 8px;
+                line-height: 1.5;
             }
         </style>
+        <div class="formula-categories"></div>
+        <div class="formula-display"></div>
     `;
+    formulaSection.appendChild(categoryContainer);
+
+    const categoryButtons = categoryContainer.querySelector('.formula-categories');
+    const formulaDisplay = categoryContainer.querySelector('.formula-display');
 
     Object.keys(categories).forEach(category => {
         const btn = document.createElement('button');
@@ -3305,13 +3337,6 @@ function initCommonFormulas() {
         btn.onclick = () => showFormulas(category);
         categoryButtons.appendChild(btn);
     });
-
-    formulaSection.appendChild(categoryButtons);
-
-    // Create formula display area
-    const formulaDisplay = document.createElement('div');
-    formulaDisplay.className = 'formula-display';
-    formulaSection.appendChild(formulaDisplay);
 
     function getEducationLevel() {
         const profileText = document.getElementById('profile-display').textContent;
@@ -3337,7 +3362,7 @@ function initCommonFormulas() {
             card.className = 'formula-card';
             card.innerHTML = `
                 <div class="formula-name">${formula.name}</div>
-                <div class="formula-latex">${formula.formula}</div>
+                <div class="formula-latex">$${formula.formula}$</div>
                 <div class="formula-explanation">${formula.explanation}</div>
             `;
             formulaDisplay.appendChild(card);
@@ -3345,12 +3370,26 @@ function initCommonFormulas() {
 
         // Render LaTeX formulas
         if (window.MathJax) {
-            MathJax.typesetPromise([formulaDisplay]);
+            MathJax.typesetPromise([formulaDisplay]).catch(err => {
+                console.error('MathJax rendering error:', err);
+            });
         }
     }
 
     // Show initial category
     showFormulas('代数');
+
+    // Listen for profile changes
+    const profileDisplay = document.getElementById('profile-display');
+    if (profileDisplay) {
+        const observer = new MutationObserver(() => {
+            const currentActive = categoryButtons.querySelector('.category-btn.active');
+            if (currentActive) {
+                showFormulas(currentActive.textContent);
+            }
+        });
+        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
+    }
 }
 
 // Add to initialization
