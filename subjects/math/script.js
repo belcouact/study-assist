@@ -3132,4 +3132,215 @@ style.textContent = `
         color: var(--primary-color-dark);
     }
 `;
-document.head.appendChild(style); 
+document.head.appendChild(style);
+
+function initCommonFormulas() {
+    const formulaSection = document.querySelector('.common-formulas');
+    if (!formulaSection) return;
+
+    // Formula categories
+    const categories = {
+        '代数': {
+            elementary: [
+                { name: '加法交换律', formula: 'a + b = b + a', explanation: '数的加法与顺序无关' },
+                { name: '乘法交换律', formula: 'a × b = b × a', explanation: '数的乘法与顺序无关' },
+                { name: '乘法分配律', formula: 'a × (b + c) = a × b + a × c', explanation: '数的乘法对加法有分配性质' }
+            ],
+            middle: [
+                { name: '平方差公式', formula: 'a² - b² = (a+b)(a-b)', explanation: '两数平方的差等于这两个数的和与差的积' },
+                { name: '完全平方公式', formula: 'a² ± 2ab + b² = (a ± b)²', explanation: '两项之和的平方' },
+                { name: '因式分解', formula: 'ax + bx = x(a + b)', explanation: '提取公因式' }
+            ],
+            high: [
+                { name: '二次方程求根公式', formula: 'x = (-b ± √(b² - 4ac)) / (2a)', explanation: '解二次方程ax² + bx + c = 0' },
+                { name: '韦达定理', formula: 'x₁ + x₂ = -b/a, x₁x₂ = c/a', explanation: '二次方程的根与系数的关系' },
+                { name: '等比数列求和', formula: 'Sₙ = a₁(1-q^n)/(1-q)', explanation: '首项为a₁，公比为q的等比数列前n项和' }
+            ]
+        },
+        '几何': {
+            elementary: [
+                { name: '正方形周长', formula: 'C = 4a', explanation: 'a为正方形的边长' },
+                { name: '长方形面积', formula: 'S = ab', explanation: 'a和b分别为长和宽' },
+                { name: '三角形面积', formula: 'S = ah/2', explanation: 'a为底边，h为高' }
+            ],
+            middle: [
+                { name: '圆的面积', formula: 'S = πr²', explanation: 'r为圆的半径' },
+                { name: '圆的周长', formula: 'C = 2πr', explanation: 'r为圆的半径' },
+                { name: '勾股定理', formula: 'a² + b² = c²', explanation: '直角三角形中，两直角边的平方和等于斜边的平方' }
+            ],
+            high: [
+                { name: '球的体积', formula: 'V = 4πr³/3', explanation: 'r为球的半径' },
+                { name: '圆锥体积', formula: 'V = πr²h/3', explanation: 'r为底面半径，h为高' },
+                { name: '正弦定理', formula: 'a/sinA = b/sinB = c/sinC = 2R', explanation: '三角形中，各边与其对角正弦值的比相等' }
+            ]
+        },
+        '函数': {
+            elementary: [
+                { name: '一次函数', formula: 'y = kx + b', explanation: 'k为斜率，b为截距' }
+            ],
+            middle: [
+                { name: '二次函数', formula: 'y = ax² + bx + c', explanation: 'a,b,c为常数，a≠0' },
+                { name: '反比例函数', formula: 'y = k/x', explanation: 'k为常数，k≠0' }
+            ],
+            high: [
+                { name: '指数函数', formula: 'y = aˣ', explanation: 'a为常数且a>0,a≠1' },
+                { name: '对数函数', formula: 'y = log_a x', explanation: 'a为常数且a>0,a≠1' },
+                { name: '三角函数', formula: 'y = sin x', explanation: '正弦函数，x为弧度' }
+            ]
+        },
+        '统计概率': {
+            elementary: [
+                { name: '平均数', formula: '\\bar{x} = \\frac{\\sum x_i}{n}', explanation: '所有数据的和除以数据个数' }
+            ],
+            middle: [
+                { name: '方差', formula: 's² = \\frac{\\sum(x_i - \\bar{x})²}{n}', explanation: '反映数据的离散程度' },
+                { name: '频率', formula: 'f = \\frac{n_A}{n}', explanation: '事件A发生的次数与总次数的比值' }
+            ],
+            high: [
+                { name: '排列数', formula: 'A_n^m = \\frac{n!}{(n-m)!}', explanation: 'n个不同元素中取m个排列的方法数' },
+                { name: '组合数', formula: 'C_n^m = \\frac{n!}{m!(n-m)!}', explanation: 'n个不同元素中取m个组合的方法数' },
+                { name: '二项分布', formula: 'P(X=k) = C_n^k p^k (1-p)^{n-k}', explanation: 'n次独立重复试验中成功k次的概率' }
+            ]
+        },
+        '其他': {
+            elementary: [
+                { name: '百分数', formula: '百分数 = \\frac{部分}{整体} × 100%', explanation: '将分数表示为百分比' }
+            ],
+            middle: [
+                { name: '速度公式', formula: 'v = s/t', explanation: '速度等于路程除以时间' },
+                { name: '密度公式', formula: 'ρ = m/V', explanation: '密度等于质量除以体积' }
+            ],
+            high: [
+                { name: '导数定义', formula: 'f\'(x) = \\lim_{h→0}\\frac{f(x+h)-f(x)}{h}', explanation: '函数在某点的瞬时变化率' },
+                { name: '积分定义', formula: '\\int_a^b f(x)dx = \\lim_{n→∞}\\sum_{i=1}^n f(x_i)\\Delta x', explanation: '函数在区间上的和的极限' }
+            ]
+        }
+    };
+
+    // Create category buttons
+    const categoryButtons = document.createElement('div');
+    categoryButtons.className = 'formula-categories';
+    categoryButtons.innerHTML = `
+        <style>
+            .formula-categories {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                flex-wrap: wrap;
+            }
+            .category-btn {
+                padding: 8px 16px;
+                border: none;
+                border-radius: 20px;
+                background: var(--primary-color);
+                color: white;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            .category-btn:hover {
+                background: var(--primary-color-dark);
+            }
+            .category-btn.active {
+                background: var(--primary-color-dark);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            }
+            .formula-display {
+                margin-top: 20px;
+            }
+            .formula-card {
+                background: white;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                transition: all 0.3s ease;
+            }
+            .formula-card:hover {
+                box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+                transform: translateY(-2px);
+            }
+            .formula-name {
+                font-weight: bold;
+                color: var(--primary-color);
+                margin-bottom: 8px;
+            }
+            .formula-latex {
+                font-family: 'KaTeX_Math', serif;
+                font-size: 1.1em;
+                margin: 10px 0;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 4px;
+            }
+            .formula-explanation {
+                color: #666;
+                font-size: 0.9em;
+                margin-top: 8px;
+            }
+        </style>
+    `;
+
+    Object.keys(categories).forEach(category => {
+        const btn = document.createElement('button');
+        btn.className = 'category-btn';
+        btn.textContent = category;
+        btn.onclick = () => showFormulas(category);
+        categoryButtons.appendChild(btn);
+    });
+
+    formulaSection.appendChild(categoryButtons);
+
+    // Create formula display area
+    const formulaDisplay = document.createElement('div');
+    formulaDisplay.className = 'formula-display';
+    formulaSection.appendChild(formulaDisplay);
+
+    function getEducationLevel() {
+        const profileText = document.getElementById('profile-display').textContent;
+        if (profileText.includes('小学')) return 'elementary';
+        if (profileText.includes('初中')) return 'middle';
+        if (profileText.includes('高中')) return 'high';
+        return 'middle'; // Default to middle school
+    }
+
+    function showFormulas(category) {
+        // Update active button
+        const buttons = categoryButtons.querySelectorAll('.category-btn');
+        buttons.forEach(btn => {
+            btn.classList.toggle('active', btn.textContent === category);
+        });
+
+        const level = getEducationLevel();
+        const formulas = categories[category][level];
+
+        formulaDisplay.innerHTML = '';
+        formulas.forEach(formula => {
+            const card = document.createElement('div');
+            card.className = 'formula-card';
+            card.innerHTML = `
+                <div class="formula-name">${formula.name}</div>
+                <div class="formula-latex">${formula.formula}</div>
+                <div class="formula-explanation">${formula.explanation}</div>
+            `;
+            formulaDisplay.appendChild(card);
+        });
+
+        // Render LaTeX formulas
+        if (window.MathJax) {
+            MathJax.typesetPromise([formulaDisplay]);
+        }
+    }
+
+    // Show initial category
+    showFormulas('代数');
+}
+
+// Add to initialization
+function initMathPage() {
+    initTopicCards();
+    initMathAssistant();
+    initQuizGenerator();
+    initFormulaSelector();
+    initCommonFormulas(); // Add this line
+    initVisualization();
+}
