@@ -1695,11 +1695,19 @@ const visualizations = {
 function initVisualization() {
     const visualizerTopic = document.getElementById('visualizer-topic');
     const loadVisualizationBtn = document.getElementById('load-visualization');
-    const visualizationContent = document.getElementById('visualization-content');
+    const visualizationContainer = document.getElementById('visualization-container');
+
+    if (!visualizerTopic || !loadVisualizationBtn || !visualizationContainer) {
+        console.error('Visualization elements not found');
+        return;
+    }
 
     // Get education level from profile
     function getEducationLevel() {
-        const profileText = document.getElementById('profile-display').textContent;
+        const profileDisplay = document.getElementById('profile-display');
+        if (!profileDisplay) return 'middle';
+
+        const profileText = profileDisplay.textContent;
         if (profileText.includes('小学')) return 'elementary';
         if (profileText.includes('初中')) return 'middle';
         if (profileText.includes('高中')) return 'high';
@@ -1711,6 +1719,11 @@ function initVisualization() {
         const level = getEducationLevel();
         const concepts = mathConcepts[level];
         
+        if (!concepts) {
+            console.error('No concepts found for level:', level);
+            return;
+        }
+
         visualizerTopic.innerHTML = Object.entries(concepts)
             .map(([value, label]) => `<option value="${value}">${label}</option>`)
             .join('');
@@ -1719,8 +1732,36 @@ function initVisualization() {
     // Load visualization
     function loadVisualization() {
         const selectedConcept = visualizerTopic.value;
-        if (visualizations[selectedConcept]) {
-            visualizations[selectedConcept](visualizationContent);
+        
+        // Show loading state
+        visualizationContainer.innerHTML = '<div class="loading-indicator">正在加载可视化...</div>';
+
+        // Ensure container is ready for Plotly
+        const visualizationContent = document.createElement('div');
+        visualizationContent.id = 'visualization-content';
+        visualizationContent.style.width = '100%';
+        visualizationContent.style.height = '400px';
+        visualizationContainer.innerHTML = '';
+        visualizationContainer.appendChild(visualizationContent);
+
+        try {
+            if (visualizations[selectedConcept]) {
+                // Add error handling for Plotly
+                if (typeof Plotly === 'undefined') {
+                    throw new Error('Plotly is not loaded. Please ensure the Plotly library is included.');
+                }
+                visualizations[selectedConcept](visualizationContent);
+            } else {
+                throw new Error(`没有找到 ${selectedConcept} 的可视化内容`);
+            }
+        } catch (error) {
+            console.error('Visualization error:', error);
+            visualizationContainer.innerHTML = `
+                <div class="error-message">
+                    <p>加载可视化时出现错误：${error.message}</p>
+                    <p>请刷新页面后重试</p>
+                </div>
+            `;
         }
     }
 
@@ -1736,5 +1777,40 @@ function initVisualization() {
     }
 
     // Update concepts when profile changes
-    document.addEventListener('profileUpdated', populateConcepts);
+    const profileDisplay = document.getElementById('profile-display');
+    if (profileDisplay) {
+        const observer = new MutationObserver(() => {
+            populateConcepts();
+            if (visualizerTopic.options.length > 0) {
+                loadVisualization();
+            }
+        });
+        observer.observe(profileDisplay, { childList: true, characterData: true, subtree: true });
+    }
+
+    // Add styles for visualization container
+    const style = document.createElement('style');
+    style.textContent = `
+        .loading-indicator {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-color);
+        }
+        .error-message {
+            text-align: center;
+            padding: 20px;
+            color: #ff4444;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        #visualization-content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 10px 0;
+            padding: 10px;
+        }
+    `;
+    document.head.appendChild(style);
 } 
