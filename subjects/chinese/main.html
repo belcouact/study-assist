@@ -197,15 +197,24 @@
                 <div class="literature-container">
                     <div class="filter-section">
                         <div class="filter-group">
-                            <select id="dynasty-select" class="form-control">
-                                <option value="">选择朝代</option>
-                            </select>
-                            <select id="author-select" class="form-control">
-                                <option value="">选择作者</option>
-                            </select>
-                            <select id="title-select" class="form-control">
-                                <option value="">选择诗词</option>
-                            </select>
+                            <div class="form-group">
+                                <label for="dynasty-select">朝代</label>
+                                <select id="dynasty-select" class="form-control">
+                                    <option value="">选择朝代</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="author-select">作者</label>
+                                <select id="author-select" class="form-control">
+                                    <option value="">选择作者</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="title-select">诗词</label>
+                                <select id="title-select" class="form-control">
+                                    <option value="">选择诗词</option>
+                                </select>
+                            </div>
                             <button id="query-poem" class="btn btn-primary">查询</button>
                         </div>
                     </div>
@@ -237,7 +246,7 @@
                         </button>
                     </div>
 
-                    <div class="explanation-section">
+                    <div class="explanation-section" style="display: none;">
                         <div class="chat-container" id="poem-explanation">
                             <!-- AI explanations will be inserted here -->
                         </div>
@@ -269,13 +278,29 @@
         
         .filter-group {
             display: flex;
-            gap: 1rem;
+            gap: 2rem;
             justify-content: center;
+            align-items: flex-end;
             flex-wrap: wrap;
+            padding: 1rem;
         }
         
-        .filter-group select {
+        .filter-group .form-group {
+            flex: 1;
+            max-width: 250px;
             min-width: 200px;
+        }
+        
+        .filter-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .filter-group .btn {
+            height: 38px;
+            margin-bottom: 1px;
         }
         
         .poem-display {
@@ -333,6 +358,7 @@
             text-align: center;
             flex-grow: 1;
             margin-bottom: 2rem;
+            white-space: pre-line;
         }
         
         #explain-poem {
@@ -341,6 +367,7 @@
         
         .explanation-section {
             margin-top: 2rem;
+            transition: all 0.3s ease;
         }
         
         .explanation-section .chat-container {
@@ -357,7 +384,7 @@
         // Initialize dropdowns
         async function initializeDropdowns() {
             try {
-                // Fetch distinct values for each dropdown
+                // Fetch distinct values for Dynasty
                 const dynastyResponse = await fetch('/api/db/query/chinese_poem');
                 const dynastyData = await dynastyResponse.json();
                 
@@ -366,13 +393,18 @@
                     
                     // Get distinct values
                     const dynasties = [...new Set(poems.map(p => p.Dynasty))].filter(Boolean);
-                    const authors = [...new Set(poems.map(p => p.Author))].filter(Boolean);
-                    const titles = [...new Set(poems.map(p => p.Title))].filter(Boolean);
                     
-                    // Populate dropdowns
+                    // Populate dynasty dropdown
                     populateDropdown('dynasty-select', dynasties);
+                }
+
+                // Fetch distinct Authors
+                const authorResponse = await fetch('/api/db/query/chinese_poem');
+                const authorData = await authorResponse.json();
+                
+                if (authorData.success) {
+                    const authors = [...new Set(authorData.data.map(p => p.Author))].filter(Boolean);
                     populateDropdown('author-select', authors);
-                    populateDropdown('title-select', titles);
                 }
             } catch (error) {
                 console.error('Error initializing dropdowns:', error);
@@ -443,6 +475,9 @@
                     
                     currentPoemIndex = 0;
                     displayCurrentPoem();
+                    
+                    // Hide explanation section when new poem is queried
+                    document.querySelector('.explanation-section').style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error querying poems:', error);
@@ -467,6 +502,9 @@
             // Update navigation buttons
             document.getElementById('prev-poem').style.visibility = currentPoemIndex > 0 ? 'visible' : 'hidden';
             document.getElementById('next-poem').style.visibility = currentPoemIndex < poemResults.length - 1 ? 'visible' : 'hidden';
+            
+            // Hide explanation section when new poem is displayed
+            document.querySelector('.explanation-section').style.display = 'none';
         }
         
         // Navigation handlers
@@ -491,13 +529,17 @@
             const poem = poemResults[currentPoemIndex];
             const educationLevel = document.getElementById('profile-display').textContent;
             
+            // Show explanation section
+            const explanationSection = document.querySelector('.explanation-section');
+            explanationSection.style.display = 'block';
+            
             const explanationContainer = document.getElementById('poem-explanation');
             explanationContainer.innerHTML = '<div class="message message-ai"><p>正在分析诗词，请稍候...</p></div>';
             
             try {
-                // Get the chat container and add user's request
+                // Get the chat container
                 const chatMessages = document.getElementById('chinese-chat-messages');
-                const userMessage = `请帮我解析这首诗：${poem.Title}（${poem.Dynasty} ${poem.Author}）：${poem.Poem}`;
+                const userMessage = `请根据我的教育水平（${educationLevel}），帮我详细解析这首诗：${poem.Title}（${poem.Dynasty} ${poem.Author}）：${poem.Poem}。请包含以下方面：1. 创作背景 2. 诗词内容赏析 3. 写作手法分析 4. 情感主题探讨 5. 重要意象解读`;
                 
                 // Add user message to chat
                 const userMessageDiv = document.createElement('div');
@@ -505,14 +547,38 @@
                 userMessageDiv.innerHTML = `<p>${userMessage}</p>`;
                 chatMessages.appendChild(userMessageDiv);
                 
-                // Trigger the existing chat functionality
-                const event = new CustomEvent('explain-poem', {
-                    detail: {
+                // Send question to DeepSeek API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
                         question: userMessage,
                         educationLevel: educationLevel
-                    }
+                    })
                 });
-                document.dispatchEvent(event);
+                
+                if (!response.ok) {
+                    throw new Error('API request failed');
+                }
+                
+                const data = await response.json();
+                
+                // Display the AI response in both containers
+                const aiMessageDiv = document.createElement('div');
+                aiMessageDiv.className = 'message message-ai';
+                aiMessageDiv.innerHTML = `<p>${data.answer}</p>`;
+                chatMessages.appendChild(aiMessageDiv);
+                
+                explanationContainer.innerHTML = `
+                    <div class="message message-ai">
+                        <p>${data.answer}</p>
+                    </div>
+                `;
+                
+                // Scroll to the explanation
+                explanationSection.scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
                 console.error('Error explaining poem:', error);
                 explanationContainer.innerHTML = '<div class="message message-ai"><p>抱歉，解析诗词时出现错误。</p></div>';
