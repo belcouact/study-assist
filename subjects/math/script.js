@@ -1309,6 +1309,7 @@ const mathConcepts = {
 const visualizations = {
     // Elementary School Visualizations
     'basic-numbers': function(container) {
+        if (!container) return;
         const data = [{
             type: 'scatter',
             mode: 'markers+lines',
@@ -1321,12 +1322,18 @@ const visualizations = {
             title: '数的序列与关系',
             xaxis: {title: '序号'},
             yaxis: {title: '数值'},
-            showlegend: false
+            showlegend: false,
+            autosize: true
         };
-        Plotly.newPlot(container, data, layout);
+        const config = {
+            responsive: true,
+            displayModeBar: true
+        };
+        Plotly.newPlot(container, data, layout, config);
     },
 
     'fractions': function(container) {
+        if (!container) return;
         const data = [{
             values: [1, 1, 1, 1],
             labels: ['1/4', '1/4', '1/4', '1/4'],
@@ -1338,9 +1345,14 @@ const visualizations = {
         const layout = {
             title: '分数的可视化表示',
             height: 400,
-            showlegend: true
+            showlegend: true,
+            autosize: true
         };
-        Plotly.newPlot(container, data, layout);
+        const config = {
+            responsive: true,
+            displayModeBar: true
+        };
+        Plotly.newPlot(container, data, layout, config);
     },
 
     'basic-geometry': function(container) {
@@ -1736,21 +1748,36 @@ function initVisualization() {
         // Show loading state
         visualizationContainer.innerHTML = '<div class="loading-indicator">正在加载可视化...</div>';
 
-        // Ensure container is ready for Plotly
-        const visualizationContent = document.createElement('div');
-        visualizationContent.id = 'visualization-content';
-        visualizationContent.style.width = '100%';
-        visualizationContent.style.height = '400px';
+        // Create a new container for Plotly
+        const plotContainer = document.createElement('div');
+        plotContainer.id = 'plot-container';
+        plotContainer.style.width = '100%';
+        plotContainer.style.height = '400px';
+
+        // Clear previous content and add the new container
         visualizationContainer.innerHTML = '';
-        visualizationContainer.appendChild(visualizationContent);
+        visualizationContainer.appendChild(plotContainer);
 
         try {
+            if (typeof Plotly === 'undefined') {
+                throw new Error('Plotly is not loaded. Please ensure the Plotly library is included.');
+            }
+
             if (visualizations[selectedConcept]) {
-                // Add error handling for Plotly
-                if (typeof Plotly === 'undefined') {
-                    throw new Error('Plotly is not loaded. Please ensure the Plotly library is included.');
-                }
-                visualizations[selectedConcept](visualizationContent);
+                // Wait for the container to be properly added to the DOM
+                setTimeout(() => {
+                    try {
+                        visualizations[selectedConcept](plotContainer);
+                    } catch (plotError) {
+                        console.error('Error creating plot:', plotError);
+                        visualizationContainer.innerHTML = `
+                            <div class="error-message">
+                                <p>创建可视化时出现错误：${plotError.message}</p>
+                                <p>请刷新页面后重试</p>
+                            </div>
+                        `;
+                    }
+                }, 0);
             } else {
                 throw new Error(`没有找到 ${selectedConcept} 的可视化内容`);
             }
