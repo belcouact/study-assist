@@ -1208,7 +1208,7 @@ const visualizations = {
     'linear-functions': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const x = Array.from({length: 21}, (_, i) => i - 10);
+            const x = Array.from({length: 100}, (_, i) => (i * 10 / 99) - 5);
             const data = [
                 {
                     x: x,
@@ -1238,26 +1238,18 @@ const visualizations = {
             
             const layout = {
                 title: '一次函数图像比较',
-                xaxis: {title: 'x', zeroline: true},
-                yaxis: {title: 'y', zeroline: true},
+                xaxis: {
+                    title: 'x',
+                    range: [-5, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    range: [-5, 5],
+                    zeroline: true
+                },
                 showlegend: true,
-                autosize: true,
-                annotations: [
-                    {
-                        x: 0,
-                        y: 1,
-                        text: 'b = 1',
-                        showarrow: true,
-                        arrowhead: 2
-                    },
-                    {
-                        x: 0,
-                        y: 2,
-                        text: 'b = 2',
-                        showarrow: true,
-                        arrowhead: 2
-                    }
-                ]
+                autosize: true
             };
 
             const config = {
@@ -1307,7 +1299,7 @@ const visualizations = {
     'quadratic-functions': function(container) {
         if (!this.ensureContainer(container)) return;
         try {
-            const x = Array.from({length: 41}, (_, i) => (i - 20) / 2);
+            const x = Array.from({length: 100}, (_, i) => (i * 10 / 99) - 5);
             const data = [
                 {
                     x: x,
@@ -1337,26 +1329,18 @@ const visualizations = {
             
             const layout = {
                 title: '二次函数图像比较',
-                xaxis: {title: 'x', zeroline: true},
-                yaxis: {title: 'y', zeroline: true},
+                xaxis: {
+                    title: 'x',
+                    range: [-5, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    range: [-5, 10],
+                    zeroline: true
+                },
                 showlegend: true,
-                autosize: true,
-                annotations: [
-                    {
-                        x: 0,
-                        y: 2,
-                        text: '顶点 (0,2)',
-                        showarrow: true,
-                        arrowhead: 2
-                    },
-                    {
-                        x: 0,
-                        y: -1,
-                        text: '顶点 (0,-1)',
-                        showarrow: true,
-                        arrowhead: 2
-                    }
-                ]
+                autosize: true
             };
 
             const config = {
@@ -1416,34 +1400,55 @@ const visualizations = {
             // Create multiple geometric shapes
             const shapes = [
                 // Rectangle
-                {type: 'rect', x0: 0, y0: 0, x1: 2, y1: 2, 
-                 line: {color: 'blue'}, fillcolor: 'rgba(67, 97, 238, 0.2)',
-                 label: '正方形<br>边长=2'},
+                {type: 'rect', x0: -2, y0: -2, x1: 0, y1: 0, 
+                 line: {color: 'blue'}, fillcolor: 'rgba(67, 97, 238, 0.2)'},
                 
                 // Circle
-                {type: 'circle', x0: 3, y0: 0, x1: 5, y1: 2,
-                 line: {color: 'purple'}, fillcolor: 'rgba(114, 9, 183, 0.2)',
-                 label: '圆<br>半径=1'},
+                {type: 'circle', x0: 1, y0: -2, x1: 3, y1: 0,
+                 line: {color: 'purple'}, fillcolor: 'rgba(114, 9, 183, 0.2)'},
                 
                 // Triangle
-                {type: 'path', path: 'M 6 0 L 8 0 L 7 2 Z',
-                 line: {color: 'green'}, fillcolor: 'rgba(86, 11, 173, 0.2)',
-                 label: '三角形<br>底=2, 高=2'}
+                {type: 'path', path: 'M -1 1 L 1 1 L 0 3 Z',
+                 line: {color: 'green'}, fillcolor: 'rgba(86, 11, 173, 0.2)'}
             ];
 
             const data = [];
-            const annotations = shapes.map((shape, i) => ({
-                x: shape.x0 ? (shape.x0 + shape.x1) / 2 : shape.path.split('L')[1].split(' ')[1],
-                y: -0.5,
-                text: shape.label,
-                showarrow: false,
-                font: { size: 12 }
-            }));
+            const annotations = [
+                {
+                    x: -1,
+                    y: -2.5,
+                    text: '正方形<br>边长=2',
+                    showarrow: false,
+                    font: { size: 12 }
+                },
+                {
+                    x: 2,
+                    y: -2.5,
+                    text: '圆<br>半径=1',
+                    showarrow: false,
+                    font: { size: 12 }
+                },
+                {
+                    x: 0,
+                    y: 0.5,
+                    text: '三角形<br>底=2, 高=2',
+                    showarrow: false,
+                    font: { size: 12 }
+                }
+            ];
 
             const layout = {
                 title: '平面几何图形及其性质',
-                xaxis: {range: [-1, 9], zeroline: true},
-                yaxis: {range: [-1, 3], zeroline: true},
+                xaxis: {
+                    title: 'x',
+                    range: [-5, 5],
+                    zeroline: true
+                },
+                yaxis: {
+                    title: 'y',
+                    range: [-5, 5],
+                    zeroline: true
+                },
                 shapes: shapes,
                 annotations: annotations,
                 showlegend: false,
@@ -1497,19 +1502,49 @@ const visualizations = {
                     <li><strong>艺术创作：</strong> 图案设计、构图</li>
                     <li><strong>地图测绘：</strong> 土地面积计算</li>
                 </ul>
-                <h4>重要定理</h4>
-                <ul>
-                    <li><strong>勾股定理：</strong> 直角三角形中，a² + b² = c²</li>
-                    <li><strong>相似三角形：</strong> 对应角相等，对应边成比例</li>
-                    <li><strong>圆的切线：</strong> 切线垂直于切点的半径</li>
-                    <li><strong>平行线：</strong> 同位角、内错角相等</li>
-                </ul>
             `;
             container.parentNode.appendChild(explanationDiv);
         } catch (error) {
             console.error('Error creating geometry visualization:', error);
             throw error;
         }
+    },
+
+    'measurement': function(container) {
+        const data = [{
+            type: 'bar',
+            x: ['1厘米', '1分米', '1米'],
+            y: [1, 10, 100],
+            text: ['1cm', '10cm', '100cm'],
+            textposition: 'auto',
+            marker: {
+                color: ['rgb(67, 97, 238)', 'rgb(114, 9, 183)', 'rgb(86, 11, 173)']
+            }
+        }];
+        const layout = {
+            title: '长度单位换算',
+            yaxis: {title: '厘米'},
+            showlegend: false
+        };
+        Plotly.newPlot(container, data, layout);
+    },
+
+    'basic-statistics': function(container) {
+        const data = [{
+            type: 'bar',
+            x: ['一月', '二月', '三月', '四月', '五月'],
+            y: [12, 15, 18, 22, 25],
+            marker: {
+                color: 'rgb(67, 97, 238)'
+            }
+        }];
+        const layout = {
+            title: '简单统计图表',
+            xaxis: {title: '月份'},
+            yaxis: {title: '温度 (°C)'},
+            showlegend: false
+        };
+        Plotly.newPlot(container, data, layout);
     },
 
     'algebra-basics': function(container) {
