@@ -12,22 +12,7 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>
-        window.MathJax = {
-            tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']]
-            },
-            svg: {
-                fontCache: 'global'
-            },
-            startup: {
-                typeset: true
-            }
-        };
-    </script>
+    <!-- MathJax will be loaded dynamically when needed -->
 </head>
 <body>
     <header class="main-header">
@@ -261,11 +246,28 @@
     
     <!-- Defer loading of heavy libraries -->
     <script>
-        // Function to load script asynchronously
-        function loadScript(src, callback) {
+        // Function to load script with fallback
+        function loadScript(src, callback, fallbackSrc) {
             const script = document.createElement('script');
             script.src = src;
             script.defer = true;
+            script.onerror = function() {
+                console.warn(`Failed to load script from ${src}, trying fallback...`);
+                if (fallbackSrc) {
+                    const fallbackScript = document.createElement('script');
+                    fallbackScript.src = fallbackSrc;
+                    fallbackScript.defer = true;
+                    fallbackScript.onload = callback;
+                    fallbackScript.onerror = function() {
+                        console.error(`Failed to load fallback script from ${fallbackSrc}`);
+                        // Still call callback to avoid blocking the page
+                        if (callback) callback();
+                    };
+                    document.body.appendChild(fallbackScript);
+                } else if (callback) {
+                    callback(); // Call callback even if script fails to load
+                }
+            };
             script.onload = callback;
             document.body.appendChild(script);
         }
@@ -292,14 +294,13 @@
                 }
             };
             
-            // Load polyfill first
+            // Try CDN first, then local fallback
             loadScript('https://polyfill.io/v3/polyfill.min.js?features=es6', function() {
-                // Then load MathJax
                 loadScript('https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js', function() {
                     mathJaxLoaded = true;
                     if (callback) callback();
-                });
-            });
+                }, '../../libs/mathjax/tex-mml-chtml.js'); // Local fallback path
+            }, '../../libs/polyfill/polyfill.min.js'); // Local fallback path
         }
         
         // Lazy load Plotly only when needed
@@ -313,7 +314,18 @@
             loadScript('https://cdn.plot.ly/plotly-2.24.1.min.js', function() {
                 plotlyLoaded = true;
                 if (callback) callback();
-            });
+            }, '../../libs/plotly/plotly.min.js'); // Local fallback
+        }
+        
+        // Add basic error handling for all visualizations
+        function handleVisualizationError(container, error) {
+            container.innerHTML = `
+                <div style="padding: 20px; background-color: #fff3f3; border-radius: 8px; text-align: center;">
+                    <h4 style="color: #cc0000;">加载可视化时出现错误</h4>
+                    <p>请检查您的网络连接或使用简化版本</p>
+                    <p style="font-size: 0.8em; color: #777;">${error?.message || '无法加载外部资源'}</p>
+                </div>
+            `;
         }
         
         // Initialize intersection observer for lazy loading
@@ -331,9 +343,35 @@
                                 // Load application script after dependencies
                                 if (!window.mathInitialized) {
                                     loadScript('script.js', () => {
-                                        // Initialize formulas specifically
-                                        if (window.initCommonFormulas) {
-                                            window.initCommonFormulas();
+                                        try {
+                                            // Initialize formulas specifically
+                                            if (window.initCommonFormulas) {
+                                                window.initCommonFormulas();
+                                            } else {
+                                                // Simple fallback for formulas if script fails
+                                                const formulaContent = document.querySelector('.formula-content');
+                                                if (formulaContent) {
+                                                    formulaContent.innerHTML = `
+                                                        <div style="background: white; padding: 20px; border-radius: 8px;">
+                                                            <h3>基础数学公式</h3>
+                                                            <p>加载完整公式集失败。以下是常用公式：</p>
+                                                            <ul style="list-style: none; padding: 0;">
+                                                                <li style="padding: 10px; border-bottom: 1px solid #eee;">
+                                                                    <strong>二次公式：</strong> x = (-b ± √(b² - 4ac)) / 2a
+                                                                </li>
+                                                                <li style="padding: 10px; border-bottom: 1px solid #eee;">
+                                                                    <strong>勾股定理：</strong> a² + b² = c²
+                                                                </li>
+                                                                <li style="padding: 10px; border-bottom: 1px solid #eee;">
+                                                                    <strong>三角函数：</strong> sin²θ + cos²θ = 1
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    `;
+                                                }
+                                            }
+                                        } catch (e) {
+                                            console.error('Error initializing formulas:', e);
                                         }
                                     });
                                 }
@@ -342,9 +380,21 @@
                         } else if (entry.target === visualizerSection) {
                             // Load Plotly when visualization section becomes visible
                             loadPlotly(() => {
-                                if (window.initVisualization && !window.visualizationInitialized) {
-                                    window.initVisualization();
-                                    window.visualizationInitialized = true;
+                                try {
+                                    if (window.initVisualization && !window.visualizationInitialized) {
+                                        window.initVisualization();
+                                        window.visualizationInitialized = true;
+                                    } else if (!window.Plotly) {
+                                        // Simple fallback if Plotly fails to load
+                                        const container = document.getElementById('visualization-container');
+                                        handleVisualizationError(container, new Error('无法加载可视化库'));
+                                    }
+                                } catch (e) {
+                                    console.error('Error initializing visualization:', e);
+                                    const container = document.getElementById('visualization-container');
+                                    if (container) {
+                                        handleVisualizationError(container, e);
+                                    }
                                 }
                             });
                             observer.unobserve(visualizerSection);
@@ -359,10 +409,14 @@
             
             // Initialize other parts of the page immediately
             loadScript('script.js', () => {
-                if (window.initTopicCards) window.initTopicCards();
-                if (window.initMathAssistant) window.initMathAssistant();
-                if (window.initQuizGenerator) window.initQuizGenerator();
-                if (window.initFormulaSelector) window.initFormulaSelector();
+                try {
+                    if (window.initTopicCards) window.initTopicCards();
+                    if (window.initMathAssistant) window.initMathAssistant();
+                    if (window.initQuizGenerator) window.initQuizGenerator();
+                    if (window.initFormulaSelector) window.initFormulaSelector();
+                } catch (e) {
+                    console.error('Error initializing page components:', e);
+                }
             });
         });
     </script>

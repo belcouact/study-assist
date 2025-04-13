@@ -3,6 +3,12 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
+// Detect if we're using local fallbacks
+const usingFallbacks = {
+    mathJax: window.MathJax && window.MathJax.typesetPromise && !!window.MathJax.Hub,
+    plotly: window.Plotly && (!window.Plotly.version || window.Plotly.version === undefined),
+};
+
 // Define a global helper for displaying messages in the math chat
 function displayMathMessage(role, content, container) {
     const messageElement = document.createElement('div');
@@ -3035,6 +3041,11 @@ window.initVisualization = function() {
                     throw new Error('Visualization container not found');
                 }
 
+                // If using fallback, show simplified message
+                if (usingFallbacks.plotly) {
+                    console.log('Using Plotly fallback for visualization');
+                }
+
                 if (visualizations[selectedConcept]) {
                     visualizations[selectedConcept](container);
                     container.classList.add('visualization-active');
@@ -3153,6 +3164,11 @@ function initCommonFormulas() {
                 fontCache: 'global'
             }
         };
+    }
+    
+    // If using fallback MathJax, show simplified UI
+    if (usingFallbacks.mathJax) {
+        console.log('Using MathJax fallback for formulas');
     }
 
     // Formula categories
@@ -3406,9 +3422,19 @@ function initCommonFormulas() {
 
         // Render LaTeX formulas
         if (window.MathJax) {
-            MathJax.typesetPromise([formulaDisplay]).catch(err => {
-                console.error('MathJax rendering error:', err);
-            });
+            try {
+                if (window.MathJax.typesetPromise) {
+                    window.MathJax.typesetPromise([formulaDisplay]).catch(err => {
+                        console.error('MathJax rendering error:', err);
+                    });
+                } else if (window.MathJax.typeset) {
+                    window.MathJax.typeset([formulaDisplay]);
+                } else if (window.MathJax.Hub && window.MathJax.Hub.Queue) {
+                    window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, formulaDisplay]);
+                }
+            } catch (err) {
+                console.error('Error rendering math:', err);
+            }
         }
     }
 
