@@ -946,19 +946,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const words = extractEnhancedWords(response);
         console.log("Extracted enhanced words:", words);
         
-        // 为轮播初始化添加更多可靠触发器
+        // 直接设置轮播为未初始化状态
         window.vocabCarouselInitialized = false;
         window.vocabCarouselPending = true;
-        
-        // 设置轮播初始化定时器
-        setTimeout(function() {
-            if (window.vocabCarouselPending && !window.vocabCarouselInitialized) {
-                console.log("Attempting carousel initialization after delay");
-                initVocabCarousel();
-                window.vocabCarouselInitialized = true;
-                window.vocabCarouselPending = false;
-            }
-        }, 500);
         
         let levelName, categoryName;
         
@@ -991,10 +981,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="vocab-cards-wrapper" data-current="0" data-total="${words.length}">
         `;
         
-        // 为每个单词创建卡片，但只显示第一个
+        // 为每个单词创建卡片
         words.forEach((word, index) => {
             html += `
-                <div class="vocab-card enhanced ${index === 0 ? 'active' : ''}" data-index="${index}">
+                <div class="vocab-card enhanced" data-index="${index}">
                     <div class="vocab-header">
                         <h4>${word.word}</h4>
                         <div class="pronunciation">${word.pronunciation || ''}</div>
@@ -1081,41 +1071,42 @@ document.addEventListener('DOMContentLoaded', function() {
                     gap: 10px;
                     margin: 20px 0;
                     position: relative;
+                    height: 500px; /* 设置固定高度 */
                 }
                 
                 .vocab-cards-container {
                     width: 100%;
+                    height: 100%;
                     overflow: hidden;
                     position: relative;
                 }
                 
                 .vocab-cards-wrapper {
-                    display: flex;
-                    transition: transform 0.3s ease;
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
                 }
                 
                 .vocab-card.enhanced {
                     background: #fff;
                     border-radius: 10px;
                     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-                    margin: 10px;
-                    padding: 0;
+                    padding: 20px;
                     overflow: hidden;
-                    transition: transform 0.2s, opacity 0.3s;
-                    min-width: calc(100% - 20px);
-                    max-width: calc(100% - 20px);
-                    opacity: 0;
+                    transition: opacity 0.3s;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
                     display: none;
+                    opacity: 0;
                 }
                 
                 .vocab-card.enhanced.active {
-                    opacity: 1;
                     display: block;
-                }
-                
-                .vocab-card.enhanced:hover {
-                    transform: translateY(-3px);
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                    opacity: 1;
+                    z-index: 2;
                 }
                 
                 .vocab-nav {
@@ -1134,171 +1125,64 @@ document.addEventListener('DOMContentLoaded', function() {
                     z-index: 10;
                 }
                 
+                .vocab-nav:disabled {
+                    opacity: 0.5;
+                    cursor: not-allowed;
+                }
+                
                 .vocab-nav:hover:not(:disabled) {
                     background: #3a56d4;
                 }
                 
-                .vocab-nav:disabled {
-                    background: #ccc;
-                    cursor: not-allowed;
-                }
-                
                 .vocab-progress {
                     text-align: center;
-                    margin-bottom: 20px;
-                    font-weight: bold;
+                    margin: 10px 0;
+                    font-size: 16px;
                 }
                 
+                /* 其他样式保持不变... */
+                
+                /* 额外添加的样式 */
                 .vocab-header {
-                    background: linear-gradient(135deg, #4361ee, #7209b7);
-                    color: white;
-                    padding: 15px 20px;
-                    border-radius: 10px 10px 0 0;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #eee;
                 }
                 
                 .vocab-header h4 {
-                    margin: 0;
-                    font-size: 1.5rem;
+                    font-size: 1.8rem;
+                    color: #4361ee;
+                    margin: 0 0 5px 0;
                 }
                 
                 .pronunciation {
-                    font-family: Arial, sans-serif;
-                    margin-top: 5px;
-                    opacity: 0.9;
-                }
-                
-                .vocab-content {
-                    padding: 15px 20px;
+                    color: #666;
                 }
                 
                 .vocab-section {
                     margin-bottom: 15px;
-                    padding-bottom: 15px;
-                    border-bottom: 1px solid #eee;
                 }
                 
-                .vocab-section:last-child {
-                    border-bottom: none;
-                }
-                
-                .section-title {
-                    margin-bottom: 8px;
-                    color: #4361ee;
-                }
-                
-                .part-of-speech {
-                    display: inline-block;
-                    padding: 3px 8px;
-                    background: #f0f4ff;
-                    border-radius: 4px;
-                    font-size: 0.9rem;
+                .vocab-section .section-title {
                     margin-bottom: 5px;
+                    color: #333;
                 }
                 
-                .phrases-list, .examples-list {
+                .vocab-section ul {
+                    margin: 0;
                     padding-left: 20px;
                 }
                 
-                .phrases-list li, .examples-list li {
+                .vocab-section ul li {
                     margin-bottom: 5px;
                 }
                 
-                .memory-tip {
-                    background: #fffaf0;
-                    padding: 10px;
-                    border-radius: 5px;
-                    font-style: italic;
-                }
-                
                 .vocab-footer {
+                    margin-top: 20px;
                     display: flex;
                     justify-content: space-between;
-                    padding: 10px 20px;
-                    background: #f8f9fa;
-                    border-top: 1px solid #eee;
-                }
-                
-                .btn-outline {
-                    background: transparent;
-                    border: 1px solid #4361ee;
-                    color: #4361ee;
-                }
-                
-                .btn-outline:hover {
-                    background: #4361ee;
-                    color: white;
-                }
-                
-                @media (max-width: 576px) {
-                    .vocab-carousel {
-                        padding: 0 5px;
-                    }
                 }
             </style>
-        `;
-        
-        // 添加JavaScript以处理卡片导航
-        html += `
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    initVocabCarousel();
-                });
-                
-                function initVocabCarousel() {
-                    const prevBtn = document.querySelector('.vocab-prev');
-                    const nextBtn = document.querySelector('.vocab-next');
-                    const wrapper = document.querySelector('.vocab-cards-wrapper');
-                    const cards = document.querySelectorAll('.vocab-card');
-                    const currentCardEl = document.querySelector('.current-card');
-                    
-                    if (!wrapper || !prevBtn || !nextBtn) return;
-                    
-                    let currentIndex = 0;
-                    const totalCards = cards.length;
-                    
-                    // 初始化
-                    showCard(currentIndex);
-                    updateNavButtons();
-                    
-                    // 添加事件监听
-                    prevBtn.addEventListener('click', showPreviousCard);
-                    nextBtn.addEventListener('click', showNextCard);
-                    
-                    function showPreviousCard() {
-                        if (currentIndex > 0) {
-                            currentIndex--;
-                            showCard(currentIndex);
-                            updateNavButtons();
-                        }
-                    }
-                    
-                    function showNextCard() {
-                        if (currentIndex < totalCards - 1) {
-                            currentIndex++;
-                            showCard(currentIndex);
-                            updateNavButtons();
-                        }
-                    }
-                    
-                    function showCard(index) {
-                        cards.forEach((card, i) => {
-                            if (i === index) {
-                                card.classList.add('active');
-                            } else {
-                                card.classList.remove('active');
-                            }
-                        });
-                        
-                        currentCardEl.textContent = index + 1;
-                        wrapper.setAttribute('data-current', index);
-                    }
-                    
-                    function updateNavButtons() {
-                        prevBtn.disabled = currentIndex === 0;
-                        nextBtn.disabled = currentIndex === totalCards - 1;
-                    }
-                }
-            </script>
         `;
         
         return html;
@@ -3462,89 +3346,264 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             }
         }
         
-        // 提取解析中的关键句子
+        // 提取解析中的关键句子并添加到结果中
         const sentences = explanation.split(/[.!?]/).filter(s => s.trim().length > 0);
+        let translatedContent = '';
+        
+        // 处理完整的英文解析，尝试转换为中文
         if (sentences.length > 0) {
-            // 添加第一个关键句作为补充
-            const keySentence = sentences[0].trim() + (sentences[0].trim().endsWith('.') ? '' : '。');
-            result += keySentence;
+            // 提取前1-3个句子作为补充
+            const keyContent = sentences.slice(0, Math.min(3, sentences.length))
+                .map(s => s.trim())
+                .join('. ') + '.';
+                
+            // 简单翻译关键内容
+            translatedContent = translateExplanationContent(keyContent);
+            result += translatedContent;
         }
         
         return result;
     }
+    
+    // 辅助函数：简单翻译解释内容的关键部分
+    function translateExplanationContent(content) {
+        // 常见词汇和短语的简单翻译对照表
+        const translations = {
+            'the correct': '正确的',
+            'answer': '答案',
+            'option': '选项',
+            'because': '因为',
+            'context': '上下文',
+            'paragraph': '段落',
+            'text': '文本',
+            'passage': '文章',
+            'mentions': '提到',
+            'states': '说明',
+            'indicates': '表明',
+            'suggests': '暗示',
+            'implies': '暗示',
+            'refers to': '指的是',
+            'specifically': '特别地',
+            'example': '例子',
+            'instance': '例子',
+            'however': '然而',
+            'therefore': '因此',
+            'thus': '因此',
+            'main idea': '主旨',
+            'theme': '主题',
+            'author': '作者',
+            'details': '细节',
+            'information': '信息',
+            'sentence': '句子',
+            'meaning': '含义',
+            'grammar': '语法',
+            'tense': '时态',
+            'verb': '动词',
+            'noun': '名词',
+            'adjective': '形容词',
+            'adverb': '副词',
+            'preposition': '介词',
+            'conjunction': '连词',
+            'phrase': '短语',
+            'idiom': '习语',
+            'expression': '表达',
+            'vocabulary': '词汇',
+            'word': '单词',
+            'definition': '定义',
+            'described': '描述的',
+            'shown': '显示的',
+            'illustrated': '说明的',
+            'according to': '根据',
+            'based on': '基于',
+            'in this': '在这',
+            'while': '而',
+            'contrast': '对比',
+            'comparison': '比较',
+            'similar': '相似的',
+            'different': '不同的'
+        };
+        
+        // 替换常见词汇和短语
+        let translated = content;
+        for (const [eng, chi] of Object.entries(translations)) {
+            const regex = new RegExp(`\\b${eng}\\b`, 'gi');
+            translated = translated.replace(regex, chi);
+        }
+        
+        // 添加简单的语法转换
+        translated = translated
+            .replace(/\bis\b/g, '是')
+            .replace(/\bare\b/g, '是')
+            .replace(/\bwas\b/g, '是')
+            .replace(/\bwere\b/g, '是')
+            .replace(/\bthe\b/g, '')
+            .replace(/\ba\b/g, '')
+            .replace(/\ban\b/g, '')
+            .replace(/\bof\b/g, '的')
+            .replace(/\bin\b/g, '在')
+            .replace(/\bon\b/g, '在')
+            .replace(/\bat\b/g, '在')
+            .replace(/\bto\b/g, '到')
+            .replace(/\band\b/g, '和')
+            .replace(/\bor\b/g, '或')
+            .replace(/\bbut\b/g, '但')
+            .replace(/\bfor\b/g, '为了')
+            .replace(/\bwith\b/g, '与')
+            .replace(/\bnot\b/g, '不')
+            .replace(/\bthis\b/g, '这个')
+            .replace(/\bthat\b/g, '那个')
+            .replace(/\bthese\b/g, '这些')
+            .replace(/\bthose\b/g, '那些')
+            .replace(/\bthere\b/g, '那里')
+            .replace(/\bhere\b/g, '这里');
+            
+        // 根据标点符号添加中文标点
+        translated = translated
+            .replace(/\./g, '。')
+            .replace(/,/g, '，')
+            .replace(/!/g, '！')
+            .replace(/\?/g, '？')
+            .replace(/;/g, '；')
+            .replace(/:/g, '：')
+            .replace(/"/g, '"')
+            .replace(/"/g, '"');
+            
+        return translated;
+    }
 
-    // 在词汇卡片添加到DOM后初始化轮播
+    // 重写词汇轮播初始化函数，确保正确显示
     function initVocabCarousel() {
+        const carouselContainer = document.querySelector('.vocab-carousel');
         const prevBtn = document.querySelector('.vocab-prev');
         const nextBtn = document.querySelector('.vocab-next');
-        const wrapper = document.querySelector('.vocab-cards-wrapper');
-        const cards = document.querySelectorAll('.vocab-card');
+        const cards = document.querySelectorAll('.vocab-card.enhanced');
         const currentCardEl = document.querySelector('.current-card');
+        const totalCardsEl = document.querySelector('.total-cards');
         
-        if (!wrapper || !prevBtn || !nextBtn || !cards.length) {
-            console.log('Vocab carousel elements not found');
+        if (!carouselContainer || !prevBtn || !nextBtn || !cards.length) {
+            console.log('Vocab carousel elements not found', {
+                carouselContainer: !!carouselContainer,
+                prevBtn: !!prevBtn,
+                nextBtn: !!nextBtn,
+                cardsLength: cards.length
+            });
             return;
         }
         
         console.log('Initializing vocab carousel with', cards.length, 'cards');
         
-        let currentIndex = 0;
-        const totalCards = cards.length;
+        // 设置计数器
+        totalCardsEl.textContent = cards.length;
         
-        // 显示所有卡片（修复样式问题）
-        cards.forEach(card => {
-            card.style.display = 'block';
+        let currentIndex = 0;
+        
+        // 确保所有卡片正确显示
+        cards.forEach((card, index) => {
+            // 移除之前可能的active类
+            card.classList.remove('active');
+            
+            // 设置初始状态
+            card.style.display = 'none';
             card.style.opacity = '0';
-            card.style.position = 'absolute';
-            card.style.top = '0';
-            card.style.left = '0';
-            card.style.width = '100%';
+            card.style.zIndex = '0';
         });
         
-        // 初始化显示第一张卡片
-        showCard(currentIndex);
+        // 显示第一张卡片
+        if (cards.length > 0) {
+            cards[0].classList.add('active');
+            cards[0].style.display = 'block';
+            cards[0].style.opacity = '1';
+            cards[0].style.zIndex = '2';
+            currentCardEl.textContent = '1';
+        }
+        
+        // 更新导航按钮状态
         updateNavButtons();
         
         // 添加事件监听
         prevBtn.addEventListener('click', function() {
             console.log('Previous button clicked');
             if (currentIndex > 0) {
-                currentIndex--;
-                showCard(currentIndex);
-                updateNavButtons();
+                showCard(--currentIndex);
             }
         });
         
         nextBtn.addEventListener('click', function() {
             console.log('Next button clicked');
-            if (currentIndex < totalCards - 1) {
-                currentIndex++;
-                showCard(currentIndex);
-                updateNavButtons();
+            if (currentIndex < cards.length - 1) {
+                showCard(++currentIndex);
             }
+        });
+        
+        // 添加"更多词汇"按钮事件处理
+        const moreWordsBtn = document.getElementById('more-words');
+        if (moreWordsBtn) {
+            moreWordsBtn.addEventListener('click', function() {
+                console.log('More words button clicked');
+                generateVocabulary();
+            });
+        }
+        
+        // 添加"练习全部"按钮事件处理
+        const practiceAllBtn = document.getElementById('practice-vocab');
+        if (practiceAllBtn) {
+            practiceAllBtn.addEventListener('click', function() {
+                alert('词汇练习功能即将推出！');
+            });
+        }
+        
+        // 为每个单词卡的保存和练习按钮添加事件
+        document.querySelectorAll('.save-word').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const card = this.closest('.vocab-card');
+                const word = card.querySelector('h4').textContent;
+                alert(`单词"${word}"已保存到生词本！`);
+            });
+        });
+        
+        document.querySelectorAll('.vocab-practice').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const card = this.closest('.vocab-card');
+                const word = card.querySelector('h4').textContent;
+                alert(`开始练习"${word}"！`);
+            });
         });
         
         function showCard(index) {
             console.log('Showing card', index);
-            cards.forEach((card, i) => {
-                if (i === index) {
-                    card.classList.add('active');
-                    card.style.opacity = '1';
-                    card.style.zIndex = '1';
-                } else {
-                    card.classList.remove('active');
-                    card.style.opacity = '0';
-                    card.style.zIndex = '0';
-                }
+            
+            // 隐藏所有卡片
+            cards.forEach((card) => {
+                card.classList.remove('active');
+                card.style.display = 'none';
+                card.style.opacity = '0';
+                card.style.zIndex = '0';
             });
             
-            currentCardEl.textContent = index + 1;
-            wrapper.setAttribute('data-current', index);
+            // 显示当前卡片
+            if (cards[index]) {
+                cards[index].classList.add('active');
+                cards[index].style.display = 'block';
+                cards[index].style.opacity = '1';
+                cards[index].style.zIndex = '2';
+                currentCardEl.textContent = index + 1;
+            }
+            
+            // 更新导航按钮
+            updateNavButtons();
         }
         
         function updateNavButtons() {
             prevBtn.disabled = currentIndex === 0;
-            nextBtn.disabled = currentIndex === totalCards - 1;
+            nextBtn.disabled = currentIndex === cards.length - 1;
         }
+        
+        // 标记为已初始化
+        window.vocabCarouselInitialized = true;
+        window.vocabCarouselPending = false;
+        
+        console.log('Vocab carousel initialization complete');
     }
 }); 
