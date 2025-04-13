@@ -1894,7 +1894,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.generateReadingTest = generateReadingTest;
     
     // 生成阅读测试功能
-    async function generateReadingTest() {
+    async function generateReadingTestOld() {
         const testType = document.getElementById('reading-test-type').value;
         const difficulty = document.getElementById('reading-test-difficulty').value;
         const questions = document.getElementById('reading-test-questions').value;
