@@ -1822,4 +1822,1129 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化测验生成器
     initQuizGenerator();
+    
+    // 使阅读测试函数全局可用
+    window.generateReadingTest = generateReadingTest;
+    
+    // 生成阅读测试功能
+    async function generateReadingTest() {
+        const testType = document.getElementById('reading-test-type').value;
+        const difficulty = document.getElementById('reading-test-difficulty').value;
+        const testContainer = document.getElementById('reading-test-container');
+        
+        // 获取题目数量，基于测试类型
+        let questionCount = testType === 'cloze' ? 10 : 5;
+        
+        // 获取用户的教育水平
+        const profileDisplay = document.getElementById('profile-display');
+        const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
+        const educationLevel = getEducationLevelFromProfile(userProfile);
+        
+        // 显示加载
+        testContainer.innerHTML = '<p class="loading">正在生成测验...</p>';
+        
+        try {
+            // 构建系统消息
+            const systemMessage = testType === 'cloze' 
+                ? buildClozeTestSystemMessage(difficulty, questionCount, educationLevel)
+                : buildComprehensionTestSystemMessage(difficulty, questionCount, educationLevel);
+            
+            // 构建用户消息
+            const userPrompt = testType === 'cloze' 
+                ? `请生成一篇适合${educationLevel}的${getDifficultyName(difficulty)}难度完形填空测试，包含${questionCount}个空和选项。`
+                : `请生成一篇适合${educationLevel}的${getDifficultyName(difficulty)}难度阅读理解测试，包含一篇文章和${questionCount}个问题。`;
+            
+            // 构建消息数组
+            const messages = [
+                {
+                    "role": "system",
+                    "content": systemMessage
+                },
+                {
+                    "role": "user",
+                    "content": userPrompt
+                }
+            ];
+            
+            // 调用API
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: messages
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const aiResponse = data.choices[0].message.content;
+            
+            console.log("Reading test response:", aiResponse);
+            
+            // 解析JSON响应
+            try {
+                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const test = JSON.parse(jsonMatch[0]);
+                    
+                    if (!test.title || !test.article || !test.questions || !Array.isArray(test.questions)) {
+                        throw new Error('解析的JSON格式不正确');
+                    }
+                    
+                    // 根据测试类型渲染不同的测试
+                    if (testType === 'cloze') {
+                        renderClozeTest(test);
+                    } else {
+                        renderComprehensionTest(test);
+                    }
+                } else {
+                    throw new Error('无法从响应中提取JSON');
+                }
+            } catch (jsonError) {
+                console.error('解析AI响应时出错:', jsonError);
+                
+                // 尝试直接使用响应文本渲染
+                if (testType === 'cloze') {
+                    renderClozeTestFromText(aiResponse);
+                } else {
+                    renderComprehensionTestFromText(aiResponse);
+                }
+            }
+            
+        } catch (error) {
+            console.error("Error generating reading test:", error);
+            testContainer.innerHTML = '<p class="error">生成测试时出现错误: ' + error.message + '</p>';
+        }
+    }
+    
+    // 构建完形填空测试的系统消息
+    function buildClozeTestSystemMessage(difficulty, questionCount, educationLevel) {
+        return `你是一个专业的英语教育助手。请为${educationLevel}学生生成一个${getDifficultyName(difficulty)}难度的完形填空测试。
+
+测试应包含以下内容：
+1. 一篇短文，其中有${questionCount}个单词被挖空，并以[1]、[2]等数字标记。
+2. 每个空格对应一个四选一(A/B/C/D)的选择题。
+3. 正确答案和每个选项的解释说明。
+
+请根据学生的教育水平(${educationLevel})调整文章难度和词汇量。
+
+${difficulty === 'easy' ? '使用简单词汇和基础语法结构，话题应贴近日常生活。' : 
+  difficulty === 'medium' ? '使用中等难度词汇和语法结构，话题可以包括文化、科技等内容。' : 
+  '使用较复杂词汇和语法结构，话题可以包括社会、环境等更抽象的内容。'}
+
+请以JSON格式回复，格式如下:
+{
+  "title": "测试标题",
+  "article": "完整的文章，标记出空白处，例如：The boy [1] to the store every day.",
+  "questions": [
+    {
+      "id": 1,
+      "options": [
+        { "id": "A", "text": "选项A" },
+        { "id": "B", "text": "选项B" },
+        { "id": "C", "text": "选项C" },
+        { "id": "D", "text": "选项D" }
+      ],
+      "correctAnswer": "正确选项的ID（A/B/C/D）",
+      "explanation": "为什么这是正确答案的解释"
+    }
+  ]
+}`;
+    }
+    
+    // 构建阅读理解测试的系统消息
+    function buildComprehensionTestSystemMessage(difficulty, questionCount, educationLevel) {
+        return `你是一个专业的英语教育助手。请为${educationLevel}学生生成一个${getDifficultyName(difficulty)}难度的阅读理解测试。
+
+测试应包含以下内容：
+1. 一篇适合${educationLevel}学生阅读水平的短文。
+2. ${questionCount}个关于文章内容的四选一(A/B/C/D)问题。
+3. 正确答案和每个选项的解释说明。
+
+请根据学生的教育水平(${educationLevel})调整文章难度和词汇量。
+
+${difficulty === 'easy' ? '使用简单词汇和基础语法结构，话题应贴近日常生活，段落简短。' : 
+  difficulty === 'medium' ? '使用中等难度词汇和语法结构，话题可以包括文化、科技等内容，段落适中。' : 
+  '使用较复杂词汇和语法结构，话题可以包括社会、环境等更抽象的内容，段落可以较长。'}
+
+问题应该包括细节理解、主旨把握、逻辑推理和词汇理解等多种题型。
+
+请以JSON格式回复，格式如下:
+{
+  "title": "测试标题",
+  "article": "完整的文章内容",
+  "questions": [
+    {
+      "id": 1,
+      "question": "问题描述",
+      "options": [
+        { "id": "A", "text": "选项A" },
+        { "id": "B", "text": "选项B" },
+        { "id": "C", "text": "选项C" },
+        { "id": "D", "text": "选项D" }
+      ],
+      "correctAnswer": "正确选项的ID（A/B/C/D）",
+      "explanation": "为什么这是正确答案的解释"
+    }
+  ]
+}`;
+    }
+    
+    // 渲染完形填空测试
+    function renderClozeTest(test) {
+        const testContainer = document.getElementById('reading-test-container');
+        const userAnswers = new Array(test.questions.length).fill(null);
+        
+        // 创建漂亮的HTML
+        let html = `
+            <div class="reading-test-content">
+                <h3>${test.title}</h3>
+                <div class="reading-article cloze-article">
+                    ${test.article}
+                </div>
+                <div class="questions-container">
+                    <h4>请选择最适合填入空格的选项：</h4>
+                    <div class="questions-list">
+        `;
+        
+        // 添加问题
+        test.questions.forEach((question, index) => {
+            html += `
+                <div class="question-item" data-question="${question.id}">
+                    <div class="question-header">
+                        <span class="question-number">${question.id}.</span>
+                    </div>
+                    <div class="options-container">
+            `;
+            
+            // 添加选项
+            question.options.forEach(option => {
+                html += `
+                    <div class="option-item" data-option="${option.id}">
+                        <label>
+                            <input type="radio" name="q${question.id}" value="${option.id}">
+                            <span class="option-marker">${option.id}</span>
+                            <span class="option-text">${option.text}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    <div class="explanation-container" style="display: none;">
+                        <div class="correct-answer">
+                            <span>正确答案: ${question.correctAnswer}</span>
+                        </div>
+                        <div class="explanation">
+                            <p>${question.explanation}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // 完成按钮
+        html += `
+                    </div>
+                    <div class="test-actions">
+                        <button class="btn btn-primary" id="complete-test">完成题目</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        testContainer.innerHTML = html;
+        
+        // 添加事件监听
+        document.querySelectorAll('.option-item').forEach(option => {
+            option.addEventListener('click', function() {
+                const questionId = parseInt(this.closest('.question-item').dataset.question);
+                const optionId = this.dataset.option;
+                userAnswers[questionId - 1] = optionId;
+            });
+        });
+        
+        // 完成按钮事件
+        document.getElementById('complete-test').addEventListener('click', function() {
+            // 显示答案解释
+            document.querySelectorAll('.explanation-container').forEach((container, index) => {
+                container.style.display = 'block';
+            });
+            
+            // 计算得分
+            let correctCount = 0;
+            test.questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === question.correctAnswer;
+                if (isCorrect) correctCount++;
+                
+                // 高亮正确和错误的答案
+                const questionElement = document.querySelector(`.question-item[data-question="${question.id}"]`);
+                questionElement.querySelectorAll('.option-item').forEach(option => {
+                    if (option.dataset.option === question.correctAnswer) {
+                        option.classList.add('correct');
+                    } else if (option.dataset.option === userAnswer) {
+                        option.classList.add('incorrect');
+                    }
+                });
+            });
+            
+            // 显示得分
+            const score = Math.round((correctCount / test.questions.length) * 100);
+            
+            // 添加评估按钮
+            const actions = document.querySelector('.test-actions');
+            actions.innerHTML = `
+                <div class="test-results">
+                    <p>得分：${correctCount} / ${test.questions.length} (${score}%)</p>
+                    <p>${score >= 80 ? '太棒了！继续保持！' : 
+                        score >= 60 ? '不错！还有提升空间。' : 
+                        '继续努力，你会进步的！'}</p>
+                </div>
+                <button class="btn btn-primary" id="evaluate-test">获取评估</button>
+            `;
+            
+            // 添加评估按钮事件
+            document.getElementById('evaluate-test').addEventListener('click', function() {
+                evaluateTest(test, userAnswers, 'cloze');
+            });
+        });
+    }
+    
+    // 渲染阅读理解测试
+    function renderComprehensionTest(test) {
+        const testContainer = document.getElementById('reading-test-container');
+        const userAnswers = new Array(test.questions.length).fill(null);
+        
+        // 创建漂亮的HTML
+        let html = `
+            <div class="reading-test-content">
+                <h3>${test.title}</h3>
+                <div class="reading-article">
+                    ${test.article}
+                </div>
+                <div class="questions-container">
+                    <h4>请回答以下问题：</h4>
+                    <div class="questions-list">
+        `;
+        
+        // 添加问题
+        test.questions.forEach((question, index) => {
+            html += `
+                <div class="question-item" data-question="${question.id}">
+                    <div class="question-header">
+                        <span class="question-number">${question.id}.</span>
+                        <span class="question-text">${question.question}</span>
+                    </div>
+                    <div class="options-container">
+            `;
+            
+            // 添加选项
+            question.options.forEach(option => {
+                html += `
+                    <div class="option-item" data-option="${option.id}">
+                        <label>
+                            <input type="radio" name="q${question.id}" value="${option.id}">
+                            <span class="option-marker">${option.id}</span>
+                            <span class="option-text">${option.text}</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                    <div class="explanation-container" style="display: none;">
+                        <div class="correct-answer">
+                            <span>正确答案: ${question.correctAnswer}</span>
+                        </div>
+                        <div class="explanation">
+                            <p>${question.explanation}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // 完成按钮
+        html += `
+                    </div>
+                    <div class="test-actions">
+                        <button class="btn btn-primary" id="complete-test">完成题目</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        testContainer.innerHTML = html;
+        
+        // 添加事件监听
+        document.querySelectorAll('.option-item').forEach(option => {
+            option.addEventListener('click', function() {
+                const questionId = parseInt(this.closest('.question-item').dataset.question);
+                const optionId = this.dataset.option;
+                userAnswers[questionId - 1] = optionId;
+            });
+        });
+        
+        // 完成按钮事件
+        document.getElementById('complete-test').addEventListener('click', function() {
+            // 显示答案解释
+            document.querySelectorAll('.explanation-container').forEach((container, index) => {
+                container.style.display = 'block';
+            });
+            
+            // 计算得分
+            let correctCount = 0;
+            test.questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === question.correctAnswer;
+                if (isCorrect) correctCount++;
+                
+                // 高亮正确和错误的答案
+                const questionElement = document.querySelector(`.question-item[data-question="${question.id}"]`);
+                questionElement.querySelectorAll('.option-item').forEach(option => {
+                    if (option.dataset.option === question.correctAnswer) {
+                        option.classList.add('correct');
+                    } else if (option.dataset.option === userAnswer) {
+                        option.classList.add('incorrect');
+                    }
+                });
+            });
+            
+            // 显示得分
+            const score = Math.round((correctCount / test.questions.length) * 100);
+            
+            // 添加评估按钮
+            const actions = document.querySelector('.test-actions');
+            actions.innerHTML = `
+                <div class="test-results">
+                    <p>得分：${correctCount} / ${test.questions.length} (${score}%)</p>
+                    <p>${score >= 80 ? '太棒了！继续保持！' : 
+                        score >= 60 ? '不错！还有提升空间。' : 
+                        '继续努力，你会进步的！'}</p>
+                </div>
+                <button class="btn btn-primary" id="evaluate-test">获取评估</button>
+            `;
+            
+            // 添加评估按钮事件
+            document.getElementById('evaluate-test').addEventListener('click', function() {
+                evaluateTest(test, userAnswers, 'comprehension');
+            });
+        });
+    }
+    
+    // 从文本渲染完形填空测试（备用方案）
+    function renderClozeTestFromText(text) {
+        const testContainer = document.getElementById('reading-test-container');
+        
+        // 尝试提取标题、文章和问题
+        const lines = text.split('\n');
+        let title = '完形填空练习';
+        let articleText = '';
+        let questions = [];
+        
+        // 提取标题
+        for (const line of lines) {
+            if (line.trim().startsWith('#') || line.trim().startsWith('标题')) {
+                title = line.replace(/^[#\s标题：:]+/, '').trim();
+                break;
+            }
+        }
+        
+        // 提取文章
+        let inArticle = false;
+        for (const line of lines) {
+            if (line.includes('文章') || line.includes('短文') || line.includes('Article')) {
+                inArticle = true;
+                continue;
+            }
+            
+            if (inArticle && line.trim() && !line.match(/^(\d+\.|\[[\d+]\]|\(\d+\))/)) {
+                articleText += line + '<br>';
+            }
+            
+            if (inArticle && (line.includes('Questions') || line.includes('问题') || line.match(/^\d+\./))) {
+                inArticle = false;
+                break;
+            }
+        }
+        
+        // 提取问题
+        let currentQuestion = null;
+        for (const line of lines) {
+            // 检查是否是问题开始
+            const questionMatch = line.match(/(\d+)[\.、\)）]?\s*(.+)?/);
+            if (questionMatch && !line.includes('文章') && !line.includes('Article')) {
+                if (currentQuestion) {
+                    questions.push(currentQuestion);
+                }
+                
+                currentQuestion = {
+                    id: parseInt(questionMatch[1]),
+                    options: [],
+                    correctAnswer: '',
+                    explanation: ''
+                };
+                
+                continue;
+            }
+            
+            // 如果已经有当前问题，尝试提取选项和答案
+            if (currentQuestion) {
+                // 尝试提取选项
+                const optionMatch = line.match(/([A-D])[\.、\)）]?\s*(.+)/);
+                if (optionMatch) {
+                    currentQuestion.options.push({
+                        id: optionMatch[1],
+                        text: optionMatch[2].trim()
+                    });
+                    continue;
+                }
+                
+                // 尝试提取正确答案
+                if (line.includes('答案') || line.includes('Answer')) {
+                    const answerMatch = line.match(/[：:]\s*([A-D])/);
+                    if (answerMatch) {
+                        currentQuestion.correctAnswer = answerMatch[1];
+                    }
+                    continue;
+                }
+                
+                // 尝试提取解释
+                if (line.includes('解释') || line.includes('Explanation')) {
+                    const explanationMatch = line.match(/[：:]\s*(.+)/);
+                    if (explanationMatch) {
+                        currentQuestion.explanation = explanationMatch[1].trim();
+                    }
+                    continue;
+                }
+                
+                // 如果没有匹配项但行不为空，可能是解释的一部分
+                if (line.trim() && currentQuestion.correctAnswer && !currentQuestion.explanation) {
+                    currentQuestion.explanation = line.trim();
+                }
+            }
+        }
+        
+        // 添加最后一个问题
+        if (currentQuestion) {
+            questions.push(currentQuestion);
+        }
+        
+        // 如果提取成功，使用提取的数据
+        if (articleText && questions.length > 0) {
+            const test = {
+                title: title,
+                article: articleText,
+                questions: questions.map(q => {
+                    return {
+                        id: q.id,
+                        options: q.options.length > 0 ? q.options : [
+                            { id: 'A', text: '选项A' },
+                            { id: 'B', text: '选项B' },
+                            { id: 'C', text: '选项C' },
+                            { id: 'D', text: '选项D' }
+                        ],
+                        correctAnswer: q.correctAnswer || 'A',
+                        explanation: q.explanation || '无解释'
+                    };
+                })
+            };
+            
+            renderClozeTest(test);
+        } else {
+            // 如果提取失败，显示原始响应
+            testContainer.innerHTML = `
+                <div class="test-error">
+                    <h3>完形填空练习</h3>
+                    <p>解析响应时出现问题，以下是原始内容：</p>
+                    <div class="raw-response">
+                        ${text.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // 从文本渲染阅读理解测试（备用方案）
+    function renderComprehensionTestFromText(text) {
+        const testContainer = document.getElementById('reading-test-container');
+        
+        // 尝试提取标题、文章和问题
+        const lines = text.split('\n');
+        let title = '阅读理解练习';
+        let articleText = '';
+        let questions = [];
+        
+        // 提取标题
+        for (const line of lines) {
+            if (line.trim().startsWith('#') || line.trim().startsWith('标题')) {
+                title = line.replace(/^[#\s标题：:]+/, '').trim();
+                break;
+            }
+        }
+        
+        // 提取文章
+        let inArticle = false;
+        for (const line of lines) {
+            if (line.includes('文章') || line.includes('短文') || line.includes('Article')) {
+                inArticle = true;
+                continue;
+            }
+            
+            if (inArticle && line.trim() && !line.match(/^(\d+\.|\[[\d+]\]|\(\d+\))/)) {
+                articleText += line + '<br>';
+            }
+            
+            if (inArticle && (line.includes('Questions') || line.includes('问题') || line.match(/^\d+\./))) {
+                inArticle = false;
+                break;
+            }
+        }
+        
+        // 提取问题
+        let currentQuestion = null;
+        for (const line of lines) {
+            // 检查是否是问题开始
+            const questionMatch = line.match(/(\d+)[\.、\)）]?\s*(.+)/);
+            if (questionMatch && !line.includes('文章') && !line.includes('Article')) {
+                if (currentQuestion) {
+                    questions.push(currentQuestion);
+                }
+                
+                currentQuestion = {
+                    id: parseInt(questionMatch[1]),
+                    question: questionMatch[2] ? questionMatch[2].trim() : '问题' + questionMatch[1],
+                    options: [],
+                    correctAnswer: '',
+                    explanation: ''
+                };
+                
+                continue;
+            }
+            
+            // 如果已经有当前问题，尝试提取选项和答案
+            if (currentQuestion) {
+                // 尝试提取选项
+                const optionMatch = line.match(/([A-D])[\.、\)）]?\s*(.+)/);
+                if (optionMatch) {
+                    currentQuestion.options.push({
+                        id: optionMatch[1],
+                        text: optionMatch[2].trim()
+                    });
+                    continue;
+                }
+                
+                // 尝试提取正确答案
+                if (line.includes('答案') || line.includes('Answer')) {
+                    const answerMatch = line.match(/[：:]\s*([A-D])/);
+                    if (answerMatch) {
+                        currentQuestion.correctAnswer = answerMatch[1];
+                    }
+                    continue;
+                }
+                
+                // 尝试提取解释
+                if (line.includes('解释') || line.includes('Explanation')) {
+                    const explanationMatch = line.match(/[：:]\s*(.+)/);
+                    if (explanationMatch) {
+                        currentQuestion.explanation = explanationMatch[1].trim();
+                    }
+                    continue;
+                }
+                
+                // 如果没有匹配项但行不为空，可能是解释的一部分
+                if (line.trim() && currentQuestion.correctAnswer && !currentQuestion.explanation) {
+                    currentQuestion.explanation = line.trim();
+                }
+            }
+        }
+        
+        // 添加最后一个问题
+        if (currentQuestion) {
+            questions.push(currentQuestion);
+        }
+        
+        // 如果提取成功，使用提取的数据
+        if (articleText && questions.length > 0) {
+            const test = {
+                title: title,
+                article: articleText,
+                questions: questions.map(q => {
+                    return {
+                        id: q.id,
+                        question: q.question,
+                        options: q.options.length > 0 ? q.options : [
+                            { id: 'A', text: '选项A' },
+                            { id: 'B', text: '选项B' },
+                            { id: 'C', text: '选项C' },
+                            { id: 'D', text: '选项D' }
+                        ],
+                        correctAnswer: q.correctAnswer || 'A',
+                        explanation: q.explanation || '无解释'
+                    };
+                })
+            };
+            
+            renderComprehensionTest(test);
+        } else {
+            // 如果提取失败，显示原始响应
+            testContainer.innerHTML = `
+                <div class="test-error">
+                    <h3>阅读理解练习</h3>
+                    <p>解析响应时出现问题，以下是原始内容：</p>
+                    <div class="raw-response">
+                        ${text.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // 测试评估函数
+    async function evaluateTest(test, userAnswers, testType) {
+        const evalBtn = document.getElementById('evaluate-test');
+        if (!evalBtn) return;
+        
+        // 显示评估加载中
+        evalBtn.disabled = true;
+        evalBtn.textContent = '评估中...';
+        
+        try {
+            // 计算得分
+            let correctCount = 0;
+            const mistakes = [];
+            
+            test.questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const isCorrect = userAnswer === question.correctAnswer;
+                
+                if (isCorrect) {
+                    correctCount++;
+                } else {
+                    mistakes.push({
+                        questionId: question.id,
+                        userAnswer: userAnswer || '未作答',
+                        correctAnswer: question.correctAnswer,
+                        explanation: question.explanation
+                    });
+                }
+            });
+            
+            const score = Math.round((correctCount / test.questions.length) * 100);
+            
+            // 获取用户的教育水平
+            const profileDisplay = document.getElementById('profile-display');
+            const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
+            const educationLevel = getEducationLevelFromProfile(userProfile);
+            
+            // 构建评估提示
+            const evalPrompt = `你是一个专业的英语教育专家。请根据以下${testType === 'cloze' ? '完形填空' : '阅读理解'}测试结果，为${educationLevel}学生提供详细评估和改进建议：
+
+测试结果：
+- 测试标题：${test.title}
+- 总分：${correctCount}/${test.questions.length} (${score}%)
+${mistakes.length > 0 ? `
+错误题目：
+${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}，正确答案是 ${m.correctAnswer}
+  解释：${m.explanation}`).join('\n')}
+` : '学生全部答对了所有题目！'}
+
+请提供：
+1. 测试表现的整体评估
+2. 针对学生的错误分析常见问题类型
+3. 针对性的学习建议和改进策略
+4. 推荐的学习资源和练习方法
+
+请确保评估友好、鼓励性且具有教育意义，适合${educationLevel}学生的理解水平。`;
+            
+            // 调用API获取评估
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": "你是一个专业的英语教育专家，擅长分析学生的测试结果并提供针对性的学习建议。"
+                        },
+                        {
+                            "role": "user",
+                            "content": evalPrompt
+                        }
+                    ]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const assessment = data.choices[0].message.content;
+            
+            // 显示评估结果
+            const testContainer = document.getElementById('reading-test-container');
+            const resultsContainer = document.createElement('div');
+            resultsContainer.className = 'assessment-container';
+            resultsContainer.innerHTML = `
+                <div class="assessment-header">
+                    <h3>学习评估报告</h3>
+                    <button class="btn btn-small btn-outline close-assessment">关闭</button>
+                </div>
+                <div class="assessment-content">
+                    ${assessment.replace(/\n/g, '<br>')}
+                </div>
+            `;
+            
+            testContainer.appendChild(resultsContainer);
+            
+            // 添加关闭按钮事件
+            document.querySelector('.close-assessment').addEventListener('click', function() {
+                resultsContainer.remove();
+                evalBtn.disabled = false;
+                evalBtn.textContent = '获取评估';
+            });
+            
+            // 添加样式
+            const style = document.createElement('style');
+            style.textContent = `
+                .assessment-container {
+                    position: fixed;
+                    top: 10%;
+                    left: 10%;
+                    width: 80%;
+                    max-height: 80%;
+                    background: white;
+                    border-radius: 10px;
+                    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+                    z-index: 1000;
+                    overflow-y: auto;
+                    padding: 20px;
+                }
+                
+                .assessment-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #eee;
+                }
+                
+                .assessment-header h3 {
+                    margin: 0;
+                    color: var(--primary-color);
+                }
+                
+                .assessment-content {
+                    line-height: 1.5;
+                }
+                
+                .close-assessment {
+                    padding: 5px 10px;
+                }
+                
+                @media (max-width: 768px) {
+                    .assessment-container {
+                        top: 5%;
+                        left: 5%;
+                        width: 90%;
+                        max-height: 90%;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+        } catch (error) {
+            console.error('获取学习评估时出错:', error);
+            alert('获取学习评估时出错，请稍后再试。');
+            evalBtn.disabled = false;
+            evalBtn.textContent = '获取评估';
+        }
+    }
+
+    // 阅读测试相关功能
+    document.addEventListener('DOMContentLoaded', function() {
+        const generateReadingTestBtn = document.getElementById('generate-reading-test');
+        const readingTestTypeSelect = document.getElementById('reading-test-type');
+        const readingTestQuestionsSelect = document.getElementById('reading-test-questions');
+        
+        if (generateReadingTestBtn) {
+            generateReadingTestBtn.addEventListener('click', generateReadingTest);
+        }
+        
+        if (readingTestTypeSelect) {
+            readingTestTypeSelect.addEventListener('change', function() {
+                // Both test types have fixed number of questions
+                readingTestQuestionsSelect.disabled = true;
+                
+                if (this.value === 'cloze') {
+                    // 完形填空固定10题
+                    readingTestQuestionsSelect.innerHTML = '<option value="10" selected>10题</option>';
+                } else if (this.value === 'comprehension') {
+                    // 阅读理解固定5题
+                    readingTestQuestionsSelect.innerHTML = '<option value="5" selected>5题</option>';
+                }
+            });
+        }
+    });
+
+    function generateReadingTest() {
+        const testType = document.getElementById('reading-test-type').value;
+        const difficulty = document.getElementById('reading-test-difficulty').value;
+        const questions = document.getElementById('reading-test-questions').value;
+        const testContainer = document.getElementById('reading-test-container');
+        
+        // 显示加载状态
+        testContainer.innerHTML = '<div class="loading-spinner"><div></div><div></div><div></div><div></div></div>';
+        
+        // 获取用户教育背景
+        const userEducationLevel = getUserEducationLevel();
+        
+        // 准备API请求数据
+        const promptData = {
+            testType: testType,
+            difficulty: difficulty,
+            questions: parseInt(questions),
+            userEducationLevel: userEducationLevel
+        };
+        
+        // 调用API生成测试
+        callLLMApi(getReadingTestPrompt(promptData), function(response) {
+            try {
+                const data = JSON.parse(response);
+                displayReadingTest(data, testType);
+            } catch (e) {
+                console.error("解析API响应时出错:", e);
+                testContainer.innerHTML = '<p class="error-message">生成测试时发生错误，请重试。</p>';
+            }
+        });
+    }
+
+    function getReadingTestPrompt(data) {
+        const { testType, difficulty, questions, userEducationLevel } = data;
+        
+        let difficultyDesc = '';
+        switch(difficulty) {
+            case 'easy':
+                difficultyDesc = '初级/简单，适合初中水平';
+                break;
+            case 'medium':
+                difficultyDesc = '中级/中等，适合高中水平';
+                break;
+            case 'hard':
+                difficultyDesc = '高级/困难，适合大学及以上水平';
+                break;
+        }
+        
+        let prompt = '';
+        
+        if (testType === 'cloze') {
+            prompt = `请创建一个英语完形填空测试，难度为${difficultyDesc}，考虑用户教育背景为${userEducationLevel}。
+请提供一篇文章，其中有10个空白处需要填词。为每个空白提供A、B、C、D四个选项。
+请以JSON格式返回，包含以下字段：
+1. title: 文章标题
+2. passage: 带有空白处的文章，用__1__，__2__等表示空白
+3. questions: 包含10个问题对象的数组，每个对象包含：
+   - number: 题号
+   - options: 四个选项 A、B、C、D
+   - answer: 正确答案（A、B、C、D）
+   - explanation: 答案解释
+返回的JSON结构应为：
+{
+  "title": "文章标题",
+  "passage": "文章内容带有__1__等空白处",
+  "questions": [
+    {
+      "number": 1,
+      "options": {"A": "选项A", "B": "选项B", "C": "选项C", "D": "选项D"},
+      "answer": "A",
+      "explanation": "解释为什么A是正确答案"
+    },
+    ...
+  ]
+}`;
+        } else if (testType === 'comprehension') {
+            prompt = `请创建一个英语阅读理解测试，难度为${difficultyDesc}，考虑用户教育背景为${userEducationLevel}。
+请提供一篇文章，并创建5个关于这篇文章的选择题。
+请以JSON格式返回，包含以下字段：
+1. title: 文章标题
+2. passage: 完整的文章内容
+3. questions: 包含5个问题对象的数组，每个对象包含：
+   - number: 题号
+   - question: 问题内容
+   - options: 四个选项 A、B、C、D
+   - answer: 正确答案（A、B、C、D）
+   - explanation: 答案解释
+返回的JSON结构应为：
+{
+  "title": "文章标题",
+  "passage": "文章完整内容",
+  "questions": [
+    {
+      "number": 1,
+      "question": "问题描述",
+      "options": {"A": "选项A", "B": "选项B", "C": "选项C", "D": "选项D"},
+      "answer": "A",
+      "explanation": "解释为什么A是正确答案"
+    },
+    ...
+  ]
+}`;
+        }
+        
+        return prompt;
+    }
+
+    function displayReadingTest(data, testType) {
+        const testContainer = document.getElementById('reading-test-container');
+        let html = '';
+        
+        html += `<h3 class="test-title">${data.title}</h3>`;
+        
+        if (testType === 'cloze') {
+            // 显示完形填空文章
+            html += `<div class="test-passage">${data.passage}</div>`;
+        } else if (testType === 'comprehension') {
+            // 显示阅读理解文章
+            html += `<div class="test-passage">${data.passage}</div>`;
+        }
+        
+        // 显示问题
+        html += '<div class="test-questions">';
+        data.questions.forEach(q => {
+            html += `<div class="question" data-number="${q.number}" data-answer="${q.answer}">`;
+            
+            if (testType === 'comprehension') {
+                html += `<p class="question-text">${q.number}. ${q.question}</p>`;
+            } else {
+                html += `<p class="question-text">${q.number}. 空白 __${q.number}__ 应选：</p>`;
+            }
+            
+            Object.entries(q.options).forEach(([key, value]) => {
+                html += `
+                <div class="option">
+                    <input type="radio" id="q${q.number}${key}" name="q${q.number}" value="${key}">
+                    <label for="q${q.number}${key}">${key}. ${value}</label>
+                </div>`;
+            });
+            
+            html += `
+                <div class="explanation" style="display: none;">
+                    <p><strong>解析：</strong> ${q.explanation}</p>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        
+        // 添加提交和查看答案按钮
+        html += `
+        <div class="test-controls">
+            <button class="btn btn-primary" id="submit-test">提交答案</button>
+            <button class="btn btn-secondary" id="show-answers">查看答案</button>
+        </div>
+        <div id="test-results" class="test-results"></div>`;
+        
+        testContainer.innerHTML = html;
+        
+        // 添加提交按钮事件监听
+        document.getElementById('submit-test').addEventListener('click', function() {
+            evaluateTest(data);
+        });
+        
+        // 添加查看答案按钮事件监听
+        document.getElementById('show-answers').addEventListener('click', function() {
+            showAnswers(data);
+        });
+    }
+
+    function evaluateTest(data) {
+        const questions = document.querySelectorAll('.question');
+        let correct = 0;
+        let totalQuestions = questions.length;
+        let unanswered = 0;
+        
+        questions.forEach(question => {
+            const number = question.dataset.number;
+            const correctAnswer = question.dataset.answer;
+            const selectedOption = document.querySelector(`input[name="q${number}"]:checked`);
+            
+            if (selectedOption) {
+                const userAnswer = selectedOption.value;
+                const optionEl = selectedOption.parentElement;
+                
+                if (userAnswer === correctAnswer) {
+                    correct++;
+                    optionEl.classList.add('correct');
+                } else {
+                    optionEl.classList.add('incorrect');
+                    // 标记正确答案
+                    document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('correct-answer');
+                }
+            } else {
+                unanswered++;
+                // 标记正确答案
+                document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('unanswered');
+            }
+        });
+        
+        const score = Math.round((correct / totalQuestions) * 100);
+        const resultsContainer = document.getElementById('test-results');
+        
+        let feedback = '';
+        if (score >= 90) {
+            feedback = '优秀！你的阅读理解能力非常强！';
+        } else if (score >= 70) {
+            feedback = '很好！你有扎实的阅读基础。';
+        } else if (score >= 60) {
+            feedback = '及格，继续加油！';
+        } else {
+            feedback = '需要加强训练，不要气馁！';
+        }
+        
+        resultsContainer.innerHTML = `
+            <h4>测试结果</h4>
+            <p>得分: <strong>${score}%</strong> (${correct}/${totalQuestions})</p>
+            <p>${feedback}</p>
+            ${unanswered > 0 ? `<p>你有${unanswered}道题未作答。</p>` : ''}
+        `;
+        
+        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showAnswers(data) {
+        const questions = document.querySelectorAll('.question');
+        
+        questions.forEach(question => {
+            const explanation = question.querySelector('.explanation');
+            if (explanation) {
+                explanation.style.display = 'block';
+            }
+            
+            const number = question.dataset.number;
+            const correctAnswer = question.dataset.answer;
+            
+            // 高亮正确答案
+            document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('show-correct');
+        });
+        
+        // 滚动到结果部分
+        document.getElementById('test-results').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // 从用户信息中获取教育背景
+    function getUserEducationLevel() {
+        const educationSelect = document.getElementById('education');
+        return educationSelect ? educationSelect.value : '高中';
+    }
 }); 
