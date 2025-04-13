@@ -65,9 +65,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             profileDisplay.textContent = getEducationLevelName(currentLevel);
         }
         
-        // Initialize formula sections
-        initializeFormulaSections();
-        
         // Wait for Plotly to load before initializing visualizations
         await plotlyPromise;
         console.log('Plotly loaded successfully');
@@ -3498,9 +3495,11 @@ function initCommonFormulas() {
 
         // Render LaTeX formulas
         if (window.MathJax) {
-            MathJax.typesetPromise([formulaDisplay]).catch(err => {
-                console.error('MathJax rendering error:', err);
-            });
+            if (typeof window.MathJax.typeset === 'function') {
+                window.MathJax.typeset([formulaDisplay]);
+            } else if (typeof window.MathJax.Hub?.Queue === 'function') {
+                window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, formulaDisplay]);
+            }
         }
     }
 
