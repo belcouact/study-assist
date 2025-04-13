@@ -1321,146 +1321,240 @@ document.addEventListener('DOMContentLoaded', function() {
     function extractEnhancedWords(response) {
         console.log("Extracting enhanced words from response:", response);
         
-        const lines = response.split('\n');
+        // 识别编号格式的单词列表
+        const wordEntryRegex = /\d+\.\s+\*\*([^*]+)\*\*/g;
         const words = [];
-        let currentWord = null;
         
-        // 用于匹配单词标题行的正则表达式
-        const wordHeaderRegex = /^(?:\d+[\.\)]\s+)?(?:\*\*)?([A-Za-z\s\-']+)(?:\*\*)?/;
+        // 分割响应为每个单词的块
+        let wordBlocks = response.split(/\d+\.\s+\*\*/);
+        // 移除第一个空块（如果有）
+        if (wordBlocks[0].trim() === '') {
+            wordBlocks.shift();
+        }
         
-        // 匹配各种部分的正则表达式
-        const pronunciationRegex = /(?:发音|音标|pronunciation)(?:：|:)\s*(\[.+?\])/i;
-        const partOfSpeechRegex = /(?:词性|part of speech)(?:：|:)\s*(.+)/i;
-        const definitionRegex = /(?:释义|定义|中文意思|meaning)(?:：|:)\s*(.+)/i;
-        const phrasesStartRegex = /(?:常用词组|词组|搭配|phrases)(?:：|:)/i;
-        const examplesStartRegex = /(?:例句|例子|示例|examples)(?:：|:)/i;
-        const synonymsRegex = /(?:近义词|同义词|反义词|synonyms|antonyms)(?:：|:)\s*(.+)/i;
-        const memoryTipRegex = /(?:记忆技巧|记忆提示|memory tip)(?:：|:)\s*(.+)/i;
-        
-        let inPhrases = false;
-        let inExamples = false;
-        
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i].trim();
+        // 处理每个单词块
+        for (let i = 0; i < wordBlocks.length; i++) {
+            if (!wordBlocks[i].trim()) continue;
             
-            // 跳过空行
-            if (line === '') continue;
+            const block = wordBlocks[i];
+            // 提取单词名称（块的开头到第一个*为止）
+            const wordMatch = block.match(/^([^*]+)/);
+            if (!wordMatch) continue;
             
-            // 检查是否是新单词的开始
-            const wordMatch = line.match(wordHeaderRegex);
-            if (wordMatch && (line.match(/^\d+[\.\)]/) || i === 0 || lines[i-1].trim() === '')) {
-                // 保存前一个单词
-                if (currentWord) {
-                    words.push(currentWord);
-                }
-                
-                // 创建新单词对象
-                currentWord = {
-                    word: wordMatch[1].trim(),
-                    pronunciation: '',
-                    partOfSpeech: '',
-                    definition: '',
-                    phrases: [],
-                    examples: [],
-                    synonymsAntonyms: '',
-                    memoryTip: ''
-                };
-                
-                // 检查本行是否包含其他信息
-                const proMatch = line.match(pronunciationRegex);
-                if (proMatch) {
-                    currentWord.pronunciation = proMatch[1];
-                }
-                
-                inPhrases = false;
-                inExamples = false;
-                continue;
+            const word = {
+                word: wordMatch[1].trim(),
+                pronunciation: '',
+                partOfSpeech: '',
+                definition: '',
+                phrases: [],
+                examples: [],
+                synonymsAntonyms: '',
+                memoryTip: ''
+            };
+            
+            // 提取音标
+            const pronMatch = block.match(/音标:\s*(\[.+?\])/);
+            if (pronMatch) {
+                word.pronunciation = pronMatch[1];
             }
             
-            if (!currentWord) continue;
-            
-            // 处理音标
-            const proMatch = line.match(pronunciationRegex);
-            if (proMatch) {
-                currentWord.pronunciation = proMatch[1];
-                continue;
-            }
-            
-            // 处理词性
-            const posMatch = line.match(partOfSpeechRegex);
+            // 提取词性
+            const posMatch = block.match(/词性:\s*(.+?)(?=\n|$|-)/);
             if (posMatch) {
-                currentWord.partOfSpeech = posMatch[1];
-                continue;
+                word.partOfSpeech = posMatch[1].trim();
             }
             
-            // 处理释义
-            const defMatch = line.match(definitionRegex);
+            // 提取释义
+            const defMatch = block.match(/释义:\s*(.+?)(?=\n|$|-)/);
             if (defMatch) {
-                currentWord.definition = defMatch[1];
-                continue;
+                word.definition = defMatch[1].trim();
             }
             
-            // 处理近义词/反义词
-            const synMatch = line.match(synonymsRegex);
+            // 提取常用词组
+            const phrasesSection = block.match(/常用词组:[\s\S]*?(?=例句:|近义词\/反义词:|记忆提示:|$)/);
+            if (phrasesSection) {
+                const phraseMatches = phrasesSection[0].match(/[-•]\s*(.+?)(?=\n|$)/g);
+                if (phraseMatches) {
+                    word.phrases = phraseMatches.map(p => p.replace(/^[-•]\s*/, '').trim());
+                }
+            }
+            
+            // 提取例句
+            const examplesSection = block.match(/例句:[\s\S]*?(?=近义词\/反义词:|记忆提示:|$)/);
+            if (examplesSection) {
+                const exampleMatches = examplesSection[0].match(/[-•]\s*(.+?)(?=\n|$)/g);
+                if (exampleMatches) {
+                    word.examples = exampleMatches.map(e => e.replace(/^[-•]\s*/, '').trim());
+                }
+            }
+            
+            // 提取近义词/反义词
+            const synMatch = block.match(/近义词\/反义词:\s*(.+?)(?=\n|$|-)/);
             if (synMatch) {
-                currentWord.synonymsAntonyms = synMatch[1];
-                continue;
+                word.synonymsAntonyms = synMatch[1].trim();
             }
             
-            // 处理记忆提示
-            const tipMatch = line.match(memoryTipRegex);
+            // 提取记忆提示
+            const tipMatch = block.match(/记忆提示:\s*(.+?)(?=\n|$|^\d+\.)/m);
             if (tipMatch) {
-                currentWord.memoryTip = tipMatch[1];
-                continue;
+                word.memoryTip = tipMatch[1].trim();
             }
             
-            // 处理词组部分的开始
-            if (line.match(phrasesStartRegex)) {
-                inPhrases = true;
-                inExamples = false;
-                continue;
-            }
-            
-            // 处理例句部分的开始
-            if (line.match(examplesStartRegex)) {
-                inExamples = true;
-                inPhrases = false;
-                continue;
-            }
-            
-            // 处理词组列表项
-            if (inPhrases && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
-                currentWord.phrases.push(line.replace(/^[-•\d\.]\s*/, ''));
-                continue;
-            }
-            
-            // 处理例句列表项
-            if (inExamples && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
-                currentWord.examples.push(line.replace(/^[-•\d\.]\s*/, ''));
-                continue;
-            }
-            
-            // 如果当前行不是某个标记部分的开始，尝试将其添加到最近处理的部分
-            if (inPhrases && line) {
-                currentWord.phrases.push(line);
-            } else if (inExamples && line) {
-                currentWord.examples.push(line);
-            } else if (!currentWord.definition) {
-                currentWord.definition = line;
+            // 如果成功提取到了单词和至少一种属性，则添加到列表
+            if (word.word && (word.pronunciation || word.definition || word.partOfSpeech)) {
+                words.push(word);
             }
         }
         
-        // 添加最后一个单词
-        if (currentWord) {
-            words.push(currentWord);
+        // 如果上述方法没有提取到单词，尝试使用正则表达式提取单个单词
+        if (words.length === 0) {
+            console.log("Attempting alternative extraction method...");
+            
+            const entries = response.match(/\d+\.\s+\*\*([^*]+)\*\*[\s\S]*?(?=\d+\.\s+\*\*|$)/g);
+            
+            if (entries && entries.length > 0) {
+                for (const entry of entries) {
+                    const wordMatch = entry.match(/\*\*([^*]+)\*\*/);
+                    if (!wordMatch) continue;
+                    
+                    const word = {
+                        word: wordMatch[1].trim(),
+                        pronunciation: '',
+                        partOfSpeech: '',
+                        definition: '',
+                        phrases: [],
+                        examples: [],
+                        synonymsAntonyms: '',
+                        memoryTip: ''
+                    };
+                    
+                    // 提取各个属性
+                    if (entry.includes('音标:')) {
+                        const match = entry.match(/音标:\s*(\[.+?\])/);
+                        if (match) word.pronunciation = match[1];
+                    }
+                    
+                    if (entry.includes('词性:')) {
+                        const match = entry.match(/词性:\s*(.+?)(?=\n|$|-)/);
+                        if (match) word.partOfSpeech = match[1].trim();
+                    }
+                    
+                    if (entry.includes('释义:')) {
+                        const match = entry.match(/释义:\s*(.+?)(?=\n|$|-)/);
+                        if (match) word.definition = match[1].trim();
+                    }
+                    
+                    if (entry.includes('常用词组:')) {
+                        const section = entry.substring(entry.indexOf('常用词组:'));
+                        const phrases = section.match(/[-•]\s*(.+?)(?=\n|$)/g);
+                        if (phrases) {
+                            word.phrases = phrases.map(p => p.replace(/^[-•]\s*/, '').trim());
+                        }
+                    }
+                    
+                    if (entry.includes('例句:')) {
+                        const section = entry.substring(entry.indexOf('例句:'));
+                        const examples = section.match(/[-•]\s*(.+?)(?=\n|$)/g);
+                        if (examples) {
+                            word.examples = examples.map(e => e.replace(/^[-•]\s*/, '').trim());
+                        }
+                    }
+                    
+                    if (entry.includes('近义词/反义词:')) {
+                        const match = entry.match(/近义词\/反义词:\s*(.+?)(?=\n|$|-)/);
+                        if (match) word.synonymsAntonyms = match[1].trim();
+                    }
+                    
+                    if (entry.includes('记忆提示:')) {
+                        const match = entry.match(/记忆提示:\s*(.+?)(?=\n|$|^\d+\.)/m);
+                        if (match) word.memoryTip = match[1].trim();
+                    }
+                    
+                    // 如果至少有单词和一个属性，则添加
+                    if (word.word && (word.pronunciation || word.definition || word.partOfSpeech)) {
+                        words.push(word);
+                    }
+                }
+            }
         }
         
-        // 如果没有成功提取单词，返回空数组（不再使用备用数据）
+        // 最后一次尝试：如果仍然没有提取到单词，直接解析输入示例格式
+        if (words.length === 0) {
+            console.log("Using direct format parsing...");
+            
+            // 针对用户示例的格式直接解析
+            const exampleFormat = response.match(/\d+\.\s+\*\*([^*]+)\*\*[\s\S]*?(?=\d+\.\s+\*\*|$)/g);
+            
+            if (exampleFormat && exampleFormat.length > 0) {
+                for (const entry of exampleFormat) {
+                    // 提取单词
+                    const wordMatch = entry.match(/\*\*([^*]+)\*\*/);
+                    if (!wordMatch) continue;
+                    
+                    // 创建单词对象
+                    const word = {
+                        word: wordMatch[1].trim(),
+                        pronunciation: '',
+                        partOfSpeech: '',
+                        definition: '',
+                        phrases: [],
+                        examples: [],
+                        synonymsAntonyms: '',
+                        memoryTip: ''
+                    };
+                    
+                    // 分行处理
+                    const lines = entry.split('\n');
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        
+                        if (line.includes('音标:')) {
+                            word.pronunciation = line.replace(/.*音标:\s*/, '');
+                        } else if (line.includes('词性:')) {
+                            word.partOfSpeech = line.replace(/.*词性:\s*/, '');
+                        } else if (line.includes('释义:')) {
+                            word.definition = line.replace(/.*释义:\s*/, '');
+                        } else if (line.includes('常用词组:')) {
+                            // 读取下面的项目符号行
+                            i++;
+                            while (i < lines.length && (lines[i].trim().startsWith('-') || lines[i].includes(')'))) {
+                                const phrase = lines[i].trim().replace(/^[-•]\s*/, '');
+                                if (phrase) word.phrases.push(phrase);
+                                i++;
+                            }
+                            i--; // 回退一行
+                        } else if (line.includes('例句:')) {
+                            // 读取下面的项目符号行
+                            i++;
+                            while (i < lines.length && (lines[i].trim().startsWith('-') || lines[i].includes(')'))) {
+                                const example = lines[i].trim().replace(/^[-•]\s*/, '');
+                                if (example) word.examples.push(example);
+                                i++;
+                            }
+                            i--; // 回退一行
+                        } else if (line.includes('近义词/反义词:')) {
+                            word.synonymsAntonyms = line.replace(/.*近义词\/反义词:\s*/, '');
+                        } else if (line.includes('记忆提示:')) {
+                            word.memoryTip = line.replace(/.*记忆提示:\s*/, '');
+                        }
+                    }
+                    
+                    // 添加单词
+                    if (word.word) {
+                        words.push(word);
+                        console.log("Added word using direct format parsing:", word);
+                    }
+                }
+            }
+        }
+        
+        // 如果最终没有提取到单词，记录错误并返回空数组
         if (words.length === 0) {
             console.log("No words extracted from response");
             return [];
         }
         
+        console.log("Successfully extracted words:", words);
         return words;
     }
     
