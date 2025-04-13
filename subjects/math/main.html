@@ -25,10 +25,12 @@
             },
             startup: {
                 typeset: false,
-                pageReady: () => {
-                    return MathJax.startup.defaultPageReady().then(() => {
-                        console.log('MathJax initial typeset complete');
-                    });
+                ready: () => {
+                    MathJax.startup.defaultReady();
+                    // Make typeset available globally
+                    window.MathJax.typeset = () => {
+                        return MathJax.typesetPromise();
+                    };
                 }
             },
             options: {
@@ -43,7 +45,7 @@
             }
         };
     </script>
-    <script id="MathJax-script" defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     
     <!-- Preload key resources -->
     <link rel="preload" href="https://cdn.plot.ly/plotly-2.20.0.min.js" as="script">
@@ -155,6 +157,29 @@
                     formulaContent.innerHTML = '<p>加载公式时出错，请刷新页面重试。</p>';
                 });
             });
+        }
+    </script>
+
+    <!-- Add helper function for MathJax -->
+    <script>
+        // Global helper function for MathJax typesetting
+        function typesetMath(element) {
+            if (!window.MathJax) {
+                console.warn('MathJax not loaded yet');
+                return Promise.resolve();
+            }
+            
+            if (window.MathJax.typesetPromise) {
+                return window.MathJax.typesetPromise([element]);
+            } else if (window.MathJax.typeset) {
+                return new Promise(resolve => {
+                    window.MathJax.typeset([element]);
+                    resolve();
+                });
+            } else {
+                console.warn('MathJax typesetting function not available');
+                return Promise.resolve();
+            }
         }
     </script>
 </head>
