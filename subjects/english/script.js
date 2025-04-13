@@ -625,15 +625,36 @@ document.addEventListener('DOMContentLoaded', function() {
         const category = document.getElementById('vocab-category').value;
         const vocabContainer = document.getElementById('vocab-container');
         
+        // 获取用户的教育水平
+        const profileDisplay = document.getElementById('profile-display');
+        const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
+        const educationLevel = getEducationLevelFromProfile(userProfile);
+        
         // 显示加载
         vocabContainer.innerHTML = '<p class="loading">正在生成词汇列表...</p>';
         
         try {
             // 构建系统消息
-            const systemMessage = `你是一个专业的英语词汇教学助手。请生成一个包含10个${getLevelName(level)}难度的${getCategoryName(category)}词汇列表。对每个单词，提供：1) 英文单词，2) 中文定义，3) 一个使用该单词的例句（附中文翻译）。根据用户的教育水平(${getEducationLevelName(educationLevel)})调整词汇和解释的复杂度。`;
+            const systemMessage = `你是一个专业的英语词汇教学助手。请生成一个包含8个${getLevelName(level)}难度的${getCategoryName(category)}词汇列表。
+
+根据用户的教育水平(${educationLevel})调整词汇和解释的复杂度。
+
+对每个单词，提供以下详细信息：
+1) 英文单词
+2) 音标发音（英式和美式）
+3) 中文定义（按词性分类）
+4) 词性（名词/动词/形容词等）
+5) 3-4个相关词组或搭配及其中文意思
+6) 近义词和反义词（如果有）
+7) 词源简介（如果有趣或有帮助）
+8) 使用该单词的2个例句（附中文翻译）
+9) 记忆技巧或助记方法
+10) 在实际语境中的应用场景
+
+使每个单词的学习内容生动、有趣且易于记忆。适合${educationLevel}学生的知识水平和兴趣。`;
             
             // 构建用户消息
-            const userPrompt = `请生成10个${getLevelName(level)}难度的${getCategoryName(category)}词汇，包含定义和例句。`;
+            const userPrompt = `请生成8个${getLevelName(level)}难度的${getCategoryName(category)}词汇，包含完整的学习信息（音标、词性、中文释义、例句、词组等）。这些词汇将用于我作为一名${educationLevel}学生的英语学习。`;
             
             // 构建消息数组
             const messages = [
@@ -690,6 +711,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Error generating vocabulary:", error);
             vocabContainer.innerHTML = '<p class="error">生成词汇时出现错误: ' + error.message + '</p>';
         }
+    }
+    
+    // 辅助函数 - 从用户配置文件获取教育水平
+    function getEducationLevelFromProfile(profileText) {
+        if (!profileText) return '中学生';
+        
+        if (profileText.includes('小学')) return '小学生';
+        if (profileText.includes('初中')) return '初中生';
+        if (profileText.includes('高中')) return '高中生';
+        if (profileText.includes('大学')) return '大学生';
+        
+        return '中学生'; // 默认为中学生
     }
     
     // 辅助函数 - 格式化诗歌响应
@@ -914,8 +947,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 辅助函数 - 格式化词汇响应
     function formatVocabularyResponse(response, level, category) {
         // 提取单词列表
-        const words = extractWords(response);
-        console.log("Extracted words:", words);
+        const words = extractEnhancedWords(response);
+        console.log("Extracted enhanced words:", words);
         
         let levelName, categoryName;
         
@@ -941,155 +974,342 @@ document.addEventListener('DOMContentLoaded', function() {
         
         words.forEach(word => {
             html += `
-                <div class="vocab-card">
-                    <h4>${word.word}</h4>
-                    <p class="definition"><strong>定义:</strong> ${word.definition || '无定义'}</p>
-                    <p class="example"><strong>示例:</strong> <em>${word.example || '无示例'}</em></p>
-                    <button class="btn btn-small btn-secondary save-word">保存到我的列表</button>
+                <div class="vocab-card enhanced">
+                    <div class="vocab-header">
+                        <h4>${word.word}</h4>
+                        <div class="pronunciation">${word.pronunciation || ''}</div>
+                    </div>
+                    
+                    <div class="vocab-content">
+                        <div class="vocab-section">
+                            <p class="part-of-speech">${word.partOfSpeech || ''}</p>
+                            <p class="definition"><strong>释义:</strong> ${word.definition || '无定义'}</p>
+                        </div>
+                        
+                        ${word.phrases ? `
+                        <div class="vocab-section">
+                            <p class="section-title"><strong>常用词组:</strong></p>
+                            <ul class="phrases-list">
+                                ${word.phrases.map(phrase => `<li>${phrase}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        
+                        ${word.examples && word.examples.length ? `
+                        <div class="vocab-section">
+                            <p class="section-title"><strong>例句:</strong></p>
+                            <ul class="examples-list">
+                                ${word.examples.map(ex => `<li>${ex}</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
+                        
+                        ${word.synonymsAntonyms ? `
+                        <div class="vocab-section">
+                            <p class="section-title"><strong>近反义词:</strong></p>
+                            <p>${word.synonymsAntonyms}</p>
+                        </div>
+                        ` : ''}
+                        
+                        ${word.memoryTip ? `
+                        <div class="vocab-section memory-tip">
+                            <p class="section-title"><strong>记忆提示:</strong></p>
+                            <p>${word.memoryTip}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="vocab-footer">
+                        <button class="btn btn-small btn-secondary save-word">保存单词</button>
+                        <button class="btn btn-small btn-outline vocab-practice">练习</button>
+                    </div>
                 </div>
             `;
         });
         
         html += `
             <div class="vocab-actions">
-                <button class="btn btn-primary" id="more-words">加载更多词汇</button>
-                <button class="btn btn-secondary" id="practice-vocab">练习这些词汇</button>
+                <button class="btn btn-primary" id="more-words">更多词汇</button>
+                <button class="btn btn-secondary" id="practice-vocab">练习全部</button>
             </div>
+            
+            <style>
+                .vocab-card.enhanced {
+                    background: #fff;
+                    border-radius: 10px;
+                    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+                    margin-bottom: 20px;
+                    padding: 0;
+                    overflow: hidden;
+                    transition: transform 0.2s;
+                }
+                
+                .vocab-card.enhanced:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                }
+                
+                .vocab-header {
+                    background: linear-gradient(135deg, #4361ee, #7209b7);
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 10px 10px 0 0;
+                }
+                
+                .vocab-header h4 {
+                    margin: 0;
+                    font-size: 1.5rem;
+                }
+                
+                .pronunciation {
+                    font-family: Arial, sans-serif;
+                    margin-top: 5px;
+                    opacity: 0.9;
+                }
+                
+                .vocab-content {
+                    padding: 15px 20px;
+                }
+                
+                .vocab-section {
+                    margin-bottom: 15px;
+                    padding-bottom: 15px;
+                    border-bottom: 1px solid #eee;
+                }
+                
+                .vocab-section:last-child {
+                    border-bottom: none;
+                }
+                
+                .section-title {
+                    margin-bottom: 8px;
+                    color: #4361ee;
+                }
+                
+                .part-of-speech {
+                    display: inline-block;
+                    padding: 3px 8px;
+                    background: #f0f4ff;
+                    border-radius: 4px;
+                    font-size: 0.9rem;
+                    margin-bottom: 5px;
+                }
+                
+                .phrases-list, .examples-list {
+                    padding-left: 20px;
+                }
+                
+                .phrases-list li, .examples-list li {
+                    margin-bottom: 5px;
+                }
+                
+                .memory-tip {
+                    background: #fffaf0;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-style: italic;
+                }
+                
+                .vocab-footer {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 10px 20px;
+                    background: #f8f9fa;
+                    border-top: 1px solid #eee;
+                }
+                
+                .btn-outline {
+                    background: transparent;
+                    border: 1px solid #4361ee;
+                    color: #4361ee;
+                }
+                
+                .btn-outline:hover {
+                    background: #4361ee;
+                    color: white;
+                }
+            </style>
         `;
         
         return html;
     }
     
-    // 辅助函数 - 提取列表项
-    function extractListItems(text) {
-        const lines = text.split('\n');
-        const listItems = [];
+    // 辅助函数 - 从响应中提取增强的单词信息
+    function extractEnhancedWords(response) {
+        console.log("Extracting enhanced words from response:", response);
         
-        for (const line of lines) {
-            const trimmed = line.trim();
-            // 匹配列表格式（以-、*、数字.或中文数字开头）
-            if (trimmed.match(/^[-*•]|^\d+\.|^[一二三四五六七八九十]+[、.]|^[（(]\d+[)）]/)) {
-                listItems.push(trimmed.replace(/^[-*•]|^\d+\.|^[一二三四五六七八九十]+[、.]|^[（(]\d+[)）]/, '').trim());
-            }
-        }
-        
-        // 如果没有找到明确的列表，尝试分割段落
-        if (listItems.length === 0) {
-            const paragraphs = text.split('\n\n');
-            return paragraphs.slice(0, Math.min(5, paragraphs.length)).map(p => p.trim());
-        }
-        
-        return listItems.length > 0 ? listItems : ['没有找到具体条目'];
-    }
-    
-    // 辅助函数 - 从响应中提取单词
-    function extractWords(response) {
-        console.log("Extracting words from response:", response);
-        
-        // 这是一个简化的实现，实际应用中可能需要更复杂的解析
         const lines = response.split('\n');
         const words = [];
         let currentWord = null;
         
+        // 用于匹配单词标题行的正则表达式
+        const wordHeaderRegex = /^(?:\d+[\.\)]\s+)?(?:\*\*)?([A-Za-z\s\-']+)(?:\*\*)?/;
+        
+        // 匹配各种部分的正则表达式
+        const pronunciationRegex = /(?:发音|音标|pronunciation)(?:：|:)\s*(\[.+?\])/i;
+        const partOfSpeechRegex = /(?:词性|part of speech)(?:：|:)\s*(.+)/i;
+        const definitionRegex = /(?:释义|定义|中文意思|meaning)(?:：|:)\s*(.+)/i;
+        const phrasesStartRegex = /(?:常用词组|词组|搭配|phrases)(?:：|:)/i;
+        const examplesStartRegex = /(?:例句|例子|示例|examples)(?:：|:)/i;
+        const synonymsRegex = /(?:近义词|同义词|反义词|synonyms|antonyms)(?:：|:)\s*(.+)/i;
+        const memoryTipRegex = /(?:记忆技巧|记忆提示|memory tip)(?:：|:)\s*(.+)/i;
+        
+        let inPhrases = false;
+        let inExamples = false;
+        
         for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const trimmed = line.trim();
+            const line = lines[i].trim();
             
             // 跳过空行
-            if (trimmed === '') {
-                if (currentWord) {
-                    words.push(currentWord);
-                    currentWord = null;
-                }
-                continue;
-            }
+            if (line === '') continue;
             
-            // 检查是否是新单词的开始 (数字序号开头)
-            const wordStartMatch = trimmed.match(/^\d+[\.\)]?\s+(.+?)(?:：|:|\s-|\s–|$)/);
-            if (wordStartMatch) {
+            // 检查是否是新单词的开始
+            const wordMatch = line.match(wordHeaderRegex);
+            if (wordMatch && (line.match(/^\d+[\.\)]/) || i === 0 || lines[i-1].trim() === '')) {
                 // 保存前一个单词
                 if (currentWord) {
                     words.push(currentWord);
                 }
                 
-                // 提取单词
-                const wordText = wordStartMatch[1].replace(/\*\*/g, '').trim();
-                
+                // 创建新单词对象
                 currentWord = {
-                    word: wordText,
+                    word: wordMatch[1].trim(),
+                    pronunciation: '',
+                    partOfSpeech: '',
                     definition: '',
-                    example: ''
+                    phrases: [],
+                    examples: [],
+                    synonymsAntonyms: '',
+                    memoryTip: ''
                 };
                 
-                // 检查本行是否包含定义或例句
-                const remainingText = trimmed.substring(wordStartMatch[0].length).trim();
-                if (remainingText) {
-                    // 可能包含定义
-                    if (remainingText.includes('定义') || remainingText.includes('：') || remainingText.includes(':')) {
-                        const defMatch = remainingText.match(/(?:定义|释义)?(?:：|:)\s*(.+)/);
-                        if (defMatch) {
-                            currentWord.definition = defMatch[1].trim();
-                        } else {
-                            currentWord.definition = remainingText.trim();
-                        }
-                    }
-                } else {
-                    // 查看下一行是否包含定义
-                    if (i + 1 < lines.length) {
-                        const nextLine = lines[i + 1].trim();
-                        if (nextLine.includes('定义') || nextLine.includes('释义')) {
-                            const defMatch = nextLine.match(/(?:定义|释义)(?:：|:)\s*(.+)/);
-                            if (defMatch) {
-                                currentWord.definition = defMatch[1].trim();
-                                i++; // 跳过下一行，因为已经处理了
-                            }
-                        }
-                    }
+                // 检查本行是否包含其他信息
+                const proMatch = line.match(pronunciationRegex);
+                if (proMatch) {
+                    currentWord.pronunciation = proMatch[1];
                 }
                 
-                // 继续查找例句
-                for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-                    const checkLine = lines[j].trim();
-                    if (checkLine.startsWith('例句') || checkLine.includes('例子') || checkLine.includes('示例')) {
-                        const exampleMatch = checkLine.match(/(?:例句|例子|示例)(?:：|:)\s*(.+)/);
-                        if (exampleMatch) {
-                            currentWord.example = exampleMatch[1].trim();
-                            i = j; // 更新循环索引
-                            break;
-                        }
-                    } else if (checkLine.match(/^\d+[\.\)]/) || checkLine === '') {
-                        // 如果遇到下一个单词或空行，停止寻找例句
-                        break;
-                    } else if (!currentWord.definition && !checkLine.match(/^例/)) {
-                        // 如果定义为空且当前行不是例句开头，则可能是定义
-                        currentWord.definition = checkLine;
-                        i = j; // 更新循环索引
-                    } else if (currentWord.definition && !currentWord.example && !checkLine.match(/^例/)) {
-                        // 如果定义存在但例句为空，且当前行不是例句开头，则可能是例句
-                        currentWord.example = checkLine;
-                        i = j; // 更新循环索引
-                        break;
-                    }
-                }
+                inPhrases = false;
+                inExamples = false;
+                continue;
+            }
+            
+            if (!currentWord) continue;
+            
+            // 处理音标
+            const proMatch = line.match(pronunciationRegex);
+            if (proMatch) {
+                currentWord.pronunciation = proMatch[1];
+                continue;
+            }
+            
+            // 处理词性
+            const posMatch = line.match(partOfSpeechRegex);
+            if (posMatch) {
+                currentWord.partOfSpeech = posMatch[1];
+                continue;
+            }
+            
+            // 处理释义
+            const defMatch = line.match(definitionRegex);
+            if (defMatch) {
+                currentWord.definition = defMatch[1];
+                continue;
+            }
+            
+            // 处理近义词/反义词
+            const synMatch = line.match(synonymsRegex);
+            if (synMatch) {
+                currentWord.synonymsAntonyms = synMatch[1];
+                continue;
+            }
+            
+            // 处理记忆提示
+            const tipMatch = line.match(memoryTipRegex);
+            if (tipMatch) {
+                currentWord.memoryTip = tipMatch[1];
+                continue;
+            }
+            
+            // 处理词组部分的开始
+            if (line.match(phrasesStartRegex)) {
+                inPhrases = true;
+                inExamples = false;
+                continue;
+            }
+            
+            // 处理例句部分的开始
+            if (line.match(examplesStartRegex)) {
+                inExamples = true;
+                inPhrases = false;
+                continue;
+            }
+            
+            // 处理词组列表项
+            if (inPhrases && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
+                currentWord.phrases.push(line.replace(/^[-•\d\.]\s*/, ''));
+                continue;
+            }
+            
+            // 处理例句列表项
+            if (inExamples && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\./))) {
+                currentWord.examples.push(line.replace(/^[-•\d\.]\s*/, ''));
+                continue;
+            }
+            
+            // 如果当前行不是某个标记部分的开始，尝试将其添加到最近处理的部分
+            if (inPhrases && line) {
+                currentWord.phrases.push(line);
+            } else if (inExamples && line) {
+                currentWord.examples.push(line);
+            } else if (!currentWord.definition) {
+                currentWord.definition = line;
             }
         }
         
-        // 添加最后一个单词，如果有的话
+        // 添加最后一个单词
         if (currentWord) {
             words.push(currentWord);
         }
         
-        console.log("Extracted words array:", words);
-        
-        // 如果没有成功提取单词，返回示例单词
+        // 如果没有成功提取单词，使用备用数据
         if (words.length === 0) {
             console.log("No words extracted, using fallback examples");
             return [
-                { word: 'Eloquent', definition: '口齿流利或有说服力的', example: 'She gave an eloquent speech that moved the audience.（她发表了一场感人的演讲，打动了观众。）' },
-                { word: 'Meticulous', definition: '非常细心；非常仔细和精确', example: 'He was meticulous in his research, checking every fact twice.（他在研究中非常细致，每个事实都核对两次。）' },
-                { word: 'Ambiguous', definition: '可作多种理解的；有双重含义的', example: 'The poem\'s ambiguous ending has been debated by scholars for decades.（这首诗模糊的结尾已被学者们讨论了几十年。）' },
-                { word: 'Benevolent', definition: '善意的；亲切的', example: 'The benevolent organization provided food and shelter to those in need.（这个慈善组织为有需要的人提供食物和住所。）' },
-                { word: 'Rhetoric', definition: '修辞；有效或有说服力的演讲或写作的艺术', example: 'The politician was known for his powerful rhetoric during debates.（这位政治家以在辩论中有力的修辞而闻名。）' }
+                {
+                    word: 'Eloquent',
+                    pronunciation: '[ˈeləkwənt]',
+                    partOfSpeech: '形容词 (adj.)',
+                    definition: '口齿流利的；有说服力的；雄辩的',
+                    phrases: [
+                        'eloquent speech - 雄辩的演讲',
+                        'eloquent plea - 有说服力的恳求',
+                        'eloquent silence - 意味深长的沉默'
+                    ],
+                    examples: [
+                        'She gave an eloquent speech that moved the audience. - 她发表了一场动人的演讲，打动了观众。',
+                        'His eloquent defense of the policy convinced many skeptics. - 他对该政策的雄辩辩护说服了许多怀疑者。'
+                    ],
+                    synonymsAntonyms: '近义词: articulate, expressive, fluent; 反义词: inarticulate, inexpressive',
+                    memoryTip: '记忆提示: "elo-" 来源于拉丁语 eloqui（表达），想象一个人能"流利地说出"（e-loquent）自己的想法。'
+                },
+                {
+                    word: 'Meticulous',
+                    pronunciation: '[məˈtɪkjələs]',
+                    partOfSpeech: '形容词 (adj.)',
+                    definition: '一丝不苟的；小心谨慎的；注重细节的',
+                    phrases: [
+                        'meticulous attention to detail - 对细节的一丝不苟',
+                        'meticulous planning - 周密的计划',
+                        'meticulous research - 细致的研究'
+                    ],
+                    examples: [
+                        'He is meticulous about keeping accurate records. - 他对保持准确的记录非常严谨。',
+                        'The restoration work was done with meticulous care. - 修复工作是以极其细致的态度完成的。'
+                    ],
+                    synonymsAntonyms: '近义词: careful, precise, thorough; 反义词: careless, sloppy, negligent',
+                    memoryTip: '记忆提示: "meti-" 源自拉丁语 metus（恐惧），一个"过于害怕"出错的人会非常谨慎。'
+                }
             ];
         }
         
