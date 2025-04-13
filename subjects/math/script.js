@@ -58,8 +58,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadMathJax();
         const plotlyPromise = loadPlotly();
 
-        // Initialize education level handler
-        initializeEducationLevel();
+        // Initialize education level from localStorage or default to middle-school
+        const currentLevel = localStorage.getItem('educationLevel') || 'middle-school';
+        const profileDisplay = document.getElementById('profile-display');
+        if (profileDisplay) {
+            profileDisplay.textContent = getEducationLevelName(currentLevel);
+        }
         
         // Initialize formula sections
         initializeFormulaSections();
@@ -94,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-// Define a global helper for displaying messages in the math chat
+// Modified displayMathMessage function to handle MathJax properly
 function displayMathMessage(role, content, container) {
     const messageElement = document.createElement('div');
     messageElement.className = role === 'user' ? 'message message-user' : 'message message-ai';
@@ -122,8 +126,14 @@ function displayMathMessage(role, content, container) {
     container.scrollTop = container.scrollHeight;
     
     // Render math expressions with MathJax if available
-    if (window.MathJax && role === 'assistant') {
-        window.MathJax.typeset([messageElement]);
+    if (window.MathJax) {
+        if (typeof window.MathJax.typesetPromise === 'function') {
+            window.MathJax.typesetPromise([messageElement]).catch(err => {
+                console.error('MathJax rendering error:', err);
+            });
+        } else if (typeof window.MathJax.Hub?.Queue === 'function') {
+            window.MathJax.Hub.Queue(['Typeset', window.MathJax.Hub, messageElement]);
+        }
     }
 }
 
