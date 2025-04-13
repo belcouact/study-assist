@@ -3,6 +3,97 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
+// Initialize MathJax configuration as early as possible
+window.MathJax = {
+    tex: {
+        inlineMath: [['\\(', '\\)']],
+        displayMath: [['\\[', '\\]']],
+        processEscapes: true,
+        packages: ['base', 'ams', 'noerrors', 'noundefined']
+    },
+    options: {
+        enableMenu: false,
+        renderActions: {
+            addMenu: [],
+            checkLoading: []
+        }
+    },
+    startup: {
+        pageReady: () => {
+            return MathJax.startup.defaultPageReady().then(() => {
+                console.log('MathJax initial typesetting complete');
+            });
+        }
+    }
+};
+
+// Load MathJax script asynchronously
+const loadMathJax = () => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+    script.async = true;
+    document.head.appendChild(script);
+};
+
+// Load Plotly script asynchronously
+const loadPlotly = () => {
+    return new Promise((resolve, reject) => {
+        if (window.Plotly) {
+            resolve();
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = 'https://cdn.plot.ly/plotly-2.20.0.min.js';
+        script.async = true;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+};
+
+// Initialize everything when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Start loading external scripts immediately
+        loadMathJax();
+        const plotlyPromise = loadPlotly();
+
+        // Initialize education level handler
+        initializeEducationLevel();
+        
+        // Initialize formula sections
+        initializeFormulaSections();
+        
+        // Wait for Plotly to load before initializing visualizations
+        await plotlyPromise;
+        console.log('Plotly loaded successfully');
+        
+        // Initialize visualization system
+        initializeVisualizationSystem();
+        
+        // Add event listeners for concept selection
+        const conceptSelect = document.getElementById('concept-select');
+        if (conceptSelect) {
+            conceptSelect.addEventListener('change', (event) => {
+                loadVisualization(event.target.value);
+            });
+        }
+        
+        // Load initial visualization if concept is selected
+        if (conceptSelect && conceptSelect.value) {
+            loadVisualization(conceptSelect.value);
+        }
+        
+    } catch (error) {
+        console.error('Error during initialization:', error);
+        // Show error message to user
+        const errorContainer = document.createElement('div');
+        errorContainer.className = 'error-message';
+        errorContainer.textContent = '加载可视化组件时出现错误，请刷新页面重试。';
+        document.querySelector('.visualization-container')?.appendChild(errorContainer);
+    }
+});
+
 // Define a global helper for displaying messages in the math chat
 function displayMathMessage(role, content, container) {
     const messageElement = document.createElement('div');
