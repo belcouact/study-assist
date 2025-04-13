@@ -37,8 +37,10 @@ function displayMathMessage(role, content, container) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize math subject functionality
-    initMathPage();
+    // Initialize math subject functionality if not using lazy loading
+    if (!document.querySelector('script[src*="plotly"]') && !window.IntersectionObserver) {
+        initMathPage();
+    }
 });
 
 /**
@@ -2959,7 +2961,8 @@ const visualizations = {
 };
 
 // Initialize visualization section
-function initVisualization() {
+// Make this function global for lazy loading
+window.initVisualization = function() {
     const visualizerTopic = document.getElementById('visualizer-topic');
     const loadVisualizationBtn = document.getElementById('load-visualization');
     const visualizationContainer = document.getElementById('visualization-container');
@@ -3131,6 +3134,12 @@ function initCommonFormulas() {
     if (!formulaSection) {
         console.error('Formula content container not found');
         return;
+    }
+
+    // Clear loading placeholder
+    const loadingPlaceholder = document.getElementById('formula-loading-placeholder');
+    if (loadingPlaceholder) {
+        loadingPlaceholder.remove();
     }
 
     // Add MathJax configuration if not already present
@@ -3425,10 +3434,22 @@ function initMathPage() {
     initMathAssistant();
     initQuizGenerator();
     initFormulaSelector();
-    initCommonFormulas();
     
-    // Initialize visualization with a small delay to ensure proper setup
-    setTimeout(() => {
-        initVisualization();
-    }, 100);
+    // Only initialize these if not using the lazy loading approach
+    if (!window.IntersectionObserver) {
+        initCommonFormulas();
+        setTimeout(() => {
+            initVisualization();
+        }, 100);
+    }
+    
+    // Mark as initialized
+    window.mathInitialized = true;
 }
+
+// Make initialization functions globally accessible
+window.initTopicCards = initTopicCards;
+window.initMathAssistant = initMathAssistant;
+window.initQuizGenerator = initQuizGenerator;
+window.initFormulaSelector = initFormulaSelector;
+window.initMathPage = initMathPage;

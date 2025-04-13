@@ -211,7 +211,10 @@
                     <p>根据您的学习阶段展示相关的数学公式和解释</p>
                 </div>
                 <div class="formula-content" style="min-height: 400px;">
-                    <!-- Formula categories and display will be added here by JavaScript -->
+                    <!-- Lazy load placeholder -->
+                    <div id="formula-loading-placeholder" class="text-center py-4">
+                        <p>加载公式中...</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -235,6 +238,7 @@
                     </div>
                     <div id="visualization-container" class="visualization-display">
                         <!-- Visualization will be loaded here -->
+                        <div class="text-center py-4">可视化加载时请等待...</div>
                     </div>
                 </div>
             </div>
@@ -254,7 +258,113 @@
     <script src="../../js/api.js"></script>
     <script src="../../js/profile.js"></script>
     <script src="../../js/education-level.js"></script>
-    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
-    <script src="script.js"></script>
+    
+    <!-- Defer loading of heavy libraries -->
+    <script>
+        // Function to load script asynchronously
+        function loadScript(src, callback) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.defer = true;
+            script.onload = callback;
+            document.body.appendChild(script);
+        }
+        
+        // Load MathJax only when needed
+        let mathJaxLoaded = false;
+        function loadMathJax(callback) {
+            if (mathJaxLoaded) {
+                if (callback) callback();
+                return;
+            }
+            
+            // Configure MathJax first
+            window.MathJax = {
+                tex: {
+                    inlineMath: [['$', '$'], ['\\(', '\\)']],
+                    displayMath: [['$$', '$$'], ['\\[', '\\]']]
+                },
+                svg: {
+                    fontCache: 'global'
+                },
+                startup: {
+                    typeset: false
+                }
+            };
+            
+            // Load polyfill first
+            loadScript('https://polyfill.io/v3/polyfill.min.js?features=es6', function() {
+                // Then load MathJax
+                loadScript('https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js', function() {
+                    mathJaxLoaded = true;
+                    if (callback) callback();
+                });
+            });
+        }
+        
+        // Lazy load Plotly only when needed
+        let plotlyLoaded = false;
+        function loadPlotly(callback) {
+            if (plotlyLoaded) {
+                if (callback) callback();
+                return;
+            }
+            
+            loadScript('https://cdn.plot.ly/plotly-2.24.1.min.js', function() {
+                plotlyLoaded = true;
+                if (callback) callback();
+            });
+        }
+        
+        // Initialize intersection observer for lazy loading
+        document.addEventListener('DOMContentLoaded', function() {
+            const formulaSection = document.querySelector('.common-formulas');
+            const visualizerSection = document.querySelector('.visualizer-section');
+            
+            // Create observer for lazy loading
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        if (entry.target === formulaSection) {
+                            // Load MathJax and initialize formulas when section becomes visible
+                            loadMathJax(() => {
+                                // Load application script after dependencies
+                                if (!window.mathInitialized) {
+                                    loadScript('script.js', () => {
+                                        // Initialize formulas specifically
+                                        if (window.initCommonFormulas) {
+                                            window.initCommonFormulas();
+                                        }
+                                    });
+                                }
+                            });
+                            observer.unobserve(formulaSection);
+                        } else if (entry.target === visualizerSection) {
+                            // Load Plotly when visualization section becomes visible
+                            loadPlotly(() => {
+                                if (window.initVisualization && !window.visualizationInitialized) {
+                                    window.initVisualization();
+                                    window.visualizationInitialized = true;
+                                }
+                            });
+                            observer.unobserve(visualizerSection);
+                        }
+                    }
+                });
+            }, { threshold: 0.1 }); // Start loading when 10% of the section is visible
+            
+            // Observe the sections
+            if (formulaSection) observer.observe(formulaSection);
+            if (visualizerSection) observer.observe(visualizerSection);
+            
+            // Initialize other parts of the page immediately
+            loadScript('script.js', () => {
+                if (window.initTopicCards) window.initTopicCards();
+                if (window.initMathAssistant) window.initMathAssistant();
+                if (window.initQuizGenerator) window.initQuizGenerator();
+                if (window.initFormulaSelector) window.initFormulaSelector();
+            });
+        });
+    </script>
 </body>
 </html> 
