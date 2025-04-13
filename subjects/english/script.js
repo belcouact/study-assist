@@ -3153,16 +3153,22 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 
                 if (userAnswer === correctAnswer) {
                     correct++;
-                    optionEl.classList.add('correct');
+                    if (optionEl) optionEl.classList.add('correct');
                 } else {
-                    optionEl.classList.add('incorrect');
+                    if (optionEl) optionEl.classList.add('incorrect');
                     // 标记正确答案
-                    document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('correct-answer');
+                    const correctLabel = document.querySelector(`label[for="q${number}${correctAnswer}"]`);
+                    if (correctLabel && correctLabel.parentElement) {
+                        correctLabel.parentElement.classList.add('correct-answer');
+                    }
                 }
             } else {
                 unanswered++;
                 // 标记正确答案
-                document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('unanswered');
+                const correctLabel = document.querySelector(`label[for="q${number}${correctAnswer}"]`);
+                if (correctLabel && correctLabel.parentElement) {
+                    correctLabel.parentElement.classList.add('unanswered');
+                }
             }
         });
         
@@ -3203,11 +3209,17 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             const correctAnswer = question.dataset.answer;
             
             // 高亮正确答案
-            document.querySelector(`label[for="q${number}${correctAnswer}"]`).parentElement.classList.add('show-correct');
+            const correctLabel = document.querySelector(`label[for="q${number}${correctAnswer}"]`);
+            if (correctLabel && correctLabel.parentElement) {
+                correctLabel.parentElement.classList.add('show-correct');
+            }
         });
         
         // 滚动到结果部分
-        document.getElementById('test-results').scrollIntoView({ behavior: 'smooth' });
+        const resultsElement = document.getElementById('test-results');
+        if (resultsElement) {
+            resultsElement.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     // 从用户信息中获取教育背景
