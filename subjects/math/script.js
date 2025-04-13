@@ -3,8 +3,8 @@
  * Handles math-specific functionality and DeepSeek AI interactions
  */
 
-// Detect if we're using local fallbacks
-const usingFallbacks = {
+// Detect if we're using local fallbacks (only define once)
+window.usingFallbacks = window.usingFallbacks || {
     mathJax: window.MathJax && window.MathJax.typesetPromise && !!window.MathJax.Hub,
     plotly: window.Plotly && (!window.Plotly.version || window.Plotly.version === undefined),
 };
@@ -3042,7 +3042,7 @@ window.initVisualization = function() {
                 }
 
                 // If using fallback, show simplified message
-                if (usingFallbacks.plotly) {
+                if (window.usingFallbacks.plotly) {
                     console.log('Using Plotly fallback for visualization');
                 }
 
@@ -3167,7 +3167,7 @@ function initCommonFormulas() {
     }
     
     // If using fallback MathJax, show simplified UI
-    if (usingFallbacks.mathJax) {
+    if (window.usingFallbacks.mathJax) {
         console.log('Using MathJax fallback for formulas');
     }
 
@@ -3399,37 +3399,55 @@ function initCommonFormulas() {
     }
 
     function showFormulas(category) {
-        // Update active button
-        const buttons = categoryButtons.querySelectorAll('.category-btn');
-        buttons.forEach(btn => {
-            btn.classList.toggle('active', btn.textContent === category);
-        });
+        // Update active button - Add null check
+        const buttons = categoryButtons ? categoryButtons.querySelectorAll('.category-btn') : [];
+        if (buttons && buttons.forEach) {
+            buttons.forEach(btn => {
+                if (btn) btn.classList.toggle('active', btn.textContent === category);
+            });
+        }
 
         const level = getEducationLevel();
-        const formulas = categories[category][level];
+        const categoryData = categories[category] || {};
+        const formulas = categoryData[level] || [];
 
-        formulaDisplay.innerHTML = '';
-        formulas.forEach(formula => {
-            const card = document.createElement('div');
-            card.className = 'formula-card';
-            card.innerHTML = `
-                <div class="formula-name">${formula.name}</div>
-                <div class="formula-latex">$${formula.formula}$</div>
-                <div class="formula-explanation">${formula.explanation}</div>
-            `;
-            formulaDisplay.appendChild(card);
-        });
+        if (formulaDisplay) {
+            formulaDisplay.innerHTML = '';
+            
+            // Check if formulas exist
+            if (formulas && formulas.length) {
+                formulas.forEach(formula => {
+                    if (!formula) return;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'formula-card';
+                    card.innerHTML = `
+                        <div class="formula-name">${formula.name || '未命名公式'}</div>
+                        <div class="formula-latex">$${formula.formula || ''}$</div>
+                        <div class="formula-explanation">${formula.explanation || ''}</div>
+                    `;
+                    formulaDisplay.appendChild(card);
+                });
+            } else {
+                // If no formulas are found, display a message
+                formulaDisplay.innerHTML = `
+                    <div class="no-formulas" style="text-align: center; padding: 20px;">
+                        <p>暂无此类别的公式数据。</p>
+                    </div>
+                `;
+            }
+        }
 
         // Render LaTeX formulas
         if (window.MathJax) {
             try {
-                if (window.MathJax.typesetPromise) {
+                if (window.MathJax.typesetPromise && formulaDisplay) {
                     window.MathJax.typesetPromise([formulaDisplay]).catch(err => {
                         console.error('MathJax rendering error:', err);
                     });
-                } else if (window.MathJax.typeset) {
+                } else if (window.MathJax.typeset && formulaDisplay) {
                     window.MathJax.typeset([formulaDisplay]);
-                } else if (window.MathJax.Hub && window.MathJax.Hub.Queue) {
+                } else if (window.MathJax.Hub && window.MathJax.Hub.Queue && formulaDisplay) {
                     window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, formulaDisplay]);
                 }
             } catch (err) {

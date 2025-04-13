@@ -246,6 +246,9 @@
     
     <!-- Defer loading of heavy libraries -->
     <script>
+        // Global initialization flag to prevent duplicate initialization
+        window.scriptInitialized = false;
+        
         // Function to load script with fallback
         function loadScript(src, callback, fallbackSrc) {
             const script = document.createElement('script');
@@ -257,7 +260,9 @@
                     const fallbackScript = document.createElement('script');
                     fallbackScript.src = fallbackSrc;
                     fallbackScript.defer = true;
-                    fallbackScript.onload = callback;
+                    fallbackScript.onload = function() {
+                        if (callback) callback();
+                    };
                     fallbackScript.onerror = function() {
                         console.error(`Failed to load fallback script from ${fallbackSrc}`);
                         // Still call callback to avoid blocking the page
@@ -268,7 +273,9 @@
                     callback(); // Call callback even if script fails to load
                 }
             };
-            script.onload = callback;
+            script.onload = function() {
+                if (callback) callback();
+            };
             document.body.appendChild(script);
         }
         
@@ -281,7 +288,7 @@
             }
             
             // Configure MathJax first
-            window.MathJax = {
+            window.MathJax = window.MathJax || {
                 tex: {
                     inlineMath: [['$', '$'], ['\\(', '\\)']],
                     displayMath: [['$$', '$$'], ['\\[', '\\]']]
@@ -328,21 +335,40 @@
             `;
         }
         
+        // Initialize app components safely
+        function initializeComponents() {
+            if (window.scriptInitialized) return;
+            
+            try {
+                if (window.initTopicCards) window.initTopicCards();
+                if (window.initMathAssistant) window.initMathAssistant();
+                if (window.initQuizGenerator) window.initQuizGenerator();
+                if (window.initFormulaSelector) window.initFormulaSelector();
+                window.scriptInitialized = true;
+            } catch (e) {
+                console.error('Error initializing page components:', e);
+            }
+        }
+        
         // Initialize intersection observer for lazy loading
         document.addEventListener('DOMContentLoaded', function() {
             const formulaSection = document.querySelector('.common-formulas');
             const visualizerSection = document.querySelector('.visualizer-section');
             
-            // Create observer for lazy loading
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        if (entry.target === formulaSection) {
-                            // Load MathJax and initialize formulas when section becomes visible
-                            loadMathJax(() => {
-                                // Load application script after dependencies
-                                if (!window.mathInitialized) {
-                                    loadScript('script.js', () => {
+            // Load main script first
+            loadScript('script.js', function() {
+                // Initialize basic components once script is loaded
+                initializeComponents();
+                
+                // Only set up observers if IntersectionObserver is supported
+                if (window.IntersectionObserver) {
+                    // Create observer for lazy loading
+                    const observer = new IntersectionObserver((entries) => {
+                        entries.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                if (entry.target === formulaSection) {
+                                    // Load MathJax and initialize formulas when section becomes visible
+                                    loadMathJax(() => {
                                         try {
                                             // Initialize formulas specifically
                                             if (window.initCommonFormulas) {
@@ -374,48 +400,51 @@
                                             console.error('Error initializing formulas:', e);
                                         }
                                     });
+                                    observer.unobserve(formulaSection);
+                                } else if (entry.target === visualizerSection) {
+                                    // Load Plotly when visualization section becomes visible
+                                    loadPlotly(() => {
+                                        try {
+                                            if (window.initVisualization && !window.visualizationInitialized) {
+                                                window.initVisualization();
+                                                window.visualizationInitialized = true;
+                                            } else if (!window.Plotly) {
+                                                // Simple fallback if Plotly fails to load
+                                                const container = document.getElementById('visualization-container');
+                                                handleVisualizationError(container, new Error('无法加载可视化库'));
+                                            }
+                                        } catch (e) {
+                                            console.error('Error initializing visualization:', e);
+                                            const container = document.getElementById('visualization-container');
+                                            if (container) {
+                                                handleVisualizationError(container, e);
+                                            }
+                                        }
+                                    });
+                                    observer.unobserve(visualizerSection);
                                 }
-                            });
-                            observer.unobserve(formulaSection);
-                        } else if (entry.target === visualizerSection) {
-                            // Load Plotly when visualization section becomes visible
-                            loadPlotly(() => {
-                                try {
-                                    if (window.initVisualization && !window.visualizationInitialized) {
-                                        window.initVisualization();
-                                        window.visualizationInitialized = true;
-                                    } else if (!window.Plotly) {
-                                        // Simple fallback if Plotly fails to load
-                                        const container = document.getElementById('visualization-container');
-                                        handleVisualizationError(container, new Error('无法加载可视化库'));
-                                    }
-                                } catch (e) {
-                                    console.error('Error initializing visualization:', e);
-                                    const container = document.getElementById('visualization-container');
-                                    if (container) {
-                                        handleVisualizationError(container, e);
-                                    }
-                                }
-                            });
-                            observer.unobserve(visualizerSection);
+                            }
+                        });
+                    }, { threshold: 0.1 }); // Start loading when 10% of the section is visible
+                    
+                    // Observe the sections
+                    if (formulaSection) observer.observe(formulaSection);
+                    if (visualizerSection) observer.observe(visualizerSection);
+                } else {
+                    // Fallback for browsers without IntersectionObserver
+                    console.warn('IntersectionObserver not supported, loading all resources immediately');
+                    
+                    // Load everything immediately
+                    loadMathJax(() => {
+                        if (window.initCommonFormulas) window.initCommonFormulas();
+                    });
+                    
+                    loadPlotly(() => {
+                        if (window.initVisualization) {
+                            window.initVisualization();
+                            window.visualizationInitialized = true;
                         }
-                    }
-                });
-            }, { threshold: 0.1 }); // Start loading when 10% of the section is visible
-            
-            // Observe the sections
-            if (formulaSection) observer.observe(formulaSection);
-            if (visualizerSection) observer.observe(visualizerSection);
-            
-            // Initialize other parts of the page immediately
-            loadScript('script.js', () => {
-                try {
-                    if (window.initTopicCards) window.initTopicCards();
-                    if (window.initMathAssistant) window.initMathAssistant();
-                    if (window.initQuizGenerator) window.initQuizGenerator();
-                    if (window.initFormulaSelector) window.initFormulaSelector();
-                } catch (e) {
-                    console.error('Error initializing page components:', e);
+                    });
                 }
             });
         });
