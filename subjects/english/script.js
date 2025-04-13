@@ -642,24 +642,27 @@ document.addEventListener('DOMContentLoaded', function() {
 7. 同义词和反义词（如果有）
 8. 记忆技巧或词源解释
 
-请以JSON格式返回结果，每个单词包含以下字段：
-{
-  "words": [
-    {
-      "word": "单词",
-      "pronunciation": "音标",
-      "partOfSpeech": "词性",
-      "definition": "中文定义",
-      "phrases": ["词组1", "词组2"],
-      "examples": ["例句1", "例句2"],
-      "synonymsAntonyms": "同义词和反义词",
-      "memoryTip": "记忆技巧"
-    },
-    ...
-  ]
-}
+请以下面的格式返回结果，确保每个单词的信息完整且格式规范：
+
+1. **单词一**
+   - 音标: [音标]
+   - 词性: 词性
+   - 释义: 中文定义
+   - 常用词组:
+     - 词组1
+     - 词组2
+   - 例句:
+     - 例句1
+     - 例句2
+   - 近义词/反义词: 同义词和反义词
+   - 记忆提示: 记忆技巧
+
+2. **单词二**
+   ...
 
 确保每个单词的信息完整，例句实用，并且适合${getLevelName(level)}水平的学习者。`;
+            
+            console.log("Sending vocabulary generation prompt:", prompt);
             
             // 调用API
             const response = await fetch('/api/chat', {
@@ -671,7 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     messages: [
                         {
                             "role": "system",
-                            "content": "你是一个专业的英语词汇教学助手，精通英语词汇、语法和使用。"
+                            "content": "你是一个专业的英语词汇教学助手，精通英语词汇、语法和使用。请严格按照指定格式返回单词信息，确保每一项信息都有明确的标记和分类。"
                         },
                         {
                             "role": "user",
@@ -688,6 +691,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             const result = data.choices[0].message.content;
             
+            console.log("Raw API response:", result);
+            
             // 格式化并显示结果
             const formattedHtml = formatVocabularyResponse(result, level, category);
             vocabContainer.innerHTML = formattedHtml;
@@ -701,9 +706,39 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('生成词汇时出错:', error);
             vocabContainer.innerHTML = `
-                <div class="error">
-                    <p>抱歉，生成词汇时出现错误。请再试一次。</p>
-                    <p class="small">${error.message}</p>
+                <div class="vocab-error">
+                    <h3>生成词汇失败</h3>
+                    <p>抱歉，生成词汇时出现错误。</p>
+                    <p class="error-details">${error.message}</p>
+                    <div class="error-actions">
+                        <button class="btn btn-primary" onclick="generateVocabulary()">重试</button>
+                    </div>
+                    <style>
+                        .vocab-error {
+                            text-align: center;
+                            background: #fff;
+                            border-radius: 10px;
+                            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+                            padding: 2rem;
+                            margin: 2rem auto;
+                            max-width: 600px;
+                        }
+                        .vocab-error h3 {
+                            color: #e63946;
+                            margin-bottom: 1rem;
+                        }
+                        .error-details {
+                            color: #666;
+                            font-size: 0.9rem;
+                            margin: 1rem 0;
+                            background: #f8f9fa;
+                            padding: 0.5rem;
+                            border-radius: 4px;
+                        }
+                        .error-actions {
+                            margin-top: 1.5rem;
+                        }
+                    </style>
                 </div>
             `;
         }
@@ -946,6 +981,38 @@ document.addEventListener('DOMContentLoaded', function() {
         const words = extractEnhancedWords(response);
         console.log("Extracted enhanced words:", words);
         
+        // 如果没有提取到单词，显示错误信息
+        if (words.length === 0) {
+            return `
+                <div class="vocab-error">
+                    <h3>词汇提取失败</h3>
+                    <p>抱歉，我们无法从响应中提取有效的词汇数据。</p>
+                    <p>这可能是由于API返回的格式不正确或者响应内容不完整。</p>
+                    <div class="error-actions">
+                        <button class="btn btn-primary" onclick="generateVocabulary()">重试</button>
+                    </div>
+                    <style>
+                        .vocab-error {
+                            text-align: center;
+                            background: #fff;
+                            border-radius: 10px;
+                            box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+                            padding: 2rem;
+                            margin: 2rem auto;
+                            max-width: 600px;
+                        }
+                        .vocab-error h3 {
+                            color: #e63946;
+                            margin-bottom: 1rem;
+                        }
+                        .error-actions {
+                            margin-top: 1.5rem;
+                        }
+                    </style>
+                </div>
+            `;
+        }
+        
         // 直接设置轮播为未初始化状态
         window.vocabCarouselInitialized = false;
         window.vocabCarouselPending = true;
@@ -1071,12 +1138,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     gap: 10px;
                     margin: 20px 0;
                     position: relative;
-                    height: 500px; /* 设置固定高度 */
+                    height: auto;
+                    min-height: 400px;
                 }
                 
                 .vocab-cards-container {
                     width: 100%;
-                    height: 100%;
                     overflow: hidden;
                     position: relative;
                 }
@@ -1084,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .vocab-cards-wrapper {
                     position: relative;
                     width: 100%;
-                    height: 100%;
+                    min-height: 400px;
                 }
                 
                 .vocab-card.enhanced {
@@ -1092,13 +1159,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     border-radius: 10px;
                     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
                     padding: 20px;
-                    overflow: hidden;
+                    overflow-y: auto;
+                    max-height: 500px;
                     transition: opacity 0.3s;
                     position: absolute;
                     top: 0;
                     left: 0;
                     width: 100%;
-                    height: 100%;
                     display: none;
                     opacity: 0;
                 }
@@ -1140,9 +1207,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     font-size: 16px;
                 }
                 
-                /* 其他样式保持不变... */
-                
-                /* 额外添加的样式 */
+                /* 词汇卡片样式 */
                 .vocab-header {
                     margin-bottom: 15px;
                     padding-bottom: 10px;
@@ -1157,14 +1222,33 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 .pronunciation {
                     color: #666;
+                    font-size: 1.1rem;
+                }
+                
+                .vocab-content {
+                    padding-right: 5px;
                 }
                 
                 .vocab-section {
                     margin-bottom: 15px;
+                    padding-bottom: 10px;
+                    border-bottom: 1px solid #f5f5f5;
                 }
                 
-                .vocab-section .section-title {
-                    margin-bottom: 5px;
+                .vocab-section:last-child {
+                    border-bottom: none;
+                }
+                
+                .part-of-speech {
+                    display: inline-block;
+                    padding: 2px 8px;
+                    background: #f0f4ff;
+                    border-radius: 4px;
+                    margin: 0 0 8px 0;
+                }
+                
+                .section-title {
+                    margin-bottom: 8px;
                     color: #333;
                 }
                 
@@ -1174,13 +1258,58 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-section ul li {
-                    margin-bottom: 5px;
+                    margin-bottom: 8px;
+                    line-height: 1.4;
+                }
+                
+                .memory-tip {
+                    background: #fffaf0;
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin-top: 5px;
                 }
                 
                 .vocab-footer {
                     margin-top: 20px;
                     display: flex;
                     justify-content: space-between;
+                    border-top: 1px solid #eee;
+                    padding-top: 15px;
+                }
+                
+                /* 自定义滚动条 */
+                .vocab-card.enhanced::-webkit-scrollbar {
+                    width: 8px;
+                }
+                
+                .vocab-card.enhanced::-webkit-scrollbar-track {
+                    background: #f1f1f1;
+                    border-radius: 10px;
+                }
+                
+                .vocab-card.enhanced::-webkit-scrollbar-thumb {
+                    background: #c5cbe8;
+                    border-radius: 10px;
+                }
+                
+                .vocab-card.enhanced::-webkit-scrollbar-thumb:hover {
+                    background: #4361ee;
+                }
+                
+                /* 移动设备适配 */
+                @media (max-width: 768px) {
+                    .vocab-carousel {
+                        min-height: 500px;
+                    }
+                    
+                    .vocab-card.enhanced {
+                        max-height: 450px;
+                        padding: 15px;
+                    }
+                    
+                    .vocab-header h4 {
+                        font-size: 1.5rem;
+                    }
                 }
             </style>
         `;
@@ -1326,45 +1455,10 @@ document.addEventListener('DOMContentLoaded', function() {
             words.push(currentWord);
         }
         
-        // 如果没有成功提取单词，使用备用数据
+        // 如果没有成功提取单词，返回空数组（不再使用备用数据）
         if (words.length === 0) {
-            console.log("No words extracted, using fallback examples");
-            return [
-                {
-                    word: 'Eloquent',
-                    pronunciation: '[ˈeləkwənt]',
-                    partOfSpeech: '形容词 (adj.)',
-                    definition: '口齿流利的；有说服力的；雄辩的',
-                    phrases: [
-                        'eloquent speech - 雄辩的演讲',
-                        'eloquent plea - 有说服力的恳求',
-                        'eloquent silence - 意味深长的沉默'
-                    ],
-                    examples: [
-                        'She gave an eloquent speech that moved the audience. - 她发表了一场动人的演讲，打动了观众。',
-                        'His eloquent defense of the policy convinced many skeptics. - 他对该政策的雄辩辩护说服了许多怀疑者。'
-                    ],
-                    synonymsAntonyms: '近义词: articulate, expressive, fluent; 反义词: inarticulate, inexpressive',
-                    memoryTip: '记忆提示: "elo-" 来源于拉丁语 eloqui（表达），想象一个人能"流利地说出"（e-loquent）自己的想法。'
-                },
-                {
-                    word: 'Meticulous',
-                    pronunciation: '[məˈtɪkjələs]',
-                    partOfSpeech: '形容词 (adj.)',
-                    definition: '一丝不苟的；小心谨慎的；注重细节的',
-                    phrases: [
-                        'meticulous attention to detail - 对细节的一丝不苟',
-                        'meticulous planning - 周密的计划',
-                        'meticulous research - 细致的研究'
-                    ],
-                    examples: [
-                        'He is meticulous about keeping accurate records. - 他对保持准确的记录非常严谨。',
-                        'The restoration work was done with meticulous care. - 修复工作是以极其细致的态度完成的。'
-                    ],
-                    synonymsAntonyms: '近义词: careful, precise, thorough; 反义词: careless, sloppy, negligent',
-                    memoryTip: '记忆提示: "meti-" 源自拉丁语 metus（恐惧），一个"过于害怕"出错的人会非常谨慎。'
-                }
-            ];
+            console.log("No words extracted from response");
+            return [];
         }
         
         return words;
@@ -2922,9 +3016,7 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
                 html += `
                     <div class="explanation" style="display: none;">
                         <p><strong>正确答案:</strong> ${q.answer}</p>
-                        <p><strong>英文解析:</strong> ${q.explanation}</p>
-                        <p><strong>中文解析:</strong> ${generateChineseExplanation(q.explanation, 'cloze')}
-                        </p>
+                        <p><strong>英文解析:</strong> ${q.explanation}</p>                        
                     </div>
                 </div>`;
             });
@@ -2954,9 +3046,7 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
                 html += `
                     <div class="explanation" style="display: none;">
                         <p><strong>正确答案:</strong> ${q.answer}</p>
-                        <p><strong>英文解析:</strong> ${q.explanation}</p>
-                        <p><strong>中文解析:</strong> ${generateChineseExplanation(q.explanation, 'comprehension')}
-                        </p>
+                        <p><strong>英文解析:</strong> ${q.explanation}</p></p>
                     </div>
                 </div>`;
             });
@@ -3010,11 +3100,7 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
                 font-weight: bold;
                 margin: 0 5px;
             }
-            .explanation {
-                margin-top: 10px;
-                padding: 10px;
-                background-color: #f8f9fa;
-                border-radius: 5px;
+              border-radius: 5px;
             }
             @media (max-width: 576px) {
                 .options-inline {
