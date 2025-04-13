@@ -1830,96 +1830,70 @@ document.addEventListener('DOMContentLoaded', function() {
     async function generateReadingTest() {
         const testType = document.getElementById('reading-test-type').value;
         const difficulty = document.getElementById('reading-test-difficulty').value;
+        const questions = document.getElementById('reading-test-questions').value;
         const testContainer = document.getElementById('reading-test-container');
         
-        // 获取题目数量，基于测试类型
-        let questionCount = testType === 'cloze' ? 10 : 5;
+        // 显示加载状态
+        testContainer.innerHTML = '<div class="loading-spinner"><div></div><div></div><div></div><div></div></div>';
         
-        // 获取用户的教育水平
-        const profileDisplay = document.getElementById('profile-display');
-        const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
-        const educationLevel = getEducationLevelFromProfile(userProfile);
+        // 获取用户教育背景
+        const userEducationLevel = getUserEducationLevel();
         
-        // 显示加载
-        testContainer.innerHTML = '<p class="loading">正在生成测验...</p>';
+        // 准备API请求数据
+        const promptData = {
+            testType: testType,
+            difficulty: difficulty,
+            questions: parseInt(questions),
+            userEducationLevel: userEducationLevel
+        };
         
-        try {
-            // 构建系统消息
-            const systemMessage = testType === 'cloze' 
-                ? buildClozeTestSystemMessage(difficulty, questionCount, educationLevel)
-                : buildComprehensionTestSystemMessage(difficulty, questionCount, educationLevel);
-            
-            // 构建用户消息
-            const userPrompt = testType === 'cloze' 
-                ? `请生成一篇适合${educationLevel}的${getDifficultyName(difficulty)}难度完形填空测试，包含${questionCount}个空和选项。`
-                : `请生成一篇适合${educationLevel}的${getDifficultyName(difficulty)}难度阅读理解测试，包含一篇文章和${questionCount}个问题。`;
-            
-            // 构建消息数组
-            const messages = [
-                {
-                    "role": "system",
-                    "content": systemMessage
-                },
-                {
-                    "role": "user",
-                    "content": userPrompt
-                }
-            ];
-            
-            // 调用API
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    messages: messages
-                })
-            });
-            
+        // 调用API生成测试
+        fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        "role": "system",
+                        "content": "你是一个专业的英语教育助手，负责生成英语阅读测试。"
+                    },
+                    {
+                        "role": "user",
+                        "content": getReadingTestPrompt(promptData)
+                    }
+                ]
+            })
+        })
+        .then(response => {
             if (!response.ok) {
                 throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
             }
-            
-            const data = await response.json();
-            const aiResponse = data.choices[0].message.content;
-            
-            console.log("Reading test response:", aiResponse);
-            
-            // 解析JSON响应
+            return response.json();
+        })
+        .then(apiResponse => {
             try {
-                const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                // 从API响应中提取内容
+                const responseText = apiResponse.choices[0].message.content;
+                
+                // 尝试从文本中提取JSON
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
-                    const test = JSON.parse(jsonMatch[0]);
-                    
-                    if (!test.title || !test.article || !test.questions || !Array.isArray(test.questions)) {
-                        throw new Error('解析的JSON格式不正确');
-                    }
-                    
-                    // 根据测试类型渲染不同的测试
-                    if (testType === 'cloze') {
-                        renderClozeTest(test);
-                    } else {
-                        renderComprehensionTest(test);
-                    }
+                    const data = JSON.parse(jsonMatch[0]);
+                    displayReadingTest(data, testType);
                 } else {
                     throw new Error('无法从响应中提取JSON');
                 }
-            } catch (jsonError) {
-                console.error('解析AI响应时出错:', jsonError);
-                
-                // 尝试直接使用响应文本渲染
-                if (testType === 'cloze') {
-                    renderClozeTestFromText(aiResponse);
-                } else {
-                    renderComprehensionTestFromText(aiResponse);
-                }
+            } catch (e) {
+                console.error("解析API响应时出错:", e);
+                testContainer.innerHTML = '<p class="error-message">生成测试时发生错误，请重试。</p>';
             }
-            
-        } catch (error) {
-            console.error("Error generating reading test:", error);
-            testContainer.innerHTML = '<p class="error">生成测试时出现错误: ' + error.message + '</p>';
-        }
+        })
+        .catch(error => {
+            console.error("API请求失败:", error);
+            testContainer.innerHTML = '<p class="error-message">生成测试时发生错误: ' + error.message + '</p>';
+        });
     }
     
     // 构建完形填空测试的系统消息
@@ -2720,14 +2694,51 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
         };
         
         // 调用API生成测试
-        callLLMApi(getReadingTestPrompt(promptData), function(response) {
+        fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messages: [
+                    {
+                        "role": "system",
+                        "content": "你是一个专业的英语教育助手，负责生成英语阅读测试。"
+                    },
+                    {
+                        "role": "user",
+                        "content": getReadingTestPrompt(promptData)
+                    }
+                ]
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(apiResponse => {
             try {
-                const data = JSON.parse(response);
-                displayReadingTest(data, testType);
+                // 从API响应中提取内容
+                const responseText = apiResponse.choices[0].message.content;
+                
+                // 尝试从文本中提取JSON
+                const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    displayReadingTest(data, testType);
+                } else {
+                    throw new Error('无法从响应中提取JSON');
+                }
             } catch (e) {
                 console.error("解析API响应时出错:", e);
                 testContainer.innerHTML = '<p class="error-message">生成测试时发生错误，请重试。</p>';
             }
+        })
+        .catch(error => {
+            console.error("API请求失败:", error);
+            testContainer.innerHTML = '<p class="error-message">生成测试时发生错误: ' + error.message + '</p>';
         });
     }
 
@@ -2944,7 +2955,17 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
 
     // 从用户信息中获取教育背景
     function getUserEducationLevel() {
-        const educationSelect = document.getElementById('education');
-        return educationSelect ? educationSelect.value : '高中';
+        // 从页面上的个人资料显示中获取
+        const profileDisplay = document.getElementById('profile-display');
+        const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
+        
+        // 从用户配置文件中分析教育水平
+        if (userProfile.includes('小学')) return '小学生';
+        if (userProfile.includes('初中')) return '初中生';
+        if (userProfile.includes('高中')) return '高中生';
+        if (userProfile.includes('大学')) return '大学生';
+        
+        // 默认为高中水平
+        return '高中生';
     }
 }); 
