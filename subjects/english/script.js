@@ -625,48 +625,41 @@ document.addEventListener('DOMContentLoaded', function() {
         const category = document.getElementById('vocab-category').value;
         const vocabContainer = document.getElementById('vocab-container');
         
-        // 获取用户的教育水平
-        const profileDisplay = document.getElementById('profile-display');
-        const userProfile = profileDisplay ? profileDisplay.textContent.trim() : '';
-        const educationLevel = getEducationLevelFromProfile(userProfile);
+        if (!vocabContainer) return;
         
-        // 显示加载
-        vocabContainer.innerHTML = '<p class="loading">正在生成词汇列表...</p>';
+        // 显示加载状态
+        vocabContainer.innerHTML = '<p class="loading">正在生成词汇中...</p>';
         
         try {
-            // 构建系统消息
-            const systemMessage = `你是一个专业的英语词汇教学助手。请生成一个包含8个${getLevelName(level)}难度的${getCategoryName(category)}词汇列表。
+            // 构建prompt
+            const prompt = `请生成10个${getLevelName(level)}难度的${getCategoryName(category)}英语单词，并提供以下信息：
+1. 单词拼写
+2. 音标
+3. 词性
+4. 中文定义
+5. 2-3个常用词组或搭配
+6. 2个使用该单词的例句
+7. 同义词和反义词（如果有）
+8. 记忆技巧或词源解释
 
-根据用户的教育水平(${educationLevel})调整词汇和解释的复杂度。
+请以JSON格式返回结果，每个单词包含以下字段：
+{
+  "words": [
+    {
+      "word": "单词",
+      "pronunciation": "音标",
+      "partOfSpeech": "词性",
+      "definition": "中文定义",
+      "phrases": ["词组1", "词组2"],
+      "examples": ["例句1", "例句2"],
+      "synonymsAntonyms": "同义词和反义词",
+      "memoryTip": "记忆技巧"
+    },
+    ...
+  ]
+}
 
-对每个单词，提供以下详细信息：
-1) 英文单词
-2) 音标发音（英式和美式）
-3) 中文定义（按词性分类）
-4) 词性（名词/动词/形容词等）
-5) 3-4个相关词组或搭配及其中文意思
-6) 近义词和反义词（如果有）
-7) 词源简介（如果有趣或有帮助）
-8) 使用该单词的2个例句（附中文翻译）
-9) 记忆技巧或助记方法
-10) 在实际语境中的应用场景
-
-使每个单词的学习内容生动、有趣且易于记忆。适合${educationLevel}学生的知识水平和兴趣。`;
-            
-            // 构建用户消息
-            const userPrompt = `请生成8个${getLevelName(level)}难度的${getCategoryName(category)}词汇，包含完整的学习信息（音标、词性、中文释义、例句、词组等）。这些词汇将用于我作为一名${educationLevel}学生的英语学习。`;
-            
-            // 构建消息数组
-            const messages = [
-                {
-                    "role": "system",
-                    "content": systemMessage
-                },
-                {
-                    "role": "user",
-                    "content": userPrompt
-                }
-            ];
+确保每个单词的信息完整，例句实用，并且适合${getLevelName(level)}水平的学习者。`;
             
             // 调用API
             const response = await fetch('/api/chat', {
@@ -675,41 +668,44 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    messages: messages
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": "你是一个专业的英语词汇教学助手，精通英语词汇、语法和使用。"
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
                 })
             });
             
             if (!response.ok) {
-                throw new Error(`网络响应不正常: ${response.status} ${response.statusText}`);
+                throw new Error(`网络响应不正常: ${response.status}`);
             }
             
             const data = await response.json();
-            const aiResponse = data.choices[0].message.content;
+            const result = data.choices[0].message.content;
             
-            // 处理并显示词汇结果
-            let html = '<div class="vocab-list">';
-            html += formatVocabularyResponse(aiResponse, level, category);
-            html += '</div>';
+            // 格式化并显示结果
+            const formattedHtml = formatVocabularyResponse(result, level, category);
+            vocabContainer.innerHTML = formattedHtml;
             
-            vocabContainer.innerHTML = html;
-            
-            // 为新按钮添加事件监听器
-            const moreWordsBtn = document.getElementById('more-words');
-            if (moreWordsBtn) {
-                moreWordsBtn.addEventListener('click', generateVocabulary);
-            }
-            
-            // 为保存按钮添加事件监听器
-            document.querySelectorAll('.save-word').forEach(button => {
-                button.addEventListener('click', function() {
-                    this.innerHTML = '已保存 ✓';
-                    this.disabled = true;
-                });
-            });
+            // 初始化词汇轮播
+            setTimeout(() => {
+                // 给DOM有时间完成渲染
+                initVocabCarousel();
+            }, 100);
             
         } catch (error) {
-            console.error("Error generating vocabulary:", error);
-            vocabContainer.innerHTML = '<p class="error">生成词汇时出现错误: ' + error.message + '</p>';
+            console.error('生成词汇时出错:', error);
+            vocabContainer.innerHTML = `
+                <div class="error">
+                    <p>抱歉，生成词汇时出现错误。请再试一次。</p>
+                    <p class="small">${error.message}</p>
+                </div>
+            `;
         }
     }
     
@@ -944,11 +940,25 @@ document.addEventListener('DOMContentLoaded', function() {
         return html;
     }
     
-    // 辅助函数 - 格式化词汇响应
+    // 辅助函数 - 格式化词汇响应，并设置轮播初始化触发器
     function formatVocabularyResponse(response, level, category) {
         // 提取单词列表
         const words = extractEnhancedWords(response);
         console.log("Extracted enhanced words:", words);
+        
+        // 为轮播初始化添加更多可靠触发器
+        window.vocabCarouselInitialized = false;
+        window.vocabCarouselPending = true;
+        
+        // 设置轮播初始化定时器
+        setTimeout(function() {
+            if (window.vocabCarouselPending && !window.vocabCarouselInitialized) {
+                console.log("Attempting carousel initialization after delay");
+                initVocabCarousel();
+                window.vocabCarouselInitialized = true;
+                window.vocabCarouselPending = false;
+            }
+        }, 500);
         
         let levelName, categoryName;
         
@@ -1562,7 +1572,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!generateBtn || !quizContainer) return;
         
         generateBtn.addEventListener('click', async () => {
-            // 显示测验容器
+            // 显示测验内容
             quizContainer.style.display = 'block';
             
             // 显示加载状态
@@ -2006,7 +2016,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const questions = document.getElementById('reading-test-questions').value;
         const testContainer = document.getElementById('reading-test-container');
         
-        // 显示加载状态
+        // 显示测试内容并添加加载状态
+        testContainer.style.display = 'block';
         testContainer.innerHTML = '<div class="loading-spinner"><div></div><div></div><div></div><div></div></div>';
         
         // 获取用户教育背景
@@ -2852,7 +2863,8 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
         const questions = document.getElementById('reading-test-questions').value;
         const testContainer = document.getElementById('reading-test-container');
         
-        // 显示加载状态
+        // 显示测试内容并添加加载状态
+        testContainer.style.display = 'block';
         testContainer.innerHTML = '<div class="loading-spinner"><div></div><div></div><div></div><div></div></div>';
         
         // 获取用户教育背景
@@ -3459,5 +3471,80 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
         }
         
         return result;
+    }
+
+    // 在词汇卡片添加到DOM后初始化轮播
+    function initVocabCarousel() {
+        const prevBtn = document.querySelector('.vocab-prev');
+        const nextBtn = document.querySelector('.vocab-next');
+        const wrapper = document.querySelector('.vocab-cards-wrapper');
+        const cards = document.querySelectorAll('.vocab-card');
+        const currentCardEl = document.querySelector('.current-card');
+        
+        if (!wrapper || !prevBtn || !nextBtn || !cards.length) {
+            console.log('Vocab carousel elements not found');
+            return;
+        }
+        
+        console.log('Initializing vocab carousel with', cards.length, 'cards');
+        
+        let currentIndex = 0;
+        const totalCards = cards.length;
+        
+        // 显示所有卡片（修复样式问题）
+        cards.forEach(card => {
+            card.style.display = 'block';
+            card.style.opacity = '0';
+            card.style.position = 'absolute';
+            card.style.top = '0';
+            card.style.left = '0';
+            card.style.width = '100%';
+        });
+        
+        // 初始化显示第一张卡片
+        showCard(currentIndex);
+        updateNavButtons();
+        
+        // 添加事件监听
+        prevBtn.addEventListener('click', function() {
+            console.log('Previous button clicked');
+            if (currentIndex > 0) {
+                currentIndex--;
+                showCard(currentIndex);
+                updateNavButtons();
+            }
+        });
+        
+        nextBtn.addEventListener('click', function() {
+            console.log('Next button clicked');
+            if (currentIndex < totalCards - 1) {
+                currentIndex++;
+                showCard(currentIndex);
+                updateNavButtons();
+            }
+        });
+        
+        function showCard(index) {
+            console.log('Showing card', index);
+            cards.forEach((card, i) => {
+                if (i === index) {
+                    card.classList.add('active');
+                    card.style.opacity = '1';
+                    card.style.zIndex = '1';
+                } else {
+                    card.classList.remove('active');
+                    card.style.opacity = '0';
+                    card.style.zIndex = '0';
+                }
+            });
+            
+            currentCardEl.textContent = index + 1;
+            wrapper.setAttribute('data-current', index);
+        }
+        
+        function updateNavButtons() {
+            prevBtn.disabled = currentIndex === 0;
+            nextBtn.disabled = currentIndex === totalCards - 1;
+        }
     }
 }); 
