@@ -2826,57 +2826,314 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
         if (testType === 'cloze') {
             // 显示完形填空文章
             html += `<div class="test-passage">${data.passage}</div>`;
+            
+            // 显示完形填空问题 - 一行显示一题的选项
+            html += '<div class="test-questions cloze-questions">';
+            data.questions.forEach(q => {
+                html += `<div class="question cloze-question" data-number="${q.number}" data-answer="${q.answer}">`;
+                
+                // 问题编号和选项在同一行
+                html += `<div class="question-row">
+                    <span class="question-number">${q.number}:</span>
+                    <div class="options-inline">`;
+                
+                // 内联显示选项 A/B/C/D
+                Object.entries(q.options).forEach(([key, value]) => {
+                    html += `
+                        <label class="option-inline">
+                            <input type="radio" id="q${q.number}${key}" name="q${q.number}" value="${key}">
+                            <span class="option-marker">${key}</span>
+                            <span class="option-text">${value}</span>
+                        </label>`;
+                });
+                
+                html += `</div></div>`;
+                
+                // 解释部分 - 中英双语
+                html += `
+                    <div class="explanation" style="display: none;">
+                        <p><strong>正确答案:</strong> ${q.answer}</p>
+                        <p><strong>英文解析:</strong> ${q.explanation}</p>
+                        <p><strong>中文解析:</strong> ${q.explanation.includes('因为') ? q.explanation : '这个选项是正确的，因为它最符合上下文的语境和意思。'}
+                        </p>
+                    </div>
+                </div>`;
+            });
+            html += '</div>';
         } else if (testType === 'comprehension') {
             // 显示阅读理解文章
             html += `<div class="test-passage">${data.passage}</div>`;
-        }
-        
-        // 显示问题
-        html += '<div class="test-questions">';
-        data.questions.forEach(q => {
-            html += `<div class="question" data-number="${q.number}" data-answer="${q.answer}">`;
             
-            if (testType === 'comprehension') {
+            // 显示阅读理解问题
+            html += '<div class="test-questions">';
+            data.questions.forEach(q => {
+                html += `<div class="question" data-number="${q.number}" data-answer="${q.answer}">`;
                 html += `<p class="question-text">${q.number}. ${q.question}</p>`;
-            } else {
-                html += `<p class="question-text">${q.number}. 空白 __${q.number}__ 应选：</p>`;
-            }
-            
-            Object.entries(q.options).forEach(([key, value]) => {
+                
+                // 选项
+                html += `<div class="options-container">`;
+                Object.entries(q.options).forEach(([key, value]) => {
+                    html += `
+                    <div class="option">
+                        <input type="radio" id="q${q.number}${key}" name="q${q.number}" value="${key}">
+                        <label for="q${q.number}${key}">${key}. ${value}</label>
+                    </div>`;
+                });
+                html += `</div>`;
+                
+                // 解释部分 - 中英双语
                 html += `
-                <div class="option">
-                    <input type="radio" id="q${q.number}${key}" name="q${q.number}" value="${key}">
-                    <label for="q${q.number}${key}">${key}. ${value}</label>
+                    <div class="explanation" style="display: none;">
+                        <p><strong>正确答案:</strong> ${q.answer}</p>
+                        <p><strong>英文解析:</strong> ${q.explanation}</p>
+                        <p><strong>中文解析:</strong> ${q.explanation.includes('因为') ? q.explanation : '这个选项是正确的，因为它最符合文章内容和问题所问。'}</p>
+                    </div>
                 </div>`;
             });
-            
-            html += `
-                <div class="explanation" style="display: none;">
-                    <p><strong>解析：</strong> ${q.explanation}</p>
-                </div>
-            </div>`;
-        });
-        html += '</div>';
+            html += '</div>';
+        }
         
-        // 添加提交和查看答案按钮
+        // 添加提交、查看答案和评估按钮
         html += `
         <div class="test-controls">
             <button class="btn btn-primary" id="submit-test">提交答案</button>
             <button class="btn btn-secondary" id="show-answers">查看答案</button>
+            <button class="btn btn-success" id="evaluate-performance" style="display:none;">评估表现并提供改进建议</button>
         </div>
         <div id="test-results" class="test-results"></div>`;
         
         testContainer.innerHTML = html;
         
+        // 添加样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .cloze-questions {
+                margin-top: 20px;
+            }
+            .cloze-question {
+                margin-bottom: 15px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #eee;
+            }
+            .question-row {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+            }
+            .question-number {
+                font-weight: bold;
+                margin-right: 10px;
+                min-width: 25px;
+            }
+            .options-inline {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+            .option-inline {
+                display: flex;
+                align-items: center;
+                margin-right: 5px;
+                cursor: pointer;
+            }
+            .option-marker {
+                font-weight: bold;
+                margin: 0 5px;
+            }
+            .explanation {
+                margin-top: 10px;
+                padding: 10px;
+                background-color: #f8f9fa;
+                border-radius: 5px;
+            }
+            @media (max-width: 576px) {
+                .options-inline {
+                    flex-direction: column;
+                    gap: 5px;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+        
         // 添加提交按钮事件监听
         document.getElementById('submit-test').addEventListener('click', function() {
             evaluateTest(data);
+            // 显示评估按钮
+            document.getElementById('evaluate-performance').style.display = 'inline-block';
         });
         
         // 添加查看答案按钮事件监听
         document.getElementById('show-answers').addEventListener('click', function() {
             showAnswers(data);
         });
+        
+        // 添加评估表现按钮事件监听
+        document.getElementById('evaluate-performance').addEventListener('click', function() {
+            evaluatePerformance(data, testType);
+        });
+    }
+    
+    // 添加新的评估表现函数
+    async function evaluatePerformance(data, testType) {
+        const evalButton = document.getElementById('evaluate-performance');
+        evalButton.disabled = true;
+        evalButton.textContent = '评估中...';
+        
+        try {
+            // 收集用户答案
+            const userAnswers = [];
+            data.questions.forEach(q => {
+                const selectedOption = document.querySelector(`input[name="q${q.number}"]:checked`);
+                userAnswers.push({
+                    questionNumber: q.number,
+                    userAnswer: selectedOption ? selectedOption.value : null,
+                    correctAnswer: q.answer,
+                    explanation: q.explanation
+                });
+            });
+            
+            // 计算正确率
+            const answeredQuestions = userAnswers.filter(a => a.userAnswer !== null);
+            const correctAnswers = userAnswers.filter(a => a.userAnswer === a.correctAnswer);
+            const correctRate = answeredQuestions.length > 0 ? (correctAnswers.length / answeredQuestions.length) * 100 : 0;
+            
+            // 收集错误的题目
+            const incorrectAnswers = userAnswers.filter(a => a.userAnswer !== null && a.userAnswer !== a.correctAnswer);
+            
+            // 获取用户教育水平
+            const userLevel = getUserEducationLevel();
+            
+            // 构建评估提示
+            const prompt = `作为英语教育专家，请根据以下学生完成的${testType === 'cloze' ? '完形填空' : '阅读理解'}测试结果提供详细评估和改进建议：
+
+测试信息：
+- 测试标题：${data.title}
+- 类型：${testType === 'cloze' ? '完形填空' : '阅读理解'}
+- 难度：${data.difficulty || '中等'}
+- 学生水平：${userLevel}
+
+表现数据：
+- 总题数：${data.questions.length}题
+- 已答题数：${answeredQuestions.length}题
+- 正确数：${correctAnswers.length}题
+- 正确率：${correctRate.toFixed(1)}%
+
+${incorrectAnswers.length > 0 ? `错误题目分析：
+${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.userAnswer || '未作答'}，正确答案是${a.correctAnswer}
+  解析：${a.explanation}`).join('\n')}` : '学生全部答对！'}
+
+请提供：
+1. 整体评价（学生在该测试中的表现如何）
+2. 常见错误模式分析（如果有错误，学生犯了哪些类型的错误）
+3. 针对性学习建议（包括应该重点学习的内容和提高方法）
+4. 适合该学生水平的学习资源推荐
+
+评估语言要简明易懂，既包含鼓励性评价，也提供具体实用的改进建议，适合${userLevel}学生理解。请同时提供中英文评估。`;
+
+            // 调用API获取评估
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": "你是一位经验丰富的英语教育专家，擅长分析学生的学习表现并提供个性化的改进建议。"
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                    ]
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`网络响应不正常: ${response.status}`);
+            }
+            
+            const responseData = await response.json();
+            const assessment = responseData.choices[0].message.content;
+            
+            // 显示评估结果
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.innerHTML = `
+                <div class="assessment-container">
+                    <h3>个性化学习评估</h3>
+                    <div class="assessment-content">
+                        ${assessment.replace(/\n/g, '<br>')}
+                    </div>
+                    <div class="assessment-summary">
+                        <div class="score-display">
+                            <div class="score-circle">
+                                <span class="score-number">${correctRate.toFixed(0)}%</span>
+                            </div>
+                            <p class="score-label">正确率</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // 添加评估结果样式
+            const style = document.createElement('style');
+            style.textContent = `
+                .assessment-container {
+                    margin-top: 30px;
+                    padding: 20px;
+                    background: #f8f9fa;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                .assessment-container h3 {
+                    margin-top: 0;
+                    color: #4361ee;
+                    border-bottom: 2px solid #4361ee;
+                    padding-bottom: 10px;
+                    margin-bottom: 15px;
+                }
+                .assessment-content {
+                    line-height: 1.6;
+                }
+                .assessment-summary {
+                    display: flex;
+                    justify-content: center;
+                    margin-top: 20px;
+                }
+                .score-display {
+                    text-align: center;
+                }
+                .score-circle {
+                    width: 100px;
+                    height: 100px;
+                    border-radius: 50%;
+                    background: ${correctRate >= 80 ? '#4caf50' : correctRate >= 60 ? '#ff9800' : '#f44336'};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin: 0 auto;
+                }
+                .score-number {
+                    color: white;
+                    font-size: 24px;
+                    font-weight: bold;
+                }
+                .score-label {
+                    margin-top: 10px;
+                    font-weight: bold;
+                }
+            `;
+            document.head.appendChild(style);
+            
+        } catch (error) {
+            console.error('评估过程中出错:', error);
+            const resultsContainer = document.getElementById('test-results');
+            resultsContainer.innerHTML += '<p class="error-message">生成评估时出现错误，请稍后再试。</p>';
+        } finally {
+            evalButton.disabled = false;
+            evalButton.textContent = '评估表现并提供改进建议';
+        }
     }
 
     function evaluateTest(data) {
