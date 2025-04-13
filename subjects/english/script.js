@@ -970,11 +970,21 @@ document.addEventListener('DOMContentLoaded', function() {
             default: categoryName = category;
         }
         
-        let html = `<h3>${levelName}${categoryName}</h3>`;
+        let html = `
+            <div class="vocab-container">
+                <h3>${levelName}${categoryName}</h3>
+                
+                <div class="vocab-carousel">
+                    <button class="vocab-nav vocab-prev" disabled>&lt;</button>
+                    
+                    <div class="vocab-cards-container">
+                        <div class="vocab-cards-wrapper" data-current="0" data-total="${words.length}">
+        `;
         
-        words.forEach(word => {
+        // 为每个单词创建卡片，但只显示第一个
+        words.forEach((word, index) => {
             html += `
-                <div class="vocab-card enhanced">
+                <div class="vocab-card enhanced ${index === 0 ? 'active' : ''}" data-index="${index}">
                     <div class="vocab-header">
                         <h4>${word.word}</h4>
                         <div class="pronunciation">${word.pronunciation || ''}</div>
@@ -1028,25 +1038,105 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         html += `
-            <div class="vocab-actions">
-                <button class="btn btn-primary" id="more-words">更多词汇</button>
-                <button class="btn btn-secondary" id="practice-vocab">练习全部</button>
+                        </div>
+                    </div>
+                    
+                    <button class="vocab-nav vocab-next" ${words.length > 1 ? '' : 'disabled'}>&gt;</button>
+                </div>
+                
+                <div class="vocab-progress">
+                    <span class="current-card">1</span> / <span class="total-cards">${words.length}</span>
+                </div>
+                
+                <div class="vocab-actions">
+                    <button class="btn btn-primary" id="more-words">更多词汇</button>
+                    <button class="btn btn-secondary" id="practice-vocab">练习全部</button>
+                </div>
             </div>
-            
+        `;
+        
+        // 添加样式
+        html += `
             <style>
+                .vocab-container {
+                    position: relative;
+                    max-width: 800px;
+                    margin: 0 auto;
+                }
+                
+                .vocab-carousel {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 10px;
+                    margin: 20px 0;
+                    position: relative;
+                }
+                
+                .vocab-cards-container {
+                    width: 100%;
+                    overflow: hidden;
+                    position: relative;
+                }
+                
+                .vocab-cards-wrapper {
+                    display: flex;
+                    transition: transform 0.3s ease;
+                }
+                
                 .vocab-card.enhanced {
                     background: #fff;
                     border-radius: 10px;
                     box-shadow: 0 3px 10px rgba(0,0,0,0.08);
-                    margin-bottom: 20px;
+                    margin: 10px;
                     padding: 0;
                     overflow: hidden;
-                    transition: transform 0.2s;
+                    transition: transform 0.2s, opacity 0.3s;
+                    min-width: calc(100% - 20px);
+                    max-width: calc(100% - 20px);
+                    opacity: 0;
+                    display: none;
+                }
+                
+                .vocab-card.enhanced.active {
+                    opacity: 1;
+                    display: block;
                 }
                 
                 .vocab-card.enhanced:hover {
                     transform: translateY(-3px);
                     box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+                }
+                
+                .vocab-nav {
+                    background: #4361ee;
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    font-size: 18px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                    z-index: 10;
+                }
+                
+                .vocab-nav:hover:not(:disabled) {
+                    background: #3a56d4;
+                }
+                
+                .vocab-nav:disabled {
+                    background: #ccc;
+                    cursor: not-allowed;
+                }
+                
+                .vocab-progress {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-weight: bold;
                 }
                 
                 .vocab-header {
@@ -1128,7 +1218,77 @@ document.addEventListener('DOMContentLoaded', function() {
                     background: #4361ee;
                     color: white;
                 }
+                
+                @media (max-width: 576px) {
+                    .vocab-carousel {
+                        padding: 0 5px;
+                    }
+                }
             </style>
+        `;
+        
+        // 添加JavaScript以处理卡片导航
+        html += `
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    initVocabCarousel();
+                });
+                
+                function initVocabCarousel() {
+                    const prevBtn = document.querySelector('.vocab-prev');
+                    const nextBtn = document.querySelector('.vocab-next');
+                    const wrapper = document.querySelector('.vocab-cards-wrapper');
+                    const cards = document.querySelectorAll('.vocab-card');
+                    const currentCardEl = document.querySelector('.current-card');
+                    
+                    if (!wrapper || !prevBtn || !nextBtn) return;
+                    
+                    let currentIndex = 0;
+                    const totalCards = cards.length;
+                    
+                    // 初始化
+                    showCard(currentIndex);
+                    updateNavButtons();
+                    
+                    // 添加事件监听
+                    prevBtn.addEventListener('click', showPreviousCard);
+                    nextBtn.addEventListener('click', showNextCard);
+                    
+                    function showPreviousCard() {
+                        if (currentIndex > 0) {
+                            currentIndex--;
+                            showCard(currentIndex);
+                            updateNavButtons();
+                        }
+                    }
+                    
+                    function showNextCard() {
+                        if (currentIndex < totalCards - 1) {
+                            currentIndex++;
+                            showCard(currentIndex);
+                            updateNavButtons();
+                        }
+                    }
+                    
+                    function showCard(index) {
+                        cards.forEach((card, i) => {
+                            if (i === index) {
+                                card.classList.add('active');
+                            } else {
+                                card.classList.remove('active');
+                            }
+                        });
+                        
+                        currentCardEl.textContent = index + 1;
+                        wrapper.setAttribute('data-current', index);
+                    }
+                    
+                    function updateNavButtons() {
+                        prevBtn.disabled = currentIndex === 0;
+                        nextBtn.disabled = currentIndex === totalCards - 1;
+                    }
+                }
+            </script>
         `;
         
         return html;
@@ -1402,6 +1562,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!generateBtn || !quizContainer) return;
         
         generateBtn.addEventListener('click', async () => {
+            // 显示测验容器
+            quizContainer.style.display = 'block';
+            
             // 显示加载状态
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验中...</p></div>';
             
@@ -1617,18 +1780,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             
-            const confirmBtn = document.getElementById('confirm-answer');
-            confirmBtn.addEventListener('click', () => {
-                const feedback = quizContainer.querySelector('.quiz-feedback');
-                feedback.style.display = 'block';
-                confirmBtn.disabled = true;
+            // 确认答案按钮事件
+            document.getElementById('confirm-answer').addEventListener('click', () => {
+                // 将选项文字颜色改为黑色
+                const selectedOption = quizContainer.querySelector('.quiz-option.selected span');
+                if (selectedOption) {
+                    selectedOption.style.color = '#000';
+                    selectedOption.style.fontWeight = 'bold';
+                }
                 
-                // 禁用所有选项
+                // 显示反馈
+                document.querySelector('.quiz-feedback').style.display = 'block';
+                document.getElementById('confirm-answer').disabled = true;
+                
+                // 标记正确/错误答案
+                const userAnswer = userAnswers[currentQuestionIndex];
+                const correctAnswer = question.correctAnswer;
+                
                 options.forEach(option => {
-                    option.style.pointerEvents = 'none';
-                    if (option.dataset.option === question.correctAnswer) {
+                    const optionId = option.dataset.option;
+                    if (optionId === correctAnswer) {
                         option.classList.add('correct');
-                    } else if (option.dataset.option === userAnswers[currentQuestionIndex]) {
+                    } else if (optionId === userAnswer && userAnswer !== correctAnswer) {
                         option.classList.add('incorrect');
                     }
                 });
@@ -2854,7 +3027,7 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
                     <div class="explanation" style="display: none;">
                         <p><strong>正确答案:</strong> ${q.answer}</p>
                         <p><strong>英文解析:</strong> ${q.explanation}</p>
-                        <p><strong>中文解析:</strong> ${q.explanation.includes('因为') ? q.explanation : '这个选项是正确的，因为它最符合上下文的语境和意思。'}
+                        <p><strong>中文解析:</strong> ${generateChineseExplanation(q.explanation, 'cloze')}
                         </p>
                     </div>
                 </div>`;
@@ -2886,7 +3059,8 @@ ${mistakes.map(m => `- 题号 ${m.questionId}：学生选择了 ${m.userAnswer}�
                     <div class="explanation" style="display: none;">
                         <p><strong>正确答案:</strong> ${q.answer}</p>
                         <p><strong>英文解析:</strong> ${q.explanation}</p>
-                        <p><strong>中文解析:</strong> ${q.explanation.includes('因为') ? q.explanation : '这个选项是正确的，因为它最符合文章内容和问题所问。'}</p>
+                        <p><strong>中文解析:</strong> ${generateChineseExplanation(q.explanation, 'comprehension')}
+                        </p>
                     </div>
                 </div>`;
             });
@@ -3236,5 +3410,54 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
         
         // 默认为高中水平
         return '高中生';
+    }
+
+    // 根据英文解析生成中文解析
+    function generateChineseExplanation(explanation, testType) {
+        // 如果解析本身就是中文，直接返回
+        if (/[\u4e00-\u9fa5]/.test(explanation) && explanation.includes('因为')) {
+            return explanation;
+        }
+        
+        // 提取关键信息
+        let result = '';
+        
+        if (testType === 'cloze') {
+            // 完形填空的解析模式
+            if (explanation.toLowerCase().includes('context') || explanation.toLowerCase().includes('paragraph')) {
+                result = `这个选项正确，因为它最符合上下文的语境。根据段落内容，`;
+            } else if (explanation.toLowerCase().includes('grammar') || explanation.toLowerCase().includes('tense')) {
+                result = `这个选项正确，因为它符合句子的语法结构。在这个句子中，`;
+            } else if (explanation.toLowerCase().includes('meaning') || explanation.toLowerCase().includes('definition')) {
+                result = `这个选项正确，因为它的含义最适合这个句子。根据文章内容，`;
+            } else if (explanation.toLowerCase().includes('collocation') || explanation.toLowerCase().includes('phrase')) {
+                result = `这个选项正确，因为它是正确的固定搭配。在英语中，`;
+            } else {
+                result = `这个选项正确，因为它最符合文章的逻辑和内容。`;
+            }
+        } else {
+            // 阅读理解的解析模式
+            if (explanation.toLowerCase().includes('paragraph') || explanation.toLowerCase().includes('line')) {
+                result = `这个选项正确，因为文章中明确提到了这一点。根据段落内容，`;
+            } else if (explanation.toLowerCase().includes('infer') || explanation.toLowerCase().includes('imply')) {
+                result = `这个选项正确，因为可以从文章内容推断出这个结论。虽然文章没有直接说明，但从上下文可以看出`;
+            } else if (explanation.toLowerCase().includes('main idea') || explanation.toLowerCase().includes('theme')) {
+                result = `这个选项正确，因为它抓住了文章的主旨。通读全文可以发现，`;
+            } else if (explanation.toLowerCase().includes('detail') || explanation.toLowerCase().includes('specific')) {
+                result = `这个选项正确，因为它准确描述了文章中的具体细节。在文章中，`;
+            } else {
+                result = `这个选项正确，因为它与文章内容一致。`;
+            }
+        }
+        
+        // 提取解析中的关键句子
+        const sentences = explanation.split(/[.!?]/).filter(s => s.trim().length > 0);
+        if (sentences.length > 0) {
+            // 添加第一个关键句作为补充
+            const keySentence = sentences[0].trim() + (sentences[0].trim().endsWith('.') ? '' : '。');
+            result += keySentence;
+        }
+        
+        return result;
     }
 }); 
