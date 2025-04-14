@@ -77,7 +77,8 @@ export async function onRequestPost(context) {
           model: env.MODEL,
           messages: body.messages,
           max_tokens: parseInt(env.MAX_TOKENS || "4096"),
-          temperature: parseFloat(env.TEMPERATURE || "0.7")
+          temperature: parseFloat(env.TEMPERATURE || "0.8"),
+          top_p: parseFloat(env.TOP_P || "0.8"),
         }),
         signal: controller.signal
       });
