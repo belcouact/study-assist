@@ -1037,41 +1037,44 @@ document.addEventListener('DOMContentLoaded', function() {
             default: categoryName = category;
         }
         
-        // 简化后的HTML结构
         let html = `
-            <h3 class="vocab-title">${levelName}${categoryName}</h3>
-            
-            <div class="vocab-cards-container">
-                <button class="vocab-nav vocab-prev" disabled>&lt;</button>
+            <div class="vocab-container">
+                <h3>${levelName}${categoryName}</h3>
+                
+                <div class="vocab-carousel">
+                    <button class="vocab-nav vocab-prev" disabled>&lt;</button>
+                    
+                    <div class="vocab-cards-container">
+                        <div class="vocab-cards-wrapper" data-current="0" data-total="${words.length}">
         `;
         
         // 为每个单词创建卡片
         words.forEach((word, index) => {
             html += `
-                <div class="vocab-card" data-index="${index}">
+                <div class="vocab-card enhanced" data-index="${index}">
                     <div class="vocab-header">
+                        <div class="word-badge">${word.partOfSpeech || '名词'}</div>
                         <h4>${word.word}</h4>
                         <div class="pronunciation">${word.pronunciation || ''}</div>
                     </div>
                     
                     <div class="vocab-content">
-                        <div class="vocab-section">
-                            <p class="part-of-speech">${word.partOfSpeech || ''}</p>
-                            <p class="definition"><strong>释义:</strong> ${word.definition || '无定义'}</p>
+                        <div class="vocab-section definition-section">
+                            <p class="definition">${word.definition || '无定义'}</p>
                         </div>
                         
                         ${word.phrases && word.phrases.length ? `
                         <div class="vocab-section">
-                            <p class="section-title"><strong>常用词组:</strong></p>
-                            <ul class="phrases-list">
-                                ${word.phrases.map(phrase => `<li>${phrase}</li>`).join('')}
-                            </ul>
+                            <p class="section-title">常用词组</p>
+                            <div class="phrases-list">
+                                ${word.phrases.map(phrase => `<div class="phrase-item">${phrase}</div>`).join('')}
+                            </div>
                         </div>
                         ` : ''}
                         
                         ${word.examples && word.examples.length ? `
                         <div class="vocab-section">
-                            <p class="section-title"><strong>例句:</strong></p>
+                            <p class="section-title">例句</p>
                             <ul class="examples-list">
                                 ${word.examples.map(ex => `<li>${ex}</li>`).join('')}
                             </ul>
@@ -1080,14 +1083,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         ${word.synonymsAntonyms ? `
                         <div class="vocab-section">
-                            <p class="section-title"><strong>近反义词:</strong></p>
-                            <p>${word.synonymsAntonyms}</p>
+                            <p class="section-title">近反义词</p>
+                            <p class="synonyms-antonyms">${word.synonymsAntonyms}</p>
                         </div>
                         ` : ''}
                         
                         ${word.memoryTip ? `
                         <div class="vocab-section memory-tip">
-                            <p class="section-title"><strong>记忆提示:</strong></p>
+                            <p class="section-title">记忆提示</p>
                             <p>${word.memoryTip}</p>
                         </div>
                         ` : ''}
@@ -1097,62 +1100,81 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         html += `
-                <button class="vocab-nav vocab-next" ${words.length > 1 ? '' : 'disabled'}>&gt;</button>
+                        </div>
+                    </div>
+                    
+                    <button class="vocab-nav vocab-next" ${words.length > 1 ? '' : 'disabled'}>&gt;</button>
+                </div>
                 
                 <div class="vocab-progress">
-                    <span class="current-card">1</span> / <span class="total-cards">${words.length}</span>
+                    <div class="progress-bar">
+                        <div class="progress-indicator" style="width: ${100/words.length}%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <span class="current-card">1</span> / <span class="total-cards">${words.length}</span>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="vocab-actions">
-                <button class="btn btn-primary" id="more-words">更多词汇</button>
+                
+                <div class="vocab-actions">
+                    <button class="btn btn-primary" id="more-words">更多词汇</button>
+                </div>
             </div>
         `;
         
         // 添加样式
         html += `
             <style>
-                .vocab-title {
-                    text-align: center;
-                    margin-bottom: 20px;
-                    color: #333;
-                    font-size: 1.5rem;
-                    font-weight: bold;
+                .vocab-container {
+                    position: relative;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+                }
+                
+                .vocab-carousel {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 15px;
+                    margin: 20px 0;
+                    position: relative;
+                    min-height: 400px;
                 }
                 
                 .vocab-cards-container {
+                    width: 100%;
+                    overflow: hidden;
+                    position: relative;
+                    background-color: #f8f9fa;
+                    border-radius: 16px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.05), 
+                                0 1px 8px rgba(0,0,0,0.03), 
+                                0 0 1px rgba(0,0,0,0.08);
+                }
+                
+                .vocab-cards-wrapper {
                     position: relative;
                     width: 100%;
-                    max-width: 800px;
-                    margin: 0 auto 20px auto;
-                    height: 75vh; /* Responsive height based on viewport */
-                    min-height: 800px; /* Ensure minimum height */
-                    padding: 20px 50px;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-                    background: linear-gradient(145deg, #ffffff, #f0f4ff);
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    overflow: hidden;
-                    display: flex;
-                    flex-direction: column;
+                    min-height: 400px;
                 }
                 
-                .vocab-card {
-                    position: absolute;
-                    top: 15px;
-                    left: 15px;
-                    right: 15px;
-                    bottom: 45px; /* Space for progress bar */
-                    background: transparent;
+                .vocab-card.enhanced {
+                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                    border-radius: 14px;
                     padding: 25px;
                     overflow-y: auto;
-                    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    max-height: 500px;
+                    transition: all 0.4s ease;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
                     display: none;
                     opacity: 0;
-                    transform: translateY(20px);
+                    transform: translateY(10px);
                 }
                 
-                .vocab-card.active {
+                .vocab-card.enhanced.active {
                     display: block;
                     opacity: 1;
                     z-index: 2;
@@ -1160,10 +1182,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-nav {
-                    position: absolute;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    z-index: 10;
                     background: #4361ee;
                     color: white;
                     border: none;
@@ -1176,15 +1194,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     justify-content: center;
                     cursor: pointer;
                     transition: all 0.3s ease;
-                    box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
-                }
-                
-                .vocab-prev {
-                    left: 5px;
-                }
-                
-                .vocab-next {
-                    right: 5px;
+                    z-index: 10;
+                    box-shadow: 0 4px 10px rgba(67, 97, 238, 0.3);
                 }
                 
                 .vocab-nav:disabled {
@@ -1195,205 +1206,206 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 .vocab-nav:hover:not(:disabled) {
                     background: #3a56d4;
-                    transform: translateY(-50%) scale(1.1);
+                    transform: scale(1.05);
                 }
                 
                 .vocab-progress {
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
+                    margin: 20px 0;
                     text-align: center;
-                    font-size: 16px;
-                    color: #555;
-                    font-weight: 500;
-                    background: rgba(255, 255, 255, 0.7);
-                    padding: 8px 0;
-                    border-radius: 0 0 12px 12px;
-                    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+                }
+                
+                .progress-bar {
+                    height: 6px;
+                    background: #e9ecef;
+                    border-radius: 3px;
+                    margin: 0 auto 10px;
+                    max-width: 300px;
+                    overflow: hidden;
+                }
+                
+                .progress-indicator {
+                    height: 100%;
+                    background: linear-gradient(90deg, #4361ee, #7209b7);
+                    border-radius: 3px;
+                    transition: width 0.3s ease;
+                }
+                
+                .progress-text {
+                    font-size: 14px;
+                    color: #6c757d;
                 }
                 
                 /* 词汇卡片样式 */
                 .vocab-header {
+                    position: relative;
                     margin-bottom: 20px;
                     padding-bottom: 15px;
-                    border-bottom: 2px solid rgba(67, 97, 238, 0.2);
-                    text-align: center;
+                    border-bottom: 1px solid #eaecef;
+                }
+                
+                .word-badge {
+                    display: inline-block;
+                    background: #ebf3ff;
+                    color: #4361ee;
+                    padding: 3px 8px;
+                    border-radius: 4px;
+                    font-size: 0.8rem;
+                    margin-bottom: 8px;
+                    font-weight: 500;
                 }
                 
                 .vocab-header h4 {
-                    font-size: 2.5rem;
-                    background: linear-gradient(90deg, #4361ee, #7209b7);
-                    -webkit-background-clip: text;
-                    background-clip: text;
-                    color: transparent;
-                    margin: 0 0 10px 0;
-                    letter-spacing: 0.5px;
-                    line-height: 1.2;
+                    font-size: 2.2rem;
+                    color: #212529;
+                    margin: 5px 0;
+                    font-weight: 600;
                 }
                 
                 .pronunciation {
-                    color: #666;
-                    font-size: 1.3rem;
-                    font-weight: 300;
+                    color: #6c757d;
+                    font-size: 1.1rem;
+                    font-family: 'Arial', sans-serif;
                 }
                 
                 .vocab-content {
-                    padding-right: 5px;
-                    font-size: 1.1rem;
+                    padding-right: 8px;
                 }
                 
                 .vocab-section {
                     margin-bottom: 22px;
-                    padding-bottom: 18px;
-                    border-bottom: 1px solid rgba(0,0,0,0.06);
-                    animation: fadeIn 0.5s ease-in-out;
+                    padding-bottom: 12px;
+                    border-bottom: 1px solid #f3f4f6;
                 }
                 
                 .vocab-section:last-child {
                     border-bottom: none;
-                    margin-bottom: 10px;
+                    margin-bottom: 0;
                 }
                 
-                .part-of-speech {
-                    display: inline-block;
-                    padding: 5px 12px;
-                    background: rgba(67, 97, 238, 0.1);
-                    color: #4361ee;
-                    border-radius: 20px;
-                    margin: 0 0 15px 0;
-                    font-weight: 500;
-                    letter-spacing: 0.5px;
-                    font-size: 1.1rem;
+                .definition-section {
+                    background: #f8f9fa;
+                    padding: 12px 15px;
+                    border-radius: 8px;
+                    border-left: 4px solid #4361ee;
                 }
                 
                 .definition {
-                    font-size: 1.2rem;
-                    line-height: 1.6;
-                    color: #333;
+                    font-size: 1.1rem;
+                    line-height: 1.5;
+                    color: #343a40;
+                    margin: 0;
                 }
                 
                 .section-title {
-                    margin-bottom: 12px;
-                    color: #333;
-                    font-size: 1.15rem;
-                    font-weight: bold;
-                }
-                
-                .vocab-section ul {
-                    margin: 0;
-                    padding-left: 22px;
-                }
-                
-                .vocab-section ul li {
+                    font-weight: 600;
                     margin-bottom: 10px;
-                    line-height: 1.6;
-                    position: relative;
-                    font-size: 1.1rem;
+                    color: #495057;
+                    font-size: 1rem;
                 }
                 
-                .vocab-section ul li::marker {
+                .phrases-list {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 8px;
+                    margin-top: 10px;
+                }
+                
+                .phrase-item {
+                    background: #f0f4ff;
+                    border-radius: 6px;
+                    padding: 6px 10px;
+                    font-size: 0.9rem;
                     color: #4361ee;
                 }
                 
+                .vocab-section ul {
+                    margin: 8px 0 0 0;
+                    padding-left: 20px;
+                }
+                
+                .vocab-section ul li {
+                    margin-bottom: 8px;
+                    line-height: 1.5;
+                    color: #495057;
+                }
+                
+                .synonyms-antonyms {
+                    background: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 6px;
+                    font-size: 0.95rem;
+                    color: #495057;
+                }
+                
                 .memory-tip {
-                    background: rgba(255, 243, 205, 0.4);
-                    border-left: 3px solid #ffc107;
-                    padding: 15px;
-                    border-radius: 5px;
-                    margin-top: 10px;
-                    font-size: 1.1rem;
-                    line-height: 1.6;
+                    background: #fff8e6;
+                    padding: 12px 15px;
+                    border-radius: 8px;
+                    margin-top: 5px;
+                    border-left: 4px solid #ffca3a;
+                }
+                
+                .memory-tip p:last-child {
+                    margin-bottom: 0;
+                    color: #5a4a00;
+                    font-size: 0.95rem;
+                    line-height: 1.5;
                 }
                 
                 .vocab-actions {
-                    margin-top: 20px;
                     display: flex;
                     justify-content: center;
+                    margin-top: 20px;
                 }
                 
                 .vocab-actions button {
-                    padding: 12px 30px;
-                    border-radius: 30px;
-                    font-weight: 600;
-                    font-size: 1.1rem;
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                    padding: 10px 20px;
+                    border-radius: 8px;
+                    font-weight: 500;
                     transition: all 0.3s ease;
                 }
                 
                 .vocab-actions button:hover {
                     transform: translateY(-2px);
-                    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
                 }
                 
                 /* 自定义滚动条 */
-                .vocab-card::-webkit-scrollbar {
+                .vocab-card.enhanced::-webkit-scrollbar {
                     width: 8px;
                 }
                 
-                .vocab-card::-webkit-scrollbar-track {
-                    background: rgba(241, 241, 241, 0.3);
+                .vocab-card.enhanced::-webkit-scrollbar-track {
+                    background: #f1f1f1;
                     border-radius: 10px;
                 }
                 
-                .vocab-card::-webkit-scrollbar-thumb {
-                    background: rgba(67, 97, 238, 0.2);
+                .vocab-card.enhanced::-webkit-scrollbar-thumb {
+                    background: #c5cbe8;
                     border-radius: 10px;
                 }
                 
-                .vocab-card::-webkit-scrollbar-thumb:hover {
-                    background: rgba(67, 97, 238, 0.5);
-                }
-                
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
+                .vocab-card.enhanced::-webkit-scrollbar-thumb:hover {
+                    background: #4361ee;
                 }
                 
                 /* 移动设备适配 */
                 @media (max-width: 768px) {
-                    .vocab-cards-container {
-                        padding: 15px 40px;
-                        height: 80vh;
-                        min-height: 700px;
+                    .vocab-carousel {
+                        min-height: 500px;
                     }
                     
-                    .vocab-card {
-                        top: 15px;
-                        left: 15px;
-                        right: 15px;
-                        bottom: 45px;
-                        padding: 15px 10px;
+                    .vocab-card.enhanced {
+                        max-height: 450px;
+                        padding: 20px 15px;
                     }
                     
                     .vocab-header h4 {
-                        font-size: 2rem;
+                        font-size: 1.8rem;
                     }
                     
-                    .pronunciation {
-                        font-size: 1.1rem;
-                    }
-                    
-                    .vocab-content {
-                        font-size: 1rem;
-                    }
-                    
-                    .part-of-speech {
-                        font-size: 1rem;
-                        padding: 4px 10px;
-                    }
-                    
-                    .definition {
-                        font-size: 1.1rem;
-                    }
-                    
-                    .vocab-section ul li {
-                        font-size: 1rem;
-                    }
-                    
-                    .vocab-nav {
-                        width: 38px;
-                        height: 38px;
+                    .phrase-item {
+                        font-size: 0.85rem;
                     }
                 }
             </style>
@@ -1406,33 +1418,26 @@ document.addEventListener('DOMContentLoaded', function() {
     function extractEnhancedWords(response) {
         console.log("Extracting enhanced words from response:", response);
         
-        // 识别编号格式的单词列表
-        const wordEntryRegex = /\d+\.\s+\*\*([^*]+)\*\*/g;
+        // 尝试匹配每个单词条目
         const words = [];
         
-        // 尝试正则表达式匹配每个单词条目
-        const wordEntries = [];
-        let match;
-        while ((match = wordEntryRegex.exec(response)) !== null) {
-            const wordName = match[1].trim();
-            const startPos = match.index;
-            const endPos = response.indexOf((parseInt(match[0]) + 1) + '.', startPos);
-            const wordBlock = endPos !== -1 
-                ? response.substring(startPos, endPos) 
-                : response.substring(startPos);
-            
-            wordEntries.push({
-                word: wordName,
-                block: wordBlock
-            });
-        }
+        // 将响应拆分为每个单词的块
+        const entries = response.split(/\d+\.\s+\*\*/);
         
-        // 处理每个单词块
-        for (const entry of wordEntries) {
-            const block = entry.block;
+        // 跳过第一个元素，因为它可能是空的或不完整
+        for (let i = 1; i < entries.length; i++) {
+            const entry = entries[i];
             
+            // 提取单词名称 (到第一个*或换行)
+            const wordEnd = entry.indexOf('*');
+            if (wordEnd === -1) continue;
+            
+            const wordName = entry.substring(0, wordEnd).trim();
+            console.log("Found word:", wordName);
+            
+            // 创建单词对象
             const word = {
-                word: entry.word,
+                word: wordName,
                 pronunciation: '',
                 partOfSpeech: '',
                 definition: '',
@@ -1442,188 +1447,78 @@ document.addEventListener('DOMContentLoaded', function() {
                 memoryTip: ''
             };
             
-            // 提取音标
-            const pronMatch = block.match(/音标:\s*(\[.+?\])/);
-            if (pronMatch) {
-                word.pronunciation = pronMatch[1];
+            // 提取其他详细信息
+            if (entry.includes('音标:')) {
+                const match = entry.match(/音标:\s*(\[.+?\])/);
+                if (match) word.pronunciation = match[1];
             }
             
-            // 提取词性
-            const posMatch = block.match(/词性:\s*(.+?)(?=\n|$|-)/);
-            if (posMatch) {
-                word.partOfSpeech = posMatch[1].trim();
+            if (entry.includes('词性:')) {
+                const match = entry.match(/词性:\s*([^$\n]+)/);
+                if (match) word.partOfSpeech = match[1].trim();
             }
             
-            // 提取释义
-            const defMatch = block.match(/释义:\s*(.+?)(?=\n|$|-)/);
-            if (defMatch) {
-                word.definition = defMatch[1].trim();
+            if (entry.includes('释义:')) {
+                const match = entry.match(/释义:\s*([^$\n]+)/);
+                if (match) word.definition = match[1].trim();
             }
             
-            // 提取常用词组
-            const phrasesLines = block.split('\n');
-            let inPhrases = false;
-            for (const line of phrasesLines) {
-                if (line.includes('常用词组:')) {
-                    inPhrases = true;
-                    continue;
-                }
+            // 提取短语
+            if (entry.includes('常用词组:')) {
+                const phrasesSection = entry.substring(entry.indexOf('常用词组:'));
+                const nextSection = Math.min(
+                    phrasesSection.indexOf('例句:') > -1 ? phrasesSection.indexOf('例句:') : Infinity,
+                    phrasesSection.indexOf('近义词/反义词:') > -1 ? phrasesSection.indexOf('近义词/反义词:') : Infinity,
+                    phrasesSection.indexOf('记忆提示:') > -1 ? phrasesSection.indexOf('记忆提示:') : Infinity
+                );
                 
-                if (inPhrases && line.includes('例句:')) {
-                    inPhrases = false;
-                    continue;
-                }
+                const phrasesPart = nextSection < Infinity ? 
+                    phrasesSection.substring(0, nextSection) : 
+                    phrasesSection;
                 
-                if (inPhrases && (line.trim().startsWith('-') || line.trim().startsWith('•'))) {
-                    const phrase = line.trim().replace(/^[-•]\s*/, '');
-                    if (phrase) word.phrases.push(phrase);
+                const phrases = phrasesPart.match(/[-•]\s*([^$\n]+)/g);
+                if (phrases) {
+                    word.phrases = phrases.map(p => p.replace(/^[-•]\s*/, '').trim());
                 }
             }
             
             // 提取例句
-            let inExamples = false;
-            for (const line of phrasesLines) {
-                if (line.includes('例句:')) {
-                    inExamples = true;
-                    continue;
-                }
+            if (entry.includes('例句:')) {
+                const examplesSection = entry.substring(entry.indexOf('例句:'));
+                const nextSection = Math.min(
+                    examplesSection.indexOf('近义词/反义词:') > -1 ? examplesSection.indexOf('近义词/反义词:') : Infinity,
+                    examplesSection.indexOf('记忆提示:') > -1 ? examplesSection.indexOf('记忆提示:') : Infinity
+                );
                 
-                if (inExamples && (line.includes('近义词/反义词:') || line.includes('记忆提示:'))) {
-                    inExamples = false;
-                    continue;
-                }
+                const examplesPart = nextSection < Infinity ? 
+                    examplesSection.substring(0, nextSection) : 
+                    examplesSection;
                 
-                if (inExamples && (line.trim().startsWith('-') || line.trim().startsWith('•'))) {
-                    const example = line.trim().replace(/^[-•]\s*/, '');
-                    if (example) word.examples.push(example);
+                const examples = examplesPart.match(/[-•]\s*([^$\n]+)/g);
+                if (examples) {
+                    word.examples = examples.map(e => e.replace(/^[-•]\s*/, '').trim());
                 }
             }
             
             // 提取近义词/反义词
-            const synMatch = block.match(/近义词\/反义词:\s*(.+?)(?=\n|$|-)/);
-            if (synMatch) {
-                word.synonymsAntonyms = synMatch[1].trim();
+            if (entry.includes('近义词/反义词:')) {
+                const match = entry.match(/近义词\/反义词:\s*([^$\n]+)/);
+                if (match) word.synonymsAntonyms = match[1].trim();
             }
             
             // 提取记忆提示
-            const tipMatch = block.match(/记忆提示:\s*(.+?)(?=\n|$|^\d+\.)/m);
-            if (tipMatch) {
-                word.memoryTip = tipMatch[1].trim();
+            if (entry.includes('记忆提示:')) {
+                const match = entry.match(/记忆提示:\s*([^$\n]+)/);
+                if (match) word.memoryTip = match[1].trim();
             }
             
-            // 添加单词
-            words.push(word);
-        }
-        
-        // 如果上面的方法失败，尝试分割响应为每个单词的块
-        if (words.length === 0) {
-            let wordBlocks = response.split(/\d+\.\s+\*\*/);
-            // 移除第一个空块（如果有）
-            if (wordBlocks[0].trim() === '') {
-                wordBlocks.shift();
-            }
-            
-            // 处理每个单词块
-            for (let i = 0; i < wordBlocks.length; i++) {
-                if (!wordBlocks[i].trim()) continue;
-                
-                const block = wordBlocks[i];
-                // 提取单词名称（块的开头到第一个*为止）
-                const wordMatch = block.match(/^([^*]+)/);
-                if (!wordMatch) continue;
-                
-                const word = {
-                    word: wordMatch[1].trim(),
-                    pronunciation: '',
-                    partOfSpeech: '',
-                    definition: '',
-                    phrases: [],
-                    examples: [],
-                    synonymsAntonyms: '',
-                    memoryTip: ''
-                };
-                
-                // 提取音标
-                const pronMatch = block.match(/音标:\s*(\[.+?\])/);
-                if (pronMatch) {
-                    word.pronunciation = pronMatch[1];
-                }
-                
-                // 提取词性
-                const posMatch = block.match(/词性:\s*(.+?)(?=\n|$|-)/);
-                if (posMatch) {
-                    word.partOfSpeech = posMatch[1].trim();
-                }
-                
-                // 提取释义
-                const defMatch = block.match(/释义:\s*(.+?)(?=\n|$|-)/);
-                if (defMatch) {
-                    word.definition = defMatch[1].trim();
-                }
-                
-                // 提取常用词组
-                const phrasesSection = block.match(/常用词组:[\s\S]*?(?=例句:|近义词\/反义词:|记忆提示:|$)/);
-                if (phrasesSection) {
-                    const phraseMatches = phrasesSection[0].match(/[-•]\s*(.+?)(?=\n|$)/g);
-                    if (phraseMatches) {
-                        word.phrases = phraseMatches.map(p => p.replace(/^[-•]\s*/, '').trim());
-                    }
-                }
-                
-                // 提取例句
-                const examplesSection = block.match(/例句:[\s\S]*?(?=近义词\/反义词:|记忆提示:|$)/);
-                if (examplesSection) {
-                    const exampleMatches = examplesSection[0].match(/[-•]\s*(.+?)(?=\n|$)/g);
-                    if (exampleMatches) {
-                        word.examples = exampleMatches.map(e => e.replace(/^[-•]\s*/, '').trim());
-                    }
-                }
-                
-                // 提取近义词/反义词
-                const synMatch = block.match(/近义词\/反义词:\s*(.+?)(?=\n|$|-)/);
-                if (synMatch) {
-                    word.synonymsAntonyms = synMatch[1].trim();
-                }
-                
-                // 提取记忆提示
-                const tipMatch = block.match(/记忆提示:\s*(.+?)(?=\n|$|^\d+\.)/m);
-                if (tipMatch) {
-                    word.memoryTip = tipMatch[1].trim();
-                }
-                
-                // 如果成功提取到了单词和至少一种属性，则添加到列表
-                if (word.word && (word.pronunciation || word.definition || word.partOfSpeech)) {
-                    words.push(word);
-                }
+            // 如果提取出了单词名称，添加到列表
+            if (word.word) {
+                words.push(word);
             }
         }
         
-        // 最后一次尝试：如果仍然没有提取到单词，直接从字符串中寻找匹配
-        if (words.length === 0) {
-            // 直接尝试匹配所有的单词行
-            const wordLines = response.match(/\*\*([^*]+)\*\*/g);
-            if (wordLines) {
-                for (const wordLine of wordLines) {
-                    const wordMatch = wordLine.match(/\*\*([^*]+)\*\*/);
-                    if (!wordMatch) continue;
-                    
-                    const word = {
-                        word: wordMatch[1].trim(), // 直接提取单词名称
-                        pronunciation: '[未提供]',
-                        partOfSpeech: '未知',
-                        definition: '未提供释义',
-                        phrases: [],
-                        examples: [],
-                        synonymsAntonyms: '',
-                        memoryTip: ''
-                    };
-                    
-                    words.push(word);
-                }
-            }
-        }
-        
-        // 如果最终没有提取到单词，记录错误并返回空数组
+        // 如果没有成功提取单词，返回空数组
         if (words.length === 0) {
             console.log("No words extracted from response");
             return [];
@@ -1710,7 +1605,7 @@ document.addEventListener('DOMContentLoaded', function() {
             default: return '初中';
         }
     }
-
+    
     // 初始化测验生成器
     function initQuizGenerator() {
         const generateBtn = document.getElementById('generate-quiz');
@@ -3728,16 +3623,17 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
 
     // 重写词汇轮播初始化函数，确保正确显示
     function initVocabCarousel() {
-        const cardsContainer = document.querySelector('.vocab-cards-container');
+        const carouselContainer = document.querySelector('.vocab-carousel');
         const prevBtn = document.querySelector('.vocab-prev');
         const nextBtn = document.querySelector('.vocab-next');
-        const cards = document.querySelectorAll('.vocab-card');
+        const cards = document.querySelectorAll('.vocab-card.enhanced');
         const currentCardEl = document.querySelector('.current-card');
         const totalCardsEl = document.querySelector('.total-cards');
+        const progressIndicator = document.querySelector('.progress-indicator');
         
-        if (!cardsContainer || !prevBtn || !nextBtn || !cards.length) {
+        if (!carouselContainer || !prevBtn || !nextBtn || !cards.length) {
             console.log('Vocab carousel elements not found', {
-                cardsContainer: !!cardsContainer,
+                carouselContainer: !!carouselContainer,
                 prevBtn: !!prevBtn,
                 nextBtn: !!nextBtn,
                 cardsLength: cards.length
@@ -3760,6 +3656,7 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             // 设置初始状态
             card.style.display = 'none';
             card.style.opacity = '0';
+            card.style.zIndex = '0';
         });
         
         // 显示第一张卡片
@@ -3767,7 +3664,9 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             cards[0].classList.add('active');
             cards[0].style.display = 'block';
             cards[0].style.opacity = '1';
+            cards[0].style.zIndex = '2';
             currentCardEl.textContent = '1';
+            updateProgressBar(0, cards.length);
         }
         
         // 更新导航按钮状态
@@ -3778,6 +3677,7 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             console.log('Previous button clicked');
             if (currentIndex > 0) {
                 showCard(--currentIndex);
+                updateProgressBar(currentIndex, cards.length);
             }
         });
         
@@ -3785,6 +3685,7 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             console.log('Next button clicked');
             if (currentIndex < cards.length - 1) {
                 showCard(++currentIndex);
+                updateProgressBar(currentIndex, cards.length);
             }
         });
         
@@ -3805,6 +3706,7 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 card.classList.remove('active');
                 card.style.display = 'none';
                 card.style.opacity = '0';
+                card.style.zIndex = '0';
             });
             
             // 显示当前卡片
@@ -3812,6 +3714,7 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 cards[index].classList.add('active');
                 cards[index].style.display = 'block';
                 cards[index].style.opacity = '1';
+                cards[index].style.zIndex = '2';
                 currentCardEl.textContent = index + 1;
             }
             
@@ -3822,6 +3725,13 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
         function updateNavButtons() {
             prevBtn.disabled = currentIndex === 0;
             nextBtn.disabled = currentIndex === cards.length - 1;
+        }
+        
+        function updateProgressBar(current, total) {
+            if (progressIndicator) {
+                const percentage = ((current + 1) / total) * 100;
+                progressIndicator.style.width = `${percentage}%`;
+            }
         }
         
         // 标记为已初始化
