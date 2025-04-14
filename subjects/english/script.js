@@ -1037,21 +1037,18 @@ document.addEventListener('DOMContentLoaded', function() {
             default: categoryName = category;
         }
         
+        // 简化后的HTML结构
         let html = `
-            <div class="vocab-container">
-                <h3>${levelName}${categoryName}</h3>
-                
-                <div class="vocab-carousel">
-                    <button class="vocab-nav vocab-prev" disabled>&lt;</button>
-                    
-                    <div class="vocab-cards-container">
-                        <div class="vocab-cards-wrapper" data-current="0" data-total="${words.length}">
+            <h3 class="vocab-title">${levelName}${categoryName}</h3>
+            
+            <div class="vocab-cards-container">
+                <button class="vocab-nav vocab-prev" disabled>&lt;</button>
         `;
         
         // 为每个单词创建卡片
         words.forEach((word, index) => {
             html += `
-                <div class="vocab-card enhanced" data-index="${index}">
+                <div class="vocab-card" data-index="${index}">
                     <div class="vocab-header">
                         <h4>${word.word}</h4>
                         <div class="pronunciation">${word.pronunciation || ''}</div>
@@ -1100,74 +1097,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         html += `
-                        </div>
-                    </div>
-                    
-                    <button class="vocab-nav vocab-next" ${words.length > 1 ? '' : 'disabled'}>&gt;</button>
-                </div>
+                <button class="vocab-nav vocab-next" ${words.length > 1 ? '' : 'disabled'}>&gt;</button>
                 
                 <div class="vocab-progress">
                     <span class="current-card">1</span> / <span class="total-cards">${words.length}</span>
                 </div>
-                
-                <div class="vocab-actions">
-                    <button class="btn btn-primary" id="more-words">更多词汇</button>
-                </div>
+            </div>
+            
+            <div class="vocab-actions">
+                <button class="btn btn-primary" id="more-words">更多词汇</button>
             </div>
         `;
         
         // 添加样式
         html += `
             <style>
-                .vocab-container {
-                    position: relative;
-                    max-width: 800px;
-                    margin: 0 auto;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }
-                
-                .vocab-carousel {
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 10px;
-                    margin: 20px 0;
-                    position: relative;
-                    height: auto;
-                    min-height: 650px;
+                .vocab-title {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    color: #333;
                 }
                 
                 .vocab-cards-container {
-                    width: 100%;
-                    overflow: hidden;
                     position: relative;
+                    width: 100%;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    min-height: 650px;
+                    padding: 20px 50px;
                     border-radius: 12px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                     background: linear-gradient(145deg, #ffffff, #f0f4ff);
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 }
                 
-                .vocab-cards-wrapper {
-                    position: relative;
-                    width: 100%;
-                    min-height: 650px;
-                }
-                
-                .vocab-card.enhanced {
+                .vocab-card {
+                    position: absolute;
+                    top: 50px;
+                    left: 50px;
+                    right: 50px;
                     background: transparent;
                     padding: 25px;
                     overflow-y: auto;
-                    max-height: 650px;
+                    max-height: 550px;
                     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
                     display: none;
                     opacity: 0;
                     transform: translateY(20px);
                 }
                 
-                .vocab-card.enhanced.active {
+                .vocab-card.active {
                     display: block;
                     opacity: 1;
                     z-index: 2;
@@ -1175,6 +1154,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-nav {
+                    position: absolute;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    z-index: 10;
                     background: #4361ee;
                     color: white;
                     border: none;
@@ -1187,8 +1170,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     justify-content: center;
                     cursor: pointer;
                     transition: all 0.3s ease;
-                    z-index: 10;
                     box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+                }
+                
+                .vocab-prev {
+                    left: 10px;
+                }
+                
+                .vocab-next {
+                    right: 10px;
                 }
                 
                 .vocab-nav:disabled {
@@ -1199,10 +1189,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 .vocab-nav:hover:not(:disabled) {
                     background: #3a56d4;
-                    transform: scale(1.1);
+                    transform: translateY(-50%) scale(1.1);
                 }
                 
                 .vocab-progress {
+                    position: absolute;
+                    bottom: 20px;
+                    left: 0;
+                    right: 0;
                     text-align: center;
                     margin: 15px 0;
                     font-size: 16px;
@@ -1310,21 +1304,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 /* 自定义滚动条 */
-                .vocab-card.enhanced::-webkit-scrollbar {
+                .vocab-card::-webkit-scrollbar {
                     width: 8px;
                 }
                 
-                .vocab-card.enhanced::-webkit-scrollbar-track {
+                .vocab-card::-webkit-scrollbar-track {
                     background: rgba(241, 241, 241, 0.5);
                     border-radius: 10px;
                 }
                 
-                .vocab-card.enhanced::-webkit-scrollbar-thumb {
+                .vocab-card::-webkit-scrollbar-thumb {
                     background: rgba(67, 97, 238, 0.3);
                     border-radius: 10px;
                 }
                 
-                .vocab-card.enhanced::-webkit-scrollbar-thumb:hover {
+                .vocab-card::-webkit-scrollbar-thumb:hover {
                     background: rgba(67, 97, 238, 0.5);
                 }
                 
@@ -1335,12 +1329,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 /* 移动设备适配 */
                 @media (max-width: 768px) {
-                    .vocab-carousel {
+                    .vocab-cards-container {
+                        padding: 20px 40px;
                         min-height: 600px;
                     }
                     
-                    .vocab-card.enhanced {
-                        max-height: 600px;
+                    .vocab-card {
+                        top: 30px;
+                        left: 40px;
+                        right: 40px;
+                        max-height: 520px;
                         padding: 20px;
                     }
                     
@@ -1350,6 +1348,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     .pronunciation {
                         font-size: 1rem;
+                    }
+                    
+                    .vocab-nav {
+                        width: 38px;
+                        height: 38px;
                     }
                 }
             </style>
@@ -3684,16 +3687,16 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
 
     // 重写词汇轮播初始化函数，确保正确显示
     function initVocabCarousel() {
-        const carouselContainer = document.querySelector('.vocab-carousel');
+        const cardsContainer = document.querySelector('.vocab-cards-container');
         const prevBtn = document.querySelector('.vocab-prev');
         const nextBtn = document.querySelector('.vocab-next');
-        const cards = document.querySelectorAll('.vocab-card.enhanced');
+        const cards = document.querySelectorAll('.vocab-card');
         const currentCardEl = document.querySelector('.current-card');
         const totalCardsEl = document.querySelector('.total-cards');
         
-        if (!carouselContainer || !prevBtn || !nextBtn || !cards.length) {
+        if (!cardsContainer || !prevBtn || !nextBtn || !cards.length) {
             console.log('Vocab carousel elements not found', {
-                carouselContainer: !!carouselContainer,
+                cardsContainer: !!cardsContainer,
                 prevBtn: !!prevBtn,
                 nextBtn: !!nextBtn,
                 cardsLength: cards.length
@@ -3716,7 +3719,6 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             // 设置初始状态
             card.style.display = 'none';
             card.style.opacity = '0';
-            card.style.zIndex = '0';
         });
         
         // 显示第一张卡片
@@ -3724,7 +3726,6 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
             cards[0].classList.add('active');
             cards[0].style.display = 'block';
             cards[0].style.opacity = '1';
-            cards[0].style.zIndex = '2';
             currentCardEl.textContent = '1';
         }
         
@@ -3763,7 +3764,6 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 card.classList.remove('active');
                 card.style.display = 'none';
                 card.style.opacity = '0';
-                card.style.zIndex = '0';
             });
             
             // 显示当前卡片
@@ -3771,7 +3771,6 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 cards[index].classList.add('active');
                 cards[index].style.display = 'block';
                 cards[index].style.opacity = '1';
-                cards[index].style.zIndex = '2';
                 currentCardEl.textContent = index + 1;
             }
             
