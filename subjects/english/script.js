@@ -1116,30 +1116,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     text-align: center;
                     margin-bottom: 20px;
                     color: #333;
+                    font-size: 1.5rem;
+                    font-weight: bold;
                 }
                 
                 .vocab-cards-container {
                     position: relative;
                     width: 100%;
                     max-width: 800px;
-                    margin: 0 auto;
-                    min-height: 650px;
+                    margin: 0 auto 20px auto;
+                    height: 75vh; /* Responsive height based on viewport */
+                    min-height: 800px; /* Ensure minimum height */
                     padding: 20px 50px;
                     border-radius: 12px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
                     background: linear-gradient(145deg, #ffffff, #f0f4ff);
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
                 }
                 
                 .vocab-card {
                     position: absolute;
-                    top: 50px;
-                    left: 50px;
-                    right: 50px;
+                    top: 15px;
+                    left: 15px;
+                    right: 15px;
+                    bottom: 45px; /* Space for progress bar */
                     background: transparent;
                     padding: 25px;
                     overflow-y: auto;
-                    max-height: 550px;
                     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     display: none;
                     opacity: 0;
@@ -1174,11 +1180,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-prev {
-                    left: 10px;
+                    left: 5px;
                 }
                 
                 .vocab-next {
-                    right: 10px;
+                    right: 5px;
                 }
                 
                 .vocab-nav:disabled {
@@ -1194,71 +1200,84 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 .vocab-progress {
                     position: absolute;
-                    bottom: 20px;
+                    bottom: 0;
                     left: 0;
                     right: 0;
                     text-align: center;
-                    margin: 15px 0;
                     font-size: 16px;
                     color: #555;
                     font-weight: 500;
+                    background: rgba(255, 255, 255, 0.7);
+                    padding: 8px 0;
+                    border-radius: 0 0 12px 12px;
+                    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
                 }
                 
                 /* 词汇卡片样式 */
                 .vocab-header {
-                    margin-bottom: 18px;
+                    margin-bottom: 20px;
                     padding-bottom: 15px;
                     border-bottom: 2px solid rgba(67, 97, 238, 0.2);
                     text-align: center;
                 }
                 
                 .vocab-header h4 {
-                    font-size: 2.2rem;
+                    font-size: 2.5rem;
                     background: linear-gradient(90deg, #4361ee, #7209b7);
                     -webkit-background-clip: text;
                     background-clip: text;
                     color: transparent;
-                    margin: 0 0 8px 0;
+                    margin: 0 0 10px 0;
                     letter-spacing: 0.5px;
+                    line-height: 1.2;
                 }
                 
                 .pronunciation {
                     color: #666;
-                    font-size: 1.2rem;
+                    font-size: 1.3rem;
                     font-weight: 300;
                 }
                 
                 .vocab-content {
                     padding-right: 5px;
+                    font-size: 1.1rem;
                 }
                 
                 .vocab-section {
-                    margin-bottom: 20px;
-                    padding-bottom: 15px;
+                    margin-bottom: 22px;
+                    padding-bottom: 18px;
                     border-bottom: 1px solid rgba(0,0,0,0.06);
                     animation: fadeIn 0.5s ease-in-out;
                 }
                 
                 .vocab-section:last-child {
                     border-bottom: none;
-                    margin-bottom: 0;
+                    margin-bottom: 10px;
                 }
                 
                 .part-of-speech {
                     display: inline-block;
-                    padding: 3px 10px;
+                    padding: 5px 12px;
                     background: rgba(67, 97, 238, 0.1);
                     color: #4361ee;
                     border-radius: 20px;
-                    margin: 0 0 12px 0;
+                    margin: 0 0 15px 0;
                     font-weight: 500;
                     letter-spacing: 0.5px;
+                    font-size: 1.1rem;
+                }
+                
+                .definition {
+                    font-size: 1.2rem;
+                    line-height: 1.6;
+                    color: #333;
                 }
                 
                 .section-title {
                     margin-bottom: 12px;
                     color: #333;
-                    font-size: 1.05rem;
+                    font-size: 1.15rem;
+                    font-weight: bold;
                 }
                 
                 .vocab-section ul {
@@ -1268,8 +1287,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 .vocab-section ul li {
                     margin-bottom: 10px;
-                    line-height: 1.5;
+                    line-height: 1.6;
                     position: relative;
+                    font-size: 1.1rem;
                 }
                 
                 .vocab-section ul li::marker {
@@ -1279,9 +1299,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 .memory-tip {
                     background: rgba(255, 243, 205, 0.4);
                     border-left: 3px solid #ffc107;
-                    padding: 12px 15px;
+                    padding: 15px;
                     border-radius: 5px;
-                    margin-top: 8px;
+                    margin-top: 10px;
+                    font-size: 1.1rem;
+                    line-height: 1.6;
                 }
                 
                 .vocab-actions {
@@ -1291,9 +1313,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-actions button {
-                    padding: 10px 25px;
+                    padding: 12px 30px;
                     border-radius: 30px;
                     font-weight: 600;
+                    font-size: 1.1rem;
                     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
                     transition: all 0.3s ease;
                 }
@@ -1309,12 +1332,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 .vocab-card::-webkit-scrollbar-track {
-                    background: rgba(241, 241, 241, 0.5);
+                    background: rgba(241, 241, 241, 0.3);
                     border-radius: 10px;
                 }
                 
                 .vocab-card::-webkit-scrollbar-thumb {
-                    background: rgba(67, 97, 238, 0.3);
+                    background: rgba(67, 97, 238, 0.2);
                     border-radius: 10px;
                 }
                 
@@ -1330,23 +1353,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 /* 移动设备适配 */
                 @media (max-width: 768px) {
                     .vocab-cards-container {
-                        padding: 20px 40px;
-                        min-height: 600px;
+                        padding: 15px 40px;
+                        height: 80vh;
+                        min-height: 700px;
                     }
                     
                     .vocab-card {
-                        top: 30px;
-                        left: 40px;
-                        right: 40px;
-                        max-height: 520px;
-                        padding: 20px;
+                        top: 15px;
+                        left: 15px;
+                        right: 15px;
+                        bottom: 45px;
+                        padding: 15px 10px;
                     }
                     
                     .vocab-header h4 {
-                        font-size: 1.8rem;
+                        font-size: 2rem;
                     }
                     
                     .pronunciation {
+                        font-size: 1.1rem;
+                    }
+                    
+                    .vocab-content {
+                        font-size: 1rem;
+                    }
+                    
+                    .part-of-speech {
+                        font-size: 1rem;
+                        padding: 4px 10px;
+                    }
+                    
+                    .definition {
+                        font-size: 1.1rem;
+                    }
+                    
+                    .vocab-section ul li {
                         font-size: 1rem;
                     }
                     
