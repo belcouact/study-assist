@@ -1134,7 +1134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     margin: 20px 0;
                     position: relative;
                     height: auto;
-                    min-height: 450px;
+                    min-height: 650px;
                 }
                 
                 .vocab-cards-container {
@@ -1149,14 +1149,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 .vocab-cards-wrapper {
                     position: relative;
                     width: 100%;
-                    min-height: 450px;
+                    min-height: 650px;
                 }
                 
                 .vocab-card.enhanced {
                     background: transparent;
                     padding: 25px;
                     overflow-y: auto;
-                    max-height: 550px;
+                    max-height: 650px;
                     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                     position: absolute;
                     top: 0;
@@ -1336,11 +1336,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 /* 移动设备适配 */
                 @media (max-width: 768px) {
                     .vocab-carousel {
-                        min-height: 500px;
+                        min-height: 600px;
                     }
                     
                     .vocab-card.enhanced {
-                        max-height: 450px;
+                        max-height: 600px;
                         padding: 20px;
                     }
                     
@@ -3754,33 +3754,6 @@ ${incorrectAnswers.map(a => `- 第${a.questionNumber}题：学生选择了${a.us
                 generateVocabulary();
             });
         }
-        
-        // 添加"练习全部"按钮事件处理
-        const practiceAllBtn = document.getElementById('practice-vocab');
-        if (practiceAllBtn) {
-            practiceAllBtn.addEventListener('click', function() {
-                alert('词汇练习功能即将推出！');
-            });
-        }
-        
-        // 为每个单词卡的保存和练习按钮添加事件
-        document.querySelectorAll('.save-word').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const card = this.closest('.vocab-card');
-                const word = card.querySelector('h4').textContent;
-                alert(`单词"${word}"已保存到生词本！`);
-            });
-        });
-        
-        document.querySelectorAll('.vocab-practice').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const card = this.closest('.vocab-card');
-                const word = card.querySelector('h4').textContent;
-                alert(`开始练习"${word}"！`);
-            });
-        });
         
         function showCard(index) {
             console.log('Showing card', index);
