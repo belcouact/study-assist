@@ -235,7 +235,7 @@
                             <div class="poem-content">
                                 <p id="poem-text"></p>
                             </div>
-                            <button id="explain-poem" class="btn btn-secondary">
+                            <button id="explain-poem" class="btn btn-secondary" style="display: none;">
                                 <i class="fas fa-lightbulb"></i>
                                 解析诗词
                             </button>
@@ -246,8 +246,8 @@
                         </button>
                     </div>
 
-                    <div class="explanation-section" style="display: none;">
-                        <!-- AI explanations will be inserted here -->
+                    <div class="explanation-section">
+                        <!-- Poem remarks will be displayed here -->
                     </div>
                 </div>
             </div>
@@ -658,9 +658,6 @@
                     
                     currentPoemIndex = 0;
                     displayCurrentPoem();
-                    
-                    // Hide explanation section when new poem is queried
-                    document.querySelector('.explanation-section').style.display = 'none';
                 }
             } catch (error) {
                 console.error('Error querying poems:', error);
@@ -673,6 +670,7 @@
                 document.getElementById('poem-dynasty').textContent = '';
                 document.getElementById('poem-author').textContent = '';
                 document.getElementById('poem-text').textContent = '';
+                document.querySelector('.explanation-section').style.display = 'none';
                 return;
             }
             
@@ -686,8 +684,18 @@
             document.getElementById('prev-poem').style.visibility = currentPoemIndex > 0 ? 'visible' : 'hidden';
             document.getElementById('next-poem').style.visibility = currentPoemIndex < poemResults.length - 1 ? 'visible' : 'hidden';
             
-            // Hide explanation section when new poem is displayed
-            document.querySelector('.explanation-section').style.display = 'none';
+            // Display Remark_1 in the explanation section if available
+            const explanationSection = document.querySelector('.explanation-section');
+            if (poem.Remark_1) {
+                explanationSection.innerHTML = `
+                    <div class="message-ai">
+                        <p>${poem.Remark_1}</p>
+                    </div>
+                `;
+                explanationSection.style.display = 'block';
+            } else {
+                explanationSection.style.display = 'none';
+            }
         }
         
         // Navigation handlers
@@ -707,7 +715,8 @@
         
         // Poem explanation
         document.getElementById('explain-poem').addEventListener('click', async function() {
-            if (poemResults.length === 0) return;
+            // Skip if button is hidden or no poems available
+            if (this.style.display === 'none' || poemResults.length === 0) return;
             
             const poem = poemResults[currentPoemIndex];
             const educationLevel = document.getElementById('profile-display').textContent;
