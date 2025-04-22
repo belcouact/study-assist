@@ -168,6 +168,11 @@
                     <h2>每日<span class="gradient-text">励志名言</span></h2>
                     <p>点击卡片发现更多智慧</p>
                 </div>
+                <div class="quote-type-filter">
+                    <select id="quote-type-select" class="form-control">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
                 <div class="quote-card-container">
                     <div class="quote-card">
                         <div class="quote-card-inner">
@@ -289,7 +294,9 @@
     <script>
         // Quote functionality
         let quotes = [];
+        let quoteTypes = [];
         let currentQuoteIndex = -1;
+        let filteredQuotes = [];
 
         async function loadQuotes() {
             try {
@@ -297,30 +304,72 @@
                 const result = await response.json();
                 if (result.success && result.data) {
                     quotes = result.data;
-                    showRandomQuote();
+                    filteredQuotes = [...quotes];
+                    
+                    // Extract unique quote types
+                    quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
+                    
+                    // Populate the dropdown
+                    const typeSelect = document.getElementById('quote-type-select');
+                    typeSelect.innerHTML = '';
+                    
+                    // Add a default option if needed
+                    if (quoteTypes.length > 0) {
+                        quoteTypes.forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type;
+                            option.textContent = type;
+                            typeSelect.appendChild(option);
+                        });
+                        
+                        // Filter quotes by the first type initially
+                        filterQuotesByType(quoteTypes[0]);
+                    } else {
+                        showRandomQuote();
+                    }
                 }
             } catch (error) {
                 console.error('Error loading quotes:', error);
             }
         }
+        
+        function filterQuotesByType(type) {
+            if (!type) {
+                filteredQuotes = [...quotes];
+            } else {
+                filteredQuotes = quotes.filter(quote => quote.Type === type);
+            }
+            
+            // Reset current index and show a quote from filtered list
+            currentQuoteIndex = -1;
+            showRandomQuote();
+        }
 
         function showRandomQuote() {
-            if (quotes.length === 0) return;
+            if (filteredQuotes.length === 0) return;
 
             let newIndex;
             do {
-                newIndex = Math.floor(Math.random() * quotes.length);
-            } while (newIndex === currentQuoteIndex && quotes.length > 1);
+                newIndex = Math.floor(Math.random() * filteredQuotes.length);
+            } while (newIndex === currentQuoteIndex && filteredQuotes.length > 1);
 
             currentQuoteIndex = newIndex;
-            const quote = quotes[currentQuoteIndex];
+            const quote = filteredQuotes[currentQuoteIndex];
 
             document.querySelector('.quote-card-front .chinese-quote').textContent = quote.Chinese || '';
             document.querySelector('.quote-card-front .english-quote').textContent = quote.English || '';
         }
 
         // Initialize quotes
-        document.addEventListener('DOMContentLoaded', loadQuotes);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadQuotes();
+            
+            // Add event listener for type selection
+            const typeSelect = document.getElementById('quote-type-select');
+            typeSelect.addEventListener('change', (e) => {
+                filterQuotesByType(e.target.value);
+            });
+        });
 
         // Add click handler for quote card
         const quoteCard = document.querySelector('.quote-card');
@@ -355,6 +404,53 @@
             min-height: 300px;
             perspective: 1500px;
             padding: 2rem 0;
+        }
+
+        .quote-type-filter {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .quote-type-filter select {
+            padding: 0.6rem 1.2rem;
+            border-radius: 25px;
+            border: 2px solid #e2e8f0;
+            background-color: white;
+            font-size: 1rem;
+            color: #4a5568;
+            width: auto;
+            min-width: 200px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            background-image: linear-gradient(45deg, transparent 50%, #4361ee 50%), 
+                              linear-gradient(135deg, #4361ee 50%, transparent 50%);
+            background-position: calc(100% - 20px) calc(1em + 2px), 
+                                 calc(100% - 15px) calc(1em + 2px);
+            background-size: 5px 5px, 5px 5px;
+            background-repeat: no-repeat;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+
+        .quote-type-filter select:focus {
+            outline: none;
+            border-color: #4361ee;
+            box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+        }
+
+        .quote-type-filter select option {
+            padding: 0.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .quote-type-filter select {
+                min-width: 150px;
+                font-size: 0.9rem;
+                padding: 0.5rem 1rem;
+            }
         }
 
         .quote-card {
@@ -462,6 +558,9 @@
 
         .quote-text {
             margin: 1.5rem 0;
+            max-width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
         }
 
         .chinese-quote {
@@ -470,6 +569,8 @@
             font-weight: 500;
             line-height: 1.6;
             color: #2d3748;
+            max-height: none;
+            overflow: visible;
         }
 
         .english-quote {
@@ -477,6 +578,8 @@
             color: #4a5568;
             font-style: italic;
             line-height: 1.4;
+            max-height: none;
+            overflow: visible;
         }
 
         .quote-card-back .fa-sync-alt {
