@@ -104,6 +104,26 @@ export async function onRequest(context) {
                                 row.Remark_2 || null
                             );
                         }));
+                    } else if (table === 'world_history') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO quote (CATEGORY, REGION, PERIOD, SUB_CATEGORY_1, SUB_CATEGORY_2, TITLE, BACKGROUND, EVENT, IMPACT, REMARK_1, REMARK_2, REMARK_3)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                row.CATEGORY || null,
+                                row.REGION || null,
+                                row.PERIOD || null,
+                                row.SUB_CATEGORY_1 || null,
+                                row.SUB_CATEGORY_2 || null,
+                                row.TITLE || null,
+                                row.BACKGROUND || null,
+                                row.EVENT || null,
+                                row.IMPACT || null,
+                                row.Remark_1 || null,
+                                row.Remark_2 || null,
+                                row.Remark_3 || null
+                            );
+                        }));
                     } else if (table === 'chinese_poem') {
                         await db.batch(data.map(row => {
                             return db.prepare(`
