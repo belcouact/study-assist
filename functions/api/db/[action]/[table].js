@@ -48,7 +48,6 @@ export async function onRequest(context) {
                 // Query table data
                 const queryResult = await db.prepare(`
                     SELECT * FROM ${table}
-                    ORDER BY Number ASC
                 `).all();
 
                 return new Response(JSON.stringify({
