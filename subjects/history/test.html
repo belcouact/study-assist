@@ -245,7 +245,7 @@
                 </table>
             </div>
             <div class="button-group">
-                <button id="previewWorldHistory" class="btn btn-secondary">预览数据</button>
+                <button id="previewWorldHistory" class="btn btn-secondary">获取数据</button>
                 <button id="uploadWorldHistory" class="btn btn-primary">上传数据</button>
             </div>
             <div id="worldHistoryStatus" class="status"></div>
@@ -753,10 +753,50 @@
             });
         }
 
-        document.getElementById('previewWorldHistory').addEventListener('click', function() {
+        document.getElementById('previewWorldHistory').addEventListener('click', async function() {
             const file = document.getElementById('worldHistoryFile').files[0];
+            
+            // If a file is selected, preview that file's data
             if (file) {
                 handleExcelFile(file, previewWorldHistoryData);
+                return;
+            }
+            
+            // Otherwise, query the first 10 records from the database
+            try {
+                const response = await fetch('/api/db/query/world_history?limit=10');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const tbody = document.getElementById('worldHistoryPreview').getElementsByTagName('tbody')[0];
+                    tbody.innerHTML = '';
+                    
+                    if (data.data.length === 0) {
+                        showWorldHistoryStatus('没有找到数据记录', false);
+                        return;
+                    }
+                    
+                    data.data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.CATEGORY || ''}</td>
+                            <td>${row.PERIOD || ''}</td>
+                            <td>${row.SUB_CATEGORY_1 || ''}</td>
+                            <td>${row.TITLE || ''}</td>
+                            <td>${row.BACKGROUND || ''}</td>
+                            <td>${row.EVENT || ''}</td>
+                            <td>${row.IMPACT || ''}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                    
+                    showWorldHistoryStatus(`成功获取 ${data.data.length} 条数据记录`, true);
+                } else {
+                    throw new Error(data.error || '查询失败');
+                }
+            } catch (error) {
+                console.error('Query error:', error);
+                showWorldHistoryStatus(`查询数据失败：${error.message || '未知错误'}`, false);
             }
         });
 
