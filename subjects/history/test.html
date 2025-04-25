@@ -223,6 +223,33 @@
             </div>
             <div id="poemStatus" class="status"></div>
         </section>
+
+        <!-- World History Data Upload Section -->
+        <section class="upload-section">
+            <h2>导入世界历史数据</h2>
+            <input type="file" id="worldHistoryFile" class="file-input" accept=".xlsx, .xls">
+            <div class="preview-container">
+                <table id="worldHistoryPreview" class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>CATEGORY</th>
+                            <th>PERIOD</th>
+                            <th>SUB_CATEGORY_1</th>
+                            <th>TITLE</th>
+                            <th>BACKGROUND</th>
+                            <th>EVENT</th>
+                            <th>IMPACT</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="button-group">
+                <button id="previewWorldHistory" class="btn btn-secondary">预览数据</button>
+                <button id="uploadWorldHistory" class="btn btn-primary">上传数据</button>
+            </div>
+            <div id="worldHistoryStatus" class="status"></div>
+        </section>
     </div>
 
     <script>
@@ -698,6 +725,87 @@
                 document.getElementById('poemStatus').className = 'status error';
             }
         });
+
+        // World History Data Upload Handling
+        document.getElementById('worldHistoryFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleExcelFile(file, previewWorldHistoryData);
+            }
+        });
+
+        function previewWorldHistoryData(data) {
+            const tbody = document.getElementById('worldHistoryPreview').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            data.slice(0, 10).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.CATEGORY || ''}</td>
+                    <td>${row.PERIOD || ''}</td>
+                    <td>${row.SUB_CATEGORY_1 || ''}</td>
+                    <td>${row.TITLE || ''}</td>
+                    <td>${row.BACKGROUND || ''}</td>
+                    <td>${row.EVENT || ''}</td>
+                    <td>${row.IMPACT || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('previewWorldHistory').addEventListener('click', function() {
+            const file = document.getElementById('worldHistoryFile').files[0];
+            if (file) {
+                handleExcelFile(file, previewWorldHistoryData);
+            }
+        });
+
+        document.getElementById('uploadWorldHistory').addEventListener('click', async function() {
+            const file = document.getElementById('worldHistoryFile').files[0];
+            if (!file) {
+                showWorldHistoryStatus('请先选择文件', false);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                try {
+                    const response = await fetch('/api/db/upload/world_history', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ data: jsonData })
+                    });
+
+                    const result = await response.json();
+                    console.log('Server response:', result);
+
+                    if (result.success) {
+                        showWorldHistoryStatus(`数据上传成功！共上传 ${jsonData.length} 条记录`, true);
+                    } else {
+                        const errorMessage = result.error || result.message || '未知错误';
+                        showWorldHistoryStatus(`上传失败：${errorMessage}`, false);
+                        console.error('Upload error details:', result);
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    showWorldHistoryStatus(`上传出错：${error.message || '服务器连接失败'}`, false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function showWorldHistoryStatus(message, isSuccess) {
+            const status = document.getElementById('worldHistoryStatus');
+            status.innerHTML = `<p>${message}</p>`;
+            status.className = 'status ' + (isSuccess ? 'success' : 'error');
+        }
     </script>
 </body>
 </html> 
