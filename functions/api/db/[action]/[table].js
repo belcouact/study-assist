@@ -108,7 +108,7 @@ export async function onRequest(context) {
                         await db.batch(data.map(row => {
                             return db.prepare(`
                                 INSERT INTO quote (CATEGORY, REGION, PERIOD, SUB_CATEGORY_1, SUB_CATEGORY_2, TITLE, BACKGROUND, EVENT, IMPACT, REMARK_1, REMARK_2, REMARK_3)
-                                VALUES (?, ?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             `).bind(
                                 row.CATEGORY || null,
                                 row.REGION || null,
