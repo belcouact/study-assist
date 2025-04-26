@@ -90,34 +90,6 @@
             z-index: 2;
         }
         
-        .timeline-era {
-            margin-bottom: 60px;
-            position: relative;
-        }
-        
-        .era-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        
-        .era-dot {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            margin-right: 20px;
-            margin-left: -59px;
-            position: relative;
-            z-index: 2;
-            box-shadow: 0 0 0 6px rgba(67, 97, 238, 0.2);
-        }
-        
-        .era-title {
-            font-size: 1.8rem;
-            color: var(--text-dark);
-        }
-        
         .event-card {
             background: #fff;
             border-radius: 15px;
@@ -128,11 +100,17 @@
             transform: translateY(50px);
             opacity: 0;
             transition: all 0.5s ease;
+            cursor: pointer;
         }
         
         .event-card.show {
             transform: translateY(0);
             opacity: 1;
+        }
+        
+        .event-card.active {
+            border: 2px solid var(--primary-color);
+            box-shadow: 0 0 15px rgba(67, 97, 238, 0.3);
         }
         
         .event-header {
@@ -201,6 +179,48 @@
             margin-top: 10px;
         }
         
+        /* Related Events Styles */
+        .related-events-container {
+            margin-top: 30px;
+            display: none;
+        }
+        
+        .related-events-container.visible {
+            display: block;
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        .related-events-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .related-events-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            margin: 0;
+        }
+        
+        .related-events-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .related-event-card {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .related-event-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
         /* Loading Animation */
         .loading-container {
             display: flex;
@@ -229,10 +249,6 @@
         @media (max-width: 992px) {
             .timeline-main {
                 padding-left: 30px;
-            }
-            
-            .era-dot {
-                margin-left: -39px;
             }
         }
         
@@ -430,7 +446,7 @@
             loadHistoricalEvents(topicInfo.category);
         });
         
-        async function loadHistoricalEvents(category) {
+        function loadHistoricalEvents(category) {
             try {
                 // Create a SQL query to filter by SUB_CATEGORY_1
                 const encodedCategory = encodeURIComponent(category.trim());
@@ -440,29 +456,41 @@
                 });
                 
                 // Use the proper API request format with SQL query
-                const response = await fetch(`/api/db/query/world_history?${params}`);
-                
-                if (!response.ok) {
-                    throw new Error(`API响应错误: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (!data.success || !data.data) {
-                    throw new Error(data.error || "获取数据失败");
-                }
-                
-                const events = data.data || [];
-                
-                if (events.length === 0) {
-                    showError(`未找到与"${category}"相关的历史事件数据`);
-                    return;
-                }
-                
-                console.log(`已加载${events.length}条"${category}"相关的历史事件`);
-                
-                // Process and organize events
-                processEvents(events);
+                fetch(`/api/db/query/world_history?${params}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`API响应错误: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.success || !data.data) {
+                            throw new Error(data.error || "获取数据失败");
+                        }
+                        
+                        const events = data.data || [];
+                        
+                        if (events.length === 0) {
+                            showError(`未找到与"${category}"相关的历史事件数据`);
+                            return;
+                        }
+                        
+                        console.log(`已加载${events.length}条"${category}"相关的历史事件`);
+                        
+                        // Store events globally for later use
+                        window.allHistoricalEvents = events;
+                        
+                        // Sort events chronologically
+                        sortEventsChronologically(events);
+                        
+                        // Render all events in a timeline (not grouped by era)
+                        renderAllEvents(events);
+                        
+                    })
+                    .catch(error => {
+                        console.error("加载历史事件数据时出错:", error);
+                        showError(`加载数据失败: ${error.message}`);
+                    });
                 
             } catch (error) {
                 console.error("加载历史事件数据时出错:", error);
@@ -470,136 +498,67 @@
             }
         }
         
-        function processEvents(events) {
+        function sortEventsChronologically(events) {
             // Sort events by period/date
             events.sort((a, b) => {
-                // Simple string comparison assuming periods are properly formatted
-                return a.PERIOD.localeCompare(b.PERIOD);
-            });
-            
-            // Group events by time periods (could be customized)
-            const groupedEvents = groupEventsByEras(events);
-            
-            // Render timeline
-            renderTimeline(groupedEvents);
-        }
-        
-        function groupEventsByEras(events) {
-            // Group events by time periods based on their PERIOD field
-            const eras = {};
-            
-            // First attempt to extract and sort unique periods
-            const periods = Array.from(new Set(events.map(event => event.PERIOD)))
-                .sort((a, b) => {
-                    // Natural sort for periods
-                    // Extract numbers for comparison
-                    const getYear = (str) => {
-                        const match = str.match(/(\d+)/);
-                        return match ? parseInt(match[0], 10) : 0;
-                    };
-                    
-                    // Handle BC dates (前XX年)
-                    const aHasBC = a.includes('前');
-                    const bHasBC = b.includes('前');
-                    
-                    if (aHasBC && !bHasBC) return -1; // BC comes before AD
-                    if (!aHasBC && bHasBC) return 1;  // AD comes after BC
-                    
-                    const aYear = getYear(a);
-                    const bYear = getYear(b);
-                    
-                    // For both BC or both AD
-                    if (aHasBC && bHasBC) {
-                        return bYear - aYear; // Higher BC year is earlier
-                    } else {
-                        return aYear - bYear; // Lower AD year is earlier
-                    }
-                });
-            
-            // Group events by time periods - first use the exact period as the era name
-            events.forEach(event => {
-                const period = event.PERIOD || '未知时期';
+                // Extract numbers for comparison
+                const getYear = (str) => {
+                    const match = str.match(/(\d+)/);
+                    return match ? parseInt(match[0], 10) : 0;
+                };
                 
-                if (!eras[period]) {
-                    eras[period] = [];
+                const aPeriod = a.PERIOD || '';
+                const bPeriod = b.PERIOD || '';
+                
+                // Handle BC dates (前XX年)
+                const aHasBC = aPeriod.includes('前');
+                const bHasBC = bPeriod.includes('前');
+                
+                if (aHasBC && !bHasBC) return -1; // BC comes before AD
+                if (!aHasBC && bHasBC) return 1;  // AD comes after BC
+                
+                const aYear = getYear(aPeriod);
+                const bYear = getYear(bPeriod);
+                
+                // For both BC or both AD
+                if (aHasBC && bHasBC) {
+                    return bYear - aYear; // Higher BC year is earlier
+                } else {
+                    return aYear - bYear; // Lower AD year is earlier
                 }
-                eras[period].push(event);
             });
-            
-            // Check if we have too many eras (periods) and simplify if needed
-            if (Object.keys(eras).length > 8) {
-                // Too many periods, let's simplify by grouping into broader eras
-                const simplifiedEras = {};
-                
-                events.forEach(event => {
-                    const period = event.PERIOD || '';
-                    
-                    // Simplified grouping logic based on period
-                    let era = '';
-                    
-                    if (period.includes('前') && !period.includes('年代')) {
-                        era = '远古时期';
-                    } else if (period.includes('前') && period.includes('年代')) {
-                        era = '古代早期';
-                    } else if (parseInt(period) < 500) {
-                        era = '古代晚期';
-                    } else if (parseInt(period) < 1000) {
-                        era = '中世纪早期';
-                    } else if (parseInt(period) < 1500) {
-                        era = '中世纪晚期';
-                    } else if (parseInt(period) < 1700) {
-                        era = '近代早期';
-                    } else if (parseInt(period) < 1900) {
-                        era = '工业革命时期';
-                    } else if (parseInt(period) < 1950) {
-                        era = '世界大战时期';
-                    } else if (parseInt(period) < 2000) {
-                        era = '冷战时期';
-                    } else {
-                        era = '当代';
-                    }
-                    
-                    if (!simplifiedEras[era]) {
-                        simplifiedEras[era] = [];
-                    }
-                    simplifiedEras[era].push(event);
-                });
-                
-                return simplifiedEras;
-            }
-            
-            return eras;
         }
         
-        function renderTimeline(groupedEvents) {
+        function renderAllEvents(events) {
             const timelineEvents = document.getElementById('timeline-events');
             
             // Clear any existing content
             timelineEvents.innerHTML = '';
             
-            // Create event sections
-            Object.entries(groupedEvents).forEach(([era, events]) => {
-                const eraSection = document.createElement('div');
-                eraSection.className = 'timeline-era';
-                eraSection.dataset.era = era;
-                
-                // Era header
-                const eraHeader = document.createElement('div');
-                eraHeader.className = 'era-header';
-                eraHeader.innerHTML = `
-                    <div class="era-dot"></div>
-                    <h2 class="era-title">${era}</h2>
-                `;
-                eraSection.appendChild(eraHeader);
-                
-                // Add events for this era
-                events.forEach(event => {
-                    const eventCard = createEventCard(event);
-                    eraSection.appendChild(eventCard);
-                });
-                
-                timelineEvents.appendChild(eraSection);
+            // Create container for all events
+            const eventsContainer = document.createElement('div');
+            eventsContainer.className = 'all-events-container';
+            
+            // Add all events directly to the timeline without era grouping
+            events.forEach(event => {
+                const eventCard = createEventCard(event);
+                eventsContainer.appendChild(eventCard);
             });
+            
+            timelineEvents.appendChild(eventsContainer);
+            
+            // Add related events container (initially hidden)
+            const relatedEventsContainer = document.createElement('div');
+            relatedEventsContainer.id = 'related-events-container';
+            relatedEventsContainer.className = 'related-events-container';
+            relatedEventsContainer.innerHTML = `
+                <div class="related-events-header">
+                    <h3 class="related-events-title">相关历史事件</h3>
+                </div>
+                <div id="related-events-list" class="related-events-list"></div>
+            `;
+            
+            timelineEvents.appendChild(relatedEventsContainer);
             
             // Hide loading indicator and show timeline
             document.getElementById('loading').style.display = 'none';
@@ -607,6 +566,153 @@
             
             // Initialize animations
             initAnimations();
+            
+            // Add event listeners for cards
+            addEventCardListeners();
+        }
+        
+        function addEventCardListeners() {
+            document.querySelectorAll('.event-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    // Remove active class from all cards
+                    document.querySelectorAll('.event-card').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked card
+                    this.classList.add('active');
+                    
+                    // Get event data from the card's dataset
+                    const eventTitle = this.querySelector('.event-title').textContent;
+                    const eventPeriod = this.querySelector('.event-period').textContent;
+                    
+                    // Find the current event from all events
+                    const currentEvent = window.allHistoricalEvents.find(event => 
+                        event.TITLE === eventTitle && event.PERIOD === eventPeriod);
+                    
+                    if (currentEvent) {
+                        // Find related events
+                        const relatedEvents = findRelatedEvents(currentEvent);
+                        
+                        // Display related events
+                        displayRelatedEvents(relatedEvents);
+                    }
+                });
+            });
+        }
+        
+        function findRelatedEvents(currentEvent) {
+            // If no events are loaded, return empty array
+            if (!window.allHistoricalEvents) return [];
+            
+            // Filter events to find related ones
+            // Strategy: Find events with similar region, same era, or related keywords
+            const relatedEvents = window.allHistoricalEvents.filter(event => {
+                // Skip the current event
+                if (event.TITLE === currentEvent.TITLE && event.PERIOD === currentEvent.PERIOD) {
+                    return false;
+                }
+                
+                let relationScore = 0;
+                
+                // Same region is a strong relation
+                if (event.REGION && currentEvent.REGION && 
+                    event.REGION === currentEvent.REGION) {
+                    relationScore += 3;
+                }
+                
+                // Same century or close time period
+                const getYear = (str) => {
+                    const match = str.match(/(\d+)/);
+                    return match ? parseInt(match[0], 10) : 0;
+                };
+                
+                const eventYear = getYear(event.PERIOD || '');
+                const currentYear = getYear(currentEvent.PERIOD || '');
+                
+                // Within 50 years is considered related
+                if (Math.abs(eventYear - currentYear) < 50) {
+                    relationScore += 2;
+                }
+                
+                // Check for keyword matches in title or description
+                const keywords = extractKeywords(currentEvent);
+                const eventText = (event.TITLE + ' ' + event.BACKGROUND + ' ' + event.EVENT).toLowerCase();
+                
+                keywords.forEach(keyword => {
+                    if (eventText.includes(keyword)) {
+                        relationScore += 1;
+                    }
+                });
+                
+                // Consider it related if score is high enough
+                return relationScore >= 2;
+            });
+            
+            // Return at most 3 related events
+            return relatedEvents.slice(0, 3);
+        }
+        
+        function extractKeywords(event) {
+            // Simple keyword extraction from title and description
+            const text = (event.TITLE + ' ' + event.BACKGROUND + ' ' + event.EVENT).toLowerCase();
+            
+            // Remove common Chinese stopwords
+            const stopwords = ['的', '了', '和', '是', '在', '有', '为', '以', '与', '这'];
+            
+            // Split by common delimiters
+            let words = text.split(/[,，.。;；:：\s]/);
+            
+            // Filter out stopwords and short words
+            words = words.filter(word => word.length > 1 && !stopwords.includes(word));
+            
+            // Return unique words
+            return [...new Set(words)];
+        }
+        
+        function displayRelatedEvents(relatedEvents) {
+            const relatedEventsContainer = document.getElementById('related-events-container');
+            const relatedEventsList = document.getElementById('related-events-list');
+            
+            // Clear existing related events
+            relatedEventsList.innerHTML = '';
+            
+            if (relatedEvents.length === 0) {
+                // Hide container if no related events
+                relatedEventsContainer.classList.remove('visible');
+                return;
+            }
+            
+            // Create and add related event cards
+            relatedEvents.forEach(event => {
+                const card = document.createElement('div');
+                card.className = 'related-event-card';
+                
+                card.innerHTML = `
+                    <h4 class="related-event-title">${event.TITLE || '未命名事件'}</h4>
+                    <div class="related-event-period">${event.PERIOD || '未知时期'}</div>
+                    <p class="related-event-description">
+                        ${event.EVENT ? event.EVENT.substring(0, 100) + '...' : '暂无详情'}
+                    </p>
+                `;
+                
+                // Add click handler to navigate to the related event
+                card.addEventListener('click', () => {
+                    // Find and click the corresponding main event card
+                    document.querySelectorAll('.event-card').forEach(mainCard => {
+                        const mainCardTitle = mainCard.querySelector('.event-title').textContent;
+                        if (mainCardTitle === event.TITLE) {
+                            mainCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(() => mainCard.click(), 500);
+                        }
+                    });
+                });
+                
+                relatedEventsList.appendChild(card);
+            });
+            
+            // Show the related events container
+            relatedEventsContainer.classList.add('visible');
         }
         
         function createEventCard(event) {
@@ -638,7 +744,7 @@
         }
         
         function initAnimations() {
-            // Initialize GSAP ScrollTrigger for cards
+            // Initialize GSAP ScrollTrigger for cards if available
             if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
                 // Animate timeline progress
                 gsap.to("#timeline-progress", {
