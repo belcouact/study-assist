@@ -422,6 +422,10 @@
             margin: 40px 0;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .quiz-title {
@@ -432,8 +436,9 @@
         }
         
         .quiz-container {
-            max-width: 800px;
+            max-width: 1100px;
             margin: 0 auto;
+            width: 100%;
         }
         
         .question {
@@ -539,6 +544,13 @@
         
         .main-content-wrapper {
             margin-top: 70px;
+        }
+        
+        @media screen and (max-width: 1200px) {
+            .quiz-section {
+                width: 95%;
+                padding: 30px;
+            }
         }
         
         @media screen and (max-width: 768px) {
@@ -836,6 +848,34 @@
         .text-center {
             text-align: center;
         }
+        
+        .loading-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #3498db;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .questions-container {
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -948,8 +988,19 @@
                             </div>
                             <button id="generate-quiz-btn" class="btn btn-primary">生成测验</button>
                         </div>
-                        <div id="quiz-container" class="quiz-content">
-                            <p class="text-center">配置您的测验选项并点击"生成测验"开始练习。</p>
+                        <div id="quiz-container" class="quiz-container">
+                            <div class="quiz-options">
+                                <!-- ... existing options ... -->
+                            </div>
+                            
+                            <div id="quiz-loading" class="loading-indicator" style="display: none;">
+                                <div class="spinner"></div>
+                                <p>Generating quiz questions...</p>
+                            </div>
+                            
+                            <div id="quiz-questions" class="questions-container">
+                                <!-- Questions will be inserted here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1359,14 +1410,75 @@
             generateQuizBtn.addEventListener('click', function() {
                 const topic = document.getElementById('quiz-topic').value;
                 const difficulty = document.getElementById('quiz-difficulty').value;
-                const questionCount = document.getElementById('quiz-question-count').value;
+                const questionCount = parseInt(document.getElementById('quiz-question-count').value);
+                const questionsContainer = document.getElementById('quiz-questions');
+                const loadingIndicator = document.getElementById('quiz-loading');
                 
-                generateQuiz(topic, difficulty, questionCount);
+                // Clear previous questions
+                questionsContainer.innerHTML = '';
+                
+                // Show loading indicator
+                loadingIndicator.style.display = 'flex';
+                
+                // Use setTimeout to allow the UI to update before processing
+                setTimeout(() => {
+                    try {
+                        const questions = generateQuizQuestions(topic, difficulty, questionCount);
+                        
+                        questions.forEach((question, index) => {
+                            const questionElement = document.createElement('div');
+                            questionElement.classList.add('quiz-question');
+                            questionElement.innerHTML = `
+                                <div class="question-text">${index + 1}. ${question.text}</div>
+                                <div class="options">
+                                    ${question.options.map((option, optionIndex) => `
+                                        <div class="quiz-option">
+                                            <input type="radio" id="q${index}o${optionIndex}" name="q${index}" value="${optionIndex}">
+                                            <label for="q${index}o${optionIndex}">${option}</label>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div class="feedback" style="display: none;"></div>
+                            `;
+                            questionsContainer.appendChild(questionElement);
+                        });
+                        
+                        // Hide loading indicator
+                        loadingIndicator.style.display = 'none';
+                        
+                    } catch (error) {
+                        console.error('Error generating quiz:', error);
+                        questionsContainer.innerHTML = `<p class="error">Error generating quiz. Please try again.</p>`;
+                        
+                        // Hide loading indicator on error
+                        loadingIndicator.style.display = 'none';
+                    }
+                }, 500); // Small delay to ensure loading indicator is visible
             });
         });
         
+        function generateQuizQuestions(topic, difficulty, questionCount) {
+            // Implementation of generateQuizQuestions function
+            // This function should return an array of question objects
+        }
+
+        document.getElementById('generate-quiz-btn').addEventListener('click', function() {
+            const topic = document.getElementById('quiz-topic').value;
+            const difficulty = document.getElementById('quiz-difficulty').value;
+            const questionCount = document.getElementById('quiz-question-count').value;
+            
+            // Show loading indicator
+            const loadingIndicator = document.getElementById('loading-indicator');
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'flex';
+            }
+            
+            generateQuiz(topic, difficulty, questionCount);
+        });
+
         function generateQuiz(topic, difficulty, questionCount) {
             const quizContainer = document.getElementById('quiz-container');
+            const loadingIndicator = document.getElementById('loading-indicator');
             
             // Show loading state
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验题目，请稍等...</p></div>';
@@ -1476,6 +1588,11 @@
                 return response.json();
             })
             .then(data => {
+                // Hide loading indicator if it exists
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                
                 const aiResponse = data.choices[0].message.content;
                 
                 // Parse JSON response
@@ -1567,6 +1684,11 @@
                 }
             })
             .catch(error => {
+                // Hide loading indicator on error
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'none';
+                }
+                
                 console.error('生成测验时出错:', error);
                 quizContainer.innerHTML = `
                     <div class="text-center">
@@ -1576,7 +1698,7 @@
                 `;
             });
         }
-        
+
         function evaluateQuiz(questions) {
             let score = 0;
             let totalQuestions = questions.length;
@@ -1626,10 +1748,16 @@
                 const difficulty = document.getElementById('quiz-difficulty').value;
                 const questionCount = document.getElementById('quiz-question-count').value;
                 
+                // Show loading indicator
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator) {
+                    loadingIndicator.style.display = 'flex';
+                }
+                
                 generateQuiz(topic, difficulty, questionCount);
             });
         }
-        
+
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
