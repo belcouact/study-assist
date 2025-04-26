@@ -1017,100 +1017,209 @@
             // Show loading state
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验题目，请稍等...</p></div>';
             
-            // Call the API to generate questions
-            fetch('/api/quiz/generate', {
+            // Get topic name for prompting and display
+            let topicName = "";
+            let apiTopic = "";
+            switch(topic) {
+                case "ww1": 
+                    topicName = "第一次世界大战"; 
+                    apiTopic = "第一次世界大战";
+                    break;
+                case "ww2": 
+                    topicName = "第二次世界大战"; 
+                    apiTopic = "第二次世界大战";
+                    break;
+                case "both": 
+                    topicName = "两次世界大战"; 
+                    apiTopic = "第一次和第二次世界大战";
+                    break;
+            }
+            
+            // Get difficulty name for display
+            let difficultyName = "";
+            switch(difficulty) {
+                case "easy": difficultyName = "简单"; break;
+                case "medium": difficultyName = "中等"; break;
+                case "hard": difficultyName = "困难"; break;
+            }
+            
+            // Get education level from header profile display
+            const profileDisplay = document.querySelector('.profile-display');
+            let educationLevel = 'middle-school'; // Default value
+            if (profileDisplay) {
+                const levelText = profileDisplay.textContent.trim();
+                if (levelText.includes('小学')) {
+                    educationLevel = 'elementary-school';
+                } else if (levelText.includes('初中')) {
+                    educationLevel = 'middle-school';
+                } else if (levelText.includes('高中')) {
+                    educationLevel = 'high-school';
+                }
+            }
+            
+            // Map to Chinese name
+            const levelName = getEducationLevelName(educationLevel);
+            
+            // Adjust difficulty based on education level
+            let levelSpecificPrompt = '';
+            
+            switch(educationLevel) {
+                case 'elementary-school':
+                    levelSpecificPrompt = '题目应该简单易懂，使用基础词汇和简单句子结构。每个问题都应该有明确的答案，避免模棱两可的情况。';
+                    break;
+                case 'middle-school':
+                    levelSpecificPrompt = '题目应该包含基础到中等难度的内容，使用适当的学术词汇。可以包含一些需要推理的问题，但答案应该相对明确。';
+                    break;
+                case 'high-school':
+                    levelSpecificPrompt = '题目可以包含更复杂的内容，使用高级词汇和复杂句子结构。可以包含需要批判性思维的问题，以及一些需要深入理解的概念。';
+                    break;
+                default:
+                    levelSpecificPrompt = '题目应该适合初中生水平，使用适当的词汇和句子结构。';
+            }
+            
+            // Build system message for quiz generation
+            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${apiTopic}的${difficultyName}难度测验，包含${questionCount}道选择题。
+            
+            ${levelSpecificPrompt}
+            
+            请以纯JSON格式回复，不要有任何多余的文字。格式如下:
+            {
+              "success": true,
+              "questions": [
+                {
+                  "text": "问题文本",
+                  "options": ["选项A", "选项B", "选项C", "选项D"],
+                  "answer": 0
+                }
+              ]
+            }
+            
+            注意：answer字段是正确选项的索引，从0开始（0表示选项A，1表示选项B，以此类推）。`;
+            
+            // Call the chat API
+            fetch('/api/chat', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    topic: topic,
-                    difficulty: difficulty,
-                    count: parseInt(questionCount),
-                    subject: 'history'
+                    messages: [
+                        {
+                            "role": "system",
+                            "content": systemMessage
+                        },
+                        {
+                            "role": "user",
+                            "content": `请生成${questionCount}道关于${apiTopic}的选择题，难度为${difficultyName}，适合${levelName}学生的水平。请确保答案索引从0开始。`
+                        }
+                    ]
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`API响应错误: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
-                if (!data.success || !data.questions || data.questions.length === 0) {
-                    quizContainer.innerHTML = '<div class="text-center"><p>生成测验题目失败，请重试或联系管理员。</p></div>';
-                    return;
-                }
+                const aiResponse = data.choices[0].message.content;
                 
-                const questions = data.questions;
-                
-                // Get topic name for display
-                let topicName = "";
-                switch(topic) {
-                    case "ww1": topicName = "第一次世界大战"; break;
-                    case "ww2": topicName = "第二次世界大战"; break;
-                    case "both": topicName = "两次世界大战"; break;
-                }
-                
-                // Get difficulty name for display
-                let difficultyName = "";
-                switch(difficulty) {
-                    case "easy": difficultyName = "简单"; break;
-                    case "medium": difficultyName = "中等"; break;
-                    case "hard": difficultyName = "困难"; break;
-                }
-                
-                // Build the quiz HTML
-                let quizHTML = `
-                    <div class="quiz-header">
-                        <h3>${topicName}测验</h3>
-                        <p>难度: ${difficultyName} | 题目数量: ${questionCount}</p>
-                    </div>
-                    <div class="quiz-questions">
-                `;
-                
-                questions.forEach((question, index) => {
-                    quizHTML += `
-                        <div class="quiz-question" data-question-id="${index}">
-                            <div class="question-text">${index + 1}. ${question.text}</div>
-                            <div class="options">
+                // Parse JSON response
+                try {
+                    // Extract JSON from the response
+                    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                    if (!jsonMatch) {
+                        throw new Error('无法从响应中提取JSON');
+                    }
+                    
+                    // Clean and parse JSON
+                    const jsonString = jsonMatch[0]
+                        .replace(/[\u0000-\u001F]+/g, ' ') // Remove control characters
+                        .replace(/,\s*}/g, '}')  // Remove trailing commas
+                        .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+                    
+                    const responseData = JSON.parse(jsonString);
+                    
+                    if (!responseData.success || !responseData.questions || !Array.isArray(responseData.questions)) {
+                        throw new Error('响应格式不正确');
+                    }
+                    
+                    if (responseData.questions.length === 0) {
+                        throw new Error('没有生成任何问题');
+                    }
+                    
+                    const questions = responseData.questions;
+                    
+                    // Build the quiz HTML
+                    let quizHTML = `
+                        <div class="quiz-header">
+                            <h3>${topicName}测验</h3>
+                            <p>难度: ${difficultyName} | 题目数量: ${questionCount}</p>
+                        </div>
+                        <div class="quiz-questions">
                     `;
                     
-                    question.options.forEach((option, optIndex) => {
+                    questions.forEach((question, index) => {
                         quizHTML += `
-                            <div class="quiz-option" data-option-index="${optIndex}">${String.fromCharCode(65 + optIndex)}. ${option}</div>
+                            <div class="quiz-question" data-question-id="${index}">
+                                <div class="question-text">${index + 1}. ${question.text}</div>
+                                <div class="options">
                         `;
+                        
+                        question.options.forEach((option, optIndex) => {
+                            quizHTML += `
+                                <div class="quiz-option" data-option-index="${optIndex}">${String.fromCharCode(65 + optIndex)}. ${option}</div>
+                            `;
+                        });
+                        
+                        quizHTML += `</div></div>`;
                     });
                     
-                    quizHTML += `</div></div>`;
-                });
-                
-                quizHTML += `
-                    </div>
-                    <div class="text-center">
-                        <button id="submit-quiz" class="history-button">提交答案</button>
-                    </div>
-                `;
-                
-                quizContainer.innerHTML = quizHTML;
-                
-                // Add event listeners for option selection
-                const optionElements = quizContainer.querySelectorAll('.quiz-option');
-                optionElements.forEach(option => {
-                    option.addEventListener('click', function() {
-                        const questionElement = this.closest('.quiz-question');
-                        const prevSelected = questionElement.querySelector('.selected');
-                        if (prevSelected) {
-                            prevSelected.classList.remove('selected');
-                        }
-                        this.classList.add('selected');
+                    quizHTML += `
+                        </div>
+                        <div class="text-center">
+                            <button id="submit-quiz" class="history-button">提交答案</button>
+                        </div>
+                    `;
+                    
+                    quizContainer.innerHTML = quizHTML;
+                    
+                    // Add event listeners for option selection
+                    const optionElements = quizContainer.querySelectorAll('.quiz-option');
+                    optionElements.forEach(option => {
+                        option.addEventListener('click', function() {
+                            const questionElement = this.closest('.quiz-question');
+                            const prevSelected = questionElement.querySelector('.selected');
+                            if (prevSelected) {
+                                prevSelected.classList.remove('selected');
+                            }
+                            this.classList.add('selected');
+                        });
                     });
-                });
-                
-                // Add event listener for quiz submission
-                const submitButton = document.getElementById('submit-quiz');
-                submitButton.addEventListener('click', function() {
-                    evaluateQuiz(questions);
-                });
+                    
+                    // Add event listener for quiz submission
+                    const submitButton = document.getElementById('submit-quiz');
+                    submitButton.addEventListener('click', function() {
+                        evaluateQuiz(questions);
+                    });
+                } catch (error) {
+                    console.error('解析测验数据时出错:', error);
+                    quizContainer.innerHTML = `
+                        <div class="text-center">
+                            <p>生成测验题目时出错: ${error.message}</p>
+                            <button class="history-button" onclick="window.location.reload()">重试</button>
+                        </div>
+                    `;
+                }
             })
             .catch(error => {
-                console.error('Error generating quiz:', error);
-                quizContainer.innerHTML = '<div class="text-center"><p>生成测验题目时出错，请重试。</p></div>';
+                console.error('生成测验时出错:', error);
+                quizContainer.innerHTML = `
+                    <div class="text-center">
+                        <p>生成测验题目时出错: ${error.message}</p>
+                        <button class="history-button" onclick="window.location.reload()">重试</button>
+                    </div>
+                `;
             });
         }
         
@@ -1173,6 +1282,16 @@
                 [array[i], array[j]] = [array[j], array[i]];
             }
             return array;
+        }
+
+        // Helper function to get education level name
+        function getEducationLevelName(level) {
+            const levelNames = {
+                'elementary-school': '小学',
+                'middle-school': '初中',
+                'high-school': '高中'
+            };
+            return levelNames[level] || '初中';
         }
     </script>
 </body>
