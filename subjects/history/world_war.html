@@ -1030,7 +1030,91 @@
                     this.classList.add('selected');
                 });
             });
-            
+
+            // 获取世界战争历史数据并替换硬编码内容
+            async function loadWorldWarEvents() {
+                try {
+                    const response = await fetch('/api/db/query/world_history');
+                    const data = await response.json();
+                    
+                    if (data.success && data.data && data.data.length > 0) {
+                        populateEvents(data.data);
+                    } else {
+                        console.error('无法获取世界战争历史数据:', data.error || '未知错误');
+                    }
+                } catch (error) {
+                    console.error('获取世界战争数据时出错:', error);
+                }
+            }
+
+            function populateEvents(events) {
+                // 获取所有事件元素
+                const eventElements = document.querySelectorAll('.event');
+                
+                // 确保有足够的数据
+                const minLength = Math.min(events.length, eventElements.length);
+                
+                // 遍历每个事件元素，替换内容
+                for (let i = 0; i < minLength; i++) {
+                    const event = events[i];
+                    const eventElement = eventElements[i];
+                    
+                    // 替换事件标题
+                    const titleElement = eventElement.querySelector('.event-title');
+                    if (titleElement && event.TITLE) {
+                        titleElement.textContent = event.TITLE;
+                    }
+                    
+                    // 替换事件日期
+                    const dateElement = eventElement.querySelector('.event-date');
+                    if (dateElement && event.PERIOD) {
+                        dateElement.textContent = event.PERIOD;
+                    }
+                    
+                    // 替换事件描述
+                    const descriptionElement = eventElement.querySelector('.event-description');
+                    if (descriptionElement) {
+                        // 清空现有内容
+                        descriptionElement.innerHTML = '';
+                        
+                        // 添加背景信息段落
+                        if (event.BACKGROUND) {
+                            const backgroundPara = document.createElement('p');
+                            backgroundPara.textContent = event.BACKGROUND;
+                            descriptionElement.appendChild(backgroundPara);
+                        }
+                        
+                        // 添加事件信息段落
+                        if (event.EVENT) {
+                            const eventPara = document.createElement('p');
+                            eventPara.textContent = event.EVENT;
+                            descriptionElement.appendChild(eventPara);
+                        }
+                    }
+                    
+                    // 替换事件影响
+                    const impactElement = eventElement.querySelector('.event-impact');
+                    if (impactElement && event.IMPACT) {
+                        // 保留"影响"标题
+                        const impactTitle = impactElement.querySelector('.impact-title');
+                        impactElement.innerHTML = '';
+                        if (impactTitle) {
+                            impactElement.appendChild(impactTitle);
+                        } else {
+                            const newImpactTitle = document.createElement('h4');
+                            newImpactTitle.className = 'impact-title';
+                            newImpactTitle.textContent = '影响';
+                            impactElement.appendChild(newImpactTitle);
+                        }
+                        
+                        // 添加影响内容
+                        const impactPara = document.createElement('p');
+                        impactPara.textContent = event.IMPACT;
+                        impactElement.appendChild(impactPara);
+                    }
+                }
+            }
+
             // 添加滚动动画
             const events = document.querySelectorAll('.event');
             
@@ -1104,6 +1188,9 @@
                     document.body.style.overflow = '';
                 }
             });
+            
+            // 页面加载后获取数据
+            loadWorldWarEvents();
         });
     </script>
 </body>
