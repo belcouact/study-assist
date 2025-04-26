@@ -292,7 +292,7 @@
                             <i class="fas fa-city"></i>
                         </div>
                         <h3>中国现代史</h3>
-                        <p>1949年至2000年</p>
+                        <p>1949年至今</p>
                         <div class="topic-description">
                             <p>共和国成立至今，中国共产党领导下的社会主义革命、建设、改革和发展时期</p>
                         </div>
@@ -680,8 +680,8 @@
                                         `).join('')}
                                     </div>
                                 </div>
-                                <div class="map-container">
-                                    <img src="https://maps.googleapis.com/maps/api/staticmap?center=${mapData.mapCenter}&zoom=3&size=600x300&maptype=terrain&markers=${mapData.events.map(e => `color:red|${e.location}`).join('&markers=')}" alt="Map of historical events" class="sample-map">
+                                <div class="map-container" id="amap-container-${topic}">
+                                    <!-- 高德地图容器 -->
                                 </div>
                             </div>
                             <div class="event-details">
@@ -761,12 +761,6 @@
                                 background: #eee;
                             }
                             
-                            .sample-map {
-                                width: 100%;
-                                height: 100%;
-                                object-fit: cover;
-                            }
-                            
                             .event-details {
                                 padding: 20px;
                                 background: white;
@@ -822,20 +816,127 @@
                     const timelineEvents = container.querySelectorAll('.timeline-event');
                     const eventDetails = container.querySelector('.event-details');
                     
-                    timelineEvents.forEach((eventEl, index) => {
-                        eventEl.addEventListener('click', () => {
-                            // Update active state
-                            timelineEvents.forEach(el => el.classList.remove('active'));
-                            eventEl.classList.add('active');
+                    // Initialize AMap (高德地图)
+                    loadAMapScript().then(() => {
+                        // Create the map instance
+                        const mapContainer = document.getElementById(`amap-container-${topic}`);
+                        const map = new AMap.Map(mapContainer, {
+                            zoom: 4,
+                            center: mapData.mapCenter.split(',').map(Number),
+                            viewMode: '3D'
+                        });
+                        
+                        // Add markers for each event
+                        const markers = [];
+                        mapData.events.forEach((event, index) => {
+                            const markerPosition = event.location.split(',').map(Number);
+                            const marker = new AMap.Marker({
+                                position: markerPosition,
+                                title: event.title,
+                                animation: 'AMAP_ANIMATION_DROP'
+                            });
                             
-                            // Update event details
+                            marker.on('click', () => {
+                                // Update the event details
+                                updateEventDetails(index);
+                                // Update active state on timeline
+                                timelineEvents.forEach(el => el.classList.remove('active'));
+                                timelineEvents[index].classList.add('active');
+                            });
+                            
+                            markers.push(marker);
+                            marker.setMap(map);
+                        });
+                        
+                        // Fit the map to show all markers
+                        if (markers.length > 0) {
+                            const bounds = new AMap.Bounds();
+                            markers.forEach(marker => {
+                                bounds.extend(marker.getPosition());
+                            });
+                            map.setBounds(bounds);
+                        }
+                        
+                        // Function to update event details
+                        function updateEventDetails(index) {
                             const event = mapData.events[index];
                             eventDetails.innerHTML = `
                                 <h4>${event.title}</h4>
                                 <p class="event-date">${event.year}</p>
                                 <p>${event.description}</p>
                             `;
+                            
+                            // Center map on the selected marker
+                            map.setCenter(markers[index].getPosition());
+                            map.setZoom(6);
+                        }
+                        
+                        // Set up click handlers for timeline events
+                        timelineEvents.forEach((eventEl, index) => {
+                            eventEl.addEventListener('click', () => {
+                                // Update active state
+                                timelineEvents.forEach(el => el.classList.remove('active'));
+                                eventEl.classList.add('active');
+                                
+                                // Update event details and map center
+                                updateEventDetails(index);
+                            });
                         });
+                        
+                        // Set up zoom controls
+                        const zoomInBtn = container.querySelector('.zoom-in');
+                        const zoomOutBtn = container.querySelector('.zoom-out');
+                        const resetBtn = container.querySelector('.reset-view');
+                        
+                        if (zoomInBtn) {
+                            zoomInBtn.addEventListener('click', () => {
+                                map.setZoom(map.getZoom() + 1);
+                            });
+                        }
+                        
+                        if (zoomOutBtn) {
+                            zoomOutBtn.addEventListener('click', () => {
+                                map.setZoom(map.getZoom() - 1);
+                            });
+                        }
+                        
+                        if (resetBtn) {
+                            resetBtn.addEventListener('click', () => {
+                                if (markers.length > 0) {
+                                    const bounds = new AMap.Bounds();
+                                    markers.forEach(marker => {
+                                        bounds.extend(marker.getPosition());
+                                    });
+                                    map.setBounds(bounds);
+                                }
+                            });
+                        }
+                    }).catch(error => {
+                        console.error('加载高德地图API失败:', error);
+                        const mapContainer = document.getElementById(`amap-container-${topic}`);
+                        mapContainer.innerHTML = `
+                            <div class="text-center" style="padding: 50px;">
+                                <i class="fas fa-exclamation-triangle" style="color: #d9534f; font-size: 2rem;"></i>
+                                <p>抱歉，无法加载地图。请检查网络连接或重试。</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Load AMap script
+                function loadAMapScript() {
+                    return new Promise((resolve, reject) => {
+                        if (window.AMap) {
+                            resolve(window.AMap);
+                            return;
+                        }
+                        
+                        const script = document.createElement('script');
+                        script.src = 'https://webapi.amap.com/maps?v=2.0&key=6799b5f9e9d9abb4c42b0531df0ebee5';
+                        script.async = true;
+                        script.onerror = () => reject(new Error('高德地图API加载失败'));
+                        script.onload = () => resolve(window.AMap);
+                        document.head.appendChild(script);
                     });
                 }
                 
