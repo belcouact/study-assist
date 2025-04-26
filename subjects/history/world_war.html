@@ -1017,9 +1017,28 @@
             // Show loading state
             quizContainer.innerHTML = '<div class="text-center"><p>正在生成测验题目，请稍等...</p></div>';
             
-            // In a real application, we would call the API
-            // For now, we'll simulate the API call with a timeout and mock data
-            setTimeout(() => {
+            // Call the API to generate questions
+            fetch('/api/quiz/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    topic: topic,
+                    difficulty: difficulty,
+                    count: parseInt(questionCount),
+                    subject: 'history'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success || !data.questions || data.questions.length === 0) {
+                    quizContainer.innerHTML = '<div class="text-center"><p>生成测验题目失败，请重试或联系管理员。</p></div>';
+                    return;
+                }
+                
+                const questions = data.questions;
+                
                 // Get topic name for display
                 let topicName = "";
                 switch(topic) {
@@ -1035,9 +1054,6 @@
                     case "medium": difficultyName = "中等"; break;
                     case "hard": difficultyName = "困难"; break;
                 }
-                
-                // Generate mock questions based on topic
-                const questions = generateMockQuestions(topic, parseInt(questionCount));
                 
                 // Build the quiz HTML
                 let quizHTML = `
@@ -1091,8 +1107,11 @@
                 submitButton.addEventListener('click', function() {
                     evaluateQuiz(questions);
                 });
-                
-            }, 1500); // Simulate API delay
+            })
+            .catch(error => {
+                console.error('Error generating quiz:', error);
+                quizContainer.innerHTML = '<div class="text-center"><p>生成测验题目时出错，请重试。</p></div>';
+            });
         }
         
         function evaluateQuiz(questions) {
@@ -1146,90 +1165,6 @@
                 
                 generateQuiz(topic, difficulty, questionCount);
             });
-        }
-        
-        function generateMockQuestions(topic, count) {
-            // Create a pool of questions based on the topic
-            const questionPool = [];
-            
-            if (topic === 'ww1' || topic === 'both') {
-                questionPool.push(
-                    {
-                        text: "第一次世界大战的直接导火索是什么事件？",
-                        options: ["巴尔干战争", "萨拉热窝事件", "俄国革命", "凡尔登战役"],
-                        answer: 1
-                    },
-                    {
-                        text: "第一次世界大战开始的年份是？",
-                        options: ["1912年", "1914年", "1916年", "1918年"],
-                        answer: 1
-                    },
-                    {
-                        text: "哪个国家不是第一次世界大战中的协约国成员？",
-                        options: ["英国", "法国", "俄国", "德国"],
-                        answer: 3
-                    },
-                    {
-                        text: "第一次世界大战中，凡尔登战役发生在哪个国家？",
-                        options: ["英国", "法国", "意大利", "德国"],
-                        answer: 1
-                    },
-                    {
-                        text: "《凡尔赛和约》是与哪个国家签订的？",
-                        options: ["奥匈帝国", "德国", "意大利", "俄国"],
-                        answer: 1
-                    }
-                );
-            }
-            
-            if (topic === 'ww2' || topic === 'both') {
-                questionPool.push(
-                    {
-                        text: "第二次世界大战在欧洲开始的标志性事件是？",
-                        options: ["德国入侵波兰", "敦刻尔克大撤退", "珍珠港事件", "斯大林格勒战役"],
-                        answer: 0
-                    },
-                    {
-                        text: "希特勒在哪一年成为德国总理？",
-                        options: ["1929年", "1933年", "1939年", "1941年"],
-                        answer: 1
-                    },
-                    {
-                        text: "第二次世界大战期间，哪场战役被认为是苏德战争的转折点？",
-                        options: ["敦刻尔克战役", "斯大林格勒战役", "诺曼底登陆", "柏林战役"],
-                        answer: 1
-                    },
-                    {
-                        text: "第二次世界大战太平洋战场的开端是哪一事件？",
-                        options: ["中途岛战役", "珍珠港事件", "菲律宾战役", "冲绳战役"],
-                        answer: 1
-                    },
-                    {
-                        text: "第二次世界大战结束的年份是？",
-                        options: ["1943年", "1944年", "1945年", "1946年"],
-                        answer: 2
-                    }
-                );
-            }
-            
-            // Add more general questions for "both" option
-            if (topic === 'both') {
-                questionPool.push(
-                    {
-                        text: "哪次世界大战的伤亡人数更多？",
-                        options: ["第一次世界大战", "第二次世界大战", "两次大战伤亡人数相当", "无法确定"],
-                        answer: 1
-                    },
-                    {
-                        text: "在两次世界大战中，美国都参与了战斗吗？",
-                        options: ["是的，两次都从一开始就参与", "是的，但都是在战争中途加入", "不，只参与了第二次世界大战", "不，只参与了第一次世界大战"],
-                        answer: 1
-                    }
-                );
-            }
-            
-            // Shuffle and return requested number of questions
-            return shuffleArray(questionPool).slice(0, count);
         }
         
         function shuffleArray(array) {
