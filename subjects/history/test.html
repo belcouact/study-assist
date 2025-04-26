@@ -233,6 +233,7 @@
                     <thead>
                         <tr>
                             <th>CATEGORY</th>
+                            <th>REGION</th>
                             <th>PERIOD</th>
                             <th>SUB_CATEGORY_1</th>
                             <th>SUB_CATEGORY_2</th>
@@ -240,19 +241,23 @@
                             <th>BACKGROUND</th>
                             <th>EVENT</th>
                             <th>IMPACT</th>
-                            <th>Remark_1</th>
-                            <th>Remark_2</th>
-                            <th>Remark_3</th>
+                            <th>REMARK_1</th>
+                            <th>REMARK_2</th>
+                            <th>REMARK_3</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
             <div class="button-group">
-                <button id="previewWorldHistory" class="btn btn-secondary">获取数据</button>
+                <button id="previewWorldHistory" class="btn btn-secondary">预览数据</button>
                 <button id="uploadWorldHistory" class="btn btn-primary">上传数据</button>
+                <button id="queryWorldHistory" class="btn btn-outline">查询前10条数据</button>
             </div>
             <div id="worldHistoryStatus" class="status"></div>
+            <div id="worldHistoryQueryResult" class="result-container">
+                <p>查询结果将显示在这里...</p>
+            </div>
         </section>
     </div>
 
@@ -730,7 +735,7 @@
             }
         });
 
-        // World History Data Upload Handling
+        // World History Data Upload Section
         document.getElementById('worldHistoryFile').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -746,61 +751,26 @@
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row.CATEGORY || ''}</td>
+                    <td>${row.REGION || ''}</td>
                     <td>${row.PERIOD || ''}</td>
                     <td>${row.SUB_CATEGORY_1 || ''}</td>
+                    <td>${row.SUB_CATEGORY_2 || ''}</td>
                     <td>${row.TITLE || ''}</td>
                     <td>${row.BACKGROUND || ''}</td>
                     <td>${row.EVENT || ''}</td>
                     <td>${row.IMPACT || ''}</td>
+                    <td>${row.REMARK_1 || ''}</td>
+                    <td>${row.REMARK_2 || ''}</td>
+                    <td>${row.REMARK_3 || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        document.getElementById('previewWorldHistory').addEventListener('click', async function() {
+        document.getElementById('previewWorldHistory').addEventListener('click', function() {
             const file = document.getElementById('worldHistoryFile').files[0];
-            
-            // If a file is selected, preview that file's data
             if (file) {
                 handleExcelFile(file, previewWorldHistoryData);
-                return;
-            }
-            
-            // Otherwise, query the first 10 records from the database
-            try {
-                const response = await fetch('/api/db/query/world_history?limit=10');
-                const data = await response.json();
-                
-                if (data.success && data.data) {
-                    const tbody = document.getElementById('worldHistoryPreview').getElementsByTagName('tbody')[0];
-                    tbody.innerHTML = '';
-                    
-                    if (data.data.length === 0) {
-                        showWorldHistoryStatus('没有找到数据记录', false);
-                        return;
-                    }
-                    
-                    data.data.forEach(row => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td>${row.CATEGORY || ''}</td>
-                            <td>${row.PERIOD || ''}</td>
-                            <td>${row.SUB_CATEGORY_1 || ''}</td>
-                            <td>${row.TITLE || ''}</td>
-                            <td>${row.BACKGROUND || ''}</td>
-                            <td>${row.EVENT || ''}</td>
-                            <td>${row.IMPACT || ''}</td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
-                    
-                    showWorldHistoryStatus(`成功获取 ${data.data.length} 条数据记录`, true);
-                } else {
-                    throw new Error(data.error || '查询失败');
-                }
-            } catch (error) {
-                console.error('Query error:', error);
-                showWorldHistoryStatus(`查询数据失败：${error.message || '未知错误'}`, false);
             }
         });
 
@@ -849,6 +819,67 @@
             const status = document.getElementById('worldHistoryStatus');
             status.innerHTML = `<p>${message}</p>`;
             status.className = 'status ' + (isSuccess ? 'success' : 'error');
+        }
+
+        document.getElementById('queryWorldHistory').addEventListener('click', async function() {
+            const resultContainer = document.getElementById('worldHistoryQueryResult');
+            try {
+                const response = await fetch('/api/db/query/world_history');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const worldHistoryHtml = data.data.map(history => `
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
+                            <h4>${history.TITLE}</h4>
+                            <p><strong>事件：</strong>${history.EVENT}</p>
+                        </div>
+                    `).join('');
+                    
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>查询成功</h3>
+                            <div class="world-history-list">
+                                ${worldHistoryHtml}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || '查询失败');
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>查询失败</h3>
+                        <p>${error.message}</p>
+                        <p>详细信息: ${error}</p>
+                    </div>
+                `;
+                console.error('API Error:', error);
+            }
+        });
+
+        function previewData(data) {
+            const tableBody = document.getElementById('dataTableBody');
+            tableBody.innerHTML = '';
+
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.ID || ''}</td>
+                    <td>${row.LINE || ''}</td>
+                    <td>${row.DATE || ''}</td>
+                    <td>${row.TIME || ''}</td>
+                    <td>${row.DAY || ''}</td>
+                    <td>${row.MONTH || ''}</td>
+                    <td>${row.YEAR || ''}</td>
+                    <td>${row.EVENT || ''}</td>
+                    <td>${row.LOCATION || ''}</td>
+                    <td>${row.REMARK_1 || ''}</td>
+                    <td>${row.REMARK_2 || ''}</td>
+                    <td>${row.REMARK_3 || ''}</td>
+                `;
+                tableBody.appendChild(tr);
+            });
         }
     </script>
 </body>
