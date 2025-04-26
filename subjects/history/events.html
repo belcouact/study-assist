@@ -65,46 +65,12 @@
         
         /* Timeline Visualization Styles */
         .timeline-wrapper {
-            display: flex;
             position: relative;
             margin-top: 40px;
         }
         
-        .timeline-navigation {
-            width: 120px;
-            position: sticky;
-            top: 100px;
-            height: fit-content;
-            align-self: flex-start;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .era-marker {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 100px;
-            padding: 10px;
-            border-radius: 20px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-            background-color: rgba(67, 97, 238, 0.1);
-            color: var(--primary-color);
-        }
-        
-        .era-marker:hover, .era-marker.active {
-            background-color: var(--primary-color);
-            color: white;
-            transform: translateX(5px);
-        }
-        
         .timeline-main {
-            flex: 1;
+            width: 100%;
             position: relative;
             padding-left: 50px;
         }
@@ -303,24 +269,6 @@
         
         /* Responsive Styles */
         @media (max-width: 992px) {
-            .timeline-wrapper {
-                flex-direction: column;
-            }
-            
-            .timeline-navigation {
-                width: 100%;
-                position: relative;
-                top: 0;
-                margin-bottom: 30px;
-                flex-direction: row;
-                overflow-x: auto;
-                padding: 10px 0;
-            }
-            
-            .era-marker {
-                min-width: 120px;
-            }
-            
             .timeline-main {
                 padding-left: 30px;
             }
@@ -430,10 +378,6 @@
             </div>
             
             <div id="timeline-container" class="timeline-wrapper" style="display: none;">
-                <div class="timeline-navigation" id="timeline-nav">
-                    <!-- Era markers will be dynamically added here -->
-                </div>
-                
                 <div class="timeline-main">
                     <div class="timeline-line"></div>
                     <div class="timeline-progress" id="timeline-progress"></div>
@@ -583,79 +527,97 @@
         }
         
         function groupEventsByEras(events) {
-            // Simple grouping by time ranges - this can be customized
-            // Example: group by centuries or specific historical periods
+            // Group events by time periods based on their PERIOD field
             const eras = {};
             
-            // Simplified example of grouping - in practice you might want more sophisticated grouping
+            // First attempt to extract and sort unique periods
+            const periods = Array.from(new Set(events.map(event => event.PERIOD)))
+                .sort((a, b) => {
+                    // Natural sort for periods
+                    // Extract numbers for comparison
+                    const getYear = (str) => {
+                        const match = str.match(/(\d+)/);
+                        return match ? parseInt(match[0], 10) : 0;
+                    };
+                    
+                    // Handle BC dates (前XX年)
+                    const aHasBC = a.includes('前');
+                    const bHasBC = b.includes('前');
+                    
+                    if (aHasBC && !bHasBC) return -1; // BC comes before AD
+                    if (!aHasBC && bHasBC) return 1;  // AD comes after BC
+                    
+                    const aYear = getYear(a);
+                    const bYear = getYear(b);
+                    
+                    // For both BC or both AD
+                    if (aHasBC && bHasBC) {
+                        return bYear - aYear; // Higher BC year is earlier
+                    } else {
+                        return aYear - bYear; // Lower AD year is earlier
+                    }
+                });
+            
+            // Group events by time periods - first use the exact period as the era name
             events.forEach(event => {
-                // Extract era from period or use other logic
-                // This is just a simple example - you can customize as needed
-                let era = '';
-                const period = event.PERIOD;
+                const period = event.PERIOD || '未知时期';
                 
-                // Simple parsing logic as an example
-                if (period.includes('前') && !period.includes('年代')) {
-                    era = '远古时期';
-                } else if (period.includes('前') && period.includes('年代')) {
-                    era = '古代早期';
-                } else if (parseInt(period) < 500) {
-                    era = '古代晚期';
-                } else if (parseInt(period) < 1000) {
-                    era = '中世纪早期';
-                } else if (parseInt(period) < 1500) {
-                    era = '中世纪晚期';
-                } else if (parseInt(period) < 1700) {
-                    era = '近代早期';
-                } else if (parseInt(period) < 1900) {
-                    era = '工业革命时期';
-                } else if (parseInt(period) < 1950) {
-                    era = '世界大战时期';
-                } else if (parseInt(period) < 2000) {
-                    era = '冷战时期';
-                } else {
-                    era = '当代';
+                if (!eras[period]) {
+                    eras[period] = [];
                 }
-                
-                // Add event to appropriate era
-                if (!eras[era]) {
-                    eras[era] = [];
-                }
-                eras[era].push(event);
+                eras[period].push(event);
             });
+            
+            // Check if we have too many eras (periods) and simplify if needed
+            if (Object.keys(eras).length > 8) {
+                // Too many periods, let's simplify by grouping into broader eras
+                const simplifiedEras = {};
+                
+                events.forEach(event => {
+                    const period = event.PERIOD || '';
+                    
+                    // Simplified grouping logic based on period
+                    let era = '';
+                    
+                    if (period.includes('前') && !period.includes('年代')) {
+                        era = '远古时期';
+                    } else if (period.includes('前') && period.includes('年代')) {
+                        era = '古代早期';
+                    } else if (parseInt(period) < 500) {
+                        era = '古代晚期';
+                    } else if (parseInt(period) < 1000) {
+                        era = '中世纪早期';
+                    } else if (parseInt(period) < 1500) {
+                        era = '中世纪晚期';
+                    } else if (parseInt(period) < 1700) {
+                        era = '近代早期';
+                    } else if (parseInt(period) < 1900) {
+                        era = '工业革命时期';
+                    } else if (parseInt(period) < 1950) {
+                        era = '世界大战时期';
+                    } else if (parseInt(period) < 2000) {
+                        era = '冷战时期';
+                    } else {
+                        era = '当代';
+                    }
+                    
+                    if (!simplifiedEras[era]) {
+                        simplifiedEras[era] = [];
+                    }
+                    simplifiedEras[era].push(event);
+                });
+                
+                return simplifiedEras;
+            }
             
             return eras;
         }
         
         function renderTimeline(groupedEvents) {
-            const timelineNav = document.getElementById('timeline-nav');
             const timelineEvents = document.getElementById('timeline-events');
             
             // Clear any existing content
-            timelineNav.innerHTML = '';
             timelineEvents.innerHTML = '';
-            
-            // Create navigation markers
-            let isFirst = true;
-            Object.keys(groupedEvents).forEach(era => {
-                const marker = document.createElement('div');
-                marker.className = `era-marker ${isFirst ? 'active' : ''}`;
-                marker.textContent = era;
-                marker.dataset.era = era;
-                marker.addEventListener('click', () => {
-                    // Scroll to era section
-                    document.querySelector(`.timeline-era[data-era="${era}"]`).scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                    
-                    // Update active state
-                    document.querySelectorAll('.era-marker').forEach(m => m.classList.remove('active'));
-                    marker.classList.add('active');
-                });
-                timelineNav.appendChild(marker);
-                isFirst = false;
-            });
             
             // Create event sections
             Object.entries(groupedEvents).forEach(([era, events]) => {
@@ -683,7 +645,7 @@
             
             // Hide loading indicator and show timeline
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('timeline-container').style.display = 'flex';
+            document.getElementById('timeline-container').style.display = 'block';
             
             // Initialize animations
             initAnimations();
@@ -762,17 +724,6 @@
                         }
                     );
                 });
-                
-                // Update active era in navigation
-                gsap.utils.toArray('.timeline-era').forEach(era => {
-                    ScrollTrigger.create({
-                        trigger: era,
-                        start: "top center",
-                        end: "bottom center",
-                        onEnter: () => updateActiveEra(era.dataset.era),
-                        onEnterBack: () => updateActiveEra(era.dataset.era)
-                    });
-                });
             } else {
                 // Fallback to basic animations if GSAP is not available
                 document.querySelectorAll('.event-card').forEach((card, index) => {
@@ -780,28 +731,7 @@
                         card.classList.add('show');
                     }, 100 * index);
                 });
-                
-                // Basic scroll tracking for era navigation
-                window.addEventListener('scroll', () => {
-                    const eras = document.querySelectorAll('.timeline-era');
-                    const viewportMiddle = window.innerHeight / 2;
-                    
-                    eras.forEach(era => {
-                        const rect = era.getBoundingClientRect();
-                        const middle = (rect.top + rect.bottom) / 2;
-                        
-                        if (Math.abs(middle - viewportMiddle) < window.innerHeight * 0.4) {
-                            updateActiveEra(era.dataset.era);
-                        }
-                    });
-                });
             }
-        }
-        
-        function updateActiveEra(era) {
-            document.querySelectorAll('.era-marker').forEach(marker => {
-                marker.classList.toggle('active', marker.dataset.era === era);
-            });
         }
         
         function showError(message) {
