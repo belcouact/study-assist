@@ -530,9 +530,15 @@
         
         async function loadHistoricalEvents(category) {
             try {
-                // The API doesn't support filtering by SUB_CATEGORY_1, so we'll fetch all records
-                // and filter on the client side
-                const response = await fetch(`/api/db/query/world_history`);
+                // Create a SQL query to filter by SUB_CATEGORY_1
+                const encodedCategory = encodeURIComponent(category.trim());
+                const sql = `SELECT * FROM world_history WHERE SUB_CATEGORY_1 = '${encodedCategory}'`;
+                const params = new URLSearchParams({
+                    sql: sql
+                });
+                
+                // Use the proper API request format with SQL query
+                const response = await fetch(`/api/db/query/world_history?${params}`);
                 
                 if (!response.ok) {
                     throw new Error(`API响应错误: ${response.status}`);
@@ -544,25 +550,17 @@
                     throw new Error(data.error || "获取数据失败");
                 }
                 
-                if (data.data.length === 0) {
-                    showError("未找到历史事件数据");
-                    return;
-                }
+                const events = data.data || [];
                 
-                // Filter the data based on SUB_CATEGORY_1
-                const filteredEvents = data.data.filter(event => 
-                    event.SUB_CATEGORY_1 === category
-                );
-                
-                if (filteredEvents.length === 0) {
+                if (events.length === 0) {
                     showError(`未找到与"${category}"相关的历史事件数据`);
                     return;
                 }
                 
-                console.log(`已加载${filteredEvents.length}条"${category}"相关的历史事件`);
+                console.log(`已加载${events.length}条"${category}"相关的历史事件`);
                 
-                // Process and organize filtered events
-                processEvents(filteredEvents);
+                // Process and organize events
+                processEvents(events);
                 
             } catch (error) {
                 console.error("加载历史事件数据时出错:", error);
