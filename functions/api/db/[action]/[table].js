@@ -107,7 +107,7 @@ export async function onRequest(context) {
                     } else if (table === 'world_history') {
                         await db.batch(data.map(row => {
                             return db.prepare(`
-                                INSERT INTO quote (CATEGORY, REGION, PERIOD, SUB_CATEGORY_1, SUB_CATEGORY_2, TITLE, BACKGROUND, EVENT, IMPACT, REMARK_1, REMARK_2, REMARK_3)
+                                INSERT INTO world_history (CATEGORY, REGION, PERIOD, SUB_CATEGORY_1, SUB_CATEGORY_2, TITLE, BACKGROUND, EVENT, IMPACT, REMARK_1, REMARK_2, REMARK_3)
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             `).bind(
                                 row.CATEGORY || null,
@@ -119,9 +119,9 @@ export async function onRequest(context) {
                                 row.BACKGROUND || null,
                                 row.EVENT || null,
                                 row.IMPACT || null,
-                                row.Remark_1 || null,
-                                row.Remark_2 || null,
-                                row.Remark_3 || null
+                                row.REMARK_1 || null,
+                                row.REMARK_2 || null,
+                                row.REMARK_3 || null
                             );
                         }));
                     } else if (table === 'chinese_poem') {
