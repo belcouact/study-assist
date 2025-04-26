@@ -1038,7 +1038,40 @@
                     const data = await response.json();
                     
                     if (data.success && data.data && data.data.length > 0) {
-                        populateEvents(data.data);
+                        // 过滤第一次世界大战和第二次世界大战的数据
+                        const ww1Events = data.data.filter(event => 
+                            event.CATEGORY === 'WORLD_WAR' && event.SUB_CATEGORY_1 === 'WORLD_WAR_1'
+                        );
+                        
+                        const ww2Events = data.data.filter(event => 
+                            event.CATEGORY === 'WORLD_WAR' && event.SUB_CATEGORY_1 === 'WORLD_WAR_2'
+                        );
+                        
+                        // 清空现有的事件容器
+                        const ww1Timeline = document.querySelector('.era:nth-of-type(1) .timeline');
+                        const ww2Timeline = document.querySelector('.era:nth-of-type(2) .timeline');
+                        
+                        if (ww1Timeline) ww1Timeline.innerHTML = '';
+                        if (ww2Timeline) ww2Timeline.innerHTML = '';
+                        
+                        // 生成并填充第一次世界大战事件
+                        if (ww1Timeline && ww1Events.length > 0) {
+                            ww1Events.forEach((event, index) => {
+                                const position = index % 2 === 0 ? 'left' : 'right';
+                                ww1Timeline.appendChild(createEventElement(event, position));
+                            });
+                        }
+                        
+                        // 生成并填充第二次世界大战事件
+                        if (ww2Timeline && ww2Events.length > 0) {
+                            ww2Events.forEach((event, index) => {
+                                const position = index % 2 === 0 ? 'left' : 'right';
+                                ww2Timeline.appendChild(createEventElement(event, position));
+                            });
+                        }
+                        
+                        // 添加滚动动画
+                        initializeEventAnimations();
                     } else {
                         console.error('无法获取世界战争历史数据:', data.error || '未知错误');
                     }
@@ -1046,94 +1079,61 @@
                     console.error('获取世界战争数据时出错:', error);
                 }
             }
-
-            function populateEvents(events) {
-                // 获取所有事件元素
-                const eventElements = document.querySelectorAll('.event');
+            
+            // 创建事件元素
+            function createEventElement(event, position) {
+                const eventDiv = document.createElement('div');
+                eventDiv.className = `event ${position}`;
                 
-                // 确保有足够的数据
-                const minLength = Math.min(events.length, eventElements.length);
+                let html = `
+                    <div class="content">
+                        <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
+                        <span class="event-date">${event.PERIOD || '未知时间'}</span>
+                        <div class="event-description">`;
                 
-                // 遍历每个事件元素，替换内容
-                for (let i = 0; i < minLength; i++) {
-                    const event = events[i];
-                    const eventElement = eventElements[i];
-                    
-                    // 替换事件标题
-                    const titleElement = eventElement.querySelector('.event-title');
-                    if (titleElement && event.TITLE) {
-                        titleElement.textContent = event.TITLE;
-                    }
-                    
-                    // 替换事件日期
-                    const dateElement = eventElement.querySelector('.event-date');
-                    if (dateElement && event.PERIOD) {
-                        dateElement.textContent = event.PERIOD;
-                    }
-                    
-                    // 替换事件描述
-                    const descriptionElement = eventElement.querySelector('.event-description');
-                    if (descriptionElement) {
-                        // 清空现有内容
-                        descriptionElement.innerHTML = '';
-                        
-                        // 添加背景信息段落
-                        if (event.BACKGROUND) {
-                            const backgroundPara = document.createElement('p');
-                            backgroundPara.textContent = event.BACKGROUND;
-                            descriptionElement.appendChild(backgroundPara);
-                        }
-                        
-                        // 添加事件信息段落
-                        if (event.EVENT) {
-                            const eventPara = document.createElement('p');
-                            eventPara.textContent = event.EVENT;
-                            descriptionElement.appendChild(eventPara);
-                        }
-                    }
-                    
-                    // 替换事件影响
-                    const impactElement = eventElement.querySelector('.event-impact');
-                    if (impactElement && event.IMPACT) {
-                        // 保留"影响"标题
-                        const impactTitle = impactElement.querySelector('.impact-title');
-                        impactElement.innerHTML = '';
-                        if (impactTitle) {
-                            impactElement.appendChild(impactTitle);
-                        } else {
-                            const newImpactTitle = document.createElement('h4');
-                            newImpactTitle.className = 'impact-title';
-                            newImpactTitle.textContent = '影响';
-                            impactElement.appendChild(newImpactTitle);
-                        }
-                        
-                        // 添加影响内容
-                        const impactPara = document.createElement('p');
-                        impactPara.textContent = event.IMPACT;
-                        impactElement.appendChild(impactPara);
-                    }
+                if (event.BACKGROUND) {
+                    html += `<p>${event.BACKGROUND}</p>`;
                 }
+                
+                if (event.EVENT) {
+                    html += `<p>${event.EVENT}</p>`;
+                }
+                
+                html += `
+                        </div>
+                        <div class="event-impact">
+                            <h4 class="impact-title">影响</h4>
+                            <p>${event.IMPACT || '无记录影响'}</p>
+                        </div>
+                    </div>
+                `;
+                
+                eventDiv.innerHTML = html;
+                return eventDiv;
+            }
+            
+            // 初始化事件动画
+            function initializeEventAnimations() {
+                // 添加滚动动画
+                const events = document.querySelectorAll('.event');
+                
+                function checkScroll() {
+                    events.forEach(event => {
+                        const eventPosition = event.getBoundingClientRect().top;
+                        const screenPosition = window.innerHeight / 1.2;
+                        
+                        if (eventPosition < screenPosition) {
+                            event.classList.add('show');
+                        }
+                    });
+                }
+                
+                window.addEventListener('scroll', checkScroll);
+                
+                // 初始检查
+                checkScroll();
             }
 
-            // 添加滚动动画
-            const events = document.querySelectorAll('.event');
-            
-            function checkScroll() {
-                events.forEach(event => {
-                    const eventPosition = event.getBoundingClientRect().top;
-                    const screenPosition = window.innerHeight / 1.2;
-                    
-                    if (eventPosition < screenPosition) {
-                        event.classList.add('show');
-                    }
-                });
-            }
-            
-            window.addEventListener('scroll', checkScroll);
-            
-            // 初始检查
-            checkScroll();
-            
             // 添加动画样式
             document.head.insertAdjacentHTML('beforeend', `
                 <style>
