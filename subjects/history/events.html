@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>历史事件 - 学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/ScrollTrigger.min.js"></script>
+    <style>
+        /* Color Variables */
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #7209b7;
+            --accent-color: #3a0ca3;
+            --bg-light: #f8f9fa;
+            --timeline-line: #3a0ca3;
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            --text-dark: #2d3748;
+            --text-light: #718096;
+        }
+        
+        /* Main Content Styles */
+        .events-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        .topic-header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .topic-title {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            display: inline-block;
+        }
+        
+        .topic-description {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .time-range {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--accent-color);
+            margin: 15px 0;
+        }
+        
+        /* Timeline Visualization Styles */
+        .timeline-wrapper {
+            display: flex;
+            position: relative;
+            margin-top: 40px;
+        }
+        
+        .timeline-navigation {
+            width: 120px;
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+            align-self: flex-start;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .era-marker {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100px;
+            padding: 10px;
+            border-radius: 20px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            background-color: rgba(67, 97, 238, 0.1);
+            color: var(--primary-color);
+        }
+        
+        .era-marker:hover, .era-marker.active {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateX(5px);
+        }
+        
+        .timeline-main {
+            flex: 1;
+            position: relative;
+            padding-left: 50px;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: linear-gradient(to bottom, var(--primary-color), var(--secondary-color));
+            border-radius: 3px;
+        }
+        
+        .timeline-events {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .timeline-era {
+            margin-bottom: 60px;
+            position: relative;
+        }
+        
+        .era-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .era-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            margin-right: 20px;
+            margin-left: -59px;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 0 0 6px rgba(67, 97, 238, 0.2);
+        }
+        
+        .era-title {
+            font-size: 1.8rem;
+            color: var(--text-dark);
+        }
+        
+        .event-card {
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 40px;
+            margin-left: 20px;
+            overflow: hidden;
+            transform: translateY(50px);
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+        
+        .event-card.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .event-header {
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .event-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        
+        .event-period {
+            font-size: 1.1rem;
+            padding: 8px 16px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .event-content {
+            padding: 25px 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .event-main {
+            flex: 1 1 60%;
+            min-width: 300px;
+        }
+        
+        .event-description {
+            margin-bottom: 20px;
+            color: var(--text-dark);
+            line-height: 1.7;
+        }
+        
+        .event-impact {
+            background-color: rgba(67, 97, 238, 0.1);
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .impact-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .event-media {
+            flex: 1 1 35%;
+            min-width: 250px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .media-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 200px;
+            position: relative;
+        }
+        
+        .media-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-light);
+        }
+        
+        .media-placeholder i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .map-box {
+            height: 150px;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #f0f4f8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+        }
+        
+        .region-tag {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: rgba(67, 97, 238, 0.2);
+            color: var(--primary-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+        
+        /* Loading Animation */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(67, 97, 238, 0.2);
+            border-radius: 50%;
+            border-top: 5px solid var(--primary-color);
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Styles */
+        @media (max-width: 992px) {
+            .timeline-wrapper {
+                flex-direction: column;
+            }
+            
+            .timeline-navigation {
+                width: 100%;
+                position: relative;
+                top: 0;
+                margin-bottom: 30px;
+                flex-direction: row;
+                overflow-x: auto;
+                padding: 10px 0;
+            }
+            
+            .era-marker {
+                min-width: 120px;
+            }
+            
+            .timeline-main {
+                padding-left: 30px;
+            }
+            
+            .era-dot {
+                margin-left: -39px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .topic-title {
+                font-size: 2.2rem;
+            }
+            
+            .topic-description {
+                font-size: 1rem;
+            }
+            
+            .event-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            
+            .event-content {
+                flex-direction: column;
+            }
+            
+            .event-media {
+                order: -1;
+            }
+            
+            .media-box {
+                height: 180px;
+            }
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+        
+        /* Timeline Progress Animation */
+        .timeline-progress {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 6px;
+            background: linear-gradient(to bottom, var(--secondary-color), var(--primary-color));
+            border-radius: 3px;
+            height: 0;
+            z-index: 1;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="https://study-llm.me/draw">AI绘图</a></li>
+                        <li><a href="../../index.html#quote">名言</a></li>
+                        <li><a href="../../index.html#about">关于</a></li>
+                    </ul>
+                </nav>
+                <div class="profile-section">
+                    <button id="profile-button" class="profile-button">
+                        <i class="fas fa-user-circle"></i>
+                        学习阶段
+                    </button>
+                    <div id="profile-display" class="profile-display"></div>
+                </div>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="events-container">
+            <div class="topic-header">
+                <h1 id="topic-title" class="topic-title">加载历史主题...</h1>
+                <div id="time-range" class="time-range"></div>
+                <p id="topic-description" class="topic-description">正在加载历史时期的详细信息...</p>
+            </div>
+            
+            <div id="loading" class="loading-container">
+                <div class="spinner"></div>
+                <p>正在加载历史事件数据...</p>
+            </div>
+            
+            <div id="timeline-container" class="timeline-wrapper" style="display: none;">
+                <div class="timeline-navigation" id="timeline-nav">
+                    <!-- Era markers will be dynamically added here -->
+                </div>
+                
+                <div class="timeline-main">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-progress" id="timeline-progress"></div>
+                    
+                    <div class="timeline-events" id="timeline-events">
+                        <!-- Timeline events will be dynamically loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 Alex的学习助手。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script src="../../js/api.js"></script>
+    <script src="../../js/profile.js"></script>
+    <script src="../../js/education-level.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Parse URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const topic = urlParams.get('topic');
+            
+            if (!topic) {
+                showError("未指定历史主题");
+                return;
+            }
+            
+            // Topic mapping for display names and query parameters
+            const topicMapping = {
+                'ancient': {
+                    name: '古代文明',
+                    description: '探索前3500–500年间农业、文字、帝国的起源与发展',
+                    timeRange: '前3500–500年',
+                    category: 'ANCIENT_CIVILIZATION'
+                },
+                'postclassical': {
+                    name: '后古典时代',
+                    description: '了解500–1450年间宗教传播、跨洲贸易与文化交流的世界格局',
+                    timeRange: '500–1450年',
+                    category: 'POST_CLASSICAL'
+                },
+                'earlymodern': {
+                    name: '近代早期',
+                    description: '探索1450–1750年全球化萌芽、殖民主义与贸易扩张的历史进程',
+                    timeRange: '1450–1750年',
+                    category: 'EARLY_MODERN'
+                },
+                'revolutionary': {
+                    name: '革命与工业化',
+                    description: '研究1750–1914年工业资本兴起、民族国家形成的重大变革',
+                    timeRange: '1750–1914年',
+                    category: 'REVOLUTIONARY'
+                },
+                'worldwars': {
+                    name: '世界大战与冷战',
+                    description: '深入1914–1991年意识形态对抗、科技战争发展的动荡时期',
+                    timeRange: '1914–1991年',
+                    category: 'WORLD_WAR'
+                },
+                'contemporary': {
+                    name: '当代全球化',
+                    description: '解析1991年至今数字时代变革、世界多极化的当代历史进程',
+                    timeRange: '1991年–至今',
+                    category: 'CONTEMPORARY'
+                }
+            };
+            
+            const topicInfo = topicMapping[topic];
+            
+            if (!topicInfo) {
+                showError("无效的历史主题");
+                return;
+            }
+            
+            // Update page header with topic information
+            document.getElementById('topic-title').textContent = topicInfo.name;
+            document.getElementById('topic-description').textContent = topicInfo.description;
+            document.getElementById('time-range').textContent = topicInfo.timeRange;
+            document.title = `${topicInfo.name} - 历史学习 - 学习助手`;
+            
+            // Load event data
+            loadHistoricalEvents(topicInfo.category);
+        });
+        
+        async function loadHistoricalEvents(category) {
+            try {
+                const response = await fetch(`/api/db/query/world_history?category=${category}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API响应错误: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data.success || !data.data) {
+                    throw new Error(data.error || "获取数据失败");
+                }
+                
+                if (data.data.length === 0) {
+                    showError("未找到相关历史事件数据");
+                    return;
+                }
+                
+                // Process and organize events
+                processEvents(data.data);
+                
+            } catch (error) {
+                console.error("加载历史事件数据时出错:", error);
+                showError(`加载数据失败: ${error.message}`);
+            }
+        }
+        
+        function processEvents(events) {
+            // Sort events by period/date
+            events.sort((a, b) => {
+                // Simple string comparison assuming periods are properly formatted
+                return a.PERIOD.localeCompare(b.PERIOD);
+            });
+            
+            // Group events by time periods (could be customized)
+            const groupedEvents = groupEventsByEras(events);
+            
+            // Render timeline
+            renderTimeline(groupedEvents);
+        }
+        
+        function groupEventsByEras(events) {
+            // Simple grouping by time ranges - this can be customized
+            // Example: group by centuries or specific historical periods
+            const eras = {};
+            
+            // Simplified example of grouping - in practice you might want more sophisticated grouping
+            events.forEach(event => {
+                // Extract era from period or use other logic
+                // This is just a simple example - you can customize as needed
+                let era = '';
+                const period = event.PERIOD;
+                
+                // Simple parsing logic as an example
+                if (period.includes('前') && !period.includes('年代')) {
+                    era = '远古时期';
+                } else if (period.includes('前') && period.includes('年代')) {
+                    era = '古代早期';
+                } else if (parseInt(period) < 500) {
+                    era = '古代晚期';
+                } else if (parseInt(period) < 1000) {
+                    era = '中世纪早期';
+                } else if (parseInt(period) < 1500) {
+                    era = '中世纪晚期';
+                } else if (parseInt(period) < 1700) {
+                    era = '近代早期';
+                } else if (parseInt(period) < 1900) {
+                    era = '工业革命时期';
+                } else if (parseInt(period) < 1950) {
+                    era = '世界大战时期';
+                } else if (parseInt(period) < 2000) {
+                    era = '冷战时期';
+                } else {
+                    era = '当代';
+                }
+                
+                // Add event to appropriate era
+                if (!eras[era]) {
+                    eras[era] = [];
+                }
+                eras[era].push(event);
+            });
+            
+            return eras;
+        }
+        
+        function renderTimeline(groupedEvents) {
+            const timelineNav = document.getElementById('timeline-nav');
+            const timelineEvents = document.getElementById('timeline-events');
+            
+            // Clear any existing content
+            timelineNav.innerHTML = '';
+            timelineEvents.innerHTML = '';
+            
+            // Create navigation markers
+            let isFirst = true;
+            Object.keys(groupedEvents).forEach(era => {
+                const marker = document.createElement('div');
+                marker.className = `era-marker ${isFirst ? 'active' : ''}`;
+                marker.textContent = era;
+                marker.dataset.era = era;
+                marker.addEventListener('click', () => {
+                    // Scroll to era section
+                    document.querySelector(`.timeline-era[data-era="${era}"]`).scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    
+                    // Update active state
+                    document.querySelectorAll('.era-marker').forEach(m => m.classList.remove('active'));
+                    marker.classList.add('active');
+                });
+                timelineNav.appendChild(marker);
+                isFirst = false;
+            });
+            
+            // Create event sections
+            Object.entries(groupedEvents).forEach(([era, events]) => {
+                const eraSection = document.createElement('div');
+                eraSection.className = 'timeline-era';
+                eraSection.dataset.era = era;
+                
+                // Era header
+                const eraHeader = document.createElement('div');
+                eraHeader.className = 'era-header';
+                eraHeader.innerHTML = `
+                    <div class="era-dot"></div>
+                    <h2 class="era-title">${era}</h2>
+                `;
+                eraSection.appendChild(eraHeader);
+                
+                // Add events for this era
+                events.forEach(event => {
+                    const eventCard = createEventCard(event);
+                    eraSection.appendChild(eventCard);
+                });
+                
+                timelineEvents.appendChild(eraSection);
+            });
+            
+            // Hide loading indicator and show timeline
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('timeline-container').style.display = 'flex';
+            
+            // Initialize animations
+            initAnimations();
+        }
+        
+        function createEventCard(event) {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            
+            const content = `
+                <div class="event-header">
+                    <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
+                    <span class="event-period">${event.PERIOD || '未知时期'}</span>
+                </div>
+                <div class="event-content">
+                    <div class="event-main">
+                        <div class="event-description">
+                            ${event.BACKGROUND ? `<p>${event.BACKGROUND}</p>` : ''}
+                            ${event.EVENT ? `<p>${event.EVENT}</p>` : ''}
+                        </div>
+                        <div class="event-impact">
+                            <h4 class="impact-title">历史影响</h4>
+                            <p>${event.IMPACT || '暂无影响信息'}</p>
+                        </div>
+                        ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
+                    </div>
+                    <div class="event-media">
+                        <div class="media-box">
+                            <div class="media-placeholder">
+                                <i class="fas fa-image"></i>
+                                <p>相关历史场景</p>
+                            </div>
+                        </div>
+                        <div class="map-box">
+                            <div class="media-placeholder">
+                                <i class="fas fa-map"></i>
+                                <p>地理位置</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            card.innerHTML = content;
+            return card;
+        }
+        
+        function initAnimations() {
+            // Initialize GSAP ScrollTrigger for cards
+            if (typeof gsap !== 'undefined' && typeof ScrollTrigger !== 'undefined') {
+                // Animate timeline progress
+                gsap.to("#timeline-progress", {
+                    height: "100%",
+                    ease: "none",
+                    scrollTrigger: {
+                        trigger: ".timeline-events",
+                        start: "top top",
+                        end: "bottom bottom",
+                        scrub: true
+                    }
+                });
+                
+                // Animate event cards
+                gsap.utils.toArray('.event-card').forEach(card => {
+                    gsap.fromTo(card, 
+                        { y: 50, opacity: 0 },
+                        { 
+                            y: 0, 
+                            opacity: 1, 
+                            duration: 0.8,
+                            scrollTrigger: {
+                                trigger: card,
+                                start: "top bottom-=100",
+                                toggleActions: "play none none reverse"
+                            }
+                        }
+                    );
+                });
+                
+                // Update active era in navigation
+                gsap.utils.toArray('.timeline-era').forEach(era => {
+                    ScrollTrigger.create({
+                        trigger: era,
+                        start: "top center",
+                        end: "bottom center",
+                        onEnter: () => updateActiveEra(era.dataset.era),
+                        onEnterBack: () => updateActiveEra(era.dataset.era)
+                    });
+                });
+            } else {
+                // Fallback to basic animations if GSAP is not available
+                document.querySelectorAll('.event-card').forEach((card, index) => {
+                    setTimeout(() => {
+                        card.classList.add('show');
+                    }, 100 * index);
+                });
+                
+                // Basic scroll tracking for era navigation
+                window.addEventListener('scroll', () => {
+                    const eras = document.querySelectorAll('.timeline-era');
+                    const viewportMiddle = window.innerHeight / 2;
+                    
+                    eras.forEach(era => {
+                        const rect = era.getBoundingClientRect();
+                        const middle = (rect.top + rect.bottom) / 2;
+                        
+                        if (Math.abs(middle - viewportMiddle) < window.innerHeight * 0.4) {
+                            updateActiveEra(era.dataset.era);
+                        }
+                    });
+                });
+            }
+        }
+        
+        function updateActiveEra(era) {
+            document.querySelectorAll('.era-marker').forEach(marker => {
+                marker.classList.toggle('active', marker.dataset.era === era);
+            });
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').innerHTML = `
+                <div class="error-message">
+                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #e53e3e; margin-bottom: 15px;"></i>
+                    <p>${message}</p>
+                    <button class="btn btn-primary mt-4" onclick="window.location.href='main.html'">返回主页</button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html> 
