@@ -530,7 +530,9 @@
         
         async function loadHistoricalEvents(category) {
             try {
-                const response = await fetch(`/api/db/query/world_history?SUB_CATEGORY_1=${encodeURIComponent(category)}`);
+                // The API doesn't support filtering by SUB_CATEGORY_1, so we'll fetch all records
+                // and filter on the client side
+                const response = await fetch(`/api/db/query/world_history`);
                 
                 if (!response.ok) {
                     throw new Error(`API响应错误: ${response.status}`);
@@ -543,12 +545,24 @@
                 }
                 
                 if (data.data.length === 0) {
-                    showError("未找到相关历史事件数据");
+                    showError("未找到历史事件数据");
                     return;
                 }
                 
-                // Process and organize events
-                processEvents(data.data);
+                // Filter the data based on SUB_CATEGORY_1
+                const filteredEvents = data.data.filter(event => 
+                    event.SUB_CATEGORY_1 === category
+                );
+                
+                if (filteredEvents.length === 0) {
+                    showError(`未找到与"${category}"相关的历史事件数据`);
+                    return;
+                }
+                
+                console.log(`已加载${filteredEvents.length}条"${category}"相关的历史事件`);
+                
+                // Process and organize filtered events
+                processEvents(filteredEvents);
                 
             } catch (error) {
                 console.error("加载历史事件数据时出错:", error);
