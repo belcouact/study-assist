@@ -205,12 +205,32 @@ function getMiniMaxVoiceId(frontendVoice) {
   if (!frontendVoice) return "male-qn-qingse";
   
   // Voice mapping
-  // 
+  // Full list of voices for MiniMax TTS API
   const voiceMap = {
+    // Chinese voices
     "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
     "Chinese (Mandarin)_Female_Friendly": "female-shaonv",
+    "Chinese (Mandarin)_Male_Friendly": "male-qn-hechang",
+    "Chinese (Mandarin)_Female_Storyteller": "female-zh-sweet",
+    "Chinese (Mandarin)_Male_Mature": "male-zh-deep",
+    "Chinese (Cantonese)_Male": "male-yue",
+    "Chinese (Cantonese)_Female": "female-yue",
+    
+    // English voices
     "English_ReservedYoungMan": "male-en-us-reserved",
-    "English_Wiselady": "female-en-us-wiselady"
+    "English_Wiselady": "female-en-us-wiselady",
+    "English_CasualGuy": "male-en-us-casual",
+    "English_FriendlyGirl": "female-en-us-friendly",
+    "English_BritishMale": "male-en-gb-standard",
+    "English_BritishFemale": "female-en-gb-standard",
+    "English_AustralianMale": "male-en-au-standard",
+    "English_AustralianFemale": "female-en-au-standard",
+    
+    // Japanese and Korean voices
+    "Japanese_Male": "male-ja-standard",
+    "Japanese_Female": "female-ja-standard",
+    "Korean_Male": "male-ko-standard",
+    "Korean_Female": "female-ko-standard"
   };
   
   // Return mapped voice or default if mapping not found
