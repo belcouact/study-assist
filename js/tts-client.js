@@ -148,13 +148,11 @@ class TTSClient {
   }
 }
 
-// Create and export a singleton instance
+// Create a singleton instance
 const ttsClient = new TTSClient();
 
 // Make the client available globally
 window.ttsClient = ttsClient;
 
 // Also make the TTSClient class available globally
-window.TTSClient = TTSClient;
-
-// No export statement - this script will be loaded directly in the browser 
+window.TTSClient = TTSClient; 
