@@ -66,13 +66,22 @@ export async function onRequestPost(context) {
       });
     }
     
+    // Get voice ID from timber_weights or from the voice_id parameter
+    let voiceId = "Chinese (Mandarin)_Male_Announcer"; // Default voice
+    
+    if (body.timber_weights && body.timber_weights.length > 0 && body.timber_weights[0].voice_id) {
+      voiceId = body.timber_weights[0].voice_id;
+    } else if (body.voice_id) {
+      voiceId = body.voice_id;
+    }
+    
     // Prepare request body with default values if not provided
     const requestBody = {
       model: body.model || "speech-02-hd",
       text: body.text,
       timber_weights: body.timber_weights || [
         {
-          voice_id: body.voice_id || "Chinese (Mandarin)_Male_Announcer",
+          voice_id: voiceId,
           weight: 1
         }
       ],
@@ -90,6 +99,11 @@ export async function onRequestPost(context) {
       },
       language_boost: body.language_boost || "auto"
     };
+    
+    // Log request details if in development mode
+    if (env.NODE_ENV === 'development') {
+      console.log('TTS Request:', JSON.stringify(requestBody, null, 2));
+    }
     
     // Create an AbortController with a timeout
     const controller = new AbortController();
@@ -170,6 +184,11 @@ export async function onRequestPost(context) {
         newHeaders.set("Access-Control-Allow-Origin", "*");
         newHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
         newHeaders.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        
+        // Ensure content type is set for audio/mpeg
+        if (!contentType.includes("mpeg")) {
+          newHeaders.set("Content-Type", "audio/mpeg");
+        }
         
         return new Response(audioData, {
           status: 200,
@@ -266,7 +285,7 @@ export async function onRequestPost(context) {
       message: error.message,
       stack: error.stack,
       troubleshooting_tips: [
-        "This is an unexpected error in the serverless function",
+        "This is likely a bug in the serverless function",
         "Check the Cloudflare Pages function logs for more details"
       ]
     }), {
@@ -283,7 +302,7 @@ export async function onRequestPost(context) {
   }
 }
 
-// Handle OPTIONS request for CORS preflight
+// Handle OPTIONS requests for CORS
 export function onRequestOptions() {
   return new Response(null, {
     status: 204,
@@ -299,20 +318,31 @@ export function onRequestOptions() {
 // Handle GET requests
 export function onRequestGet() {
   return new Response(JSON.stringify({
-    error: "Method not allowed",
-    message: "This endpoint only supports POST requests",
-    troubleshooting_tips: [
-      "Use a POST request with JSON body containing 'text' parameter",
-      "Set Content-Type header to application/json"
-    ]
+    message: "TTS API is working",
+    endpoints: {
+      post: {
+        path: "/api/tts",
+        description: "Convert text to speech",
+        required_parameters: ["text"],
+        optional_parameters: [
+          "timber_weights", 
+          "voice_setting", 
+          "audio_setting", 
+          "language_boost"
+        ],
+        voice_options: [
+          "Chinese (Mandarin)_Male_Announcer",
+          "Chinese (Mandarin)_Soft_Girl",
+          "English_ReservedYoungMan",
+          "English_Wiselady"
+        ]
+      }
+    }
   }), {
-    status: 405,
+    status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Allow": "POST, OPTIONS",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      "Access-Control-Allow-Origin": "*"
     }
   });
 }
