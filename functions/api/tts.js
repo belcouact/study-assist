@@ -262,19 +262,20 @@ export function onRequestGet() {
     message: "This is the TTS API endpoint. Please make a POST request with text data to convert to speech.",
     example: {
       "text": "人工智能不是要替代人类，而是要增强人类的能力。",
-      "voice": "Chinese (Mandarin)_Male_Announcer",
+      "voice": "Chinese (Mandarin)_Elite_Young",
       "model": "speech-02-turbo",
       "speed": 1.0,
       "pitch": 0,
       "volume": 1.0
     },
     supported_voices: {
-      "Chinese (Mandarin)_Male_Announcer": "Male voice with professional announcer tone",
-      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone",
-      "English_ReservedYoungMan": "English male voice with reserved tone",
-      "English_Wiselady": "English female voice with wise, mature tone",
-      "Japanese_Male": "Japanese male voice",
-      "Korean_Female": "Korean female voice"
+      "Chinese (Mandarin)_Elite_Young": "精英青年音色",
+      "Chinese (Mandarin)_College_Student": "青年大学生音色",
+      "Chinese (Mandarin)_Young_Girl": "少女音色",
+      "Chinese (Mandarin)_Male_Announcer": "播报男声",
+      "English_Trustworthy_Man": "Trustworthy Man",
+      "English_Graceful_Lady": "Graceful Lady",
+      "Cantonese_Professional_Host_Female": "专业女主持"
     },
     models: {
       "speech-02-turbo": "Recommended: Fast, high-quality speech synthesis",
@@ -295,39 +296,38 @@ export function onRequestGet() {
 // Function to map frontend voice IDs to MiniMax voice IDs
 function getMiniMaxVoiceId(frontendVoice) {
   // Default voice if none provided
-  if (!frontendVoice) return "male-qn-qingse";
+  if (!frontendVoice) return "male-qn-jingying";
   
   // Voice mapping
   // Full list of voices for MiniMax TTS API
   const voiceMap = {
-    // Chinese voices
-    "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
-    "Chinese (Mandarin)_Female_Friendly": "female-shaonv",
-    "Chinese (Mandarin)_Male_Friendly": "male-qn-hechang",
-    "Chinese (Mandarin)_Female_Storyteller": "female-zh-sweet",
-    "Chinese (Mandarin)_Male_Mature": "male-zh-deep",
-    "Chinese (Cantonese)_Male": "male-yue",
-    "Chinese (Cantonese)_Female": "female-yue",
+    // Chinese Mandarin voices
+    "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",         // 精英青年音色
+    "Chinese (Mandarin)_College_Student": "male-qn-daxuesheng",   // 青年大学生音色
+    "Chinese (Mandarin)_Young_Girl": "female-shaonv",             // 少女音色
+    "Chinese (Mandarin)_Mature_Woman": "female-chengshu",         // 成熟女性音色
+    "Chinese (Mandarin)_Sweet_Woman": "female-tianmei",           // 甜美女性音色
+    "Chinese (Mandarin)_Male_Presenter": "presenter_male",        // 男性主持人
+    "Chinese (Mandarin)_Female_Presenter": "presenter_female",    // 女性主持人
+    "Chinese (Mandarin)_Cute_Boy": "cute_boy",                    // 可爱男童
+    "Chinese (Mandarin)_Lovely_Girl": "lovely_girl",              // 萌萌女童
+    "Chinese (Mandarin)_News_Anchor": "Chinese (Mandarin)_News_Anchor",               // 新闻女声
+    "Chinese (Mandarin)_Refreshing_Young_Man": "Chinese (Mandarin)_Refreshing_Young_Man", // 舒朗男声
+    "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",         // 播报男声
+    
+    // Cantonese voices
+    "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",  // 专业女主持
+    "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",    // 专业男主持
     
     // English voices
-    "English_ReservedYoungMan": "male-en-us-reserved",
-    "English_Wiselady": "female-en-us-wiselady",
-    "English_CasualGuy": "male-en-us-casual",
-    "English_FriendlyGirl": "female-en-us-friendly",
-    "English_BritishMale": "male-en-gb-standard",
-    "English_BritishFemale": "female-en-gb-standard",
-    "English_AustralianMale": "male-en-au-standard",
-    "English_AustralianFemale": "female-en-au-standard",
-    
-    // Japanese and Korean voices
-    "Japanese_Male": "male-ja-standard",
-    "Japanese_Female": "female-ja-standard",
-    "Korean_Male": "male-ko-standard",
-    "Korean_Female": "female-ko-standard"
+    "English_Trustworthy_Man": "English_Trustworthy_Man",           // Trustworthy Man
+    "English_Graceful_Lady": "English_Graceful_Lady",               // Graceful Lady
+    "English_Diligent_Man": "English_Diligent_Man",                 // Diligent Man
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man"        // Gentle-voiced man
   };
   
   // Return mapped voice or default if mapping not found
-  return voiceMap[frontendVoice] || "male-qn-qingse";
+  return voiceMap[frontendVoice] || "male-qn-jingying";
 }
 
 export const config = {
