@@ -287,6 +287,13 @@
     <script src="../js/common.js"></script>
     <script src="../js/navigation.js"></script>
     <script>
+        // Make sure ttsClient is available globally, with a fallback initialization
+        if (typeof window.ttsClient === 'undefined') {
+            console.error('TTS client not initialized. Creating a fallback instance.');
+            // Create a fallback TTS client if it wasn't loaded properly
+            window.ttsClient = new TTSClient();
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
             const textInput = document.getElementById('text-input');
             const voiceSelect = document.getElementById('voice-select');
@@ -298,8 +305,14 @@
             const downloadBtn = document.getElementById('download-btn');
             const statusMessage = document.getElementById('status-message');
             
-            // Initialize TTS client
+            // Initialize TTS client with a safety check
             const tts = window.ttsClient;
+            
+            if (!tts) {
+                showStatus('error', 'TTS客户端未能正确加载，请刷新页面重试');
+                disableControls();
+                return;
+            }
             
             // Update volume display
             volumeSlider.addEventListener('input', function() {
@@ -354,9 +367,13 @@
             
             // Stop speech
             stopBtn.addEventListener('click', function() {
-                tts.stop();
-                this.disabled = true;
-                showStatus('success', '语音已停止');
+                if (tts && typeof tts.stop === 'function') {
+                    tts.stop();
+                    this.disabled = true;
+                    showStatus('success', '语音已停止');
+                } else {
+                    showStatus('error', 'TTS客户端未能正确加载，无法停止播放');
+                }
             });
             
             // Download audio
@@ -414,6 +431,13 @@
                 setTimeout(() => {
                     statusMessage.className = 'status';
                 }, 5000);
+            }
+            
+            // Helper to disable all controls
+            function disableControls() {
+                speakBtn.disabled = true;
+                stopBtn.disabled = true;
+                downloadBtn.disabled = true;
             }
         });
     </script>
