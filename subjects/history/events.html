@@ -680,28 +680,12 @@
             
             timelineEvents.appendChild(eventsContainer);
             
-            // Add related events container (initially hidden)
-            const relatedEventsContainer = document.createElement('div');
-            relatedEventsContainer.id = 'related-events-container';
-            relatedEventsContainer.className = 'related-events-container';
-            relatedEventsContainer.innerHTML = `
-                <div class="related-events-header">
-                    <h3 class="related-events-title">相关历史事件</h3>
-                </div>
-                <div id="related-events-list" class="related-events-list"></div>
-            `;
-            
-            timelineEvents.appendChild(relatedEventsContainer);
-            
             // Hide loading indicator and show timeline
             document.getElementById('loading').style.display = 'none';
             document.getElementById('timeline-container').style.display = 'flex';
             
             // Initialize animations
             initAnimations();
-            
-            // Add event listeners for cards
-            addEventCardListeners();
             
             // Add scroll listeners for period highlighting
             addScrollListeners();
@@ -717,22 +701,6 @@
                     
                     // Add active class to clicked card
                     this.classList.add('active');
-                    
-                    // Get event data from the card's dataset
-                    const eventTitle = this.querySelector('.event-title').textContent;
-                    const eventPeriod = this.querySelector('.event-period').textContent;
-                    
-                    // Find the current event from all events
-                    const currentEvent = window.allHistoricalEvents.find(event => 
-                        event.TITLE === eventTitle && event.PERIOD === eventPeriod);
-                    
-                    if (currentEvent) {
-                        // Find related events
-                        const relatedEvents = findRelatedEvents(currentEvent);
-                        
-                        // Display related events
-                        displayRelatedEvents(relatedEvents);
-                    }
                 });
             });
         }
@@ -773,120 +741,6 @@
                     });
                 }
             }, { passive: true });
-        }
-        
-        function findRelatedEvents(currentEvent) {
-            // If no events are loaded, return empty array
-            if (!window.allHistoricalEvents) return [];
-            
-            // Filter events to find related ones
-            // Strategy: Find events with similar region, same era, or related keywords
-            const relatedEvents = window.allHistoricalEvents.filter(event => {
-                // Skip the current event
-                if (event.TITLE === currentEvent.TITLE && event.PERIOD === currentEvent.PERIOD) {
-                    return false;
-                }
-                
-                let relationScore = 0;
-                
-                // Same region is a strong relation
-                if (event.REGION && currentEvent.REGION && 
-                    event.REGION === currentEvent.REGION) {
-                    relationScore += 3;
-                }
-                
-                // Same century or close time period
-                const getYear = (str) => {
-                    const match = str.match(/(\d+)/);
-                    return match ? parseInt(match[0], 10) : 0;
-                };
-                
-                const eventYear = getYear(event.PERIOD || '');
-                const currentYear = getYear(currentEvent.PERIOD || '');
-                
-                // Within 50 years is considered related
-                if (Math.abs(eventYear - currentYear) < 50) {
-                    relationScore += 2;
-                }
-                
-                // Check for keyword matches in title or description
-                const keywords = extractKeywords(currentEvent);
-                const eventText = (event.TITLE + ' ' + (event.BACKGROUND || '') + ' ' + (event.EVENT || '')).toLowerCase();
-                
-                keywords.forEach(keyword => {
-                    if (eventText.includes(keyword)) {
-                        relationScore += 1;
-                    }
-                });
-                
-                // Consider it related if score is high enough
-                return relationScore >= 2;
-            });
-            
-            // Return at most 3 related events
-            return relatedEvents.slice(0, 3);
-        }
-        
-        function extractKeywords(event) {
-            // Simple keyword extraction from title and description
-            const text = (event.TITLE + ' ' + (event.BACKGROUND || '') + ' ' + (event.EVENT || '')).toLowerCase();
-            
-            // Remove common Chinese stopwords
-            const stopwords = ['的', '了', '和', '是', '在', '有', '为', '以', '与', '这'];
-            
-            // Split by common delimiters
-            let words = text.split(/[,，.。;；:：\s]/);
-            
-            // Filter out stopwords and short words
-            words = words.filter(word => word.length > 1 && !stopwords.includes(word));
-            
-            // Return unique words
-            return [...new Set(words)];
-        }
-        
-        function displayRelatedEvents(relatedEvents) {
-            const relatedEventsContainer = document.getElementById('related-events-container');
-            const relatedEventsList = document.getElementById('related-events-list');
-            
-            // Clear existing related events
-            relatedEventsList.innerHTML = '';
-            
-            if (relatedEvents.length === 0) {
-                // Hide container if no related events
-                relatedEventsContainer.classList.remove('visible');
-                return;
-            }
-            
-            // Create and add related event cards
-            relatedEvents.forEach(event => {
-                const card = document.createElement('div');
-                card.className = 'related-event-card';
-                
-                card.innerHTML = `
-                    <h4 class="related-event-title">${event.TITLE || '未命名事件'}</h4>
-                    <div class="related-event-period">${event.PERIOD || '未知时期'}</div>
-                    <p class="related-event-description">
-                        ${event.EVENT ? event.EVENT.substring(0, 100) + '...' : '暂无详情'}
-                    </p>
-                `;
-                
-                // Add click handler to navigate to the related event
-                card.addEventListener('click', () => {
-                    // Find and click the corresponding main event card
-                    document.querySelectorAll('.event-card').forEach(mainCard => {
-                        const mainCardTitle = mainCard.querySelector('.event-title').textContent;
-                        if (mainCardTitle === event.TITLE) {
-                            mainCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            setTimeout(() => mainCard.click(), 500);
-                        }
-                    });
-                });
-                
-                relatedEventsList.appendChild(card);
-            });
-            
-            // Show the related events container
-            relatedEventsContainer.classList.add('visible');
         }
         
         function createEventCard(event) {
