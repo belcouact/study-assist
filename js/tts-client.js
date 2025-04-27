@@ -154,4 +154,4 @@ const ttsClient = new TTSClient();
 // Make the client available globally
 window.ttsClient = ttsClient;
 
-export default ttsClient; 
+// No export statement - this script will be loaded directly in the browser 
