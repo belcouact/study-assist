@@ -492,8 +492,32 @@
                         console.log('[DEBUG] Retrieved events count:', events.length);
                         if (events.length > 0) {
                             console.log('[DEBUG] First event sample:', events[0]);
-                            console.log('[DEBUG] SUB_CATEGORY_1 values in response:', 
+                            console.log('[DEBUG] Last event sample:', events[events.length - 1]);
+                            
+                            // Log all SUB_CATEGORY_1 values and their counts for diagnosis
+                            const categoryCounts = events.reduce((acc, event) => {
+                                const cat = event.SUB_CATEGORY_1 || 'undefined';
+                                acc[cat] = (acc[cat] || 0) + 1;
+                                return acc;
+                            }, {});
+                            
+                            console.log('[DEBUG] Category distribution in response:', categoryCounts);
+                            console.log('[DEBUG] Unique SUB_CATEGORY_1 values:', 
                                 [...new Set(events.map(e => e.SUB_CATEGORY_1))]);
+                                
+                            // Check if we're getting the expected filter results
+                            const matchingCategory = events.filter(e => 
+                                e.SUB_CATEGORY_1 === sanitizedCategory).length;
+                            console.log(`[DEBUG] Events matching exact category '${sanitizedCategory}': ${matchingCategory}/${events.length}`);
+                            
+                            // Check for potential case sensitivity or whitespace issues
+                            const caseInsensitiveMatches = events.filter(e => 
+                                e.SUB_CATEGORY_1 && e.SUB_CATEGORY_1.toLowerCase() === sanitizedCategory.toLowerCase()).length;
+                            console.log(`[DEBUG] Case-insensitive matches: ${caseInsensitiveMatches}/${events.length}`);
+                            
+                            const trimmedMatches = events.filter(e => 
+                                e.SUB_CATEGORY_1 && e.SUB_CATEGORY_1.trim() === sanitizedCategory.trim()).length;
+                            console.log(`[DEBUG] Whitespace-normalized matches: ${trimmedMatches}/${events.length}`);
                         }
                         
                         if (events.length === 0) {
@@ -507,11 +531,21 @@
                         // Store events globally for later use
                         window.allHistoricalEvents = events;
                         
+                        // Filter only the events that match our category
+                        console.log('[DEBUG] Attempting to filter returned events by category');
+                        const filteredEvents = events.filter(event => 
+                            event.SUB_CATEGORY_1 === sanitizedCategory);
+                            
+                        console.log(`[DEBUG] After client-side filtering: ${filteredEvents.length}/${events.length} events`);
+                        
+                        // Use filtered events if available, otherwise fall back to all events
+                        const eventsToRender = filteredEvents.length > 0 ? filteredEvents : events;
+                        
                         // Sort events chronologically
-                        sortEventsChronologically(events);
+                        sortEventsChronologically(eventsToRender);
                         
                         // Render all events in a timeline (not grouped by era)
-                        renderAllEvents(events);
+                        renderAllEvents(eventsToRender);
                         
                     })
                     .catch(error => {
