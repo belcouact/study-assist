@@ -102,16 +102,51 @@ export async function onRequestPost(context) {
       
       // Process newer t2a_v2 API response format
       if (jsonResponse.data && jsonResponse.data.audio) {
-        // Extract the audio data and convert to base64 for client compatibility
-        const audioBase64 = jsonResponse.data.audio;
+        // Extract the audio data
+        const audioData = jsonResponse.data.audio;
         
-        // Return a modified response with audio_base64 field for backward compatibility
-        return new Response(JSON.stringify({
-          audio_base64: audioBase64,
-          original_response: jsonResponse
-        }), {
-          headers: corsHeaders
-        });
+        try {
+          // Direct binary conversion from base64 or hex to a binary response
+          let bytes;
+          
+          // Detect if it's hex format
+          if (/^[0-9a-fA-F]+$/.test(audioData)) {
+            // Convert hex to binary
+            bytes = new Uint8Array(audioData.length / 2);
+            for (let i = 0; i < audioData.length; i += 2) {
+              bytes[i / 2] = parseInt(audioData.substring(i, i + 2), 16);
+            }
+            console.log(`Converted hex audio data (${bytes.byteLength} bytes)`);
+          } else {
+            // Assume base64 and convert to binary
+            const binaryString = atob(audioData);
+            bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+            console.log(`Converted base64 audio data (${bytes.byteLength} bytes)`);
+          }
+          
+          // Return binary audio data with appropriate headers
+          return new Response(bytes, {
+            headers: {
+              'Content-Type': 'audio/mp3',
+              'Cache-Control': 'public, max-age=86400',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+            }
+          });
+        } catch (error) {
+          console.error(`Error processing audio data: ${error.message}`);
+          // If conversion fails, return the original response
+          return new Response(JSON.stringify({
+            error: "Failed to process audio data",
+            original_response: jsonResponse
+          }), {
+            headers: corsHeaders
+          });
+        }
       } 
       // Legacy format with audio_base64
       else if (jsonResponse.audio_base64) {
