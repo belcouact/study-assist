@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-to-Speech Demo - 学习助手</title>
+    <link rel="icon" href="../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/components.css">
+    <link rel="stylesheet" href="../css/utilities.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .tts-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tts-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .tts-header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tts-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .tts-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .form-group label {
+            font-weight: 500;
+            color: #444;
+        }
+        
+        .form-group textarea {
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 150px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        
+        .controls-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .select-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .select-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fff;
+        }
+        
+        .tts-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #4361ee;
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 5px;
+            display: none;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .volume-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .volume-slider {
+            flex: 1;
+        }
+        
+        .current-voice {
+            font-style: italic;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+        
+        @media (max-width: 600px) {
+            .tts-container {
+                padding: 1rem;
+            }
+            
+            .tts-actions {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../index.html">首页</a></li>
+                        <li><a href="../index.html#subjects">科目</a></li>
+                        <li><a href="https://study-llm.me/draw">AI绘图</a></li>
+                        <li><a href="../index.html#quote">名言</a></li>
+                        <li><a href="../index.html#about">关于</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="tts-container">
+            <div class="tts-header">
+                <h1>文字转语音演示</h1>
+                <p>输入文字，选择声音类型，将文字转换为自然的语音</p>
+            </div>
+            
+            <div class="tts-form">
+                <div class="form-group">
+                    <label for="text-input">输入文字</label>
+                    <textarea id="text-input" placeholder="请输入要转换为语音的文字内容...">人工智能不是要替代人类，而是要增强人类的能力。欢迎使用学习助手的文字转语音功能！</textarea>
+                </div>
+                
+                <div class="controls-row">
+                    <div class="select-group">
+                        <label for="voice-select">选择声音</label>
+                        <select id="voice-select">
+                            <option value="Chinese (Mandarin)_Male_Announcer">男声播音员</option>
+                            <option value="Chinese (Mandarin)_Female_Announcer">女声播音员</option>
+                            <option value="Chinese (Mandarin)_Male_Gentle">男声温和</option>
+                            <option value="Chinese (Mandarin)_Female_Gentle">女声温和</option>
+                        </select>
+                    </div>
+                    
+                    <div class="select-group">
+                        <label for="speed-select">语速</label>
+                        <select id="speed-select">
+                            <option value="0.8">较慢</option>
+                            <option value="1" selected>正常</option>
+                            <option value="1.2">较快</option>
+                            <option value="1.5">快速</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="volume-controls">
+                    <label for="volume-slider">音量：</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="1" class="volume-slider">
+                    <span id="volume-value">100%</span>
+                </div>
+                
+                <div class="tts-actions">
+                    <button id="speak-btn" class="btn btn-primary">
+                        <i class="fas fa-play"></i> 播放语音
+                    </button>
+                    <button id="stop-btn" class="btn btn-secondary" disabled>
+                        <i class="fas fa-stop"></i> 停止
+                    </button>
+                    <button id="download-btn" class="btn btn-secondary">
+                        <i class="fas fa-download"></i> 下载音频
+                    </button>
+                </div>
+                
+                <div id="status-message" class="status"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2025 Alex的学习助手。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../js/common.js"></script>
+    <script src="../js/navigation.js"></script>
+    <script src="../js/tts-client.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const textInput = document.getElementById('text-input');
+            const voiceSelect = document.getElementById('voice-select');
+            const speedSelect = document.getElementById('speed-select');
+            const volumeSlider = document.getElementById('volume-slider');
+            const volumeValue = document.getElementById('volume-value');
+            const speakBtn = document.getElementById('speak-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const downloadBtn = document.getElementById('download-btn');
+            const statusMessage = document.getElementById('status-message');
+            
+            // Initialize TTS client
+            const tts = window.ttsClient;
+            
+            // Update volume display
+            volumeSlider.addEventListener('input', function() {
+                const volume = this.value;
+                volumeValue.textContent = `${Math.round(volume * 100)}%`;
+            });
+            
+            // Play speech
+            speakBtn.addEventListener('click', async function() {
+                const text = textInput.value.trim();
+                if (!text) {
+                    showStatus('error', '请输入要转换的文字');
+                    return;
+                }
+                
+                try {
+                    // Disable button and show loading state
+                    this.disabled = true;
+                    this.innerHTML = '<span class="loading"></span> 生成中...';
+                    statusMessage.className = 'status';
+                    
+                    // Get options
+                    const options = {
+                        timber_weights: [
+                            {
+                                voice_id: voiceSelect.value,
+                                weight: 1
+                            }
+                        ],
+                        voice_setting: {
+                            speed: parseFloat(speedSelect.value),
+                            vol: parseFloat(volumeSlider.value)
+                        }
+                    };
+                    
+                    // Speak text
+                    await tts.speak(text, options);
+                    
+                    // Enable stop button
+                    stopBtn.disabled = false;
+                    
+                    // Show success message
+                    showStatus('success', '语音生成成功！');
+                } catch (error) {
+                    showStatus('error', `语音生成失败：${error.message}`);
+                } finally {
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-play"></i> 播放语音';
+                }
+            });
+            
+            // Stop speech
+            stopBtn.addEventListener('click', function() {
+                tts.stop();
+                this.disabled = true;
+                showStatus('success', '语音已停止');
+            });
+            
+            // Download audio
+            downloadBtn.addEventListener('click', async function() {
+                const text = textInput.value.trim();
+                if (!text) {
+                    showStatus('error', '请输入要转换的文字');
+                    return;
+                }
+                
+                try {
+                    // Disable button and show loading state
+                    this.disabled = true;
+                    this.innerHTML = '<span class="loading"></span> 生成中...';
+                    statusMessage.className = 'status';
+                    
+                    // Get options
+                    const options = {
+                        timber_weights: [
+                            {
+                                voice_id: voiceSelect.value,
+                                weight: 1
+                            }
+                        ],
+                        voice_setting: {
+                            speed: parseFloat(speedSelect.value),
+                            vol: parseFloat(volumeSlider.value)
+                        }
+                    };
+                    
+                    // Generate timestamp for filename
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    const filename = `tts-audio-${timestamp}.mp3`;
+                    
+                    // Download audio
+                    await tts.download(text, filename, options);
+                    
+                    // Show success message
+                    showStatus('success', '音频文件已下载');
+                } catch (error) {
+                    showStatus('error', `音频下载失败：${error.message}`);
+                } finally {
+                    // Reset button state
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-download"></i> 下载音频';
+                }
+            });
+            
+            // Helper to show status messages
+            function showStatus(type, message) {
+                statusMessage.textContent = message;
+                statusMessage.className = `status ${type}`;
+                
+                // Hide after 5 seconds
+                setTimeout(() => {
+                    statusMessage.className = 'status';
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html> 
