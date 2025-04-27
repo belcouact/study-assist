@@ -208,7 +208,6 @@ function getMiniMaxVoiceId(frontendVoice) {
   // 
   const voiceMap = {
     "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
-    "Chinese (Mandarin)_Soft_Girl": "female-ruanmei",
     "Chinese (Mandarin)_Female_Friendly": "female-shaonv",
     "English_ReservedYoungMan": "male-en-us-reserved",
     "English_Wiselady": "female-en-us-wiselady"
