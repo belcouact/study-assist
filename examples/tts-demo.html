@@ -260,21 +260,20 @@
                 
                 // Check content type to handle response appropriately
                 const contentType = response.headers.get('Content-Type') || '';
+                console.log('Content type:', contentType);
                 
-                if (contentType.includes('application/json')) {
-                    // If we got JSON instead of audio, it might be an API error response
-                    const jsonData = await response.json();
-                    console.log('Received JSON response:', jsonData);
-                    
-                    if (jsonData.error) {
-                        throw new Error(jsonData.error);
-                    }
-                    
-                    if (jsonData.audio_base64) {
-                        // Handle base64 encoded audio if the API returns it that way
-                        const base64 = jsonData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
-                        const audioBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-                        const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+                if (contentType.includes('audio/mp3')) {
+                    // Handle binary audio data
+                    try {
+                        // Get the audio data and create blob URL
+                        const audioData = await response.arrayBuffer();
+                        console.log('Received audio data bytes:', audioData.byteLength);
+                        
+                        if (audioData.byteLength === 0) {
+                            throw new Error('收到的音频数据为空');
+                        }
+                        
+                        const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
                         const audioUrl = URL.createObjectURL(audioBlob);
                         
                         // Store the blob for download
@@ -285,44 +284,58 @@
                         audioContainer.classList.add('visible');
                         clearStatus();
                         
-                        // Play the audio
+                        // Try to play the audio
                         audioPlayer.play().catch(e => {
                             console.error('Audio playback error:', e);
-                            showError('音频播放失败');
+                            showError('音频播放失败：' + e.message);
                         });
-                        return;
+                    } catch (e) {
+                        console.error('Audio processing error:', e);
+                        throw new Error('音频处理失败：' + e.message);
                     }
-                }
-                
-                // Handle binary audio data (default case)
-                try {
-                    // Get the audio data and create blob URL
-                    const audioData = await response.arrayBuffer();
-                    console.log('Received audio data bytes:', audioData.byteLength);
-                    
-                    if (audioData.byteLength === 0) {
-                        throw new Error('收到的音频数据为空');
+                } else if (contentType.includes('application/json')) {
+                    // Handle JSON response
+                    try {
+                        const jsonData = await response.json();
+                        console.log('Received JSON response:', jsonData);
+                        
+                        if (jsonData.error) {
+                            throw new Error(jsonData.error);
+                        }
+                        
+                        if (jsonData.base_resp && jsonData.base_resp.status_code !== 0) {
+                            throw new Error(`API错误 ${jsonData.base_resp.status_code}: ${jsonData.base_resp.status_msg || '未知错误'}`);
+                        }
+                        
+                        if (jsonData.audio_base64) {
+                            // Handle base64 encoded audio
+                            const base64 = jsonData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+                            const audioBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                            const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+                            const audioUrl = URL.createObjectURL(audioBlob);
+                            
+                            // Store the blob for download
+                            currentAudioBlob = audioBlob;
+                            
+                            // Update audio player and show it
+                            audioPlayer.src = audioUrl;
+                            audioContainer.classList.add('visible');
+                            clearStatus();
+                            
+                            // Play the audio
+                            audioPlayer.play().catch(e => {
+                                console.error('Audio playback error:', e);
+                                showError('音频播放失败');
+                            });
+                        } else {
+                            throw new Error('服务器返回了无效的响应格式');
+                        }
+                    } catch (e) {
+                        console.error('JSON processing error:', e);
+                        throw new Error('处理服务器响应失败：' + e.message);
                     }
-                    
-                    const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
-                    const audioUrl = URL.createObjectURL(audioBlob);
-                    
-                    // Store the blob for download
-                    currentAudioBlob = audioBlob;
-                    
-                    // Update audio player and show it
-                    audioPlayer.src = audioUrl;
-                    audioContainer.classList.add('visible');
-                    clearStatus();
-                    
-                    // Try to play the audio (with error handling)
-                    audioPlayer.play().catch(e => {
-                        console.error('Audio playback error:', e);
-                        showError('音频播放失败：' + e.message);
-                    });
-                } catch (e) {
-                    console.error('Audio processing error:', e);
-                    throw new Error('音频处理失败：' + e.message);
+                } else {
+                    throw new Error(`不支持的响应类型: ${contentType}`);
                 }
                 
             } catch (error) {

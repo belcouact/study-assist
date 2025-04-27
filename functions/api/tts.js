@@ -40,7 +40,7 @@ export async function onRequestPost(context) {
     const payload = {
       text: requestData.text,
       model: "speech-01",
-      voice_id: requestData.voice || "male-qn-qingse",
+      voice_id: getMiniMaxVoiceId(requestData.voice),
       speed: requestData.speed || 1.0,
       vol: requestData.volume || 1.0,
       pitch: requestData.pitch || 0.0,
@@ -169,17 +169,42 @@ export function onRequestGet() {
     message: "This is the TTS API endpoint. Please make a POST request with text data to convert to speech.",
     example: {
       "text": "人工智能不是要替代人类，而是要增强人类的能力。",
-      "speed": 1,
+      "voice": "Chinese (Mandarin)_Male_Announcer",
+      "speed": 1.0,
       "pitch": 0,
-      "volume": 1,
-      "voice": "Chinese (Mandarin)_Male_Announcer"
+      "volume": 1.0
+    },
+    supported_voices: {
+      "Chinese (Mandarin)_Male_Announcer": "Male voice with professional announcer tone",
+      "Chinese (Mandarin)_Female_Announcer": "Female voice with professional announcer tone",
+      "Chinese (Mandarin)_Male_Friendly": "Male voice with friendly, natural tone",
+      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone"
     }
   }), {
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*"
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
     }
   });
+}
+
+// Function to map frontend voice IDs to MiniMax voice IDs
+function getMiniMaxVoiceId(frontendVoice) {
+  // Default voice if none provided
+  if (!frontendVoice) return "male-qn-qingse";
+  
+  // Voice mapping
+  const voiceMap = {
+    "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
+    "Chinese (Mandarin)_Female_Announcer": "female-shaonv",
+    "Chinese (Mandarin)_Male_Friendly": "male-qn-hechang",
+    "Chinese (Mandarin)_Female_Friendly": "female-zh-sweet"
+  };
+  
+  // Return mapped voice or default if mapping not found
+  return voiceMap[frontendVoice] || "male-qn-qingse";
 }
 
 export const config = {
