@@ -204,33 +204,34 @@ function getMiniMaxVoiceId(frontendVoice) {
   // Default voice if none provided
   if (!frontendVoice) return "male-qn-qingse";
   
-  // Voice mapping
-  // Full list of voices for MiniMax TTS API
+  // Voice mapping - currently only a limited set of voices are confirmed working
+  // Note: MiniMax API voice availability depends on your API subscription level
+  // and region. Voice IDs may change or be limited based on your account.
   const voiceMap = {
-    // Chinese voices
+    // Confirmed working voices
     "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
     "Chinese (Mandarin)_Female_Friendly": "female-shaonv",
+    
+    // These voices may work depending on your API subscription
     "Chinese (Mandarin)_Male_Friendly": "male-qn-hechang",
     "Chinese (Mandarin)_Female_Storyteller": "female-zh-sweet",
-    "Chinese (Mandarin)_Male_Mature": "male-zh-deep",
-    "Chinese (Cantonese)_Male": "male-yue",
-    "Chinese (Cantonese)_Female": "female-yue",
+    "Chinese (Mandarin)_Male_Mature": "male-zh-deep"
     
-    // English voices
-    "English_ReservedYoungMan": "male-en-us-reserved",
-    "English_Wiselady": "female-en-us-wiselady",
-    "English_CasualGuy": "male-en-us-casual",
-    "English_FriendlyGirl": "female-en-us-friendly",
-    "English_BritishMale": "male-en-gb-standard",
-    "English_BritishFemale": "female-en-gb-standard",
-    "English_AustralianMale": "male-en-au-standard",
-    "English_AustralianFemale": "female-en-au-standard",
-    
-    // Japanese and Korean voices
-    "Japanese_Male": "male-ja-standard",
-    "Japanese_Female": "female-ja-standard",
-    "Korean_Male": "male-ko-standard",
-    "Korean_Female": "female-ko-standard"
+    // Other voices from documentation - uncomment if available in your subscription:
+    // "Chinese (Cantonese)_Male": "male-yue",
+    // "Chinese (Cantonese)_Female": "female-yue",
+    // "English_ReservedYoungMan": "male-en-us-reserved", 
+    // "English_Wiselady": "female-en-us-wiselady",
+    // "English_CasualGuy": "male-en-us-casual",
+    // "English_FriendlyGirl": "female-en-us-friendly",
+    // "English_BritishMale": "male-en-gb-standard",
+    // "English_BritishFemale": "female-en-gb-standard",
+    // "English_AustralianMale": "male-en-au-standard",
+    // "English_AustralianFemale": "female-en-au-standard",
+    // "Japanese_Male": "male-ja-standard",
+    // "Japanese_Female": "female-ja-standard",
+    // "Korean_Male": "male-ko-standard",
+    // "Korean_Female": "female-ko-standard"
   };
   
   // Return mapped voice or default if mapping not found
