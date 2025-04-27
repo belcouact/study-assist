@@ -448,6 +448,8 @@
         
         function loadHistoricalEvents(category) {
             try {
+                console.log('[DEBUG] Loading historical events for category:', category);
+                
                 // Create a SQL query to filter by SUB_CATEGORY_1
                 const encodedCategory = encodeURIComponent(category.trim());
                 const sql = `SELECT * FROM world_history WHERE SUB_CATEGORY_1 = '${encodedCategory}'`;
@@ -455,22 +457,36 @@
                     sql: sql
                 });
                 
+                console.log('[DEBUG] SQL query:', sql);
+                
                 // Use the proper API request format with SQL query
                 fetch(`/api/db/query/world_history?${params}`)
                     .then(response => {
                         if (!response.ok) {
+                            console.error('[DEBUG] API response error:', response.status);
                             throw new Error(`API响应错误: ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
+                        console.log('[DEBUG] API response data:', data);
+                        
                         if (!data.success || !data.data) {
+                            console.error('[DEBUG] Data error:', data.error || 'No data returned');
                             throw new Error(data.error || "获取数据失败");
                         }
                         
                         const events = data.data || [];
                         
+                        console.log('[DEBUG] Retrieved events count:', events.length);
+                        if (events.length > 0) {
+                            console.log('[DEBUG] First event sample:', events[0]);
+                            console.log('[DEBUG] SUB_CATEGORY_1 values in response:', 
+                                [...new Set(events.map(e => e.SUB_CATEGORY_1))]);
+                        }
+                        
                         if (events.length === 0) {
+                            console.warn('[DEBUG] No events found for category:', category);
                             showError(`未找到与"${category}"相关的历史事件数据`);
                             return;
                         }
@@ -488,12 +504,12 @@
                         
                     })
                     .catch(error => {
-                        console.error("加载历史事件数据时出错:", error);
+                        console.error("[DEBUG] Error loading historical events:", error);
                         showError(`加载数据失败: ${error.message}`);
                     });
                 
             } catch (error) {
-                console.error("加载历史事件数据时出错:", error);
+                console.error("[DEBUG] Exception in loadHistoricalEvents:", error);
                 showError(`加载数据失败: ${error.message}`);
             }
         }
@@ -572,8 +588,12 @@
         }
         
         function addEventCardListeners() {
+            console.log('[DEBUG] Adding event listeners to', document.querySelectorAll('.event-card').length, 'event cards');
+            
             document.querySelectorAll('.event-card').forEach(card => {
                 card.addEventListener('click', function() {
+                    console.log('[DEBUG] Event card clicked');
+                    
                     // Remove active class from all cards
                     document.querySelectorAll('.event-card').forEach(c => {
                         c.classList.remove('active');
@@ -586,133 +606,65 @@
                     const eventTitle = this.querySelector('.event-title').textContent;
                     const eventPeriod = this.querySelector('.event-period').textContent;
                     
+                    console.log('[DEBUG] Selected event:', eventTitle, 'Period:', eventPeriod);
+                    
                     // Find the current event from all events
                     const currentEvent = window.allHistoricalEvents.find(event => 
                         event.TITLE === eventTitle && event.PERIOD === eventPeriod);
                     
                     if (currentEvent) {
-                        // Find related events
-                        const relatedEvents = findRelatedEvents(currentEvent);
+                        console.log('[DEBUG] Current event found in data:', currentEvent);
                         
-                        // Display related events
-                        displayRelatedEvents(relatedEvents);
+                        // TEMPORARILY DISABLED: Find related events
+                        // const relatedEvents = findRelatedEvents(currentEvent);
+                        
+                        // Instead of finding related events, log that we're skipping this step
+                        console.log('[DEBUG] findRelatedEvents temporarily disabled');
+                        
+                        // Display a message that related events functionality is disabled
+                        displayDebugMessage(currentEvent);
+                    } else {
+                        console.error('[DEBUG] Current event not found in data!');
                     }
                 });
             });
         }
         
-        function findRelatedEvents(currentEvent) {
-            // If no events are loaded, return empty array
-            if (!window.allHistoricalEvents) return [];
-            
-            // Filter events to find related ones
-            // Strategy: Find events with similar region, same era, or related keywords
-            const relatedEvents = window.allHistoricalEvents.filter(event => {
-                // Skip the current event
-                if (event.TITLE === currentEvent.TITLE && event.PERIOD === currentEvent.PERIOD) {
-                    return false;
-                }
-                
-                let relationScore = 0;
-                
-                // Same region is a strong relation
-                if (event.REGION && currentEvent.REGION && 
-                    event.REGION === currentEvent.REGION) {
-                    relationScore += 3;
-                }
-                
-                // Same century or close time period
-                const getYear = (str) => {
-                    const match = str.match(/(\d+)/);
-                    return match ? parseInt(match[0], 10) : 0;
-                };
-                
-                const eventYear = getYear(event.PERIOD || '');
-                const currentYear = getYear(currentEvent.PERIOD || '');
-                
-                // Within 50 years is considered related
-                if (Math.abs(eventYear - currentYear) < 50) {
-                    relationScore += 2;
-                }
-                
-                // Check for keyword matches in title or description
-                const keywords = extractKeywords(currentEvent);
-                const eventText = (event.TITLE + ' ' + event.BACKGROUND + ' ' + event.EVENT).toLowerCase();
-                
-                keywords.forEach(keyword => {
-                    if (eventText.includes(keyword)) {
-                        relationScore += 1;
-                    }
-                });
-                
-                // Consider it related if score is high enough
-                return relationScore >= 2;
-            });
-            
-            // Return at most 3 related events
-            return relatedEvents.slice(0, 3);
-        }
-        
-        function extractKeywords(event) {
-            // Simple keyword extraction from title and description
-            const text = (event.TITLE + ' ' + event.BACKGROUND + ' ' + event.EVENT).toLowerCase();
-            
-            // Remove common Chinese stopwords
-            const stopwords = ['的', '了', '和', '是', '在', '有', '为', '以', '与', '这'];
-            
-            // Split by common delimiters
-            let words = text.split(/[,，.。;；:：\s]/);
-            
-            // Filter out stopwords and short words
-            words = words.filter(word => word.length > 1 && !stopwords.includes(word));
-            
-            // Return unique words
-            return [...new Set(words)];
-        }
-        
-        function displayRelatedEvents(relatedEvents) {
+        // New function to display a debug message instead of related events
+        function displayDebugMessage(currentEvent) {
             const relatedEventsContainer = document.getElementById('related-events-container');
             const relatedEventsList = document.getElementById('related-events-list');
             
             // Clear existing related events
             relatedEventsList.innerHTML = '';
             
-            if (relatedEvents.length === 0) {
-                // Hide container if no related events
-                relatedEventsContainer.classList.remove('visible');
-                return;
-            }
+            // Display debug message
+            const debugMessage = document.createElement('div');
+            debugMessage.className = 'debug-message';
+            debugMessage.style.padding = '15px';
+            debugMessage.style.backgroundColor = '#f8f9fa';
+            debugMessage.style.border = '1px solid #dee2e6';
+            debugMessage.style.borderRadius = '4px';
             
-            // Create and add related event cards
-            relatedEvents.forEach(event => {
-                const card = document.createElement('div');
-                card.className = 'related-event-card';
-                
-                card.innerHTML = `
-                    <h4 class="related-event-title">${event.TITLE || '未命名事件'}</h4>
-                    <div class="related-event-period">${event.PERIOD || '未知时期'}</div>
-                    <p class="related-event-description">
-                        ${event.EVENT ? event.EVENT.substring(0, 100) + '...' : '暂无详情'}
-                    </p>
-                `;
-                
-                // Add click handler to navigate to the related event
-                card.addEventListener('click', () => {
-                    // Find and click the corresponding main event card
-                    document.querySelectorAll('.event-card').forEach(mainCard => {
-                        const mainCardTitle = mainCard.querySelector('.event-title').textContent;
-                        if (mainCardTitle === event.TITLE) {
-                            mainCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            setTimeout(() => mainCard.click(), 500);
-                        }
-                    });
-                });
-                
-                relatedEventsList.appendChild(card);
-            });
+            debugMessage.innerHTML = `
+                <h4 style="color: #3a0ca3; margin-bottom: 10px;">调试模式</h4>
+                <p>相关事件查找功能已临时禁用。</p>
+                <p>当前事件: ${currentEvent.TITLE}</p>
+                <p>时期: ${currentEvent.PERIOD}</p>
+                <p>区域: ${currentEvent.REGION || '未指定'}</p>
+                <p>请检查控制台日志获取更多调试信息。</p>
+            `;
+            
+            relatedEventsList.appendChild(debugMessage);
             
             // Show the related events container
             relatedEventsContainer.classList.add('visible');
+        }
+        
+        function findRelatedEvents(currentEvent) {
+            console.log('[DEBUG] findRelatedEvents called but disabled');
+            // Return empty array as this function is temporarily disabled
+            return [];
         }
         
         function createEventCard(event) {
