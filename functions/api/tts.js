@@ -40,18 +40,20 @@ export async function onRequestPost(context) {
     const voiceId = getMiniMaxVoiceId(requestData.voice);
     console.log(`Mapping voice '${requestData.voice}' to MiniMax voice_id: '${voiceId}'`);
     
+    // Ensure all parameters match the expected types for MiniMax API
     const payload = {
       text: requestData.text,
       model: "speech-01",
       voice_id: voiceId,
-      speed: parseFloat(requestData.speed) || 1.0,
-      vol: parseFloat(requestData.volume) || 1.0,
-      pitch: parseInt(requestData.pitch || 0),
-      bitrate: "320k"
+      speed: Number(requestData.speed || 1.0),
+      vol: Number(requestData.volume || 1.0),
+      pitch: Number(requestData.pitch || 0)
+      // Remove problematic parameters
     };
     
-    // Log the payload to debug parameter types
-    console.log(`Sending TTS request with params: ${JSON.stringify(payload)}`);
+    // Debug the final JSON structure
+    const finalJSON = JSON.stringify(payload);
+    console.log(`Final request payload: ${finalJSON}`);
     
     // Log request to MiniMax API
     console.log(`Sending TTS request to MiniMax API for text: "${payload.text.substring(0, 30)}${payload.text.length > 30 ? '...' : ''}"`);
@@ -65,7 +67,7 @@ export async function onRequestPost(context) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${API_KEY}`
       },
-      body: JSON.stringify(payload)
+      body: finalJSON
     });
     
     // Check response status
