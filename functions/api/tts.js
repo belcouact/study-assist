@@ -37,21 +37,28 @@ export async function onRequestPost(context) {
     }
     
     // Prepare request data for MiniMax API
+    const voiceId = getMiniMaxVoiceId(requestData.voice);
+    console.log(`Mapping voice '${requestData.voice}' to MiniMax voice_id: '${voiceId}'`);
+    
     const payload = {
       text: requestData.text,
       model: "speech-01",
-      voice_id: getMiniMaxVoiceId(requestData.voice),
-      speed: requestData.speed || 1.0,
-      vol: requestData.volume || 1.0,
-      pitch: requestData.pitch || 0.0,
+      voice_id: voiceId,
+      speed: parseFloat(requestData.speed) || 1.0,
+      vol: parseFloat(requestData.volume) || 1.0,
+      pitch: parseInt(requestData.pitch || 0),
       bitrate: "320k"
     };
+    
+    // Log the payload to debug parameter types
+    console.log(`Sending TTS request with params: ${JSON.stringify(payload)}`);
     
     // Log request to MiniMax API
     console.log(`Sending TTS request to MiniMax API for text: "${payload.text.substring(0, 30)}${payload.text.length > 30 ? '...' : ''}"`);
     
     // Call MiniMax API
     const miniMaxUrl = `https://api.minimax.chat/v1/text_to_speech?GroupId=${GROUP_ID}`;
+    
     const response = await fetch(miniMaxUrl, {
       method: 'POST',
       headers: {
@@ -198,9 +205,9 @@ function getMiniMaxVoiceId(frontendVoice) {
   // Voice mapping
   const voiceMap = {
     "Chinese (Mandarin)_Male_Announcer": "male-qn-qingse",
-    "Chinese (Mandarin)_Female_Announcer": "female-shaonv",
+    "Chinese (Mandarin)_Female_Announcer": "female-qn-qingse",
     "Chinese (Mandarin)_Male_Friendly": "male-qn-hechang",
-    "Chinese (Mandarin)_Female_Friendly": "female-zh-sweet"
+    "Chinese (Mandarin)_Female_Friendly": "female-shaonv"
   };
   
   // Return mapped voice or default if mapping not found
