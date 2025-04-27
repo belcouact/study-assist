@@ -443,7 +443,42 @@
             // Parse URL parameters
             const urlParams = new URLSearchParams(window.location.search);
             const topic = urlParams.get('topic');
+            const category = urlParams.get('category');
+            const subCategory = urlParams.get('sub_category');
             
+            // If we have category and sub_category params, handle them directly (for Chinese history)
+            if (category && subCategory) {
+                // Special case for Chinese history topics
+                const chineseTopicInfo = {
+                    'CHINA_MODERN_HISTORY': {
+                        name: '中国近代史',
+                        description: '从鸦片战争到中华人民共和国成立，探索中国近代历史的转折与奋斗',
+                        timeRange: '1840年 - 1949年',
+                    }
+                };
+                
+                const topicInfo = chineseTopicInfo[subCategory];
+                
+                if (!topicInfo) {
+                    showError("无效的历史主题");
+                    return;
+                }
+                
+                // Update page header with topic information
+                document.getElementById('topic-title').textContent = topicInfo.name;
+                document.getElementById('topic-description').textContent = topicInfo.description;
+                document.getElementById('time-range').textContent = topicInfo.timeRange;
+                document.title = `${topicInfo.name} - 历史学习 - 学习助手`;
+                
+                // Load event data with category and subcategory
+                loadChineseHistoricalEvents(category, subCategory);
+                
+                // Initialize scroll to top button
+                initScrollToTop();
+                return;
+            }
+            
+            // Regular topic handling
             if (!topic) {
                 showError("未指定历史主题");
                 return;
@@ -561,6 +596,62 @@
                         // Render all events in a timeline
                         renderAllEvents(eventsToRender);
                         
+                    })
+                    .catch(error => {
+                        console.error("加载历史事件数据时出错:", error);
+                        showError(`加载数据失败: ${error.message}`);
+                    });
+                
+            } catch (error) {
+                console.error("加载历史事件数据时出错:", error);
+                showError(`加载数据失败: ${error.message}`);
+            }
+        }
+        
+        function loadChineseHistoricalEvents(category, subCategory) {
+            try {
+                // Ensure the category is properly sanitized for SQL
+                const sanitizedCategory = category.replace(/'/g, "''");
+                const sanitizedSubCategory = subCategory.replace(/'/g, "''");
+                
+                // Create SQL query for Chinese history events
+                const sql = `SELECT * FROM world_history WHERE CATEGORY='${sanitizedCategory}' AND SUB_CATEGORY_1='${sanitizedSubCategory}'`;
+                
+                // Only encode the full SQL query in the URL parameters
+                const params = new URLSearchParams({
+                    sql: sql
+                });
+                
+                // Use the proper API request format with SQL query
+                fetch(`/api/db/query/world_history?${params}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`API响应错误: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.success || !data.data) {
+                            throw new Error(data.error || "获取数据失败");
+                        }
+                        
+                        const events = data.data || [];
+                        
+                        if (events.length === 0) {
+                            showError(`未找到与"${subCategory}"相关的历史事件数据`);
+                            return;
+                        }
+                        
+                        console.log(`已加载${events.length}条中国历史事件`);
+                        
+                        // Store events globally for later use
+                        window.allHistoricalEvents = events;
+                        
+                        // Sort events chronologically
+                        sortEventsChronologically(events);
+                        
+                        // Render all events in a timeline
+                        renderAllEvents(events);
                     })
                     .catch(error => {
                         console.error("加载历史事件数据时出错:", error);
