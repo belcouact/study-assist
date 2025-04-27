@@ -301,6 +301,27 @@
             // API Endpoint - ensure this is correct
             const API_ENDPOINT = '/api/tts';  // This will be handled by functions/api/tts-route.js
             
+            // Fallback mode flag
+            let useFallbackMode = false;
+            
+            // Set up Web Speech API for fallback
+            const synth = window.speechSynthesis;
+            const hasSpeechSynthesis = typeof synth !== 'undefined';
+            let voices = [];
+            
+            // Preload voices if speech synthesis is available
+            if (hasSpeechSynthesis) {
+                function loadVoices() {
+                    voices = synth.getVoices();
+                    console.log('Available browser voices:', voices);
+                }
+                
+                if (synth.onvoiceschanged !== undefined) {
+                    synth.onvoiceschanged = loadVoices;
+                }
+                loadVoices();
+            }
+            
             // Verify TTS client is available
             if (!window.ttsClient) {
                 showStatus('error', 'TTS客户端未能正确加载，请刷新页面重试');
@@ -349,14 +370,33 @@
                         }
                     };
                     
-                    // Speak text
-                    await tts.speak(text, options);
-                    
-                    // Enable stop button
-                    stopBtn.disabled = false;
-                    
-                    // Show success message
-                    showStatus('success', '语音生成成功！');
+                    if (useFallbackMode && hasSpeechSynthesis) {
+                        // Use browser's Speech Synthesis API as fallback
+                        useBrowserSpeech(text, options);
+                        showStatus('info', '使用浏览器内置语音功能');
+                    } else {
+                        try {
+                            // Try to use the TTS API
+                            await tts.speak(text, options);
+                            
+                            // Enable stop button
+                            stopBtn.disabled = false;
+                            
+                            // Show success message
+                            showStatus('success', '语音生成成功！');
+                        } catch (ttsError) {
+                            console.error('TTS API error:', ttsError);
+                            
+                            // If TTS API fails and browser Speech Synthesis is available, use it as fallback
+                            if (hasSpeechSynthesis) {
+                                showStatus('warning', 'TTS API 不可用，使用浏览器语音');
+                                useFallbackMode = true;
+                                useBrowserSpeech(text, options);
+                            } else {
+                                throw ttsError;
+                            }
+                        }
+                    }
                 } catch (error) {
                     showStatus('error', `语音生成失败：${error.message}`);
                 } finally {
@@ -366,9 +406,80 @@
                 }
             });
             
+            // Use browser's speech synthesis
+            function useBrowserSpeech(text, options) {
+                if (!hasSpeechSynthesis) {
+                    throw new Error('浏览器不支持语音合成');
+                }
+                
+                // Stop any previous speech
+                synth.cancel();
+                
+                // Create speech utterance
+                const utterance = new SpeechSynthesisUtterance(text);
+                
+                // Set options based on voice selection
+                if (options && options.timber_weights && options.timber_weights.length > 0) {
+                    const voiceId = options.timber_weights[0].voice_id;
+                    
+                    // Set language based on voice selection
+                    let lang = 'zh-CN';
+                    if (voiceId.includes('English')) {
+                        lang = 'en-US';
+                    }
+                    utterance.lang = lang;
+                    
+                    // Try to find a matching voice
+                    let matchingVoice;
+                    if (voiceId.includes('Male') || voiceId.includes('YoungMan')) {
+                        matchingVoice = voices.find(v => 
+                            v.lang.includes(lang.split('-')[0]) && 
+                            (v.name.includes('Male') || !v.name.includes('Female'))
+                        );
+                    } else {
+                        matchingVoice = voices.find(v => 
+                            v.lang.includes(lang.split('-')[0]) && 
+                            v.name.includes('Female')
+                        );
+                    }
+                    
+                    if (matchingVoice) {
+                        utterance.voice = matchingVoice;
+                    }
+                }
+                
+                // Set speed and volume
+                if (options && options.voice_setting) {
+                    utterance.rate = options.voice_setting.speed || 1;
+                    utterance.volume = options.voice_setting.vol || 1;
+                }
+                
+                // Handle speech events
+                utterance.onend = function() {
+                    stopBtn.disabled = true;
+                };
+                
+                utterance.onerror = function(event) {
+                    console.error('Speech synthesis error:', event);
+                    stopBtn.disabled = true;
+                    showStatus('error', `浏览器语音错误: ${event.error || '未知错误'}`);
+                };
+                
+                // Speak
+                synth.speak(utterance);
+                stopBtn.disabled = false;
+            }
+            
             // Stop speech
             stopBtn.addEventListener('click', function() {
-                tts.stop();
+                if (useFallbackMode && hasSpeechSynthesis) {
+                    // Stop browser's speech synthesis
+                    synth.cancel();
+                } else {
+                    // Stop TTS client
+                    tts.stop();
+                }
+                
                 this.disabled = true;
                 showStatus('success', '语音已停止');
             });
@@ -378,6 +489,11 @@
                 const text = textInput.value.trim();
                 if (!text) {
                     showStatus('error', '请输入要转换的文字');
+                    return;
+                }
+                
+                if (useFallbackMode) {
+                    showStatus('warning', '浏览器语音模式下无法下载音频');
                     return;
                 }
                 
@@ -428,13 +544,15 @@
                     
                     if (!response.ok) {
                         console.warn('TTS API endpoint may not be available:', response.status);
-                        showStatus('error', 'TTS API 服务可能不可用，功能可能受限');
+                        showStatus('warning', 'TTS API 服务不可用，将使用浏览器内置语音');
+                        useFallbackMode = true;
                     } else {
                         console.log('TTS API endpoint is available');
                     }
                 } catch (error) {
                     console.error('Error testing TTS API endpoint:', error);
-                    showStatus('error', 'TTS API 连接测试失败，功能可能受限');
+                    showStatus('warning', 'TTS API 连接测试失败，将使用浏览器内置语音');
+                    useFallbackMode = true;
                 }
             }
             
@@ -443,10 +561,12 @@
                 statusMessage.textContent = message;
                 statusMessage.className = `status ${type}`;
                 
-                // Hide after 5 seconds
-                setTimeout(() => {
-                    statusMessage.className = 'status';
-                }, 5000);
+                // Hide after 5 seconds unless it's info type
+                if (type !== 'info') {
+                    setTimeout(() => {
+                        statusMessage.className = 'status';
+                    }, 5000);
+                }
             }
             
             // Helper to disable all controls

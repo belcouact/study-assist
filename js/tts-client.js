@@ -104,6 +104,13 @@ class TTSClient {
       // Get audio blob
       const audioBlob = await this.textToSpeech(text, options);
       
+      // Log blob size for debugging
+      console.log(`Audio blob size: ${audioBlob.size} bytes, type: ${audioBlob.type}`);
+      
+      if (audioBlob.size === 0) {
+        throw new Error("Received empty audio data from server");
+      }
+      
       // Create audio URL with explicit MIME type
       const audioUrl = URL.createObjectURL(audioBlob);
       
@@ -116,26 +123,12 @@ class TTSClient {
       
       // Set up audio element
       this.audioElement.src = audioUrl;
-      
-      // Add event listeners for better debugging
-      this.audioElement.onerror = (error) => {
-        console.error('Audio playback error:', error);
-        URL.revokeObjectURL(audioUrl); // Clean up URL object
-        this.isPlaying = false;
-        throw new Error(`Audio playback error: ${error.message || 'Unknown error'}`);
-      };
-      
-      this.audioElement.onended = () => {
-        this.isPlaying = false;
-        URL.revokeObjectURL(audioUrl); // Clean up URL object
-      };
-      
-      // Set proper MIME type
       this.audioElement.type = 'audio/mpeg';
       
-      // Try to load the audio first
+      // Create a promise to handle audio loading and playback
       return new Promise((resolve, reject) => {
-        this.audioElement.oncanplay = async () => {
+        // Handle successful loading
+        this.audioElement.oncanplaythrough = async () => {
           try {
             // Play audio
             this.isPlaying = true;
@@ -143,16 +136,61 @@ class TTSClient {
             resolve(this.audioElement);
           } catch (error) {
             this.isPlaying = false;
-            reject(error);
+            URL.revokeObjectURL(audioUrl);
+            console.error('Audio play error:', error);
+            reject(new Error(`Failed to play audio: ${error.message || 'Unknown error'}`));
           }
         };
         
+        // Handle loading errors
+        this.audioElement.onerror = (event) => {
+          const error = event.target.error || new Error('Unknown audio error');
+          let errorMessage = 'Unknown audio error';
+          
+          // Get detailed error information
+          if (error.code) {
+            switch(error.code) {
+              case MediaError.MEDIA_ERR_ABORTED:
+                errorMessage = 'You aborted the audio playback';
+                break;
+              case MediaError.MEDIA_ERR_NETWORK:
+                errorMessage = 'A network error caused the audio download to fail';
+                break;
+              case MediaError.MEDIA_ERR_DECODE:
+                errorMessage = 'The audio playback was aborted due to a corruption problem or because the format is not supported';
+                break;
+              case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                errorMessage = 'The audio format is not supported by your browser';
+                break;
+              default:
+                errorMessage = `Error code ${error.code}`;
+            }
+          }
+          
+          console.error('Audio error:', errorMessage, error);
+          URL.revokeObjectURL(audioUrl);
+          this.isPlaying = false;
+          reject(new Error(`Audio error: ${errorMessage}`));
+        };
+        
+        // Handle audio ended gracefully
+        this.audioElement.onended = () => {
+          this.isPlaying = false;
+          URL.revokeObjectURL(audioUrl);
+        };
+        
         // Set timeout for loading
-        setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           if (!this.isPlaying) {
+            URL.revokeObjectURL(audioUrl);
             reject(new Error('Audio failed to load within timeout period'));
           }
-        }, 5000);
+        }, 10000); // 10 second timeout
+        
+        // Clear timeout if loaded
+        this.audioElement.onloadeddata = () => {
+          clearTimeout(timeoutId);
+        };
       });
     } catch (error) {
       console.error('TTS speak error:', error);
