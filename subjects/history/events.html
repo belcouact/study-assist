@@ -612,26 +612,51 @@
             timelineEvents.innerHTML = '';
             periodTimeline.innerHTML = '';
             
-            // Get unique periods
-            const periods = Array.from(new Set(events.map(event => event.PERIOD || '未知时期')))
-                .filter(period => period); // Filter out empty periods
+            // Get unique periods and extract beginning year numbers
+            const periodsMap = new Map();
+            
+            events.forEach(event => {
+                if (!event.PERIOD) return;
+                
+                const period = event.PERIOD;
+                const yearMatch = period.match(/(\d+)/);
+                
+                if (yearMatch) {
+                    const year = parseInt(yearMatch[0], 10);
+                    const isBC = period.includes('前');
+                    const displayYear = isBC ? `前${year}年` : `${year}年`;
+                    
+                    // Use the year as key, but store the full period for data attribute
+                    if (!periodsMap.has(displayYear)) {
+                        periodsMap.set(displayYear, {
+                            fullPeriod: period,
+                            year: isBC ? -year : year // For sorting
+                        });
+                    }
+                }
+            });
+            
+            // Sort periods chronologically
+            const sortedPeriods = Array.from(periodsMap.entries()).sort((a, b) => {
+                return a[1].year - b[1].year;
+            });
             
             // Create period timeline items
-            periods.forEach((period, index) => {
+            sortedPeriods.forEach(([displayYear, periodInfo], index) => {
                 const periodItem = document.createElement('div');
                 periodItem.className = 'timeline-period';
-                periodItem.textContent = period;
-                periodItem.dataset.period = period;
+                periodItem.textContent = displayYear;
+                periodItem.dataset.period = periodInfo.fullPeriod;
                 
                 if (index === 0) {
                     periodItem.classList.add('active');
                 }
                 
                 periodItem.addEventListener('click', () => {
-                    // Scroll to the first event with this period
-                    const targetEvent = document.querySelector(`.event-card[data-period="${period}"]`);
-                    if (targetEvent) {
-                        targetEvent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Find events with this period
+                    const targetEvents = document.querySelectorAll(`.event-card[data-period="${periodInfo.fullPeriod}"]`);
+                    if (targetEvents.length > 0) {
+                        targetEvents[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
                         
                         // Update active period
                         document.querySelectorAll('.timeline-period').forEach(p => p.classList.remove('active'));
@@ -729,11 +754,11 @@
                 }
                 
                 if (visibleCard) {
-                    const periodId = visibleCard.dataset.period;
+                    const fullPeriod = visibleCard.dataset.period;
                     
                     // Highlight the period in the timeline
                     document.querySelectorAll('.timeline-period').forEach(period => {
-                        if (period.dataset.period === periodId) {
+                        if (period.dataset.period === fullPeriod) {
                             period.classList.add('active');
                             
                             // On mobile, ensure the active period is visible
