@@ -389,6 +389,8 @@
                 return;
             }
             
+            console.log('[DEBUG] URL topic parameter:', topic);
+            
             // Topic mapping for display names and query parameters
             const topicMapping = {
                 'ancient': {
@@ -436,6 +438,8 @@
                 return;
             }
             
+            console.log('[DEBUG] Mapped category for topic:', topicInfo.category);
+            
             // Update page header with topic information
             document.getElementById('topic-title').textContent = topicInfo.name;
             document.getElementById('topic-description').textContent = topicInfo.description;
@@ -450,14 +454,21 @@
             try {
                 console.log('[DEBUG] Loading historical events for category:', category);
                 
-                // Create a SQL query to filter by SUB_CATEGORY_1
-                const encodedCategory = encodeURIComponent(category.trim());
-                const sql = `SELECT * FROM world_history WHERE SUB_CATEGORY_1 = '${encodedCategory}'`;
+                // Ensure the category is properly sanitized for SQL
+                // Escape single quotes to prevent SQL injection
+                const sanitizedCategory = category.replace(/'/g, "''");
+                
+                // Fix for encoding issue - don't double encode the category
+                // Use the category directly in the SQL query without encodeURIComponent
+                const sql = `SELECT * FROM world_history WHERE SUB_CATEGORY_1 = '${sanitizedCategory}'`;
+                console.log('[DEBUG] SQL query:', sql);
+                
+                // Only encode the full SQL query in the URL parameters
                 const params = new URLSearchParams({
                     sql: sql
                 });
                 
-                console.log('[DEBUG] SQL query:', sql);
+                console.log('[DEBUG] Request URL:', `/api/db/query/world_history?${params.toString()}`);
                 
                 // Use the proper API request format with SQL query
                 fetch(`/api/db/query/world_history?${params}`)
