@@ -610,12 +610,11 @@
         
         function loadChineseHistoricalEvents(category, subCategory) {
             try {
-                // Ensure the category is properly sanitized for SQL
-                const sanitizedCategory = category.replace(/'/g, "''");
-                const sanitizedSubCategory = subCategory.replace(/'/g, "''");
+                // Log the input parameters for debugging
+                console.log(`Loading Chinese history with category="${category}", subCategory="${subCategory}"`);
                 
-                // Create SQL query for Chinese history events
-                const sql = `SELECT * FROM world_history WHERE CATEGORY='${sanitizedCategory}' AND SUB_CATEGORY_1='${sanitizedSubCategory}'`;
+                // Get all history events and filter client-side for more reliable filtering
+                const sql = `SELECT * FROM world_history`;
                 
                 // Only encode the full SQL query in the URL parameters
                 const params = new URLSearchParams({
@@ -635,23 +634,44 @@
                             throw new Error(data.error || "获取数据失败");
                         }
                         
-                        const events = data.data || [];
+                        const allEvents = data.data || [];
                         
-                        if (events.length === 0) {
-                            showError(`未找到与"${subCategory}"相关的历史事件数据`);
+                        if (allEvents.length === 0) {
+                            showError("未找到任何历史事件数据");
                             return;
                         }
                         
-                        console.log(`已加载${events.length}条中国历史事件`);
+                        console.log(`已加载${allEvents.length}条历史事件数据`);
                         
-                        // Store events globally for later use
-                        window.allHistoricalEvents = events;
+                        // Filter for Chinese modern history events
+                        const filteredEvents = allEvents.filter(event => {
+                            // Case-insensitive comparison for more reliable filtering
+                            const eventCategory = (event.CATEGORY || '').toUpperCase();
+                            const eventSubCategory = (event.SUB_CATEGORY_1 || '').toUpperCase();
+                            const targetCategory = category.toUpperCase();
+                            const targetSubCategory = subCategory.toUpperCase();
+                            
+                            return (
+                                eventCategory.includes(targetCategory) && 
+                                eventSubCategory.includes(targetSubCategory)
+                            );
+                        });
+                        
+                        console.log(`过滤后剩余${filteredEvents.length}条中国近代史事件`);
+                        
+                        if (filteredEvents.length === 0) {
+                            showError(`未找到与中国近代史相关的历史事件数据`);
+                            return;
+                        }
+                        
+                        // Store filtered events globally for later use
+                        window.allHistoricalEvents = filteredEvents;
                         
                         // Sort events chronologically
-                        sortEventsChronologically(events);
+                        sortEventsChronologically(filteredEvents);
                         
-                        // Render all events in a timeline
-                        renderAllEvents(events);
+                        // Render events in timeline
+                        renderAllEvents(filteredEvents);
                     })
                     .catch(error => {
                         console.error("加载历史事件数据时出错:", error);
