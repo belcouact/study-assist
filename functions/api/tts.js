@@ -41,9 +41,10 @@ export async function onRequestPost(context) {
     console.log(`Mapping voice '${requestData.voice}' to MiniMax voice_id: '${voiceId}'`);
     
     // Ensure all parameters match the expected types for MiniMax API
+    // model: speech-02-hd, speech-01
     const payload = {
       text: requestData.text,
-      model: requestData.model || "speech-01",
+      model: "speech-02-hd",
       voice_id: voiceId,
       speed: Number(requestData.speed || 1.0),
       vol: Number(requestData.volume || 1.0),
@@ -178,25 +179,16 @@ export function onRequestGet() {
     message: "This is the TTS API endpoint. Please make a POST request with text data to convert to speech.",
     example: {
       "text": "人工智能不是要替代人类，而是要增强人类的能力。",
-      "model": "speech-01",
       "voice": "Chinese (Mandarin)_Male_Announcer",
       "speed": 1.0,
       "pitch": 0,
       "volume": 1.0
     },
-    supported_models: {
-      "speech-01": "Standard high-quality TTS model",
-      "speech-01-turbo": "Faster model with slightly lower quality"
-    },
     supported_voices: {
       "Chinese (Mandarin)_Male_Announcer": "Male voice with professional announcer tone",
-      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone",
-      "English_ReservedYoungMan": "English male voice with reserved tone",
-      "English_Wiselady": "English female voice with wisdom tone",
-      "Japanese_Male": "Japanese male voice",
-      "Japanese_Female": "Japanese female voice",
-      "Korean_Male": "Korean male voice",
-      "Korean_Female": "Korean female voice"
+      "Chinese (Mandarin)_Female_Announcer": "Female voice with professional announcer tone",
+      "Chinese (Mandarin)_Male_Friendly": "Male voice with friendly, natural tone",
+      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone"
     }
   }), {
     headers: {
