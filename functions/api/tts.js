@@ -1,233 +1,164 @@
 // Handle text-to-speech requests to MiniMax API
 export async function onRequestPost(context) {
+  // CORS headers for all responses
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  };
+
+  // Check for required credentials
+  const GROUP_ID = context.env.MINIMAX_GROUP_ID;
+  const API_KEY = context.env.MINIMAX_API_KEY;
+  
+  if (!GROUP_ID || !API_KEY) {
+    console.error("Missing required MiniMax API credentials");
+    return new Response(JSON.stringify({
+      error: "Server configuration error: Missing API credentials"
+    }), {
+      status: 500,
+      headers: corsHeaders
+    });
+  }
+
   try {
-    const { request, env } = context;
+    // Parse request body
+    const requestData = await context.request.json();
     
-    // Get API credentials from environment variables
-    const groupId = env.MINIMAX_GROUP_ID;
-    const apiKey = env.MINIMAX_API_KEY;
-    
-    if (!groupId || !apiKey) {
-      return new Response(JSON.stringify({ 
-        error: "MiniMax API credentials not configured",
-        troubleshooting_tips: [
-          "Set the MINIMAX_GROUP_ID and MINIMAX_API_KEY environment variables in your Cloudflare Pages dashboard",
-          "Make sure the API credentials are correct and have not expired"
-        ]
-      }), {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-      });
-    }
-    
-    // Get request body
-    let body;
-    try {
-      body = await request.json();
-    } catch (e) {
-      return new Response(JSON.stringify({ 
-        error: "Invalid JSON in request body",
-        message: e.message,
-        troubleshooting_tips: [
-          "Check that your request includes a valid JSON body",
-          "Verify the Content-Type header is set to application/json"
-        ]
-      }), {
-        status: 400,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
-      });
-    }
-    
-    // Validate the input text
-    if (!body.text || typeof body.text !== 'string' || body.text.trim() === '') {
+    // Validate required fields
+    if (!requestData.text) {
       return new Response(JSON.stringify({
-        error: "Missing or invalid text input",
-        troubleshooting_tips: [
-          "Ensure you provide a non-empty 'text' field in your request"
-        ]
+        error: "Missing required 'text' field"
       }), {
         status: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization"
-        }
+        headers: corsHeaders
       });
     }
     
-    // Prepare the request to MiniMax API
-    const requestBody = {
-      "model": body.model || "speech-02-hd",
-      "text": body.text,
-      "timber_weights": body.timber_weights || [
-        {
-          "voice_id": body.voice || "Chinese (Mandarin)_Male_Announcer",
-          "weight": 1
-        }
-      ],
-      "voice_setting": body.voice_setting || {
-        "voice_id": "",
-        "speed": body.speed || 1,
-        "pitch": body.pitch || 0,
-        "vol": body.volume || 1,
-        "latex_read": false
-      },
-      "audio_setting": body.audio_setting || {
-        "sample_rate": 32000,
-        "bitrate": 128000,
-        "format": "mp3"
-      },
-      "language_boost": body.language_boost || "auto"
+    // Prepare request data for MiniMax API
+    const payload = {
+      text: requestData.text,
+      model: "speech-01",
+      voice_id: requestData.voice || "male-qn-qingse",
+      speed: requestData.speed || 1.0,
+      vol: requestData.volume || 1.0,
+      pitch: requestData.pitch || 0.0,
+      bitrate: "320k"
     };
     
-    // Create an AbortController with a 60-second timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 60000); // 60 seconds timeout
+    // Log request to MiniMax API
+    console.log(`Sending TTS request to MiniMax API for text: "${payload.text.substring(0, 30)}${payload.text.length > 30 ? '...' : ''}"`);
     
-    try {
-      // Forward request to MiniMax API
-      const response = await fetch(`https://api.minimax.chat/v1/t2a_v2?GroupId=${groupId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal
-      });
-      
-      // Clear the timeout
-      clearTimeout(timeoutId);
-      
-      // Check if response is OK
-      if (!response.ok) {
-        let errorResponse;
-        
-        try {
-          errorResponse = await response.json();
-        } catch {
-          errorResponse = { message: await response.text() };
-        }
-        
-        return new Response(JSON.stringify({
-          error: "API request failed",
-          status: response.status,
-          statusText: response.statusText,
-          apiError: errorResponse,
-          troubleshooting_tips: [
-            "Check your API key and group ID are valid",
-            "Verify the request format is correct",
-            "The MiniMax TTS service might be experiencing issues"
-          ]
-        }), {
-          status: response.status,
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-          }
-        });
-      }
-      
-      // Return the successful response directly with proper headers
-      // This preserves the binary audio data or JSON response from MiniMax
-      const contentType = response.headers.get("Content-Type");
-      
-      return new Response(response.body, {
-        headers: {
-          "Content-Type": contentType,
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization",
-          "Cache-Control": "public, max-age=86400" // Cache audio for 24 hours
-        }
-      });
-    } catch (error) {
-      // Clear the timeout if it's still active
-      clearTimeout(timeoutId);
-      
-      // Check if this was a timeout error
-      if (error.name === 'AbortError') {
-        return new Response(JSON.stringify({ 
-          error: "Request timeout",
-          message: "The request to the MiniMax API timed out after 60 seconds",
-          troubleshooting_tips: [
-            "The MiniMax service might be experiencing high load",
-            "Try again later or with shorter text",
-            "Verify that your API credentials have the correct permissions"
-          ]
-        }), {
-          status: 504, // Gateway Timeout
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-          }
-        });
-      }
-      
-      return new Response(JSON.stringify({ 
-        error: "Server error processing request",
-        message: error.message,
-        troubleshooting_tips: [
-          "This is likely a bug in the serverless function",
-          "Check the Cloudflare Pages function logs for more details",
-          "Verify that all environment variables are set correctly"
-        ]
+    // Call MiniMax API
+    const miniMaxUrl = `https://api.minimax.chat/v1/text_to_speech?GroupId=${GROUP_ID}`;
+    const response = await fetch(miniMaxUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    // Check response status
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`MiniMax API error (${response.status}): ${errorText}`);
+      return new Response(JSON.stringify({
+        error: `MiniMax API returned ${response.status}`,
+        details: errorText
       }), {
-        status: 500,
-        headers: { 
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        status: response.status,
+        headers: corsHeaders
+      });
+    }
+    
+    // Check content type
+    const contentType = response.headers.get('Content-Type') || '';
+    console.log(`MiniMax API responded with Content-Type: ${contentType}`);
+    
+    // Handle response based on content type
+    if (contentType.includes('application/json')) {
+      const jsonResponse = await response.json();
+      
+      if (jsonResponse.audio_base64) {
+        // Convert base64 to binary data
+        const binaryString = atob(jsonResponse.audio_base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        console.log(`Returning audio data (${bytes.length} bytes)`);
+        
+        // Return audio data with appropriate headers
+        return new Response(bytes, {
+          headers: {
+            'Content-Type': 'audio/mp3',
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
+        });
+      } else {
+        // Return JSON response if no audio data found
+        return new Response(JSON.stringify(jsonResponse), {
+          headers: corsHeaders
+        });
+      }
+    } else {
+      // Assume binary audio data from response
+      const audioData = await response.arrayBuffer();
+      
+      // Check if we have data
+      if (audioData.byteLength === 0) {
+        return new Response(JSON.stringify({
+          error: "Received empty audio data from MiniMax API",
+          tip: "Check API credentials and request parameters"
+        }), {
+          status: 500,
+          headers: corsHeaders
+        });
+      }
+      
+      console.log(`Returning binary audio data (${audioData.byteLength} bytes)`);
+      
+      // Return binary data with appropriate headers
+      return new Response(audioData, {
+        headers: {
+          'Content-Type': 'audio/mp3',
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization'
         }
       });
     }
   } catch (error) {
-    return new Response(JSON.stringify({ 
-      error: "Unexpected server error",
-      message: error.message,
-      troubleshooting_tips: [
-        "This is an unexpected error in the serverless function",
-        "Please report this issue to the developer"
-      ]
+    console.error(`Error processing TTS request: ${error.message}`);
+    return new Response(JSON.stringify({
+      error: "Internal server error",
+      message: error.message
     }), {
       status: 500,
-      headers: { 
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization"
-      }
+      headers: corsHeaders
     });
   }
 }
 
-// Handle OPTIONS requests for CORS
-export function onRequestOptions() {
+// Handle OPTIONS requests for CORS preflight
+export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Max-Age": "86400"
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400'
     }
   });
 }

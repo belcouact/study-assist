@@ -112,6 +112,24 @@
             color: #1565c0;
             display: block;
         }
+        .audio-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        .audio-actions button {
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 4px;
+            width: auto;
+        }
+        .btn-download {
+            background-color: #28a745;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
@@ -153,6 +171,11 @@
         
         <div class="audio-container" id="audio-container">
             <audio id="audio-player" controls style="width: 100%"></audio>
+            <div class="audio-actions">
+                <button id="download-btn" class="btn-download">
+                    <i class="fas fa-download"></i> 下载音频
+                </button>
+            </div>
         </div>
     </div>
 
@@ -167,7 +190,11 @@
         const generateBtn = document.getElementById('generate-btn');
         const audioContainer = document.getElementById('audio-container');
         const audioPlayer = document.getElementById('audio-player');
+        const downloadBtn = document.getElementById('download-btn');
         const status = document.getElementById('status');
+        
+        // Store audio blob for download
+        let currentAudioBlob = null;
         
         // Update displayed values
         speedControl.addEventListener('input', () => {
@@ -202,6 +229,8 @@
                     volume: 1
                 };
                 
+                console.log('Sending TTS request:', requestData);
+                
                 // Call the TTS API
                 const response = await fetch('/api/tts', {
                     method: 'POST',
@@ -211,31 +240,90 @@
                     body: JSON.stringify(requestData)
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response type:', response.headers.get('Content-Type'));
+                
                 if (!response.ok) {
                     // Try to parse error message
                     let errorMessage = '语音生成失败';
                     try {
                         const errorData = await response.json();
                         errorMessage = errorData.error || errorMessage;
+                        console.error('API Error:', errorData);
                     } catch (e) {
                         // If we can't parse JSON, use status text
                         errorMessage = `语音生成失败: ${response.status} ${response.statusText}`;
+                        console.error('Failed to parse error response:', e);
                     }
                     throw new Error(errorMessage);
                 }
                 
-                // Get the audio data and create blob URL
-                const audioData = await response.arrayBuffer();
-                const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
-                const audioUrl = URL.createObjectURL(audioBlob);
+                // Check content type to handle response appropriately
+                const contentType = response.headers.get('Content-Type') || '';
                 
-                // Update audio player and show it
-                audioPlayer.src = audioUrl;
-                audioContainer.classList.add('visible');
-                clearStatus();
+                if (contentType.includes('application/json')) {
+                    // If we got JSON instead of audio, it might be an API error response
+                    const jsonData = await response.json();
+                    console.log('Received JSON response:', jsonData);
+                    
+                    if (jsonData.error) {
+                        throw new Error(jsonData.error);
+                    }
+                    
+                    if (jsonData.audio_base64) {
+                        // Handle base64 encoded audio if the API returns it that way
+                        const base64 = jsonData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+                        const audioBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                        const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        
+                        // Store the blob for download
+                        currentAudioBlob = audioBlob;
+                        
+                        // Update audio player and show it
+                        audioPlayer.src = audioUrl;
+                        audioContainer.classList.add('visible');
+                        clearStatus();
+                        
+                        // Play the audio
+                        audioPlayer.play().catch(e => {
+                            console.error('Audio playback error:', e);
+                            showError('音频播放失败');
+                        });
+                        return;
+                    }
+                }
                 
-                // Play the audio
-                audioPlayer.play();
+                // Handle binary audio data (default case)
+                try {
+                    // Get the audio data and create blob URL
+                    const audioData = await response.arrayBuffer();
+                    console.log('Received audio data bytes:', audioData.byteLength);
+                    
+                    if (audioData.byteLength === 0) {
+                        throw new Error('收到的音频数据为空');
+                    }
+                    
+                    const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Store the blob for download
+                    currentAudioBlob = audioBlob;
+                    
+                    // Update audio player and show it
+                    audioPlayer.src = audioUrl;
+                    audioContainer.classList.add('visible');
+                    clearStatus();
+                    
+                    // Try to play the audio (with error handling)
+                    audioPlayer.play().catch(e => {
+                        console.error('Audio playback error:', e);
+                        showError('音频播放失败：' + e.message);
+                    });
+                } catch (e) {
+                    console.error('Audio processing error:', e);
+                    throw new Error('音频处理失败：' + e.message);
+                }
                 
             } catch (error) {
                 console.error('TTS Error:', error);
@@ -244,6 +332,28 @@
                 // Re-enable button
                 generateBtn.disabled = false;
             }
+        });
+        
+        // Download button handler
+        downloadBtn.addEventListener('click', () => {
+            if (!currentAudioBlob) {
+                showError('没有可下载的音频');
+                return;
+            }
+            
+            // Create a download link
+            const downloadUrl = URL.createObjectURL(currentAudioBlob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = `tts-${new Date().toISOString().slice(0,10)}.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(downloadUrl);
+            }, 100);
         });
         
         // Helper functions
