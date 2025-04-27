@@ -63,68 +63,6 @@
             margin: 15px 0;
         }
         
-        /* Filter Controls */
-        .filter-controls {
-            margin: 30px auto;
-            max-width: 800px;
-            background: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: var(--card-shadow);
-        }
-        
-        .filter-title {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            color: var(--text-dark);
-        }
-        
-        .filter-options {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .filter-button {
-            padding: 8px 15px;
-            background: #f0f4f8;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.3s ease;
-        }
-        
-        .filter-button:hover {
-            background: rgba(67, 97, 238, 0.1);
-        }
-        
-        .filter-button.active {
-            background: var(--primary-color);
-            color: white;
-        }
-        
-        .search-box {
-            margin-top: 15px;
-            position: relative;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 12px 15px 12px 40px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 1rem;
-        }
-        
-        .search-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-light);
-        }
-        
         /* Timeline Visualization Styles */
         .timeline-wrapper {
             position: relative;
@@ -545,11 +483,8 @@
                         // Sort events chronologically
                         sortEventsChronologically(events);
                         
-                        // Render filter controls first to show all events by topic
-                        renderFilterControls(events);
-                        
-                        // Only show search results initially, not all events
-                        renderEventBrowser(events);
+                        // Render all events in a timeline (not grouped by era)
+                        renderAllEvents(events);
                         
                     })
                     .catch(error => {
@@ -594,181 +529,34 @@
             });
         }
         
-        function renderFilterControls(events) {
-            const topicHeader = document.querySelector('.topic-header');
-            
-            // Create filter container
-            const filterControls = document.createElement('div');
-            filterControls.className = 'filter-controls';
-            filterControls.innerHTML = `
-                <h3 class="filter-title">按类型筛选历史事件</h3>
-                <div class="filter-options" id="filter-options">
-                    <!-- Filter buttons will go here -->
-                </div>
-                <div class="search-box">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="event-search" class="search-input" placeholder="搜索历史事件..." />
-                </div>
-            `;
-            
-            // Insert after topic header
-            topicHeader.after(filterControls);
-            
-            // Get unique regions/types from events
-            const uniqueRegions = [...new Set(events.filter(e => e.REGION).map(e => e.REGION))];
-            
-            // Add filter buttons
-            const filterOptions = document.getElementById('filter-options');
-            
-            // Add "All" button
-            const allButton = document.createElement('button');
-            allButton.className = 'filter-button active';
-            allButton.textContent = '全部';
-            allButton.dataset.filter = 'all';
-            filterOptions.appendChild(allButton);
-            
-            // Add region buttons
-            uniqueRegions.forEach(region => {
-                const button = document.createElement('button');
-                button.className = 'filter-button';
-                button.textContent = region;
-                button.dataset.filter = region;
-                filterOptions.appendChild(button);
-            });
-            
-            // Add filter click handlers
-            document.querySelectorAll('.filter-button').forEach(button => {
-                button.addEventListener('click', function() {
-                    // Remove active class from all buttons
-                    document.querySelectorAll('.filter-button').forEach(b => b.classList.remove('active'));
-                    
-                    // Add active class to clicked button
-                    this.classList.add('active');
-                    
-                    // Filter events
-                    const filter = this.dataset.filter;
-                    let filteredEvents;
-                    
-                    if (filter === 'all') {
-                        filteredEvents = window.allHistoricalEvents;
-                    } else {
-                        filteredEvents = window.allHistoricalEvents.filter(event => event.REGION === filter);
-                    }
-                    
-                    // Apply any active search filter
-                    const searchText = document.getElementById('event-search').value.toLowerCase();
-                    if (searchText) {
-                        filteredEvents = filterEventsBySearch(filteredEvents, searchText);
-                    }
-                    
-                    // Render filtered events
-                    renderEventBrowser(filteredEvents);
-                });
-            });
-            
-            // Add search handler
-            const searchInput = document.getElementById('event-search');
-            searchInput.addEventListener('input', function() {
-                const searchText = this.value.toLowerCase();
-                
-                // Get current active filter
-                const activeFilter = document.querySelector('.filter-button.active').dataset.filter;
-                let filteredEvents;
-                
-                if (activeFilter === 'all') {
-                    filteredEvents = window.allHistoricalEvents;
-                } else {
-                    filteredEvents = window.allHistoricalEvents.filter(event => event.REGION === activeFilter);
-                }
-                
-                // Apply search filter
-                if (searchText) {
-                    filteredEvents = filterEventsBySearch(filteredEvents, searchText);
-                }
-                
-                // Render filtered events
-                renderEventBrowser(filteredEvents);
-            });
-        }
-        
-        function filterEventsBySearch(events, searchText) {
-            return events.filter(event => {
-                const eventText = `${event.TITLE} ${event.PERIOD} ${event.BACKGROUND} ${event.EVENT} ${event.IMPACT} ${event.REGION}`.toLowerCase();
-                return eventText.includes(searchText);
-            });
-        }
-        
-        function renderEventBrowser(events) {
+        function renderAllEvents(events) {
             const timelineEvents = document.getElementById('timeline-events');
             
             // Clear any existing content
             timelineEvents.innerHTML = '';
             
-            // Create container for event browser
-            const browserContainer = document.createElement('div');
-            browserContainer.className = 'events-browser-container';
+            // Create container for all events
+            const eventsContainer = document.createElement('div');
+            eventsContainer.className = 'all-events-container';
             
-            // Create grid for event cards
-            const eventsGrid = document.createElement('div');
-            eventsGrid.className = 'events-grid';
-            eventsGrid.style.display = 'grid';
-            eventsGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(300px, 1fr))';
-            eventsGrid.style.gap = '20px';
-            eventsGrid.style.marginBottom = '40px';
-            
-            // Add compact event cards
+            // Add all events directly to the timeline without era grouping
             events.forEach(event => {
-                const eventCard = document.createElement('div');
-                eventCard.className = 'event-card';
-                eventCard.style.margin = '0';
-                eventCard.style.cursor = 'pointer';
-                
-                eventCard.innerHTML = `
-                    <div class="event-header">
-                        <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
-                        <span class="event-period">${event.PERIOD || '未知时期'}</span>
-                    </div>
-                    <div class="event-content" style="padding: 15px 20px;">
-                        <p>${event.EVENT ? event.EVENT.substring(0, 100) + '...' : '暂无详情'}</p>
-                        ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
-                    </div>
-                `;
-                
-                // Add click handler to show full event details
-                eventCard.addEventListener('click', function() {
-                    showEventDetails(event);
-                });
-                
-                eventsGrid.appendChild(eventCard);
+                const eventCard = createEventCard(event);
+                eventsContainer.appendChild(eventCard);
             });
             
-            browserContainer.appendChild(eventsGrid);
-            
-            // If no events match filter
-            if (events.length === 0) {
-                browserContainer.innerHTML = `
-                    <div class="no-events-message" style="text-align: center; padding: 40px 20px;">
-                        <i class="fas fa-search" style="font-size: 2rem; color: var(--text-light); margin-bottom: 15px;"></i>
-                        <p>未找到匹配的历史事件。请尝试其他搜索条件。</p>
-                    </div>
-                `;
-            }
-            
-            timelineEvents.appendChild(browserContainer);
-            
-            // Add detailed event view container (initially hidden)
-            const detailsContainer = document.createElement('div');
-            detailsContainer.id = 'event-details-container';
-            detailsContainer.className = 'event-details-container';
-            detailsContainer.style.display = 'none';
-            
-            timelineEvents.appendChild(detailsContainer);
+            timelineEvents.appendChild(eventsContainer);
             
             // Add related events container (initially hidden)
             const relatedEventsContainer = document.createElement('div');
             relatedEventsContainer.id = 'related-events-container';
             relatedEventsContainer.className = 'related-events-container';
-            relatedEventsContainer.style.display = 'none';
+            relatedEventsContainer.innerHTML = `
+                <div class="related-events-header">
+                    <h3 class="related-events-title">相关历史事件</h3>
+                </div>
+                <div id="related-events-list" class="related-events-list"></div>
+            `;
             
             timelineEvents.appendChild(relatedEventsContainer);
             
@@ -778,61 +566,38 @@
             
             // Initialize animations
             initAnimations();
+            
+            // Add event listeners for cards
+            addEventCardListeners();
         }
         
-        function showEventDetails(event) {
-            const detailsContainer = document.getElementById('event-details-container');
-            const browserContainer = document.querySelector('.events-browser-container');
-            
-            // Hide browser view and show details view
-            browserContainer.style.display = 'none';
-            detailsContainer.style.display = 'block';
-            
-            // Create detailed event card
-            detailsContainer.innerHTML = `
-                <div class="event-navigation" style="margin-bottom: 20px;">
-                    <button id="back-to-browser" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left" style="margin-right: 5px;"></i> 返回事件列表
-                    </button>
-                </div>
-                <div class="event-card detailed">
-                    <div class="event-header">
-                        <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
-                        <span class="event-period">${event.PERIOD || '未知时期'}</span>
-                    </div>
-                    <div class="event-content">
-                        <div class="event-main">
-                            <div class="event-description">
-                                ${event.BACKGROUND ? `<p>${event.BACKGROUND}</p>` : ''}
-                                ${event.EVENT ? `<p>${event.EVENT}</p>` : ''}
-                            </div>
-                            <div class="event-impact">
-                                <h4 class="impact-title">历史影响</h4>
-                                <p>${event.IMPACT || '暂无影响信息'}</p>
-                            </div>
-                            ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            // Add back button handler
-            document.getElementById('back-to-browser').addEventListener('click', function() {
-                detailsContainer.style.display = 'none';
-                browserContainer.style.display = 'block';
-                
-                // Also hide related events container
-                document.getElementById('related-events-container').style.display = 'none';
-            });
-            
-            // Find and display related events
-            const relatedEvents = findRelatedEvents(event);
-            displayRelatedEvents(relatedEvents);
-            
-            // Scroll to top of details
-            window.scrollTo({
-                top: detailsContainer.offsetTop - 100,
-                behavior: 'smooth'
+        function addEventCardListeners() {
+            document.querySelectorAll('.event-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    // Remove active class from all cards
+                    document.querySelectorAll('.event-card').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    // Add active class to clicked card
+                    this.classList.add('active');
+                    
+                    // Get event data from the card's dataset
+                    const eventTitle = this.querySelector('.event-title').textContent;
+                    const eventPeriod = this.querySelector('.event-period').textContent;
+                    
+                    // Find the current event from all events
+                    const currentEvent = window.allHistoricalEvents.find(event => 
+                        event.TITLE === eventTitle && event.PERIOD === eventPeriod);
+                    
+                    if (currentEvent) {
+                        // Find related events
+                        const relatedEvents = findRelatedEvents(currentEvent);
+                        
+                        // Display related events
+                        displayRelatedEvents(relatedEvents);
+                    }
+                });
             });
         }
         
@@ -907,21 +672,16 @@
         
         function displayRelatedEvents(relatedEvents) {
             const relatedEventsContainer = document.getElementById('related-events-container');
+            const relatedEventsList = document.getElementById('related-events-list');
+            
+            // Clear existing related events
+            relatedEventsList.innerHTML = '';
             
             if (relatedEvents.length === 0) {
-                relatedEventsContainer.style.display = 'none';
+                // Hide container if no related events
+                relatedEventsContainer.classList.remove('visible');
                 return;
             }
-            
-            // Create related events content
-            relatedEventsContainer.innerHTML = `
-                <div class="related-events-header">
-                    <h3 class="related-events-title">相关历史事件</h3>
-                </div>
-                <div id="related-events-list" class="related-events-list"></div>
-            `;
-            
-            const relatedEventsList = document.getElementById('related-events-list');
             
             // Create and add related event cards
             relatedEvents.forEach(event => {
@@ -938,14 +698,49 @@
                 
                 // Add click handler to navigate to the related event
                 card.addEventListener('click', () => {
-                    showEventDetails(event);
+                    // Find and click the corresponding main event card
+                    document.querySelectorAll('.event-card').forEach(mainCard => {
+                        const mainCardTitle = mainCard.querySelector('.event-title').textContent;
+                        if (mainCardTitle === event.TITLE) {
+                            mainCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(() => mainCard.click(), 500);
+                        }
+                    });
                 });
                 
                 relatedEventsList.appendChild(card);
             });
             
             // Show the related events container
-            relatedEventsContainer.style.display = 'block';
+            relatedEventsContainer.classList.add('visible');
+        }
+        
+        function createEventCard(event) {
+            const card = document.createElement('div');
+            card.className = 'event-card';
+            
+            const content = `
+                <div class="event-header">
+                    <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
+                    <span class="event-period">${event.PERIOD || '未知时期'}</span>
+                </div>
+                <div class="event-content">
+                    <div class="event-main">
+                        <div class="event-description">
+                            ${event.BACKGROUND ? `<p>${event.BACKGROUND}</p>` : ''}
+                            ${event.EVENT ? `<p>${event.EVENT}</p>` : ''}
+                        </div>
+                        <div class="event-impact">
+                            <h4 class="impact-title">历史影响</h4>
+                            <p>${event.IMPACT || '暂无影响信息'}</p>
+                        </div>
+                        ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
+                    </div>
+                </div>
+            `;
+            
+            card.innerHTML = content;
+            return card;
         }
         
         function initAnimations() {
