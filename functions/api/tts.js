@@ -100,7 +100,21 @@ export async function onRequestPost(context) {
       const jsonResponse = await response.json();
       console.log(`Received JSON response:`, jsonResponse);
       
-      if (jsonResponse.audio_base64) {
+      // Process newer t2a_v2 API response format
+      if (jsonResponse.data && jsonResponse.data.audio) {
+        // Extract the audio data and convert to base64 for client compatibility
+        const audioBase64 = jsonResponse.data.audio;
+        
+        // Return a modified response with audio_base64 field for backward compatibility
+        return new Response(JSON.stringify({
+          audio_base64: audioBase64,
+          original_response: jsonResponse
+        }), {
+          headers: corsHeaders
+        });
+      } 
+      // Legacy format with audio_base64
+      else if (jsonResponse.audio_base64) {
         // Convert base64 to binary data
         const binaryString = atob(jsonResponse.audio_base64);
         const len = binaryString.length;
@@ -122,32 +136,38 @@ export async function onRequestPost(context) {
             'Access-Control-Allow-Headers': 'Content-Type, Authorization'
           }
         });
-      } else if (jsonResponse.audio_file) {
-        // If the API returns a URL to an audio file
-        console.log(`Audio file URL received: ${jsonResponse.audio_file}`);
+      } 
+      // Handle audio_file URLs
+      else if (jsonResponse.audio_file || (jsonResponse.data && jsonResponse.data.audio_file)) {
+        const audioFileUrl = jsonResponse.audio_file || (jsonResponse.data && jsonResponse.data.audio_file);
         
-        // Fetch the audio file
-        const audioFileResponse = await fetch(jsonResponse.audio_file);
-        const audioData = await audioFileResponse.arrayBuffer();
-        
-        console.log(`Returning audio file data (${audioData.byteLength} bytes)`);
-        
-        // Return audio data with appropriate headers
-        return new Response(audioData, {
-          headers: {
-            'Content-Type': 'audio/mp3',
-            'Cache-Control': 'public, max-age=86400',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-          }
-        });
-      } else {
-        // Return JSON response if no audio data found
-        return new Response(JSON.stringify(jsonResponse), {
-          headers: corsHeaders
-        });
+        if (audioFileUrl) {
+          // If the API returns a URL to an audio file
+          console.log(`Audio file URL received: ${audioFileUrl}`);
+          
+          // Fetch the audio file
+          const audioFileResponse = await fetch(audioFileUrl);
+          const audioData = await audioFileResponse.arrayBuffer();
+          
+          console.log(`Returning audio file data (${audioData.byteLength} bytes)`);
+          
+          // Return audio data with appropriate headers
+          return new Response(audioData, {
+            headers: {
+              'Content-Type': 'audio/mp3',
+              'Cache-Control': 'public, max-age=86400',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+            }
+          });
+        }
       }
+      
+      // Pass through any other JSON responses
+      return new Response(JSON.stringify(jsonResponse), {
+        headers: corsHeaders
+      });
     } else {
       // Assume binary audio data from response
       const audioData = await response.arrayBuffer();
