@@ -36,20 +36,27 @@ export async function onRequestPost(context) {
       });
     }
     
-    // Prepare request data for MiniMax API
+    // Get voice ID from the mapping function
     const voiceId = getMiniMaxVoiceId(requestData.voice);
     console.log(`Mapping voice '${requestData.voice}' to MiniMax voice_id: '${voiceId}'`);
     
-    // Ensure all parameters match the expected types for MiniMax API
-    // model: speech-02-hd, speech-01
+    // Using the newer API structure for t2a_v2 endpoint
     const payload = {
+      model: requestData.model || "speech-02-turbo", // Use model from request or default to turbo
       text: requestData.text,
-      model: "speech-02-hd",
-      voice_id: voiceId,
-      speed: Number(requestData.speed || 1.0),
-      vol: Number(requestData.volume || 1.0),
-      pitch: Number(requestData.pitch || 0)
-      // Remove problematic parameters
+      stream: false,
+      language_boost: "auto",
+      voice_setting: {
+        voice_id: voiceId,
+        speed: Number(requestData.speed || 1.0),
+        vol: Number(requestData.volume || 1.0),
+        pitch: Number(requestData.pitch || 0)
+      },
+      audio_setting: {
+        sample_rate: 32000,
+        bitrate: 128000,
+        format: "mp3"
+      }
     };
     
     // Debug the final JSON structure
@@ -59,8 +66,8 @@ export async function onRequestPost(context) {
     // Log request to MiniMax API
     console.log(`Sending TTS request to MiniMax API for text: "${payload.text.substring(0, 30)}${payload.text.length > 30 ? '...' : ''}"`);
     
-    // Call MiniMax API
-    const miniMaxUrl = `https://api.minimax.chat/v1/text_to_speech?GroupId=${GROUP_ID}`;
+    // Call MiniMax API with the new endpoint
+    const miniMaxUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
     
     const response = await fetch(miniMaxUrl, {
       method: 'POST',
@@ -91,6 +98,7 @@ export async function onRequestPost(context) {
     // Handle response based on content type
     if (contentType.includes('application/json')) {
       const jsonResponse = await response.json();
+      console.log(`Received JSON response:`, jsonResponse);
       
       if (jsonResponse.audio_base64) {
         // Convert base64 to binary data
@@ -106,6 +114,26 @@ export async function onRequestPost(context) {
         
         // Return audio data with appropriate headers
         return new Response(bytes, {
+          headers: {
+            'Content-Type': 'audio/mp3',
+            'Cache-Control': 'public, max-age=86400',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
+        });
+      } else if (jsonResponse.audio_file) {
+        // If the API returns a URL to an audio file
+        console.log(`Audio file URL received: ${jsonResponse.audio_file}`);
+        
+        // Fetch the audio file
+        const audioFileResponse = await fetch(jsonResponse.audio_file);
+        const audioData = await audioFileResponse.arrayBuffer();
+        
+        console.log(`Returning audio file data (${audioData.byteLength} bytes)`);
+        
+        // Return audio data with appropriate headers
+        return new Response(audioData, {
           headers: {
             'Content-Type': 'audio/mp3',
             'Cache-Control': 'public, max-age=86400',
@@ -180,16 +208,25 @@ export function onRequestGet() {
     example: {
       "text": "人工智能不是要替代人类，而是要增强人类的能力。",
       "voice": "Chinese (Mandarin)_Male_Announcer",
+      "model": "speech-02-turbo",
       "speed": 1.0,
       "pitch": 0,
       "volume": 1.0
     },
     supported_voices: {
       "Chinese (Mandarin)_Male_Announcer": "Male voice with professional announcer tone",
-      "Chinese (Mandarin)_Female_Announcer": "Female voice with professional announcer tone",
-      "Chinese (Mandarin)_Male_Friendly": "Male voice with friendly, natural tone",
-      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone"
-    }
+      "Chinese (Mandarin)_Female_Friendly": "Female voice with friendly, natural tone",
+      "English_ReservedYoungMan": "English male voice with reserved tone",
+      "English_Wiselady": "English female voice with wise, mature tone",
+      "Japanese_Male": "Japanese male voice",
+      "Korean_Female": "Korean female voice"
+    },
+    models: {
+      "speech-02-turbo": "Recommended: Fast, high-quality speech synthesis",
+      "speech-02-hd": "Premium quality with better emotional expression (higher latency)"
+    },
+    api_endpoint: "POST /api/tts",
+    documentation: "Using MiniMax T2A v2 API"
   }), {
     headers: {
       "Content-Type": "application/json",
