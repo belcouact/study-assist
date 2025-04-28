@@ -179,47 +179,32 @@ export async function onRequestPost(context) {
         console.log('检测到多种情绪表达，应用句子级情感处理');
         
         try {
-          // 尝试通过SSML增强创建具有多种情绪效果的语音
-          let newText = '';
-          let processedText = false;
-          
-          // MiniMax API 可能支持简单的SSML标记
-          // 注意：如果API不支持这些标记，它们会被忽略或被当作普通文本
-          requestData.sentence_analysis.forEach(sentence => {
-            // 规范化参数，确保它们在有效范围内
-            const speed = Math.max(0.5, Math.min(2.0, Number(sentence.speed) || 1.0));
-            const pitch = Math.round(Math.max(-1, Math.min(1, Number(sentence.pitch) || 0)));
-            const volume = Math.max(0.1, Math.min(2.0, Number(sentence.volume) || 1.0));
-            
-            // 尝试使用伪SSML标记添加句子级别调整
-            // 注意：这些标记可能不被所有TTS引擎支持
-            newText += `<prosody rate="${speed}" pitch="${pitch}" volume="${volume}">`;
-            newText += sentence.text;
-            newText += '</prosody>\n';
-            
-            processedText = true;
-          });
-          
-          if (processedText) {
-            // 将修改后的文本发送到TTS服务
-            console.log('应用句子级SSML标记处理后的文本');
-            
-            // 一些API可能不支持SSML，可以尝试发送，如果失败可以回退到原始文本
-            try {
-              payload.text = newText;
-              payload.ssml_enabled = true; // 提示API这是SSML格式的文本
-            } catch (error) {
-              console.error('SSML处理失败，回退到原始文本：', error);
-              payload.text = requestData.text; // 回退到原始文本
+          // 使用MiniMax API的高级功能来设置每个句子的情感，而不是通过SSML标记
+          // 创建一个句子数组，每个句子只包含原文，而参数通过元数据传递
+          const sentences = requestData.sentence_analysis.map(sentence => ({
+            text: sentence.text,
+            params: {
+              speed: Math.max(0.5, Math.min(2.0, Number(sentence.speed) || 1.0)),
+              pitch: Math.round(Math.max(-1, Math.min(1, Number(sentence.pitch) || 0))),
+              volume: Math.max(0.1, Math.min(2.0, Number(sentence.volume) || 1.0)),
+              emotion: sentence.emotion || requestData.emotion
             }
-          }
+          }));
+          
+          // 将原始句子文本直接添加到元数据中，不添加任何标记
+          payload.sentence_segments = sentences.map(s => s.text);
+          
+          // 不修改原始文本，确保TTS只读原文
+          console.log('不使用SSML标记，仅通过API元数据传递情感参数');
+          
+          // 设置per_sentence_settings标志，告诉API我们希望使用句子级设置
+          payload.use_sentence_level_settings = true;
         } catch (error) {
-          console.error('句子级SSML处理错误：', error);
+          console.error('句子级处理错误：', error);
         }
       }
       
-      // 无论是否成功应用SSML，都添加句子设置作为元数据
-      // 创建句子特定的SSML或参数设置
+      // 无论如何，都添加句子设置作为元数据
       payload.sentence_settings = requestData.sentence_analysis.map(sentence => ({
         text: sentence.text,
         voice_setting: {
