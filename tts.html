@@ -217,18 +217,8 @@
                             <select id="voice-select">
                                 <!-- Chinese Mandarin Voices -->
                                 <optgroup label="中文普通话 (Chinese Mandarin)">
-                                    <option value="Chinese (Mandarin)_Elite_Young">精英青年音色</option>
-                                    <option value="Chinese (Mandarin)_College_Student">青年大学生音色</option>
-                                    <option value="Chinese (Mandarin)_Young_Girl">少女音色</option>
-                                    <option value="Chinese (Mandarin)_Mature_Woman">成熟女性音色</option>
-                                    <option value="Chinese (Mandarin)_Sweet_Woman">甜美女性音色</option>
-                                    <option value="Chinese (Mandarin)_Male_Presenter">男性主持人</option>
-                                    <option value="Chinese (Mandarin)_Female_Presenter">女性主持人</option>
-                                    <option value="Chinese (Mandarin)_Cute_Boy">可爱男童</option>
-                                    <option value="Chinese (Mandarin)_Lovely_Girl">萌萌女童</option>
-                                    <option value="Chinese (Mandarin)_News_Anchor">新闻女声</option>
-                                    <option value="Chinese (Mandarin)_Refreshing_Young_Man">舒朗男声</option>
-                                    <option value="Chinese (Mandarin)_Male_Announcer">播报男声</option>
+                                    <option value="Chinese (Mandarin)_Elite_Young">精英男青年</option>
+                                    <option value="Chinese (Mandarin)_Young_Girl">精英女青年</option>
                                 </optgroup>
                                 
                                 <!-- Cantonese Voices -->
@@ -239,7 +229,6 @@
                                 
                                 <!-- English Voices -->
                                 <optgroup label="英语 (English)">
-                                    <option value="English_Trustworthy_Man">Trustworthy Man</option>
                                     <option value="English_Graceful_Lady">Graceful Lady</option>
                                     <option value="English_Gentle_Voiced_Man">Gentle-voiced Man</option>
                                 </optgroup>
@@ -255,15 +244,11 @@
                         </div>
                         
                         <div class="control-group">
-                            <label for="speed-control">语速：</label>
-                            <input type="range" id="speed-control" min="0.5" max="2" step="0.1" value="1">
-                            <div class="value-display" id="speed-value">1.0</div>
-                        </div>
-                        
-                        <div class="control-group">
-                            <label for="pitch-control">音调：</label>
-                            <input type="range" id="pitch-control" min="-8" max="8" step="1" value="0">
-                            <div class="value-display" id="pitch-value">0</div>
+                            <label for="emotion-sensing">情绪感应：</label>
+                            <div style="display: flex; align-items: center;">
+                                <input type="checkbox" id="emotion-sensing" style="width: auto; margin-right: 8px;">
+                                <span>自动检测文本情绪并优化语音</span>
+                            </div>
                         </div>
                     </div>
                     
@@ -300,10 +285,7 @@
         const textInput = document.getElementById('text-input');
         const voiceSelect = document.getElementById('voice-select');
         const modelSelect = document.getElementById('model-select');
-        const speedControl = document.getElementById('speed-control');
-        const speedValue = document.getElementById('speed-value');
-        const pitchControl = document.getElementById('pitch-control');
-        const pitchValue = document.getElementById('pitch-value');
+        const emotionSensing = document.getElementById('emotion-sensing');
         const generateBtn = document.getElementById('generate-btn');
         const audioContainer = document.getElementById('audio-container');
         const audioPlayer = document.getElementById('audio-player');
@@ -312,15 +294,6 @@
         
         // Store audio blob for download
         let currentAudioBlob = null;
-        
-        // Update displayed values
-        speedControl.addEventListener('input', () => {
-            speedValue.textContent = speedControl.value;
-        });
-        
-        pitchControl.addEventListener('input', () => {
-            pitchValue.textContent = pitchControl.value;
-        });
         
         // Set example text based on selected voice language
         voiceSelect.addEventListener('change', () => {
@@ -365,10 +338,16 @@
                     text: text,
                     voice: voiceSelect.value,
                     model: modelSelect.value,
-                    speed: parseFloat(speedControl.value),
-                    pitch: parseInt(pitchControl.value, 10),
+                    speed: 1.0,
+                    pitch: 0,
                     volume: 1.0
                 };
+                
+                // Apply emotion sensing if enabled
+                if (emotionSensing.checked) {
+                    const emotionParams = await detectTextEmotion(text);
+                    Object.assign(requestData, emotionParams);
+                }
                 
                 console.log('Sending TTS request:', requestData);
                 
@@ -537,6 +516,106 @@
         function clearStatus() {
             status.textContent = '';
             status.className = 'status';
+        }
+        
+        /**
+         * Analyze text to detect emotion and adjust TTS parameters
+         * @param {string} text - The text to analyze
+         * @returns {Promise<Object>} - Speech parameters adjusted for detected emotion
+         */
+        async function detectTextEmotion(text) {
+            showLoading('正在分析文本情绪...');
+            
+            try {
+                // Simple emotion detection algorithm based on keyword analysis
+                const emotions = {
+                    happy: {
+                        keywords: ['快乐', '高兴', '开心', '喜悦', '欢笑', '幸福', '愉快', '欣喜', 'happy', 'joy', 'delighted'],
+                        params: { speed: 1.2, pitch: 2, volume: 1.1 }
+                    },
+                    sad: {
+                        keywords: ['悲伤', '难过', '伤心', '痛苦', '忧伤', '哀愁', '沮丧', 'sad', 'unhappy', 'depressed', 'sorrow'],
+                        params: { speed: 0.9, pitch: -2, volume: 0.9 }
+                    },
+                    angry: {
+                        keywords: ['愤怒', '生气', '恼火', '发火', '气愤', '暴怒', '不满', 'angry', 'furious', 'rage', 'mad'],
+                        params: { speed: 1.3, pitch: 1, volume: 1.2 }
+                    },
+                    anxious: {
+                        keywords: ['焦虑', '担心', '不安', '忧虑', '紧张', '恐惧', '害怕', 'anxious', 'worried', 'nervous', 'afraid'],
+                        params: { speed: 1.1, pitch: 3, volume: 0.8 }
+                    },
+                    neutral: {
+                        keywords: [],
+                        params: { speed: 1.0, pitch: 0, volume: 1.0 }
+                    }
+                };
+                
+                // Count emotion keywords
+                const emotionScores = {};
+                for (const [emotion, data] of Object.entries(emotions)) {
+                    emotionScores[emotion] = 0;
+                    
+                    if (data.keywords.length > 0) {
+                        for (const keyword of data.keywords) {
+                            // Count matches (case insensitive)
+                            const regex = new RegExp(keyword, 'gi');
+                            const matches = (text.match(regex) || []).length;
+                            emotionScores[emotion] += matches;
+                        }
+                    }
+                }
+                
+                // Find dominant emotion
+                let dominantEmotion = 'neutral';
+                let highestScore = 0;
+                
+                for (const [emotion, score] of Object.entries(emotionScores)) {
+                    if (score > highestScore) {
+                        highestScore = score;
+                        dominantEmotion = emotion;
+                    }
+                }
+                
+                console.log(`Detected emotion: ${dominantEmotion} (score: ${highestScore})`);
+                
+                // If no emotion is detected, perform sentiment analysis
+                if (dominantEmotion === 'neutral' && highestScore === 0) {
+                    // Simple sentiment analysis (counting positive vs negative words)
+                    const positiveWords = ['好', '优秀', '棒', '喜欢', '爱', '美', '赞', '精彩', '优', '正确', 'good', 'great', 'excellent', 'positive'];
+                    const negativeWords = ['坏', '差', '糟', '不好', '讨厌', '恨', '丑', '失败', '错', '遗憾', 'bad', 'poor', 'terrible', 'negative'];
+                    
+                    let positiveScore = 0;
+                    let negativeScore = 0;
+                    
+                    for (const word of positiveWords) {
+                        const regex = new RegExp(word, 'gi');
+                        positiveScore += (text.match(regex) || []).length;
+                    }
+                    
+                    for (const word of negativeWords) {
+                        const regex = new RegExp(word, 'gi');
+                        negativeScore += (text.match(regex) || []).length;
+                    }
+                    
+                    console.log(`Sentiment analysis: positive=${positiveScore}, negative=${negativeScore}`);
+                    
+                    if (positiveScore > negativeScore) {
+                        dominantEmotion = 'happy';
+                    } else if (negativeScore > positiveScore) {
+                        dominantEmotion = 'sad';
+                    }
+                }
+                
+                // Get the parameters for the detected emotion
+                const params = emotions[dominantEmotion].params;
+                console.log(`Adjusting speech parameters for ${dominantEmotion} emotion:`, params);
+                
+                return params;
+            } catch (error) {
+                console.error('Error in emotion detection:', error);
+                return { speed: 1.0, pitch: 0, volume: 1.0 }; // Default parameters
+            }
         }
     </script>
 </body>
