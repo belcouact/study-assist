@@ -293,7 +293,6 @@
                     let englishPrompt = prompt;
                     if (optimize) {
                         addMessage('正在优化图像生成提示...');
-                        // Send to DeepSeek API to enhance the prompt as a professional photographer
                         const enhancementResponse = await fetch('/api/chat', {
                             method: 'POST',
                             headers: {
@@ -317,22 +316,23 @@
                         }
                         const enhancementData = await enhancementResponse.json();
                         const enhancedPrompt = enhancementData.choices[0].message.content;
-                        // Extract the English prompt for image generation
-                        const englishPromptMatch = enhancedPrompt.match(/英文版本[:：][\s\n]*["“"]?([^"“"]\n]+(?:\n[^"“"]\n)+)["""]?/i) || 
-                                                      enhancedPrompt.match(/English version[:：][\s\n]*["""]?([^""\n]+(?:\n[^""\n]+)*)[""]?/i) ||
-                                                      enhancedPrompt.match(/[""]([^""]+)[""].*\(英文\)/i);
+                        const englishPromptMatch = enhancedPrompt.match(/英文版本[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) || 
+                                                      enhancedPrompt.match(/English version[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) ||
+                                                      enhancedPrompt.match(/[""]([^""]+)["].*\(英文\)/i);
                         if (englishPromptMatch && englishPromptMatch[1]) {
                             englishPrompt = englishPromptMatch[1].trim();
                         } else {
-                            // If we can't find a clear English section, use the last paragraph
                             const paragraphs = enhancedPrompt.split(/\n\n+/);
                             const lastParagraph = paragraphs[paragraphs.length - 1].trim();
                             if (lastParagraph && /^[a-z]/i.test(lastParagraph)) {
                                 englishPrompt = lastParagraph;
                             }
                         }
-                        // Only display the optimized English prompt
-                        addMessage(`<b>优化后英文提示词：</b><br>${englishPrompt}`);
+                        // Output the optimized English prompt as a user message
+                        addMessage(englishPrompt, true);
+                    } else {
+                        // If not optimizing, output the original prompt as a user message
+                        addMessage(prompt, true);
                     }
                     addMessage('正在生成图片，请稍候...');
                     const response = await fetch('/api/chat', {
