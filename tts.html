@@ -161,6 +161,18 @@
             cursor: pointer;
         }
         
+        .emotion-active {
+            animation: pulse 2s infinite;
+            color: #4361ee;
+            font-weight: 500;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+        
         /* Hero section */
         .demo-hero {
             background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
@@ -184,6 +196,78 @@
         .demo-hero p {
             font-size: 1.2rem;
             opacity: 0.9;
+        }
+        
+        .sample-texts {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .sample-btn {
+            background-color: #f0f2f5;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: auto;
+        }
+        
+        .sample-btn:hover {
+            background-color: #e0e7ff;
+            border-color: #4361ee;
+            color: #4361ee;
+        }
+        
+        .emotion-result {
+            display: none;
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9ff;
+            border-left: 4px solid #4361ee;
+            border-radius: 5px;
+        }
+        
+        .emotion-result.visible {
+            display: flex;
+            align-items: center;
+            animation: fadeIn 0.5s;
+        }
+        
+        .emotion-icon {
+            font-size: 24px;
+            color: #4361ee;
+            margin-right: 15px;
+        }
+        
+        .emotion-details {
+            flex: 1;
+        }
+        
+        .emotion-title {
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .emotion-params {
+            display: flex;
+            gap: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .emotion-emphasis {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        #detected-emotion {
+            color: #4361ee;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -233,6 +317,10 @@
                     <div class="form-group">
                         <label for="text-input">输入要转换为语音的文字：</label>
                         <textarea id="text-input" placeholder="请输入中文文本...">人工智能不是要替代人类，而是要增强人类的能力。</textarea>
+                        <div class="sample-texts">
+                            <button type="button" class="sample-btn" id="sample-poem">试听古诗</button>
+                            <button type="button" class="sample-btn" id="sample-emotion">试听情感文本</button>
+                        </div>
                     </div>
                     
                     <div class="controls">
@@ -241,7 +329,7 @@
                             <select id="voice-select">
                                 <!-- Chinese Mandarin Voices -->
                                 <optgroup label="中文普通话 (Chinese Mandarin)">
-                                    <option value="Chinese (Mandarin)_Elite_Young">精英青年音色</option>
+                                    <option value="Chinese (Mandarin)_Elite_Young">精英男青年音色</option>
                                     <option value="Chinese (Mandarin)_College_Student">青年大学生音色</option>
                                     <option value="Chinese (Mandarin)_Young_Girl">少女音色</option>
                                 </optgroup>
@@ -281,6 +369,19 @@
                     <button id="generate-btn">生成语音</button>
                     
                     <div class="status" id="status"></div>
+                    
+                    <div id="emotion-result" class="emotion-result">
+                        <div class="emotion-icon"><i class="fas fa-heart-pulse"></i></div>
+                        <div class="emotion-details">
+                            <div class="emotion-title">检测到的情绪：<span id="detected-emotion">-</span></div>
+                            <div class="emotion-params">
+                                <span>语速：<span id="emotion-speed">-</span></span>
+                                <span>音调：<span id="emotion-pitch">-</span></span>
+                                <span>音量：<span id="emotion-volume">-</span></span>
+                            </div>
+                            <div class="emotion-emphasis" id="emotion-emphasis"></div>
+                        </div>
+                    </div>
                     
                     <div class="audio-container" id="audio-container">
                         <audio id="audio-player" controls style="width: 100%"></audio>
@@ -350,11 +451,11 @@
                 const messages = [
                     {
                         role: "system",
-                        content: "你是一个情感分析专家，擅长对中文文本进行句子级别的情绪分析。请分析以下文本的情绪，并返回一个JSON对象，包含适合文本转语音的参数。考虑语速、音调、音量和停顿。"
+                        content: "你是一位情感分析和语音表达专家，擅长分析文本的情感层次和语调变化。你的任务是深度分析文本的情感基调、表达意图和语调起伏，为文本转语音(TTS)提供最佳参数，使其听起来自然且富有感情。\n\n你应考虑的因素包括：\n1. 文本的主题和整体基调（悲伤、喜悦、严肃、轻松等）\n2. 句子的结构和逻辑关系（因果、递进、对比等）\n3. 重点词句和关键信息\n4. 适合的语速变化（某些段落可能需要放慢或加快）\n5. 音调高低（疑问、惊讶、肯定等不同语气）\n6. 音量变化（强调或低语的部分）\n7. 停顿设置（句间停顿、意群停顿等）\n\n针对不同文体（如诗词、散文、新闻、说明文等），你应该采用不同的分析策略。"
                     },
                     {
                         role: "user",
-                        content: `分析这段文字的情绪特点，返回适合TTS的参数：\n\n"${text}"\n\n请以JSON格式返回以下参数：speed(0.5-2.0), pitch(-8到8), volume(0.1-3.0), emotion(主要情绪关键词), 以及需要强调的词语或短语列表。`
+                        content: `请对以下文本进行深度情感分析，并提供适合TTS朗读的精确参数：\n\n"${text}"\n\n请以JSON格式返回以下参数：\n{\n  "emotion": "文本的主要情绪基调，如'沉思'、'欢快'、'悲伤'、'严肃'等",\n  "speed": 0.5到2.0之间的数值（1.0为基准语速，<1.0变慢，>1.0变快）,\n  "pitch": -8到8之间的整数（0为基准音调，负值降低，正值提高）,\n  "volume": 0.1到2.0之间的数值（音量大小，1.0为基准）,\n  "pause_duration": 0.5到2.0之间的数值（停顿时长倍数，1.0为基准）,\n  "emphasis": ["需要强调的关键词或短语列表"],\n  "sentence_analysis": [{"text": "句子原文", "emotion": "局部情绪", "speed": 数值, "pitch": 数值}]\n}\n\n请特别注意：\n1. 诗词类文本通常需要较慢语速、适当停顿和有节奏感的朗读\n2. 悲伤情绪通常对应较慢语速、较低音调和较低音量\n3. 欢快情绪通常对应较快语速、较高音调和较高音量\n4. 严肃/庄重情绪通常对应适中语速、较低音调和适中音量\n5. 疑问句通常需要尾音上扬（较高音调）\n6. 感叹句通常需要适当加强语气（音量增大）\n7. 重点词句通常需要降低语速并增加强调`
                     }
                 ];
                 
@@ -432,6 +533,7 @@
                 
                 if (emotionSensingEnabled) {
                     showLoading('正在分析文本情绪...');
+                    document.querySelector('.checkbox-label').classList.add('emotion-active');
                     const emotionParams = await analyzeTextEmotion(text);
                     
                     if (emotionParams) {
@@ -441,14 +543,38 @@
                         if (emotionParams.speed !== undefined) requestData.speed = emotionParams.speed;
                         if (emotionParams.pitch !== undefined) requestData.pitch = emotionParams.pitch;
                         if (emotionParams.volume !== undefined) requestData.volume = emotionParams.volume;
+                        if (emotionParams.pause_duration !== undefined) requestData.pause_duration = emotionParams.pause_duration;
                         
                         // Add additional emotion metadata
                         requestData.emotion = emotionParams.emotion;
                         requestData.emphasis = emotionParams.emphasis;
                         
+                        // Add sentence-level analysis if available
+                        if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis)) {
+                            requestData.sentence_analysis = emotionParams.sentence_analysis;
+                        }
+                        
                         console.log('Applied emotion parameters:', requestData);
+                        
+                        // Display emotion analysis results
+                        document.getElementById('detected-emotion').textContent = emotionParams.emotion || '-';
+                        document.getElementById('emotion-speed').textContent = emotionParams.speed?.toFixed(2) || '-';
+                        document.getElementById('emotion-pitch').textContent = emotionParams.pitch || '-';
+                        document.getElementById('emotion-volume').textContent = emotionParams.volume?.toFixed(2) || '-';
+                        
+                        // Show emphasis phrases if available
+                        const emphasisEl = document.getElementById('emotion-emphasis');
+                        if (emotionParams.emphasis && emotionParams.emphasis.length > 0) {
+                            emphasisEl.textContent = `强调：${emotionParams.emphasis.join('、')}`;
+                        } else {
+                            emphasisEl.textContent = '';
+                        }
+                        
+                        // Show emotion result box
+                        document.getElementById('emotion-result').classList.add('visible');
                     }
                     
+                    document.querySelector('.checkbox-label').classList.remove('emotion-active');
                     showLoading('正在生成语音...');
                 }
                 
@@ -620,6 +746,24 @@
             status.textContent = '';
             status.className = 'status';
         }
+        
+        // Hide emotion result when checkbox is unchecked
+        document.getElementById('emotion-sensing').addEventListener('change', function() {
+            if (!this.checked) {
+                document.getElementById('emotion-result').classList.remove('visible');
+            }
+        });
+        
+        // Sample text buttons
+        document.getElementById('sample-poem').addEventListener('click', () => {
+            textInput.value = "烟笼寒水月笼沙，夜泊秦淮近酒家。\n商女不知亡国恨，隔江犹唱《后庭花》。";
+            document.getElementById('emotion-sensing').checked = true;
+        });
+        
+        document.getElementById('sample-emotion').addEventListener('click', () => {
+            textInput.value = "曾经沧海难为水，除却巫山不是云。\n取次花丛懒回顾，半缘修道半缘君。";
+            document.getElementById('emotion-sensing').checked = true;
+        });
     </script>
 </body>
 </html> 

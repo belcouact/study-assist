@@ -59,22 +59,127 @@ export async function onRequestPost(context) {
       }
     };
     
-    // Add emotion and emphasis processing if provided by DeepSeek analysis
+    // Process emotion metadata for more expressive speech
     if (requestData.emotion) {
-      console.log(`Applying emotion metadata: ${requestData.emotion}`);
+      console.log(`Applying emotion profile: "${requestData.emotion}"`);
+      
+      // Map common emotions to voice parameters for fine-tuning
+      const emotionProfiles = {
+        // Sad emotions - slower, lower pitch, softer
+        "悲伤": { speedMod: 0.9, pitchMod: -2, volMod: 0.85 },
+        "哀伤": { speedMod: 0.85, pitchMod: -3, volMod: 0.8 },
+        "沮丧": { speedMod: 0.9, pitchMod: -2, volMod: 0.9 },
+        "伤感": { speedMod: 0.95, pitchMod: -1, volMod: 0.9 },
+        "忧郁": { speedMod: 0.9, pitchMod: -2, volMod: 0.85 },
+        "悲痛": { speedMod: 0.8, pitchMod: -3, volMod: 0.8 },
+        "悲哀": { speedMod: 0.85, pitchMod: -2, volMod: 0.85 },
+        
+        // Happy emotions - faster, higher pitch, louder
+        "欢快": { speedMod: 1.15, pitchMod: 2, volMod: 1.15 },
+        "喜悦": { speedMod: 1.1, pitchMod: 2, volMod: 1.1 },
+        "兴奋": { speedMod: 1.2, pitchMod: 3, volMod: 1.2 },
+        "热情": { speedMod: 1.15, pitchMod: 2, volMod: 1.15 },
+        "愉快": { speedMod: 1.1, pitchMod: 1, volMod: 1.05 },
+        "开心": { speedMod: 1.1, pitchMod: 2, volMod: 1.1 },
+        
+        // Calm emotions - normal speed, normal to low pitch, normal volume
+        "平静": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
+        "沉思": { speedMod: 0.95, pitchMod: -1, volMod: 0.95 },
+        "冷静": { speedMod: 0.97, pitchMod: -1, volMod: 0.97 },
+        "温和": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
+        
+        // Serious emotions - slower, lower pitch, normal volume
+        "严肃": { speedMod: 0.95, pitchMod: -1, volMod: 1.0 },
+        "庄重": { speedMod: 0.9, pitchMod: -2, volMod: 1.05 },
+        "郑重": { speedMod: 0.95, pitchMod: -1, volMod: 1.05 },
+        
+        // Excited emotions - faster, higher pitch, louder
+        "激动": { speedMod: 1.15, pitchMod: 2, volMod: 1.2 },
+        "振奋": { speedMod: 1.1, pitchMod: 2, volMod: 1.15 },
+        "激情": { speedMod: 1.15, pitchMod: 3, volMod: 1.2 },
+        
+        // Poetic - slower, melodic
+        "诗意": { speedMod: 0.85, pitchMod: 1, volMod: 0.95 },
+        "抒情": { speedMod: 0.9, pitchMod: 0, volMod: 0.95 },
+        "文学性": { speedMod: 0.9, pitchMod: 0, volMod: 1.0 }
+      };
+      
+      // Apply fine-tuning based on detected emotion if available in our profiles
+      const emotionKey = Object.keys(emotionProfiles).find(key => 
+        requestData.emotion.includes(key)
+      );
+      
+      if (emotionKey) {
+        const profile = emotionProfiles[emotionKey];
+        console.log(`Found matching emotion profile: ${emotionKey}`);
+        
+        // Apply subtle adjustments to make emotion more natural
+        // Only adjust if the DeepSeek analysis hasn't already provided specific parameters
+        if (requestData.speed === 1.0) {
+          payload.voice_setting.speed = Math.max(0.5, Math.min(2.0, payload.voice_setting.speed * profile.speedMod));
+        }
+        
+        if (requestData.pitch === 0) {
+          payload.voice_setting.pitch = Math.max(-8, Math.min(8, payload.voice_setting.pitch + profile.pitchMod));
+        }
+        
+        if (requestData.volume === 1.0) {
+          payload.voice_setting.vol = Math.max(0.1, Math.min(2.0, payload.voice_setting.vol * profile.volMod));
+        }
+        
+        console.log(`Applied emotion profile adjustments: speed=${payload.voice_setting.speed}, pitch=${payload.voice_setting.pitch}, vol=${payload.voice_setting.vol}`);
+      }
+      
+      // Pass emotion as metadata to TTS engine
       payload.emotion = requestData.emotion;
     }
     
+    // Handle emphasis and prosody
     if (requestData.emphasis && Array.isArray(requestData.emphasis) && requestData.emphasis.length > 0) {
-      console.log(`Applying emphasis on phrases: ${requestData.emphasis.join(', ')}`);
+      console.log(`Applying emphasis on ${requestData.emphasis.length} phrases: ${requestData.emphasis.join(', ')}`);
+      
       payload.prosody = {
         emphasis: requestData.emphasis
       };
       
-      // For longer passages, adjust pause durations for more natural reading
-      if (requestData.text.length > 100) {
-        payload.prosody.pause_duration = requestData.pause_duration || 1.2;
+      // Handle pause duration for better phrasing
+      if (requestData.pause_duration) {
+        payload.prosody.pause_duration = Number(requestData.pause_duration);
+        console.log(`Setting custom pause duration: ${payload.prosody.pause_duration}`);
+      } else if (requestData.text.length > 100) {
+        // For longer passages without explicit pause setting
+        const textType = detectTextType(requestData.text);
+        
+        if (textType === 'poetry') {
+          payload.prosody.pause_duration = 1.5; // Longer pauses for poetry
+        } else if (textType === 'dialogue') {
+          payload.prosody.pause_duration = 1.3; // Medium pauses for dialogue
+        } else {
+          payload.prosody.pause_duration = 1.2; // Standard pause for prose
+        }
+        
+        console.log(`Applied automatic pause duration ${payload.prosody.pause_duration} based on text type: ${textType}`);
       }
+    }
+    
+    // Apply sentence-level analysis if available
+    if (requestData.sentence_analysis && Array.isArray(requestData.sentence_analysis) && 
+        requestData.sentence_analysis.length > 0) {
+        
+      console.log(`Applying sentence-level analysis for ${requestData.sentence_analysis.length} sentences`);
+        
+      // Create sentence-specific SSML or parameter settings if API supports it
+      // For now, add metadata that might be used by the TTS engine
+      payload.sentence_settings = requestData.sentence_analysis.map(sentence => ({
+        text: sentence.text,
+        voice_setting: {
+          speed: Number(sentence.speed || payload.voice_setting.speed),
+          pitch: Number(sentence.pitch || payload.voice_setting.pitch),
+          emotion: sentence.emotion || requestData.emotion
+        }
+      }));
+        
+      console.log(`Added sentence-level settings`);
     }
     
     // Debug the final JSON structure
@@ -354,6 +459,42 @@ function getMiniMaxVoiceId(frontendVoice) {
   
   // Return mapped voice or default if mapping not found
   return voiceMap[frontendVoice] || "male-qn-jingying";
+}
+
+/**
+ * Detect the type of text to optimize TTS parameters
+ */
+function detectTextType(text) {
+  // Check for poetry patterns
+  const poetryPatterns = [
+    /[，。！？；][，。！？；]/, // Multiple punctuation in sequence (common in Chinese poetry)
+    /[\n\r]{2,}/,           // Multiple line breaks
+    /[，。][，。]/          // Multiple punctuation in sequence
+  ];
+  
+  // Check for dialogue patterns
+  const dialoguePatterns = [
+    /[""].*?[""]/, // Quoted speech
+    /[""]/,        // Quotation marks
+    /[：].*?[。？！]/  // Colon followed by statement
+  ];
+  
+  // Test for poetry
+  for (const pattern of poetryPatterns) {
+    if (pattern.test(text)) {
+      return 'poetry';
+    }
+  }
+  
+  // Test for dialogue
+  for (const pattern of dialoguePatterns) {
+    if (pattern.test(text)) {
+      return 'dialogue';
+    }
+  }
+  
+  // Default to prose
+  return 'prose';
 }
 
 export const config = {
