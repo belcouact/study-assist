@@ -50,7 +50,7 @@ export async function onRequestPost(context) {
         voice_id: voiceId,
         speed: Number(requestData.speed || 1.0),
         vol: Number(requestData.volume || 1.0),
-        pitch: Number(requestData.pitch || 0)
+        pitch: Math.round(Number(requestData.pitch || 0))
       },
       audio_setting: {
         sample_rate: 32000,
@@ -69,37 +69,37 @@ export async function onRequestPost(context) {
         "悲伤": { speedMod: 0.9, pitchMod: -1, volMod: 0.85 },
         "哀伤": { speedMod: 0.85, pitchMod: -1, volMod: 0.8 },
         "沮丧": { speedMod: 0.9, pitchMod: -1, volMod: 0.9 },
-        "伤感": { speedMod: 0.95, pitchMod: -0.5, volMod: 0.9 },
+        "伤感": { speedMod: 0.95, pitchMod: -1, volMod: 0.9 },
         "忧郁": { speedMod: 0.9, pitchMod: -1, volMod: 0.85 },
         "悲痛": { speedMod: 0.8, pitchMod: -1, volMod: 0.8 },
         "悲哀": { speedMod: 0.85, pitchMod: -1, volMod: 0.85 },
         
         // Happy emotions - faster, higher pitch, louder
         "欢快": { speedMod: 1.15, pitchMod: 1, volMod: 1.15 },
-        "喜悦": { speedMod: 1.1, pitchMod: 0.8, volMod: 1.1 },
+        "喜悦": { speedMod: 1.1, pitchMod: 1, volMod: 1.1 },
         "兴奋": { speedMod: 1.2, pitchMod: 1, volMod: 1.2 },
-        "热情": { speedMod: 1.15, pitchMod: 0.8, volMod: 1.15 },
-        "愉快": { speedMod: 1.1, pitchMod: 0.5, volMod: 1.05 },
-        "开心": { speedMod: 1.1, pitchMod: 0.7, volMod: 1.1 },
+        "热情": { speedMod: 1.15, pitchMod: 1, volMod: 1.15 },
+        "愉快": { speedMod: 1.1, pitchMod: 1, volMod: 1.05 },
+        "开心": { speedMod: 1.1, pitchMod: 1, volMod: 1.1 },
         
         // Calm emotions - normal speed, normal to low pitch, normal volume
         "平静": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
-        "沉思": { speedMod: 0.95, pitchMod: -0.5, volMod: 0.95 },
-        "冷静": { speedMod: 0.97, pitchMod: -0.3, volMod: 0.97 },
+        "沉思": { speedMod: 0.95, pitchMod: 0, volMod: 0.95 },
+        "冷静": { speedMod: 0.97, pitchMod: 0, volMod: 0.97 },
         "温和": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
         
         // Serious emotions - slower, lower pitch, normal volume
-        "严肃": { speedMod: 0.95, pitchMod: -0.5, volMod: 1.0 },
-        "庄重": { speedMod: 0.9, pitchMod: -0.8, volMod: 1.05 },
-        "郑重": { speedMod: 0.95, pitchMod: -0.5, volMod: 1.05 },
+        "严肃": { speedMod: 0.95, pitchMod: -1, volMod: 1.0 },
+        "庄重": { speedMod: 0.9, pitchMod: -1, volMod: 1.05 },
+        "郑重": { speedMod: 0.95, pitchMod: -1, volMod: 1.05 },
         
         // Excited emotions - faster, higher pitch, louder
-        "激动": { speedMod: 1.15, pitchMod: 0.8, volMod: 1.2 },
-        "振奋": { speedMod: 1.1, pitchMod: 0.7, volMod: 1.15 },
+        "激动": { speedMod: 1.15, pitchMod: 1, volMod: 1.2 },
+        "振奋": { speedMod: 1.1, pitchMod: 1, volMod: 1.15 },
         "激情": { speedMod: 1.15, pitchMod: 1, volMod: 1.2 },
         
         // Poetic - slower, melodic
-        "诗意": { speedMod: 0.85, pitchMod: 0.3, volMod: 0.95 },
+        "诗意": { speedMod: 0.85, pitchMod: 0, volMod: 0.95 },
         "抒情": { speedMod: 0.9, pitchMod: 0, volMod: 0.95 },
         "文学性": { speedMod: 0.9, pitchMod: 0, volMod: 1.0 }
       };
@@ -121,7 +121,7 @@ export async function onRequestPost(context) {
         
         if (requestData.pitch === 0) {
           // Ensure pitch is within ±1 range for natural sounding speech
-          payload.voice_setting.pitch = Math.max(-1, Math.min(1, payload.voice_setting.pitch + profile.pitchMod));
+          payload.voice_setting.pitch = Math.round(Math.max(-1, Math.min(1, payload.voice_setting.pitch + profile.pitchMod)));
         }
         
         if (requestData.volume === 1.0) {
@@ -175,7 +175,7 @@ export async function onRequestPost(context) {
         text: sentence.text,
         voice_setting: {
           speed: Number(sentence.speed || payload.voice_setting.speed),
-          pitch: Number(sentence.pitch || payload.voice_setting.pitch),
+          pitch: Math.round(Number(sentence.pitch || payload.voice_setting.pitch)),
           emotion: sentence.emotion || requestData.emotion
         }
       }));
