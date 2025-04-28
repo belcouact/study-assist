@@ -286,7 +286,60 @@
 
             async function generateImage(prompt) {
                 try {
-                    addMessage('正在生成图片，请稍候...');
+                    addMessage('正在分析您的描述，优化图像生成提示...');
+                    
+                    // First, send to DeepSeek API to enhance the prompt as a professional photographer
+                    const enhancementResponse = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    "role": "system",
+                                    "content": "你是一位专业摄影师和艺术指导，拥有丰富的图像构图和艺术创作经验。你的任务是帮助用户优化他们的图像生成提示，使其能够生成更加生动、专业和精美的图片。\n\n请分析用户的原始描述，然后：\n1. 增加关于视角、光线效果和色彩的细节\n2. 添加构图、景深和焦点的专业描述\n3. 提供艺术风格建议（如油画、水彩、摄影风格等）\n4. 增强画面细节和元素间的关系\n\n你的回答应包含两部分：\n1. 对优化过程的简短说明（用中文）\n2. 完整的优化后提示词（同时提供中英文版本，英文版本要专业且详细）"
+                                },
+                                {
+                                    "role": "user",
+                                    "content": `请优化以下图像生成提示，使其能产生更专业、更生动的图像：\n\n"${prompt}"`
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!enhancementResponse.ok) {
+                        throw new Error('Failed to enhance prompt');
+                    }
+
+                    const enhancementData = await enhancementResponse.json();
+                    const enhancedPrompt = enhancementData.choices[0].message.content;
+                    
+                    // Extract the English prompt for image generation
+                    // Usually the English prompt is after the Chinese explanation, often in quotes or after a colon
+                    let englishPrompt = prompt; // Default to original if extraction fails
+                    
+                    // Try to find the English prompt using common patterns
+                    const englishPromptMatch = enhancedPrompt.match(/英文版本[:：][\s\n]*[""]?([^""\n]+(?:\n[^""\n]+)*)[""]?/i) || 
+                                              enhancedPrompt.match(/English version[:：][\s\n]*[""]?([^""\n]+(?:\n[^""\n]+)*)[""]?/i) ||
+                                              enhancedPrompt.match(/[""]([^""]+)[""].*\(英文\)/i);
+                    
+                    if (englishPromptMatch && englishPromptMatch[1]) {
+                        englishPrompt = englishPromptMatch[1].trim();
+                    } else {
+                        // If we can't find a clear English section, use the last paragraph
+                        const paragraphs = enhancedPrompt.split(/\n\n+/);
+                        const lastParagraph = paragraphs[paragraphs.length - 1].trim();
+                        if (lastParagraph && /^[a-z]/i.test(lastParagraph)) {
+                            englishPrompt = lastParagraph;
+                        }
+                    }
+                    
+                    // Display the enhanced prompt to the user
+                    addMessage(enhancedPrompt);
+                    
+                    // Now proceed with image generation using the enhanced English prompt
+                    addMessage('正在使用优化后的提示生成图片，请稍候...');
                     
                     const response = await fetch('/api/chat', {
                         method: 'POST',
@@ -301,7 +354,7 @@
                                 },
                                 {
                                     "role": "user",
-                                    "content": prompt
+                                    "content": englishPrompt
                                 }
                             ]
                         })
