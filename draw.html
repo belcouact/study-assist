@@ -162,15 +162,55 @@
             }
 
             .message {
-                max-width: 90%;
+                max-width: 98%;
+                font-size: 1.08rem;
+                padding: 0.7rem 0.7rem;
+                word-break: break-word;
             }
 
             .chat-input {
                 flex-direction: column;
+                gap: 0.7rem;
+            }
+
+            .chat-input input {
+                font-size: 1.08rem;
+                padding: 1rem 0.7rem;
             }
 
             .chat-input button {
                 width: 100%;
+                font-size: 1.08rem;
+                padding: 1rem 0;
+            }
+
+            .chat-controls {
+                flex-direction: column;
+                gap: 0.7rem;
+                width: 100%;
+            }
+
+            .resolution-select {
+                width: 100%;
+                font-size: 1.08rem;
+            }
+
+            .image-result {
+                margin-top: 1.2rem;
+            }
+
+            .image-result img {
+                max-width: 100vw;
+                border-radius: 10px;
+            }
+
+            .assistant-container {
+                padding: 0.5rem;
+            }
+
+            .chat-header {
+                font-size: 1.08rem;
+                padding: 0.7rem;
             }
         }
     </style>
@@ -316,6 +356,24 @@
                         }
                         const enhancementData = await enhancementResponse.json();
                         const enhancedPrompt = enhancementData.choices[0].message.content;
+                        // Extract Chinese and English optimized prompts
+                        let chinesePrompt = '';
+                        let englishPrompt = '';
+                        // Try to extract Chinese (first block after 优化说明 or before 英文版本)
+                        const chineseMatch = enhancedPrompt.match(/优化后提示词[:：][\s\n]*([\u4e00-\u9fa5\s\S]+?)(?:\n*英文版本[:：]|\n*English version[:：])/i);
+                        if (chineseMatch && chineseMatch[1]) {
+                            chinesePrompt = chineseMatch[1].trim();
+                        } else {
+                            // fallback: first paragraph if it looks Chinese
+                            const paragraphs = enhancedPrompt.split(/\n\n+/);
+                            for (const p of paragraphs) {
+                                if (/^[\u4e00-\u9fa5]/.test(p.trim())) {
+                                    chinesePrompt = p.trim();
+                                    break;
+                                }
+                            }
+                        }
+                        // Extract English as before
                         const englishPromptMatch = enhancedPrompt.match(/英文版本[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) || 
                                                       enhancedPrompt.match(/English version[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) ||
                                                       enhancedPrompt.match(/[""]([^""]+)["].*\(英文\)/i);
@@ -328,10 +386,10 @@
                                 englishPrompt = lastParagraph;
                             }
                         }
-                        // Output the optimized English prompt as a user message
-                        addMessage(englishPrompt, true);
+                        // Output both Chinese and English optimized prompts as user messages
+                        if (chinesePrompt) addMessage(chinesePrompt, true);
+                        if (englishPrompt) addMessage(englishPrompt, true);
                     } else {
-                        // If not optimizing, output the original prompt as a user message
                         addMessage(prompt, true);
                     }
                     addMessage('正在生成图片，请稍候...');
