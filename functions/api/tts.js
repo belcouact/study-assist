@@ -59,6 +59,24 @@ export async function onRequestPost(context) {
       }
     };
     
+    // Add emotion and emphasis processing if provided by DeepSeek analysis
+    if (requestData.emotion) {
+      console.log(`Applying emotion metadata: ${requestData.emotion}`);
+      payload.emotion = requestData.emotion;
+    }
+    
+    if (requestData.emphasis && Array.isArray(requestData.emphasis) && requestData.emphasis.length > 0) {
+      console.log(`Applying emphasis on phrases: ${requestData.emphasis.join(', ')}`);
+      payload.prosody = {
+        emphasis: requestData.emphasis
+      };
+      
+      // For longer passages, adjust pause durations for more natural reading
+      if (requestData.text.length > 100) {
+        payload.prosody.pause_duration = requestData.pause_duration || 1.2;
+      }
+    }
+    
     // Debug the final JSON structure
     const finalJSON = JSON.stringify(payload);
     console.log(`Final request payload: ${finalJSON}`);
@@ -267,6 +285,14 @@ export function onRequestGet() {
       "speed": 1.0,
       "pitch": 0,
       "volume": 1.0
+    },
+    emotion_feature: {
+      "description": "Optional AI emotion sensing feature that analyzes text sentiment",
+      "parameters": {
+        "emotion": "Detected emotion keyword (e.g., 'serene_melancholy', 'excited', 'calm')",
+        "emphasis": ["Array of phrases to emphasize"],
+        "pause_duration": "Multiplier for pause length between phrases (e.g., 1.2)"
+      }
     },
     supported_voices: {
       "Chinese (Mandarin)_Elite_Young": "精英青年音色",
