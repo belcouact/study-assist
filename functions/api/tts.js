@@ -66,40 +66,40 @@ export async function onRequestPost(context) {
       // Map common emotions to voice parameters for fine-tuning
       const emotionProfiles = {
         // Sad emotions - slower, lower pitch, softer
-        "悲伤": { speedMod: 0.9, pitchMod: -2, volMod: 0.85 },
-        "哀伤": { speedMod: 0.85, pitchMod: -3, volMod: 0.8 },
-        "沮丧": { speedMod: 0.9, pitchMod: -2, volMod: 0.9 },
-        "伤感": { speedMod: 0.95, pitchMod: -1, volMod: 0.9 },
-        "忧郁": { speedMod: 0.9, pitchMod: -2, volMod: 0.85 },
-        "悲痛": { speedMod: 0.8, pitchMod: -3, volMod: 0.8 },
-        "悲哀": { speedMod: 0.85, pitchMod: -2, volMod: 0.85 },
+        "悲伤": { speedMod: 0.9, pitchMod: -1, volMod: 0.85 },
+        "哀伤": { speedMod: 0.85, pitchMod: -1, volMod: 0.8 },
+        "沮丧": { speedMod: 0.9, pitchMod: -1, volMod: 0.9 },
+        "伤感": { speedMod: 0.95, pitchMod: -0.5, volMod: 0.9 },
+        "忧郁": { speedMod: 0.9, pitchMod: -1, volMod: 0.85 },
+        "悲痛": { speedMod: 0.8, pitchMod: -1, volMod: 0.8 },
+        "悲哀": { speedMod: 0.85, pitchMod: -1, volMod: 0.85 },
         
         // Happy emotions - faster, higher pitch, louder
-        "欢快": { speedMod: 1.15, pitchMod: 2, volMod: 1.15 },
-        "喜悦": { speedMod: 1.1, pitchMod: 2, volMod: 1.1 },
-        "兴奋": { speedMod: 1.2, pitchMod: 3, volMod: 1.2 },
-        "热情": { speedMod: 1.15, pitchMod: 2, volMod: 1.15 },
-        "愉快": { speedMod: 1.1, pitchMod: 1, volMod: 1.05 },
-        "开心": { speedMod: 1.1, pitchMod: 2, volMod: 1.1 },
+        "欢快": { speedMod: 1.15, pitchMod: 1, volMod: 1.15 },
+        "喜悦": { speedMod: 1.1, pitchMod: 0.8, volMod: 1.1 },
+        "兴奋": { speedMod: 1.2, pitchMod: 1, volMod: 1.2 },
+        "热情": { speedMod: 1.15, pitchMod: 0.8, volMod: 1.15 },
+        "愉快": { speedMod: 1.1, pitchMod: 0.5, volMod: 1.05 },
+        "开心": { speedMod: 1.1, pitchMod: 0.7, volMod: 1.1 },
         
         // Calm emotions - normal speed, normal to low pitch, normal volume
         "平静": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
-        "沉思": { speedMod: 0.95, pitchMod: -1, volMod: 0.95 },
-        "冷静": { speedMod: 0.97, pitchMod: -1, volMod: 0.97 },
+        "沉思": { speedMod: 0.95, pitchMod: -0.5, volMod: 0.95 },
+        "冷静": { speedMod: 0.97, pitchMod: -0.3, volMod: 0.97 },
         "温和": { speedMod: 1.0, pitchMod: 0, volMod: 1.0 },
         
         // Serious emotions - slower, lower pitch, normal volume
-        "严肃": { speedMod: 0.95, pitchMod: -1, volMod: 1.0 },
-        "庄重": { speedMod: 0.9, pitchMod: -2, volMod: 1.05 },
-        "郑重": { speedMod: 0.95, pitchMod: -1, volMod: 1.05 },
+        "严肃": { speedMod: 0.95, pitchMod: -0.5, volMod: 1.0 },
+        "庄重": { speedMod: 0.9, pitchMod: -0.8, volMod: 1.05 },
+        "郑重": { speedMod: 0.95, pitchMod: -0.5, volMod: 1.05 },
         
         // Excited emotions - faster, higher pitch, louder
-        "激动": { speedMod: 1.15, pitchMod: 2, volMod: 1.2 },
-        "振奋": { speedMod: 1.1, pitchMod: 2, volMod: 1.15 },
-        "激情": { speedMod: 1.15, pitchMod: 3, volMod: 1.2 },
+        "激动": { speedMod: 1.15, pitchMod: 0.8, volMod: 1.2 },
+        "振奋": { speedMod: 1.1, pitchMod: 0.7, volMod: 1.15 },
+        "激情": { speedMod: 1.15, pitchMod: 1, volMod: 1.2 },
         
         // Poetic - slower, melodic
-        "诗意": { speedMod: 0.85, pitchMod: 1, volMod: 0.95 },
+        "诗意": { speedMod: 0.85, pitchMod: 0.3, volMod: 0.95 },
         "抒情": { speedMod: 0.9, pitchMod: 0, volMod: 0.95 },
         "文学性": { speedMod: 0.9, pitchMod: 0, volMod: 1.0 }
       };
@@ -120,7 +120,8 @@ export async function onRequestPost(context) {
         }
         
         if (requestData.pitch === 0) {
-          payload.voice_setting.pitch = Math.max(-8, Math.min(8, payload.voice_setting.pitch + profile.pitchMod));
+          // Ensure pitch is within ±1 range for natural sounding speech
+          payload.voice_setting.pitch = Math.max(-1, Math.min(1, payload.voice_setting.pitch + profile.pitchMod));
         }
         
         if (requestData.volume === 1.0) {
