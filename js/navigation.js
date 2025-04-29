@@ -286,26 +286,22 @@ function initFirstVisitPrompt() {
 }
 
 /**
- * Initialize mobile menu functionality
+ * Initialize mobile menu toggle functionality
  */
 function initMobileMenu() {
-    const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+    const menuToggle = document.querySelector('.mobile-menu-toggle');
     
-    if (mobileMenuToggle) {
-        mobileMenuToggle.addEventListener('click', () => {
+    if (menuToggle) {
+        menuToggle.addEventListener('click', () => {
             document.body.classList.toggle('mobile-menu-open');
         });
         
-        // Close mobile menu when clicking outside
-        document.addEventListener('click', (event) => {
-            const isMenuOpen = document.body.classList.contains('mobile-menu-open');
-            
-            // Check if click is outside the menu and the toggle button
-            if (isMenuOpen && 
-                !event.target.closest('.main-nav') && 
-                !event.target.closest('.mobile-menu-toggle')) {
+        // Close mobile menu when clicking on a link
+        const navLinks = document.querySelectorAll('.main-nav a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
                 document.body.classList.remove('mobile-menu-open');
-            }
+            });
         });
     }
 } 
