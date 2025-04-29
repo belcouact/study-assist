@@ -147,10 +147,10 @@
             flex-direction: row;
             gap: 1.1rem;
             width: 100%;
+            justify-content: space-between;
         }
         .chat-controls > * {
             flex: 1 1 0;
-            min-width: 0;
         }
         .resolution-select {
             padding: 0.9rem;
@@ -399,9 +399,6 @@
                             <option value="1080:1350">1080 × 1350 (4:5)</option>
                             <option value="1080:1920">1080 × 1920 (9:16)</option>
                         </select>
-                        <label style="display: flex; align-items: center; gap: 0.3em; font-size: 0.98em;">
-                            <input type="checkbox" id="optimize-checkbox" checked style="margin-right: 0.3em;">优化提示词
-                        </label>
                         <button id="generate-image">生成图像</button>
                     </div>
                 </div>
@@ -452,69 +449,7 @@
 
             async function generateImage(prompt) {
                 try {
-                    const optimize = document.getElementById('optimize-checkbox').checked;
-                    let englishPrompt = prompt;
-                    if (optimize) {
-                        addMessage('正在优化图像生成提示...');
-                        const enhancementResponse = await fetch('/api/chat', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                messages: [
-                                    {
-                                        "role": "system",
-                                        "content": "你是一位专业摄影师和艺术指导，拥有丰富的图像构图和艺术创作经验。你的任务是帮助用户优化他们的图像生成提示，使其能够生成更加生动、专业和精美的图片。\n\n请分析用户的原始描述，然后：\n1. 增加关于视角、光线效果和色彩的细节\n2. 添加构图、景深和焦点的专业描述\n3. 提供艺术风格建议（如油画、水彩、摄影风格等）\n4. 增强画面细节和元素间的关系\n\n你的回答应包含两部分：\n1. 对优化过程的简短说明（用中文）\n2. 完整的优化后提示词（同时提供中英文版本，英文版本要专业且详细）"
-                                    },
-                                    {
-                                        "role": "user",
-                                        "content": `请优化以下图像生成提示，使其能产生更专业、更生动的图像：\n\n"${prompt}"`
-                                    }
-                                ]
-                            })
-                        });
-                        if (!enhancementResponse.ok) {
-                            throw new Error('Failed to enhance prompt');
-                        }
-                        const enhancementData = await enhancementResponse.json();
-                        const enhancedPrompt = enhancementData.choices[0].message.content;
-                        // Extract Chinese and English optimized prompts
-                        let chinesePrompt = '';
-                        let englishPrompt = '';
-                        // Try to extract Chinese (first block after 优化说明 or before 英文版本)
-                        const chineseMatch = enhancedPrompt.match(/优化后提示词[:：][\s\n]*([\u4e00-\u9fa5\s\S]+?)(?:\n*英文版本[:：]|\n*English version[:：])/i);
-                        if (chineseMatch && chineseMatch[1]) {
-                            chinesePrompt = chineseMatch[1].trim();
-                        } else {
-                            // fallback: first paragraph if it looks Chinese
-                            const paragraphs = enhancedPrompt.split(/\n\n+/);
-                            for (const p of paragraphs) {
-                                if (/^[\u4e00-\u9fa5]/.test(p.trim())) {
-                                    chinesePrompt = p.trim();
-                                    break;
-                                }
-                            }
-                        }
-                        // Extract English as before
-                        const englishPromptMatch = enhancedPrompt.match(/英文版本[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) || 
-                                                      enhancedPrompt.match(/English version[:：][\s\n]*["""]?([^"""\n]+(?:\n[^"""\n]+)*)["""]?/i) ||
-                                                      enhancedPrompt.match(/[""]([^""]+)["].*\(英文\)/i);
-                        if (englishPromptMatch && englishPromptMatch[1]) {
-                            englishPrompt = englishPromptMatch[1].trim();
-                        } else {
-                            const paragraphs = enhancedPrompt.split(/\n\n+/);
-                            const lastParagraph = paragraphs[paragraphs.length - 1].trim();
-                            if (lastParagraph && /^[a-z]/i.test(lastParagraph)) {
-                                englishPrompt = lastParagraph;
-                            }
-                        }
-                        // Output both Chinese and English optimized prompts as user messages
-                        if (chinesePrompt) addMessage(chinesePrompt, true);
-                        if (englishPrompt) addMessage(englishPrompt, true);
-                    } else {
-                        addMessage(prompt, true);
-                    }
+                    addMessage(prompt, true);
                     addMessage('正在生成图片，请稍候...');
                     const response = await fetch('/api/chat', {
                         method: 'POST',
@@ -529,7 +464,7 @@
                                 },
                                 {
                                     "role": "user",
-                                    "content": englishPrompt
+                                    "content": prompt
                                 }
                             ]
                         })
@@ -579,7 +514,6 @@
             generateButton.addEventListener('click', () => {
                 const prompt = promptInput.value.trim();
                 if (prompt) {
-                    addMessage(prompt, true);
                     generateImage(prompt);
                     promptInput.value = '';
                 }
