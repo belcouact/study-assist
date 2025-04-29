@@ -17,27 +17,44 @@ document.addEventListener('DOMContentLoaded', () => {
  * Initialize Mobile Menu Toggle
  */
 function initMobileMenu() {
+    console.log('Initializing mobile menu from common.js');
     const menuToggle = document.querySelector('.mobile-menu-toggle');
     
     if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
+        console.log('Mobile menu toggle found');
+        // Remove any existing event listeners by cloning the element
+        const newMenuToggle = menuToggle.cloneNode(true);
+        menuToggle.parentNode.replaceChild(newMenuToggle, menuToggle);
+        
+        newMenuToggle.addEventListener('click', (e) => {
+            console.log('Mobile menu toggle clicked');
+            e.preventDefault();
+            e.stopPropagation();
             document.body.classList.toggle('mobile-menu-open');
-            
-            // Accessibility
-            const isExpanded = menuToggle.getAttribute('aria-expanded') === 'true' || false;
-            menuToggle.setAttribute('aria-expanded', !isExpanded);
+            console.log('Mobile menu state:', document.body.classList.contains('mobile-menu-open'));
         });
         
         // Close menu when clicking outside
         document.addEventListener('click', (event) => {
             const isClickInsideMenu = event.target.closest('.main-nav') || 
-                                     event.target.closest('.mobile-menu-toggle');
+                                    event.target.closest('.mobile-menu-toggle');
             
             if (!isClickInsideMenu && document.body.classList.contains('mobile-menu-open')) {
+                console.log('Closing mobile menu - clicked outside');
                 document.body.classList.remove('mobile-menu-open');
-                menuToggle.setAttribute('aria-expanded', 'false');
             }
         });
+        
+        // Close mobile menu when clicking on a link
+        const navLinks = document.querySelectorAll('.main-nav a');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                console.log('Closing mobile menu - link clicked');
+                document.body.classList.remove('mobile-menu-open');
+            });
+        });
+    } else {
+        console.error('Mobile menu toggle not found!');
     }
 }
 
