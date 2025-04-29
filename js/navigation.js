@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initActiveNavLinks();
     initScrollBehavior();
     initFirstVisitPrompt();
+    initMobileMenu();
 });
 
 /**
@@ -281,5 +282,30 @@ function initFirstVisitPrompt() {
                 }
             }, 1500); // Short delay to allow page to load completely
         }
+    }
+}
+
+/**
+ * Initialize mobile menu functionality
+ */
+function initMobileMenu() {
+    const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+    
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', () => {
+            document.body.classList.toggle('mobile-menu-open');
+        });
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (event) => {
+            const isMenuOpen = document.body.classList.contains('mobile-menu-open');
+            
+            // Check if click is outside the menu and the toggle button
+            if (isMenuOpen && 
+                !event.target.closest('.main-nav') && 
+                !event.target.closest('.mobile-menu-toggle')) {
+                document.body.classList.remove('mobile-menu-open');
+            }
+        });
     }
 } 
