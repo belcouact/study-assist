@@ -76,6 +76,16 @@ function initQuizGenerator() {
             
             ${levelSpecificPrompt}
             
+            请特别注意这些历史时期的具体内容范围：
+            - 古代文明（前3500–500年）：农业、文字、帝国的兴起与发展，包括美索不达米亚、埃及、印度河流域、黄河流域等古代文明。
+            - 后古典时代（500–1450年）：宗教传播、跨洲贸易与文化交流，包括封建制度、伊斯兰扩张、宋朝繁荣、蒙古帝国等。
+            - 近代早期（1450–1750年）：全球化萌芽、殖民主义与贸易扩张，包括航海大发现、文艺复兴、宗教改革等。
+            - 革命与工业化（1750–1914年）：工业资本兴起、民族国家形成，包括美国独立、法国大革命、工业革命等。
+            - 世界大战与冷战（1914–1991年）：意识形态对抗、科技战争发展，包括两次世界大战、冷战、非殖民化运动等。
+            - 当代全球化（1991年–至今）：数字时代变革、世界多极化，包括互联网崛起、恐怖主义、气候变化等全球性问题。
+            
+            请确保生成的问题严格针对所选择的【${topicName}】时期，不要包含其他时期的内容。
+            
             每个问题应包含问题描述、4个选项（A、B、C、D）、正确答案和详细的解释说明。
             解释说明应该包含：
             1. 为什么这个选项是正确的
@@ -432,11 +442,11 @@ function getEducationLevelName(level) {
 function getTopicName(topic) {
     switch(topic) {
         case 'ancient': return '古代文明';
-        case 'medieval': return '中世纪';
-        case 'exploration': return '探索时代';
-        case 'revolutionary': return '革命时代';
-        case 'worldwars': return '世界大战';
-        case 'modern': return '现代历史';
+        case 'postclassical': return '后古典时代';
+        case 'earlymodern': return '近代早期';
+        case 'revolutionary': return '革命与工业化';
+        case 'worldwars': return '世界大战与冷战';
+        case 'contemporary': return '当代全球化';
         default: return '历史';
     }
 }
@@ -511,22 +521,22 @@ function initHistoryChat() {
             if (this.currentTopic) {
                 switch(this.currentTopic) {
                     case 'ancient':
-                        topicSpecificPrompt = '用户正在学习古代文明。请专注于早期人类社会、古代文明的发展和特点，以及它们对后世的影响。';
+                        topicSpecificPrompt = '用户正在学习古代文明（前3500–500年）。请专注于农业、文字、帝国的兴起与发展，包括美索不达米亚、埃及、印度河流域、黄河流域等古代文明。';
                         break;
-                    case 'medieval':
-                        topicSpecificPrompt = '用户正在学习中世纪。请专注于封建制度、宗教影响、社会结构和中世纪欧洲的发展。';
+                    case 'postclassical':
+                        topicSpecificPrompt = '用户正在学习后古典时代（500–1450年）。请专注于宗教传播、跨洲贸易与文化交流，包括封建制度、伊斯兰扩张、宋朝繁荣、蒙古帝国等内容。';
                         break;
-                    case 'exploration':
-                        topicSpecificPrompt = '用户正在学习探索时代。请专注于航海发现、全球贸易和文化交流，以及这些事件对世界历史的影响。';
+                    case 'earlymodern':
+                        topicSpecificPrompt = '用户正在学习近代早期（1450–1750年）。请专注于全球化萌芽、殖民主义与贸易扩张，包括航海大发现、文艺复兴、宗教改革等内容。';
                         break;
                     case 'revolutionary':
-                        topicSpecificPrompt = '用户正在学习革命时代。请专注于政治革命、工业革命和社会变革，以及这些事件如何塑造现代世界。';
+                        topicSpecificPrompt = '用户正在学习革命与工业化时期（1750–1914年）。请专注于工业资本兴起、民族国家形成，包括美国独立、法国大革命、工业革命等内容。';
                         break;
                     case 'worldwars':
-                        topicSpecificPrompt = '用户正在学习世界大战。请专注于战争的原因、主要事件、影响和战后世界秩序的重建。';
+                        topicSpecificPrompt = '用户正在学习世界大战与冷战时期（1914–1991年）。请专注于意识形态对抗、科技战争发展，包括两次世界大战、冷战、非殖民化运动等内容。';
                         break;
-                    case 'modern':
-                        topicSpecificPrompt = '用户正在学习现代历史。请专注于当代全球问题、国际关系、科技发展和社会变革。';
+                    case 'contemporary':
+                        topicSpecificPrompt = '用户正在学习当代全球化（1991年–至今）。请专注于数字时代变革、世界多极化，包括互联网崛起、恐怖主义、气候变化等全球性问题。';
                         break;
                     default:
                         topicSpecificPrompt = '';
