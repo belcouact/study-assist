@@ -138,6 +138,10 @@
             box-shadow: 0 2px 8px rgba(76,201,240,0.06);
             outline: none;
             transition: border 0.2s;
+            /* iOS specific fixes */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
         }
         #draw-prompt-input:focus {
             border: 1.5px solid #7209b7;
@@ -300,11 +304,11 @@
             #draw-prompt-input {
                 min-height: 60px;
                 max-height: 200px;
-                resize: vertical;
-                -webkit-appearance: none;
+                /* Native resize may not work well on all mobile devices */
+                resize: none; 
                 overflow: auto;
                 line-height: 1.5;
-                border-bottom-width: 4px;
+                padding-right: 40px; /* Make room for the resize handle */
             }
             
             .section-header {
@@ -320,17 +324,23 @@
                 font-size: 1rem;
             }
 
+            /* Hide the auto-generated resize indicator since we're using a custom one */
             .chat-input::after {
-                content: '';
-                position: absolute;
-                bottom: 3px;
-                right: 3px;
-                width: 26px;
-                height: 26px;
-                background: linear-gradient(135deg, transparent 50%, rgba(114, 9, 183, 0.2) 50%);
-                pointer-events: none;
-                z-index: 5;
-                border-radius: 0 0 8px 0;
+                display: none;
+            }
+            
+            /* Custom resize handle styles for mobile */
+            .resize-handle {
+                background-color: rgba(255, 255, 255, 0.6);
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            
+            .resize-handle i {
+                font-size: 1.2rem;
             }
         }
         .loader-container {
@@ -369,6 +379,20 @@
             border-radius: 4px;
             width: 10px;
             height: 10px;
+        }
+
+        /* Add a resize indicator that's always visible */
+        .chat-input::after {
+            content: '';
+            position: absolute;
+            bottom: 66px; /* Position above the controls */
+            right: 25px;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, transparent 50%, rgba(114, 9, 183, 0.5) 50%);
+            pointer-events: none;
+            z-index: 10;
+            border-radius: 0 0 4px 0;
         }
     </style>
 </head>
@@ -460,6 +484,68 @@
             const generateButton = document.getElementById('generate-image');
             const imageResult = document.getElementById('image-result');
             const resolutionSelect = document.getElementById('resolution-select');
+            
+            // Add custom resize handle for iOS and other mobile devices
+            const chatInputContainer = document.querySelector('.chat-input');
+            let isResizing = false;
+            let initialHeight = 0;
+            let initialY = 0;
+            
+            // Create a visible resize handle element
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            resizeHandle.style.position = 'absolute';
+            resizeHandle.style.bottom = '65px';
+            resizeHandle.style.right = '20px';
+            resizeHandle.style.width = '30px';
+            resizeHandle.style.height = '30px';
+            resizeHandle.style.cursor = 'ns-resize';
+            resizeHandle.style.zIndex = '20';
+            resizeHandle.style.opacity = '0.7';
+            resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="color: rgba(114, 9, 183, 0.7);"></i>';
+            chatInputContainer.appendChild(resizeHandle);
+            
+            // Mouse events for desktop
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                initialHeight = promptInput.offsetHeight;
+                initialY = e.clientY;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const delta = e.clientY - initialY;
+                const newHeight = initialHeight + delta;
+                if (newHeight >= 48 && newHeight <= 200) {
+                    promptInput.style.height = newHeight + 'px';
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+            });
+            
+            // Touch events for mobile
+            resizeHandle.addEventListener('touchstart', (e) => {
+                isResizing = true;
+                initialHeight = promptInput.offsetHeight;
+                initialY = e.touches[0].clientY;
+                e.preventDefault();
+            });
+            
+            document.addEventListener('touchmove', (e) => {
+                if (!isResizing) return;
+                const delta = e.touches[0].clientY - initialY;
+                const newHeight = initialHeight + delta;
+                if (newHeight >= 48 && newHeight <= 200) {
+                    promptInput.style.height = newHeight + 'px';
+                }
+            });
+            
+            document.addEventListener('touchend', () => {
+                isResizing = false;
+            });
 
             function getSystemPrompt() {
                 const [width, height] = resolutionSelect.value.split(':');
