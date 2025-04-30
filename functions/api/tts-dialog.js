@@ -207,27 +207,31 @@ export async function onRequestOptions() {
 
 // Function to map frontend voice names to MiniMax voice IDs
 function getMiniMaxVoiceId(frontendVoice) {
+  // Default voice if none provided
+  if (!frontendVoice) return "male-qn-jingying";
+  
+  // Voice mapping based on the mapping in tts.js
   const voiceMap = {
     // Chinese Mandarin voices
-    "Chinese (Mandarin)_Elite_Young": "zh-Male-6",
-    "Chinese (Mandarin)_Young_Girl": "zh-Female-3",
-    "Chinese (Mandarin)_Lyrical_Voice": "zh-Male-3",
-    "Chinese (Mandarin)_Male_Announcer": "zh-Male-1",
-    "Chinese (Mandarin)_Pure-hearted_Boy": "zh-Male-5",
-    "Chinese (Mandarin)_Warm_Girl": "zh-Female-4",
+    "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",
+    "Chinese (Mandarin)_Young_Girl": "female-shaonv",
+    "Chinese (Mandarin)_Lyrical_Voice": "Chinese (Mandarin)_Lyrical_Voice",
+    "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",
+    "Chinese (Mandarin)_Pure-hearted_Boy": "Chinese (Mandarin)_Pure-hearted_Boy",
+    "Chinese (Mandarin)_Warm_Girl": "Chinese (Mandarin)_Warm_Girl",
     
     // Cantonese voices
-    "Cantonese_Professional_Host_Female": "zh-yue-Female-1",
-    "Cantonese_Professional_Host_Male": "zh-yue-Male-1",
+    "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",
+    "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",
     
     // English voices
-    "English_Graceful_Lady": "en-Female-1",
-    "English_Gentle_Voiced_Man": "en-Male-1",
-    "English_UpsetGirl": "en-Female-2",
-    "English_Wiselady": "en-Female-3",
-    "English_Trustworth_Man": "en-Male-3"
+    "English_Graceful_Lady": "English_Graceful_Lady",
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",
+    "English_UpsetGirl": "English_UpsetGirl",
+    "English_Wiselady": "English_Wiselady",
+    "English_Trustworth_Man": "English_Trustworthy_Man"
   };
   
-  // Return the mapped voice ID or default to a standard voice
-  return voiceMap[frontendVoice] || "zh-Male-6";
+  // Return mapped voice or default if mapping not found
+  return voiceMap[frontendVoice] || "male-qn-jingying";
 } 
