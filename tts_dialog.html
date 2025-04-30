@@ -325,7 +325,6 @@ Mom: Wake up, sweetheart! It's time for school.
 Child: Just five more minutes, please! 
 孩子：再睡五分钟嘛，求你了！"></textarea>
                     <button class="example-btn" id="load-example">加载示例对话</button>
-                    <button class="example-btn" id="check-api" style="margin-left: 10px; background: rgba(247, 215, 215, 0.7);">检查API凭证</button>
                 </div>
                 
                 <button id="analyze-btn" class="mb-4">分析对话</button>
@@ -336,6 +335,14 @@ Child: Just five more minutes, please!
                     
                     <div id="role-list" class="role-list">
                         <!-- Roles will be inserted here by JS -->
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="language-preference">语言偏好：</label>
+                        <select id="language-preference" style="width: auto; display: inline-block; margin-left: 10px;">
+                            <option value="english">优先使用英文</option>
+                            <option value="chinese">优先使用中文</option>
+                        </select>
                     </div>
                 </div>
                 
@@ -379,7 +386,7 @@ Child: Just five more minutes, please!
             const downloadBtn = document.getElementById('download-btn');
             const status = document.getElementById('status');
             const loadExampleBtn = document.getElementById('load-example');
-            const checkApiBtn = document.getElementById('check-api');
+            const languagePreference = document.getElementById('language-preference');
             
             let currentAudioBlob = null;
             let identifiedRoles = [];
@@ -459,69 +466,6 @@ Dad: Have a great day at school!
 爸爸：祝你在学校度过美好的一天！ 
 Child: Thanks, Dad! See you later! 
 孩子：谢谢，爸爸！待会见！`;
-            });
-            
-            // Check API credentials
-            checkApiBtn.addEventListener('click', async () => {
-                showLoading('正在检查API凭证...');
-                
-                try {
-                    const response = await fetch('/api/tts-dialog', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            dialog: [{
-                                name: "TestUser",
-                                gender: "male", 
-                                type: "adult",
-                                lines: [{
-                                    english: "Testing API credentials",
-                                    chinese: "测试API凭证"
-                                }]
-                            }],
-                            roleVoices: {
-                                "TestUser": "Chinese (Mandarin)_Elite_Young"
-                            },
-                            model: "speech-02-turbo"
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        let errorMessage = 'API凭证验证失败';
-                        try {
-                            const errorData = await response.json();
-                            console.error('API Credential Check Error:', errorData);
-                            
-                            if (errorData.error && errorData.error.includes('credential')) {
-                                errorMessage = '语音API凭证无效或未设置。请联系网站管理员。';
-                            } else if (errorData.details) {
-                                errorMessage = `API错误: ${errorData.error || ''}\n详情: ${JSON.stringify(errorData.details)}`;
-                            } else {
-                                errorMessage = errorData.error || errorMessage;
-                            }
-                        } catch (e) {
-                            errorMessage = `API凭证验证失败: ${response.status} ${response.statusText}`;
-                        }
-                        showError(errorMessage);
-                    } else {
-                        // Try to get a small piece of audio data to verify
-                        try {
-                            const audioData = await response.arrayBuffer();
-                            if (audioData.byteLength > 0) {
-                                showStatus('API凭证有效，可以正常使用语音功能', 'success');
-                            } else {
-                                showError('API返回了空的音频数据，可能存在配置问题');
-                            }
-                        } catch (e) {
-                            showError('无法解析API响应，可能存在配置问题');
-                        }
-                    }
-                } catch (error) {
-                    console.error('API credential check error:', error);
-                    showError('API凭证检查失败: ' + error.message);
-                }
             });
             
             // Analyze the dialog text using DeepSeek API
@@ -706,44 +650,104 @@ ${dialogText}`
                     
                     // Extract the sequence of roles from the original text
                     const sequenceInfo = [];
-                    const dialogSequence = [];
+                    
+                    // Debugging output of original dialog lines
+                    console.log('Original dialog lines:', dialogLines.map(l => l.trim()));
+                    console.log('Identified roles:', identifiedRoles.map(r => r.name));
                     
                     // Parse the original text to extract the sequence of roles and lines
-                    dialogLines.forEach(line => {
+                    dialogLines.forEach((line, lineIndex) => {
+                        // Find role name before the colon
                         const colonIndex = line.indexOf(':');
                         if (colonIndex > 0) {
                             const roleName = line.substring(0, colonIndex).trim();
-                            // Find the role in identified roles
+                            const lineText = line.substring(colonIndex + 1).trim();
+                            
+                            // Skip empty lines
+                            if (!lineText) return;
+                            
+                            console.log(`Line ${lineIndex+1}: Role "${roleName}", Text: "${lineText.substring(0, 20)}..."`);
+                            
+                            // Find the matching role in identifiedRoles
                             const roleIndex = identifiedRoles.findIndex(r => r.name === roleName);
+                            
                             if (roleIndex >= 0) {
-                                // Find the line index within this role's lines
                                 const role = identifiedRoles[roleIndex];
-                                const lineText = line.substring(colonIndex + 1).trim();
                                 
-                                // Try to find the matching line in this role's lines
-                                const lineIndex = role.lines.findIndex(l => 
-                                    (l.english && l.english.includes(lineText)) || 
-                                    (l.chinese && l.chinese.includes(lineText))
-                                );
+                                // Find the matching line in this role's lines using fuzzy matching
+                                // This is more reliable than exact matching
+                                let bestMatchIndex = -1;
+                                let bestMatchScore = 0;
                                 
-                                if (lineIndex >= 0) {
+                                role.lines.forEach((l, i) => {
+                                    // Check both English and Chinese text
+                                    const englishMatch = l.english && lineText.includes(l.english.substring(0, Math.min(l.english.length, 10)));
+                                    const chineseMatch = l.chinese && lineText.includes(l.chinese.substring(0, Math.min(l.chinese.length, 10)));
+                                    
+                                    // If either matches, this is a candidate
+                                    if (englishMatch || chineseMatch) {
+                                        // Calculate match score based on text overlap
+                                        let score = 0;
+                                        if (l.english) {
+                                            score += getMatchScore(lineText, l.english);
+                                        }
+                                        if (l.chinese) {
+                                            score += getMatchScore(lineText, l.chinese);
+                                        }
+                                        
+                                        // Update best match if this is better
+                                        if (score > bestMatchScore) {
+                                            bestMatchScore = score;
+                                            bestMatchIndex = i;
+                                        }
+                                    }
+                                });
+                                
+                                // If we found a good match, add it to the sequence
+                                if (bestMatchIndex >= 0) {
+                                    console.log(`-> Matched to line index ${bestMatchIndex} (score: ${bestMatchScore})`);
+                                    
                                     sequenceInfo.push({
                                         role: roleName,
-                                        line_index: lineIndex,
-                                        sequence_position: sequenceInfo.length
+                                        line_index: bestMatchIndex,
+                                        sequence_position: sequenceInfo.length,
+                                        original_line: lineText
                                     });
-                                    
-                                    // Also build a flattened dialog sequence
-                                    dialogSequence.push({
-                                        role: role,
-                                        line: role.lines[lineIndex]
-                                    });
+                                } else {
+                                    console.warn(`-> No good match found for line: "${lineText}"`);
                                 }
+                            } else {
+                                console.warn(`Role "${roleName}" not found in identified roles.`);
                             }
+                        } else {
+                            console.warn(`Line doesn't follow "Role: Text" format: "${line}"`);
                         }
                     });
                     
-                    console.log('Dialog sequence info:', sequenceInfo);
+                    // Helper function to calculate text match score
+                    function getMatchScore(text1, text2) {
+                        // Basic implementation: length of common substring
+                        const minLen = Math.min(text1.length, text2.length);
+                        let maxCommonLen = 0;
+                        
+                        for (let i = 0; i < minLen; i++) {
+                            // Start from different positions and find common substrings
+                            let j = 0;
+                            while (i + j < minLen && text1.charAt(i + j) === text2.charAt(j)) {
+                                j++;
+                            }
+                            maxCommonLen = Math.max(maxCommonLen, j);
+                        }
+                        
+                        return maxCommonLen;
+                    }
+                    
+                    // Log the final sequence information
+                    console.log(`Final dialog sequence (${sequenceInfo.length} lines):`, sequenceInfo);
+                    
+                    // Get language preference
+                    const selectedLanguage = languagePreference.value;
+                    console.log(`Selected language preference: ${selectedLanguage}`);
                     
                     // Prepare the TTS request with role and voice mapping
                     const requestData = {
@@ -751,7 +755,9 @@ ${dialogText}`
                         roleVoices: roleVoices,
                         model: "speech-02-hd",
                         // Include the original sequence information
-                        original_sequence: sequenceInfo
+                        original_sequence: sequenceInfo,
+                        // Include language preference
+                        language_preference: selectedLanguage
                     };
                     
                     // Call the TTS API

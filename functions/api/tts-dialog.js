@@ -67,56 +67,34 @@ export async function onRequestPost(context) {
     });
     
     // First, analyze the dialog structure to understand its format
-    // Check if the dialog is already in sequence format or if it's grouped by role
-    const isSequentialDialog = requestData.dialog_format === 'sequential';
-    
     // Create a flat sequential dialog from the input data - this is the key part
     const dialogSequence = [];
     
-    if (isSequentialDialog) {
-      // The dialog is already in sequence order, so we can use it directly
-      for (let i = 0; i < requestData.dialog.length; i++) {
-        const item = requestData.dialog[i];
-        dialogSequence.push({
-          role: item.role,
-          text: item.text,
-          index: i
-        });
+    // Check if there's any sequence information in the request
+    if (requestData.original_sequence && Array.isArray(requestData.original_sequence)) {
+      // Use provided sequence information if available
+      console.log("Using provided original_sequence information for dialog order");
+      for (const seqItem of requestData.original_sequence) {
+        const role = requestData.dialog.find(r => r.name === seqItem.role);
+        if (role && role.lines[seqItem.line_index]) {
+          dialogSequence.push({
+            role: role,
+            line: role.lines[seqItem.line_index],
+            index: dialogSequence.length,
+            originalLine: seqItem.original_line
+          });
+        }
       }
     } else {
-      // The dialog is grouped by role, so we need to reconstruct the sequence
-      // THIS DOESN'T WORK CORRECTLY because the original sequence is lost when grouped by role
-      // Instead, we need to look at the original dialog input text to reconstruct the sequence
-      
-      // Check if there's any sequence information in the request
-      if (requestData.original_sequence && Array.isArray(requestData.original_sequence)) {
-        // Use provided sequence information if available
-        for (const seqItem of requestData.original_sequence) {
-          const role = requestData.dialog.find(r => r.name === seqItem.role);
-          if (role && role.lines[seqItem.line_index]) {
-            dialogSequence.push({
-              role: role,
-              line: role.lines[seqItem.line_index],
-              index: dialogSequence.length
-            });
-          }
-        }
-      } else {
-        // IMPORTANT: We cannot determine the correct sequence from roles with multiple lines
-        // We will log this issue but proceed with the current approach to at least generate audio
-        console.warn("WARNING: Cannot determine exact dialog sequence from the grouped roles. Audio may not follow dialog order.");
-        console.warn("Please modify the frontend to pass dialog_format='sequential' or include original_sequence.");
-        
-        // Create a naive sequential representation - this is prone to order issues
-        // but without sequence info, it's the best we can do
-        for (const role of requestData.dialog) {
-          for (const line of role.lines) {
-            dialogSequence.push({
-              role: role,
-              line: line,
-              index: dialogSequence.length
-            });
-          }
+      // Create a fallback sequential representation - this is suboptimal but better than failing
+      console.warn("WARNING: No sequence information provided. Falling back to grouped roles.");
+      for (const role of requestData.dialog) {
+        for (const line of role.lines) {
+          dialogSequence.push({
+            role: role,
+            line: line,
+            index: dialogSequence.length
+          });
         }
       }
     }
@@ -138,7 +116,16 @@ export async function onRequestPost(context) {
       let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
       
       // Use English text if available, otherwise use Chinese
-      const text = line.english?.trim() || line.chinese?.trim();
+      // Allow language selection based on user preference
+      let text;
+      if (requestData.language_preference === 'chinese') {
+        text = line.chinese?.trim() || line.english?.trim();
+      } else if (requestData.language_preference === 'english') {
+        text = line.english?.trim() || line.chinese?.trim();
+      } else {
+        // Default behavior - prefer English if available
+        text = line.english?.trim() || line.chinese?.trim();
+      }
       
       if (!text) {
         console.log(`[${seqIndex+1}/${dialogSequence.length}] Skipping empty line for ${roleName}`);
@@ -146,6 +133,7 @@ export async function onRequestPost(context) {
       }
       
       console.log(`[${seqIndex+1}/${dialogSequence.length}] Processing: ${roleName} says "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      console.log(`Using voice ID: ${voiceId}`);
       
       // Create the payload for this line
       const payload = {
@@ -155,9 +143,9 @@ export async function onRequestPost(context) {
         language_boost: "auto",
         voice_setting: {
           voice_id: voiceId,
-          speed: 1.0,
-          vol: 1.0,
-          pitch: 0
+          speed: 1.0,  // Fixed speed (no adjustment)
+          vol: 1.0,    // Fixed volume
+          pitch: 0     // Fixed pitch (no adjustment)
         },
         audio_setting: {
           sample_rate: 32000,
@@ -166,19 +154,6 @@ export async function onRequestPost(context) {
         }
       };
       
-      // Adjust speed and pitch based on role characteristics
-      if (role.gender === 'female' || role.name.toLowerCase().includes('mom') || 
-          role.name.toLowerCase().includes('mother') || role.name.toLowerCase().includes('woman')) {
-        // Make female voices slightly faster and higher pitched
-        payload.voice_setting.speed = 1.05;
-        payload.voice_setting.pitch = 1;
-      } else if (role.type === 'child' || role.name.toLowerCase().includes('child') || 
-                role.name.toLowerCase().includes('kid') || role.name.toLowerCase().includes('baby')) {
-        // Make child voices faster and higher pitched
-        payload.voice_setting.speed = 1.1;
-        payload.voice_setting.pitch = 1;
-      }
-      
       // Add short pause at the end of each line
       payload.text = payload.text + "，"; // Add a comma to create a natural pause
       
@@ -186,6 +161,7 @@ export async function onRequestPost(context) {
       const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
       
       try {
+        console.log(`Sending request to MiniMax API for role '${roleName}'`);
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -202,49 +178,66 @@ export async function onRequestPost(context) {
           throw new Error(`MiniMax API error: ${response.status} ${response.statusText}`);
         }
         
-        // Process JSON response
-        const responseData = await response.json();
+        // Check response content type
+        const contentType = response.headers.get('Content-Type') || '';
+        console.log(`Response Content-Type: ${contentType}`);
         
         let audioBytes;
         
-        // Process audio data based on response format
-        if (responseData.audio_base64) {
-          // Process audio base64 response
-          const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
-          const binary = atob(base64);
-          audioBytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            audioBytes[i] = binary.charCodeAt(i);
-          }
-        } else if (responseData.data && responseData.data.audio) {
-          // Extract the audio data (newer API format)
-          const audioData = responseData.data.audio;
+        if (contentType.includes('application/json')) {
+          // Process JSON response
+          const responseData = await response.json();
+          console.log(`Received JSON response for ${roleName}`);
           
-          // Determine if it's hex or base64
-          if (/^[0-9a-fA-F]+$/.test(audioData)) {
-            // Convert hex to binary
-            audioBytes = new Uint8Array(audioData.length / 2);
-            for (let i = 0; i < audioData.length; i += 2) {
-              audioBytes[i / 2] = parseInt(audioData.substring(i, i + 2), 16);
+          // Process audio data based on response format
+          if (responseData.data && responseData.data.audio) {
+            // Extract the audio data (newer API format)
+            const audioData = responseData.data.audio;
+            
+            // Determine if it's hex or base64
+            if (/^[0-9a-fA-F]+$/.test(audioData)) {
+              // Convert hex to binary
+              audioBytes = new Uint8Array(audioData.length / 2);
+              for (let i = 0; i < audioData.length; i += 2) {
+                audioBytes[i / 2] = parseInt(audioData.substring(i, i + 2), 16);
+              }
+              console.log(`Converted hex audio data (${audioBytes.byteLength} bytes)`);
+            } else {
+              // Assume base64 and convert to binary
+              const binaryString = atob(audioData);
+              audioBytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                audioBytes[i] = binaryString.charCodeAt(i);
+              }
+              console.log(`Converted base64 audio data (${audioBytes.byteLength} bytes)`);
             }
-          } else {
-            // Assume base64 and convert to binary
-            const binaryString = atob(audioData);
-            audioBytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              audioBytes[i] = binaryString.charCodeAt(i);
+          } else if (responseData.audio_base64) {
+            // Process audio base64 response (legacy format)
+            const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+            const binary = atob(base64);
+            audioBytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              audioBytes[i] = binary.charCodeAt(i);
+            }
+            console.log(`Converted legacy base64 audio data (${audioBytes.byteLength} bytes)`);
+          } else if (responseData.audio_file || (responseData.data && responseData.data.audio_file)) {
+            // Handle audio_file URLs
+            const audioFileUrl = responseData.audio_file || (responseData.data && responseData.data.audio_file);
+            
+            if (audioFileUrl) {
+              console.log(`Audio file URL received: ${audioFileUrl}`);
+              // Fetch the audio file
+              const audioFileResponse = await fetch(audioFileUrl);
+              const audioBuffer = await audioFileResponse.arrayBuffer();
+              audioBytes = new Uint8Array(audioBuffer);
+              console.log(`Downloaded audio file (${audioBytes.byteLength} bytes)`);
             }
           }
-        } else if (responseData.audio_file || (responseData.data && responseData.data.audio_file)) {
-          // Handle audio_file URLs
-          const audioFileUrl = responseData.audio_file || (responseData.data && responseData.data.audio_file);
-          
-          if (audioFileUrl) {
-            // Fetch the audio file
-            const audioFileResponse = await fetch(audioFileUrl);
-            const audioBuffer = await audioFileResponse.arrayBuffer();
-            audioBytes = new Uint8Array(audioBuffer);
-          }
+        } else {
+          // Assume binary audio data from response
+          const audioBuffer = await response.arrayBuffer();
+          audioBytes = new Uint8Array(audioBuffer);
+          console.log(`Received binary audio response (${audioBytes.byteLength} bytes)`);
         }
         
         if (!audioBytes || audioBytes.length === 0) {
@@ -308,7 +301,8 @@ export async function onRequestPost(context) {
     return new Response(mergedAudio, {
       headers: {
         ...corsHeaders,
-        'Content-Type': 'audio/mp3'
+        'Content-Type': 'audio/mp3',
+        'Cache-Control': 'public, max-age=86400'
       }
     });
     
@@ -351,22 +345,32 @@ function getMiniMaxVoiceId(frontendVoice) {
   const voiceMap = {
     // Chinese Mandarin voices
     "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",
+    "Chinese (Mandarin)_College_Student": "male-qn-daxuesheng",
     "Chinese (Mandarin)_Young_Girl": "female-shaonv",
-    "Chinese (Mandarin)_Lyrical_Voice": "male-shuqing",
+    "Chinese (Mandarin)_Mature_Woman": "female-chengshu",
+    "Chinese (Mandarin)_Sweet_Woman": "female-tianmei",
+    "Chinese (Mandarin)_Male_Presenter": "presenter_male",
+    "Chinese (Mandarin)_Female_Presenter": "presenter_female",
+    "Chinese (Mandarin)_Cute_Boy": "cute_boy",
+    "Chinese (Mandarin)_Lovely_Girl": "lovely_girl",
+    "Chinese (Mandarin)_News_Anchor": "Chinese (Mandarin)_News_Anchor",
+    "Chinese (Mandarin)_Refreshing_Young_Man": "Chinese (Mandarin)_Refreshing_Young_Man",
     "Chinese (Mandarin)_Male_Announcer": "male-bobo",
+    "Chinese (Mandarin)_Lyrical_Voice": "male-shuqing",
     "Chinese (Mandarin)_Pure-hearted_Boy": "male-chunzhen",
     "Chinese (Mandarin)_Warm_Girl": "female-nuannan",
     
-    // Cantonese voices - keeping the original IDs as they appear to be direct passes
+    // Cantonese voices
     "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",
     "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",
     
-    // English voices - these appear to use the frontend name directly as the voice ID
+    // English voices
+    "English_Trustworthy_Man": "English_Trustworthy_Man",
     "English_Graceful_Lady": "English_Graceful_Lady",
-    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man", // Note the slight difference in casing
+    "English_Diligent_Man": "English_Diligent_Man",
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",
     "English_UpsetGirl": "English_UpsetGirl",
-    "English_Wiselady": "English_Wiselady",
-    "English_Trustworthy_Man": "English_Trustworthy_Man"
+    "English_Wiselady": "English_Wiselady"
   };
   
   // Log the mapping operation
@@ -374,4 +378,9 @@ function getMiniMaxVoiceId(frontendVoice) {
   
   // Return mapped voice or default if mapping not found
   return voiceMap[frontendVoice] || "male-qn-jingying";
-} 
+}
+
+export const config = {
+  runtime: 'edge',
+  maxDuration: 60 // Set maximum duration to 60 seconds
+}; 
