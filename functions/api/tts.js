@@ -439,10 +439,17 @@ export function onRequestGet() {
       "Chinese (Mandarin)_Elite_Young": "精英青年音色",
       "Chinese (Mandarin)_College_Student": "青年大学生音色",
       "Chinese (Mandarin)_Young_Girl": "少女音色",
-      "Chinese (Mandarin)_Male_Announcer": "播报男声",
+      "Chinese (Mandarin)_Male_Announcer": "雄浑播音男士",
+      "Chinese (Mandarin)_Lyrical_Voice": "抒情男声",
+      "Chinese (Mandarin)_Pure-hearted_Boy": "纯真少年男生",
+      "Chinese (Mandarin)_Warm_Girl": "温暖少年女生",
       "English_Trustworthy_Man": "Trustworthy Man",
       "English_Graceful_Lady": "Graceful Lady",
-      "Cantonese_Professional_Host_Female": "专业女主持"
+      "English_UpsetGirl": "Upset Girl",
+      "English_Wiselady": "Wise Lady",
+      "English_Gentle_Voiced_Man": "Gentle-voiced Man",
+      "Cantonese_Professional_Host_Female": "专业女主持",
+      "Cantonese_Professional_Host_Male": "专业男主持"
     },
     models: {
       "speech-02-turbo": "Recommended: Fast, high-quality speech synthesis",
@@ -481,6 +488,9 @@ function getMiniMaxVoiceId(frontendVoice) {
     "Chinese (Mandarin)_News_Anchor": "Chinese (Mandarin)_News_Anchor",               // 新闻女声
     "Chinese (Mandarin)_Refreshing_Young_Man": "Chinese (Mandarin)_Refreshing_Young_Man", // 舒朗男声
     "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",         // 播报男声
+    "Chinese (Mandarin)_Lyrical_Voice": "Chinese (Mandarin)_Lyrical_Voice",           // 抒情男声
+    "Chinese (Mandarin)_Pure-hearted_Boy": "Chinese (Mandarin)_Pure-hearted_Boy",     // 纯真少年男生
+    "Chinese (Mandarin)_Warm_Girl": "Chinese (Mandarin)_Warm_Girl",                   // 温暖少年女生
     
     // Cantonese voices
     "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",  // 专业女主持
@@ -490,7 +500,9 @@ function getMiniMaxVoiceId(frontendVoice) {
     "English_Trustworthy_Man": "English_Trustworthy_Man",           // Trustworthy Man
     "English_Graceful_Lady": "English_Graceful_Lady",               // Graceful Lady
     "English_Diligent_Man": "English_Diligent_Man",                 // Diligent Man
-    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man"        // Gentle-voiced man
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",       // Gentle-voiced man
+    "English_UpsetGirl": "English_UpsetGirl",                       // Upset Girl
+    "English_Wiselady": "English_Wiselady"                          // Wise Lady
   };
   
   // Return mapped voice or default if mapping not found
