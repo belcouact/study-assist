@@ -4,21 +4,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    try {
-        // Check if we're on a page with navigation
-        const hasNavigation = document.querySelector('.main-nav');
-        
-        if (hasNavigation) {
-            // Initialize navigation functionality
-            initActiveNavLinks();
-            initScrollBehavior();
-            initFirstVisitPrompt();
-        } else {
-            console.log('Navigation not found. Skipping navigation initialization.');
-        }
-    } catch (error) {
-        console.error('Error initializing navigation:', error);
-    }
+    // Initialize navigation functionality
+    initActiveNavLinks();
+    initScrollBehavior();
+    initFirstVisitPrompt();
 });
 
 /**
@@ -26,10 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function initActiveNavLinks() {
     const navLinks = document.querySelectorAll('.main-nav a');
-    
-    if (navLinks.length === 0) {
-        return; // No navigation links found
-    }
     
     // Get current page path
     const currentPath = window.location.pathname;
@@ -50,7 +35,7 @@ function initActiveNavLinks() {
         navLinks.forEach(link => {
             const linkPath = link.getAttribute('href');
             
-            if (linkPath && currentPath.includes(linkPath) && linkPath !== 'index.html' && linkPath !== '/') {
+            if (currentPath.includes(linkPath) && linkPath !== 'index.html' && linkPath !== '/') {
                 setActiveNavLink(navLinks, link);
             }
         });
@@ -109,44 +94,24 @@ function updateActiveNavOnScroll(navLinks) {
  * @param {Element} activeLink - The link to set as active
  */
 function setActiveNavLink(navLinks, activeLink) {
-    // Check if both parameters exist
-    if (!navLinks || !activeLink) return;
-    
     // Remove active class from all links
     navLinks.forEach(link => {
-        if (link && link.classList) {
-            link.classList.remove('active');
-        }
+        link.classList.remove('active');
     });
     
     // Add active class to the current link
-    if (activeLink && activeLink.classList) {
-        activeLink.classList.add('active');
-    }
+    activeLink.classList.add('active');
 }
 
 /**
  * Initialize scroll behavior for navigation
  */
 function initScrollBehavior() {
-    try {
-        // Check if we're on a page where scroll behavior should be applied
-        // Skip on utility pages 
-        const currentPath = window.location.pathname;
-        const isUtilityPage = currentPath.includes('tts_dialog') || 
-                             currentPath.includes('draw') || 
-                             currentPath.includes('admin');
-        
-        // Only add sticky header if relevant
-        if (!isUtilityPage && document.querySelector('.main-header')) {
-            initStickyHeader();
-        }
-        
-        // Add scroll to top button on all pages
-        initScrollToTopButton();
-    } catch (error) {
-        console.error('Error initializing scroll behavior:', error);
-    }
+    // Add sticky header behavior
+    initStickyHeader();
+    
+    // Add scroll to top button
+    initScrollToTopButton();
 }
 
 /**
@@ -154,18 +119,10 @@ function initScrollBehavior() {
  */
 function initStickyHeader() {
     const header = document.querySelector('.main-header');
+    const headerHeight = header ? header.offsetHeight : 0;
     
-    if (!header) {
-        return; // No header found
-    }
-    
-    const headerHeight = header.offsetHeight;
-    
-    // Add scroll event listener with additional null check for header
+    // Add scroll event listener
     window.addEventListener('scroll', throttle(() => {
-        // Additional check to ensure header still exists when scroll event fires
-        if (!document.querySelector('.main-header')) return;
-        
         if (window.scrollY > headerHeight) {
             header.classList.add('sticky-header');
         } else {
@@ -178,92 +135,69 @@ function initStickyHeader() {
  * Initialize scroll to top button
  */
 function initScrollToTopButton() {
-    try {
-        // Create the scroll to top button if it doesn't exist
-        let scrollTopBtn = document.querySelector('.scroll-top-btn');
+    // Create the scroll to top button if it doesn't exist
+    let scrollTopBtn = document.querySelector('.scroll-top-btn');
+    
+    if (!scrollTopBtn) {
+        scrollTopBtn = document.createElement('button');
+        scrollTopBtn.className = 'scroll-top-btn';
+        scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
+        scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
+        document.body.appendChild(scrollTopBtn);
         
-        if (!scrollTopBtn) {
-            scrollTopBtn = document.createElement('button');
-            scrollTopBtn.className = 'scroll-top-btn';
-            scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
-            scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
-            
-            // Make sure document.body exists before appending
-            if (document.body) {
-                document.body.appendChild(scrollTopBtn);
-            } else {
-                console.warn('Document body not found, cannot append scroll-to-top button');
-                return;
+        // Style the button with CSS
+        scrollTopBtn.style.position = 'fixed';
+        scrollTopBtn.style.bottom = '20px';
+        scrollTopBtn.style.right = '20px';
+        scrollTopBtn.style.width = '40px';
+        scrollTopBtn.style.height = '40px';
+        scrollTopBtn.style.borderRadius = '50%';
+        scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
+        scrollTopBtn.style.color = 'white';
+        scrollTopBtn.style.border = 'none';
+        scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
+        scrollTopBtn.style.cursor = 'pointer';
+        scrollTopBtn.style.opacity = '0';
+        scrollTopBtn.style.visibility = 'hidden';
+        scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
+        scrollTopBtn.style.zIndex = '999';
+        scrollTopBtn.style.display = 'flex';
+        scrollTopBtn.style.alignItems = 'center';
+        scrollTopBtn.style.justifyContent = 'center';
+        
+        // Create arrow icon
+        const arrowStyle = document.createElement('style');
+        arrowStyle.textContent = `
+            .arrow-up {
+                width: 0;
+                height: 0;
+                border-left: 8px solid transparent;
+                border-right: 8px solid transparent;
+                border-bottom: 12px solid white;
+                display: block;
             }
-            
-            // Style the button with CSS
-            scrollTopBtn.style.position = 'fixed';
-            scrollTopBtn.style.bottom = '20px';
-            scrollTopBtn.style.right = '20px';
-            scrollTopBtn.style.width = '40px';
-            scrollTopBtn.style.height = '40px';
-            scrollTopBtn.style.borderRadius = '50%';
-            scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
-            scrollTopBtn.style.color = 'white';
-            scrollTopBtn.style.border = 'none';
-            scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
-            scrollTopBtn.style.cursor = 'pointer';
+        `;
+        document.head.appendChild(arrowStyle);
+    }
+    
+    // Show/hide the button based on scroll position
+    window.addEventListener('scroll', throttle(() => {
+        if (window.scrollY > 300) {
+            scrollTopBtn.style.opacity = '1';
+            scrollTopBtn.style.visibility = 'visible';
+        } else {
             scrollTopBtn.style.opacity = '0';
             scrollTopBtn.style.visibility = 'hidden';
-            scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
-            scrollTopBtn.style.zIndex = '999';
-            scrollTopBtn.style.display = 'flex';
-            scrollTopBtn.style.alignItems = 'center';
-            scrollTopBtn.style.justifyContent = 'center';
-            
-            // Create arrow icon
-            try {
-                const arrowStyle = document.createElement('style');
-                arrowStyle.textContent = `
-                    .arrow-up {
-                        width: 0;
-                        height: 0;
-                        border-left: 8px solid transparent;
-                        border-right: 8px solid transparent;
-                        border-bottom: 12px solid white;
-                        display: block;
-                    }
-                `;
-                if (document.head) {
-                    document.head.appendChild(arrowStyle);
-                }
-            } catch (e) {
-                console.error('Could not create arrow style:', e);
-            }
         }
-        
-        // Show/hide the button based on scroll position - ensure button still exists
-        const scrollHandler = throttle(() => {
-            // Verify the button still exists in the DOM
-            const btn = document.querySelector('.scroll-top-btn');
-            if (!btn) return;
-            
-            if (window.scrollY > 300) {
-                btn.style.opacity = '1';
-                btn.style.visibility = 'visible';
-            } else {
-                btn.style.opacity = '0';
-                btn.style.visibility = 'hidden';
-            }
-        }, 100);
-        
-        window.addEventListener('scroll', scrollHandler);
-        
-        // Scroll to top when clicked
-        scrollTopBtn.addEventListener('click', () => {
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+    }, 100));
+    
+    // Scroll to top when clicked
+    scrollTopBtn.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
         });
-    } catch (error) {
-        console.error('Error initializing scroll-to-top button:', error);
-    }
+    });
 }
 
 /**
@@ -328,34 +262,24 @@ function navigateToSection(sectionId) {
 
 // Initialize first-time visit profile prompt
 function initFirstVisitPrompt() {
-    try {
-        // Check if we're on a page where this is relevant
-        // Skip this on utility pages like tts_dialog, draw, etc.
-        const currentPath = window.location.pathname;
-        if (currentPath.includes('tts_dialog') || 
-            currentPath.includes('draw') || 
-            currentPath.includes('admin')) {
-            return;
-        }
+    // Check if this is the first visit
+    const hasVisited = localStorage.getItem('hasVisitedBefore');
+    
+    if (!hasVisited) {
+        // Set the flag for future visits
+        localStorage.setItem('hasVisitedBefore', 'true');
         
-        // Check if this is the first visit
-        const hasVisited = localStorage.getItem('hasVisitedBefore');
+        // Check if profile is already set
+        const profile = localStorage.getItem('educationalProfile');
         
-        if (!hasVisited) {
-            // Set the flag for future visits
-            localStorage.setItem('hasVisitedBefore', 'true');
-            
-            // Check if profile is already set
-            const profile = localStorage.getItem('educationalProfile');
-            
-            // If profile is not set, show the modal after a short delay
-            if (!profile && typeof showProfileModal === 'function') {
-                setTimeout(() => {
+        // If profile is not set, show the modal after a short delay
+        if (!profile) {
+            setTimeout(() => {
+                // Check if the profile modal function exists and call it
+                if (typeof showProfileModal === 'function') {
                     showProfileModal();
-                }, 1500); // Short delay to allow page to load completely
-            }
+                }
+            }, 1500); // Short delay to allow page to load completely
         }
-    } catch (error) {
-        console.error('Error in initFirstVisitPrompt:', error);
     }
 } 

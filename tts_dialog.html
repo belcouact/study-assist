@@ -1,735 +1,716 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>对话语音转换 - Study Assist</title>
-  
-  <!-- Use a relative path instead of absolute URL to avoid MIME type issues -->
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  
-  <!-- Add essential styles directly in the page to ensure it works even if external CSS fails -->
-  <style>
-    /* Essential styles for the dialog functionality */
-    :root {
-      --primary-color: #7209b7;
-      --secondary-color: #3f37c9;
-      --accent-color: #4cc9f0;
-      --text-color: #333;
-      --bg-color: #f8f9fa;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
-      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
-    }
-    
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      line-height: 1.6;
-      margin: 0;
-      padding: 0;
-    }
-    
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-    
-    h1, h2, h3 {
-      color: var(--primary-color);
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-      position: relative;
-    }
-    
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
-    
-    textarea, select, input[type="range"] {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      box-sizing: border-box;
-    }
-    
-    textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
-    
-    button {
-      background-color: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 10px 16px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-    
-    button:hover {
-      background-color: var(--secondary-color);
-    }
-    
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-    
-    .status {
-      display: inline-block;
-      padding: 8px 12px;
-      margin: 10px 0;
-      border-radius: 4px;
-    }
-    
-    .status.error {
-      background-color: #ffebee;
-      color: #c62828;
-    }
-    
-    .status.loading {
-      background-color: #e3f2fd;
-      color: #1565c0;
-    }
-    
-    .analysis-container, .audio-container {
-      margin-top: 40px;
-      padding: 20px;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: var(--shadow-md);
-    }
-    
-    .roles-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin: 15px 0;
-    }
-    
-    .role-badge {
-      background-color: #e3f2fd;
-      color: #1565c0;
-      padding: 4px 10px;
-      border-radius: 16px;
-      font-size: 0.9em;
-    }
-    
-    .segment-item {
-      margin-bottom: 20px;
-      padding: 15px;
-      background-color: #f5f5f5;
-      border-radius: 8px;
-    }
-    
-    .segment-role {
-      font-weight: bold;
-      color: var(--primary-color);
-      margin-bottom: 8px;
-    }
-    
-    .segment-text {
-      margin-bottom: 10px;
-    }
-    
-    .segment-audio {
-      width: 100%;
-      margin-top: 10px;
-    }
-    
-    audio {
-      width: 100%;
-      margin: 15px 0;
-    }
-    
-    #download-btn {
-      margin-top: 10px;
-    }
-    
-    /* For the resize handle */
-    .resize-handle {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    /* Header styles */
-    .simple-header {
-      background-color: var(--primary-color);
-      color: white;
-      padding: 10px 20px;
-      margin-bottom: 20px;
-      box-shadow: var(--shadow-md);
-    }
-    
-    .simple-header a {
-      color: white;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-    }
-    
-    .simple-header a i {
-      margin-right: 8px;
-    }
-    
-    .hidden {
-      display: none;
-    }
-    
-    .visible {
-      display: block;
-    }
-  </style>
-  
-  <script src="js/common.js"></script>
-  <script src="js/navigation.js"></script>
-
-  <script>
-      document.addEventListener('DOMContentLoaded', () => {
-          // Hide analysis and audio sections initially
-          const dialogAnalysisSection = document.getElementById('dialog-analysis');
-          const combinedAudioSection = document.getElementById('combined-audio');
-          
-          if (dialogAnalysisSection) {
-              dialogAnalysisSection.classList.add('hidden');
-              dialogAnalysisSection.classList.remove('visible');
-          }
-          
-          if (combinedAudioSection) {
-              combinedAudioSection.classList.add('hidden');
-              combinedAudioSection.classList.remove('visible');
-          }
-          
-          // Initialize form elements
-          const dialogInput = document.getElementById('dialog-input');
-          const modelSelect = document.getElementById('model-select');
-          const speedControl = document.getElementById('speed-control');
-          const speedValue = document.getElementById('speed-value');
-          const generateBtn = document.getElementById('generate-btn');
-          const statusElement = document.getElementById('status');
-          const dialogAnalysis = document.getElementById('dialog-analysis');
-          const rolesCount = document.getElementById('roles-count');
-          const rolesList = document.getElementById('roles-list');
-          const segmentsContainer = document.getElementById('segments-container');
-          const combinedAudio = document.getElementById('combined-audio');
-          const combinedPlayer = document.getElementById('combined-player');
-          const downloadBtn = document.getElementById('download-btn');
-          
-          let audioSegments = [];
-          let combinedAudioBlob = null;
-          
-          // Update speed value display when slider changes
-          if (speedControl && speedValue) {
-              speedControl.addEventListener('input', () => {
-                  speedValue.textContent = speedControl.value;
-              });
-          }
-          
-          // Add custom resize handle for textarea
-          const formGroup = document.querySelector('.form-group');
-          const textarea = dialogInput;
-          
-          // Only setup the resize functionality if both formGroup and textarea exist
-          if (formGroup && textarea) {
-              let isResizing = false;
-              let initialHeight = 0;
-              let initialY = 0;
-              
-              // Create a visible resize handle element
-              const resizeHandle = document.createElement('div');
-              resizeHandle.className = 'resize-handle';
-              resizeHandle.style.position = 'absolute';
-              resizeHandle.style.width = '18px';
-              resizeHandle.style.height = '18px';
-              resizeHandle.style.cursor = 'ns-resize';
-              resizeHandle.style.zIndex = '20';
-              resizeHandle.style.opacity = '0.7';
-              resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="font-size: 12px; color: rgba(114, 9, 183, 0.7);"></i>';
-              formGroup.appendChild(resizeHandle);
-              
-              // Position the resize handle at the bottom right of the textarea
-              function updateResizeHandlePosition() {
-                  const textareaRect = textarea.getBoundingClientRect();
-                  const containerRect = formGroup.getBoundingClientRect();
-                  
-                  // Calculate position relative to the form group container
-                  const bottom = containerRect.height - (textareaRect.bottom - containerRect.top) - 3;
-                  const right = containerRect.width - (textareaRect.right - containerRect.left) - 3;
-                  
-                  resizeHandle.style.bottom = `${bottom}px`;
-                  resizeHandle.style.right = `${right}px`;
-              }
-              
-              // Update position initially and when window resizes
-              updateResizeHandlePosition();
-              window.addEventListener('resize', updateResizeHandlePosition);
-              
-              // Also update position when textarea height changes
-              const resizeObserver = new ResizeObserver(() => {
-                  updateResizeHandlePosition();
-              });
-              resizeObserver.observe(textarea);
-              
-              // Mouse events for desktop
-              resizeHandle.addEventListener('mousedown', (e) => {
-                  isResizing = true;
-                  initialHeight = textarea.offsetHeight;
-                  initialY = e.clientY;
-                  e.preventDefault();
-              });
-              
-              document.addEventListener('mousemove', (e) => {
-                  if (!isResizing) return;
-                  const delta = e.clientY - initialY;
-                  const newHeight = initialHeight + delta;
-                  if (newHeight >= 48 && newHeight <= 300) {
-                      textarea.style.height = newHeight + 'px';
-                      updateResizeHandlePosition(); // Update handle position while resizing
-                  }
-              });
-              
-              document.addEventListener('mouseup', () => {
-                  isResizing = false;
-              });
-              
-              // Touch events for mobile
-              resizeHandle.addEventListener('touchstart', (e) => {
-                  isResizing = true;
-                  initialHeight = textarea.offsetHeight;
-                  initialY = e.touches[0].clientY;
-                  e.preventDefault();
-              });
-              
-              document.addEventListener('touchmove', (e) => {
-                  if (!isResizing) return;
-                  const delta = e.touches[0].clientY - initialY;
-                  const newHeight = initialHeight + delta;
-                  if (newHeight >= 48 && newHeight <= 300) {
-                      textarea.style.height = newHeight + 'px';
-                      updateResizeHandlePosition(); // Update handle position while resizing
-                  }
-              });
-              
-              document.addEventListener('touchend', () => {
-                  isResizing = false;
-              });
-          }
-          
-          // Generate dialog TTS
-          if (generateBtn && dialogInput) {
-              generateBtn.addEventListener('click', async () => {
-                  const dialogText = dialogInput.value.trim();
-                  
-                  if (!dialogText) {
-                      showError('请输入要转换的对话文本');
-                      return;
-                  }
-                  
-                  // Disable button and show loading status
-                  generateBtn.disabled = true;
-                  showLoading('正在分析对话文本...');
-                  
-                  if (dialogAnalysis) dialogAnalysis.classList.remove('hidden');
-                  if (combinedAudio) combinedAudio.classList.remove('hidden');
-                  if (segmentsContainer) segmentsContainer.innerHTML = '';
-                  if (rolesList) rolesList.innerHTML = '';
-                  
-                  try {
-                      // Prepare request data
-                      const requestData = {
-                          dialog_text: dialogText,
-                          model: modelSelect ? modelSelect.value : 'default',
-                          speed: speedControl ? parseFloat(speedControl.value) : 1.0,
-                          pitch: 0,
-                          volume: 1.0
-                      };
-                      
-                      // Call the Dialog TTS API
-                      const response = await fetch('/api/tts_dialog', {
-                          method: 'POST',
-                          headers: {
-                              'Content-Type': 'application/json'
-                          },
-                          body: JSON.stringify(requestData)
-                      });
-                      
-                      if (!response.ok) {
-                          // Try to parse error message
-                          let errorMessage = '对话语音生成失败';
-                          try {
-                              const errorData = await response.json();
-                              errorMessage = errorData.error || errorMessage;
-                              console.error('API Error:', errorData);
-                          } catch (e) {
-                              // If we can't parse JSON, use status text
-                              errorMessage = `对话语音生成失败: ${response.status} ${response.statusText}`;
-                              console.error('Failed to parse error response:', e);
-                          }
-                          throw new Error(errorMessage);
-                      }
-                      
-                      // Parse the successful response
-                      const responseData = await response.json();
-                      console.log('Dialog TTS Response:', responseData);
-                      
-                      if (!responseData.success || !responseData.analysis || !responseData.audio_segments) {
-                          throw new Error('服务器返回了无效的响应格式');
-                      }
-                      
-                      // Display dialog analysis results
-                      const analysis = responseData.analysis;
-                      audioSegments = responseData.audio_segments;
-                      
-                      // Update roles count
-                      if (rolesCount) rolesCount.textContent = analysis.roles.length;
-                      
-                      // Display roles
-                      if (rolesList) {
-                          analysis.roles.forEach((role, index) => {
-                              const roleBadge = document.createElement('div');
-                              roleBadge.className = 'role-badge';
-                              roleBadge.innerHTML = `<i class="fas fa-user"></i> ${role}`;
-                              rolesList.appendChild(roleBadge);
-                          });
-                      }
-                      
-                      // Display dialog segments with their audio
-                      if (segmentsContainer) {
-                          audioSegments.forEach((segment, index) => {
-                              const segmentItem = document.createElement('div');
-                              segmentItem.className = 'segment-item';
-                              
-                              // Role heading with icon
-                              const roleElement = document.createElement('div');
-                              roleElement.className = 'segment-role';
-                              roleElement.innerHTML = `<i class="fas fa-user-circle"></i> ${segment.role}`;
-                              
-                              // Text content
-                              const textElement = document.createElement('div');
-                              textElement.className = 'segment-text';
-                              textElement.textContent = segment.text;
-                              
-                              // Create audio element if audio data is available
-                              const audioElement = document.createElement('audio');
-                              audioElement.className = 'segment-audio';
-                              audioElement.controls = true;
-                              
-                              if (segment.audio_base64) {
-                                  // Create blob from base64
-                                  const audioBlob = base64ToBlob(segment.audio_base64, 'audio/mp3');
-                                  const audioUrl = URL.createObjectURL(audioBlob);
-                                  audioElement.src = audioUrl;
-                              }
-                              
-                              // Add elements to segment
-                              segmentItem.appendChild(roleElement);
-                              segmentItem.appendChild(textElement);
-                              segmentItem.appendChild(audioElement);
-                              
-                              // Add segment to container
-                              segmentsContainer.appendChild(segmentItem);
-                          });
-                      }
-                      
-                      // Show the dialog analysis section
-                      if (dialogAnalysis) {
-                          dialogAnalysis.classList.remove('hidden');
-                          dialogAnalysis.classList.add('visible');
-                      }
-                      clearStatus();
-                      
-                      // Create combined audio if there are multiple segments
-                      if (audioSegments.length > 1 && combinedPlayer && combinedAudio) {
-                          showLoading('正在合成完整对话音频...');
-                          
-                          try {
-                              // Combine audio segments using Web Audio API
-                              const combinedBuffer = await combineAudioSegments();
-                              combinedAudioBlob = await audioBufferToBlob(combinedBuffer);
-                              
-                              // Set the combined audio source
-                              const combinedAudioUrl = URL.createObjectURL(combinedAudioBlob);
-                              combinedPlayer.src = combinedAudioUrl;
-                              
-                              // Show the combined audio player
-                              combinedAudio.classList.remove('hidden');
-                              combinedAudio.classList.add('visible');
-                              clearStatus();
-                          } catch (error) {
-                              console.error('Error combining audio:', error);
-                              showError('无法合成完整对话音频: ' + error.message);
-                          }
-                      }
-                      
-                  } catch (error) {
-                      console.error('Dialog TTS Error:', error);
-                      showError(error.message || '对话语音生成失败，请重试');
-                  } finally {
-                      // Re-enable button
-                      generateBtn.disabled = false;
-                  }
-              });
-          }
-          
-          // Download combined audio
-          if (downloadBtn) {
-              downloadBtn.addEventListener('click', () => {
-                  if (!combinedAudioBlob) {
-                      showError('没有可下载的完整对话音频');
-                      return;
-                  }
-                  
-                  // Create a download link
-                  const downloadUrl = URL.createObjectURL(combinedAudioBlob);
-                  const a = document.createElement('a');
-                  a.href = downloadUrl;
-                  a.download = `dialog-${new Date().toISOString().slice(0,10)}.mp3`;
-                  document.body.appendChild(a);
-                  a.click();
-                  
-                  // Clean up
-                  setTimeout(() => {
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(downloadUrl);
-                  }, 100);
-              });
-          }
-          
-          // Helper function to convert base64 to blob
-          function base64ToBlob(base64, mimeType) {
-              const byteCharacters = atob(base64);
-              const byteArrays = [];
-              
-              for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-                  const slice = byteCharacters.slice(offset, offset + 512);
-                  
-                  const byteNumbers = new Array(slice.length);
-                  for (let i = 0; i < slice.length; i++) {
-                      byteNumbers[i] = slice.charCodeAt(i);
-                  }
-                  
-                  const byteArray = new Uint8Array(byteNumbers);
-                  byteArrays.push(byteArray);
-              }
-              
-              return new Blob(byteArrays, { type: mimeType });
-          }
-          
-          // Helper function to combine audio segments using Web Audio API
-          async function combineAudioSegments() {
-              if (!audioSegments || audioSegments.length === 0) {
-                  throw new Error('No audio segments to combine');
-              }
-              
-              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-              const audioBuffers = [];
-              
-              // Convert each base64 audio segment to AudioBuffer
-              for (const segment of audioSegments) {
-                  if (segment.audio_base64) {
-                      const audioBlob = base64ToBlob(segment.audio_base64, 'audio/mp3');
-                      const arrayBuffer = await audioBlob.arrayBuffer();
-                      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                      audioBuffers.push(audioBuffer);
-                  }
-              }
-              
-              if (audioBuffers.length === 0) {
-                  throw new Error('No valid audio buffers to combine');
-              }
-              
-              // Calculate total duration
-              let totalDuration = 0;
-              for (const buffer of audioBuffers) {
-                  totalDuration += buffer.duration;
-              }
-              
-              // Create a new buffer with the total duration
-              const channelCount = audioBuffers[0].numberOfChannels;
-              const sampleRate = audioBuffers[0].sampleRate;
-              const combinedBuffer = audioContext.createBuffer(
-                  channelCount,
-                  sampleRate * totalDuration,
-                  sampleRate
-              );
-              
-              // Copy each buffer to the combined buffer
-              let offset = 0;
-              for (const buffer of audioBuffers) {
-                  for (let channel = 0; channel < channelCount; channel++) {
-                      const combinedChannelData = combinedBuffer.getChannelData(channel);
-                      const bufferChannelData = buffer.getChannelData(channel);
-                      
-                      for (let i = 0; i < bufferChannelData.length; i++) {
-                          combinedChannelData[offset + i] = bufferChannelData[i];
-                      }
-                  }
-                  
-                  offset += buffer.length;
-              }
-              
-              return combinedBuffer;
-          }
-          
-          // Helper function to convert AudioBuffer to Blob
-          async function audioBufferToBlob(audioBuffer) {
-              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-              
-              // Create an offline context to render the audio buffer
-              const offlineContext = new OfflineAudioContext(
-                  audioBuffer.numberOfChannels,
-                  audioBuffer.length,
-                  audioBuffer.sampleRate
-              );
-              
-              // Create a buffer source node
-              const source = offlineContext.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(offlineContext.destination);
-              
-              // Start the source and render
-              source.start(0);
-              const renderedBuffer = await offlineContext.startRendering();
-              
-              // Convert to WAV format
-              const wavBlob = bufferToWave(renderedBuffer);
-              
-              return wavBlob;
-          }
-          
-          // Convert AudioBuffer to WAV Blob
-          function bufferToWave(audioBuffer) {
-              const numOfChan = audioBuffer.numberOfChannels;
-              const length = audioBuffer.length * numOfChan * 2 + 44;
-              const buffer = new ArrayBuffer(length);
-              const view = new DataView(buffer);
-              const channels = [];
-              let sample, offset = 0;
-              let pos = 0;
-              
-              // Write WAV header
-              setUint32(0x46464952); // "RIFF"
-              setUint32(length - 8); // file length - 8
-              setUint32(0x45564157); // "WAVE"
-              setUint32(0x20746d66); // "fmt " chunk
-              setUint32(16); // length = 16
-              setUint16(1); // PCM
-              setUint16(numOfChan);
-              setUint32(audioBuffer.sampleRate);
-              setUint32(audioBuffer.sampleRate * 2 * numOfChan); // byte rate
-              setUint16(numOfChan * 2); // block align
-              setUint16(16); // bits per sample
-              setUint32(0x61746164); // "data" chunk
-              setUint32(length - pos - 4); // chunk length
-              
-              // Write interleaved data
-              for (let i = 0; i < numOfChan; i++) {
-                  channels.push(audioBuffer.getChannelData(i));
-              }
-              
-              while (pos < length) {
-                  for (let i = 0; i < numOfChan; i++) {
-                      sample = Math.max(-1, Math.min(1, channels[i][offset]));
-                      sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
-                      view.setInt16(pos, sample, true);
-                      pos += 2;
-                  }
-                  offset++;
-                  if (offset >= audioBuffer.length) break;
-              }
-              
-              function setUint16(data) {
-                  view.setUint16(pos, data, true);
-                  pos += 2;
-              }
-              
-              function setUint32(data) {
-                  view.setUint32(pos, data, true);
-                  pos += 4;
-              }
-              
-              return new Blob([buffer], { type: "audio/wav" });
-          }
-          
-          // Helper functions for status display
-          function showError(message) {
-              if (statusElement) {
-                  statusElement.textContent = message;
-                  statusElement.className = 'status error';
-              } else {
-                  console.error(message);
-              }
-          }
-          
-          function showLoading(message) {
-              if (statusElement) {
-                  statusElement.textContent = message;
-                  statusElement.className = 'status loading';
-              } else {
-                  console.log(message);
-              }
-          }
-          
-          function clearStatus() {
-              if (statusElement) {
-                  statusElement.textContent = '';
-                  statusElement.className = 'status';
-              }
-          }
-      });
-  </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>对话语音转换 - 学习助手</title>
+    <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0c3fc 100%);
+            background-attachment: fixed;
+            font-family: 'Poppins', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 200px);
+        }
+        .section-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .section-header h1 {
+            color: #7209b7;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #7209b7, #4361ee, #4cc9f0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(76,201,240,0.08);
+        }
+        .section-header p {
+            color: #666;
+            font-size: 1.15rem;
+            letter-spacing: 1px;
+        }
+        .assistant-container {
+            background: rgba(255,255,255,0.85);
+            border-radius: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(76,201,240,0.12), 0 1.5px 8px 0 rgba(114,9,183,0.08);
+            backdrop-filter: blur(2px);
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2.5rem 2rem 2rem 2rem;
+        }
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #7209b7;
+        }
+        textarea {
+            width: 100%;
+            padding: 1.1rem 1rem;
+            border: 1.5px solid #e0c3fc;
+            border-radius: 1.1rem;
+            min-height: 300px;
+            font-size: 1.13rem;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 2px 8px rgba(76,201,240,0.06);
+            outline: none;
+            transition: border 0.2s;
+            resize: vertical;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+        textarea:focus {
+            border: 1.5px solid #7209b7;
+            background: #f8fafc;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.1rem;
+            margin-bottom: 24px;
+        }
+        .control-group {
+            flex: 1 1 180px;
+            min-width: 150px;
+            background: rgba(236,222,255,0.7);
+            border-radius: 0.9rem;
+            padding: 0.7rem 1rem 0.7rem 1rem;
+            margin-bottom: 0;
+            border: 1.5px solid #e0c3fc;
+            box-shadow: 0 1px 4px rgba(76,201,240,0.04);
+        }
+        select, input[type="range"] {
+            width: 100%;
+            padding: 0.9rem;
+            border: 1.5px solid #e0c3fc;
+            border-radius: 0.9rem;
+            font-size: 1.08rem;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 1px 4px rgba(76,201,240,0.05);
+            transition: border 0.2s;
+        }
+        select:focus, input[type="range"]:focus {
+            border: 1.5px solid #7209b7;
+        }
+        button {
+            background: linear-gradient(90deg, #7209b7, #4361ee 80%);
+            color: #fff;
+            border: none;
+            padding: 0.9rem 1.5rem;
+            border-radius: 0.9rem;
+            cursor: pointer;
+            font-size: 1.13rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(76,201,240,0.08);
+            transition: opacity 0.3s, background 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            opacity: 0.92;
+            background: linear-gradient(90deg, #4361ee, #7209b7 80%);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .audio-container {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+        .audio-container.visible {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+        .status.error {
+            background-color: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        .status.loading {
+            background-color: #e3f2fd;
+            color: #1565c0;
+            display: block;
+        }
+        .audio-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        .audio-actions button {
+            padding: 8px 15px;
+            font-size: 14px;
+            border-radius: 4px;
+            width: auto;
+        }
+        .btn-download {
+            background-color: #28a745;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+        .dialog-info {
+            margin-top: 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 1.2rem;
+            border: 2px solid #e0c3fc;
+            padding: 15px;
+            box-shadow: 0 4px 16px rgba(76,201,240,0.13);
+            display: none;
+        }
+        .dialog-info.visible {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+        .role-list {
+            margin-top: 15px;
+        }
+        .role-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 8px;
+            border: 1px solid #e0c3fc;
+        }
+        .role-name {
+            font-weight: 500;
+            flex: 1;
+        }
+        .role-voice-select {
+            min-width: 200px;
+        }
+        .example-btn {
+            display: inline-block;
+            padding: 6px 12px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #4361ee;
+            background: rgba(236,222,255,0.7);
+            border: 1px solid #e0c3fc;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .example-btn:hover {
+            background: rgba(236,222,255,0.9);
+        }
+        
+        @media (max-width: 768px) {
+            .assistant-container {
+                padding: 1.5rem 1.2rem;
+                border-radius: 1.5rem;
+                max-width: 100%;
+                margin: 0 0.8rem;
+            }
+            .section-header {
+                padding: 1rem 0;
+            }
+            .section-header h1 {
+                font-size: 1.8rem;
+                margin-bottom: 0.5rem;
+            }
+            .section-header p {
+                font-size: 1rem;
+            }
+            .form-group label, .control-group label {
+                font-size: 1.01rem;
+            }
+            textarea {
+                font-size: 1.01rem;
+                min-height: 200px;
+                border-radius: 0.8rem;
+                padding: 0.8rem;
+            }
+            .controls {
+                gap: 0.6rem;
+                flex-direction: column;
+            }
+            .control-group {
+                flex: 1 1 100%;
+                border-radius: 0.8rem;
+            }
+            .role-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .role-voice-select {
+                width: 100%;
+                min-width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- Simple navigation header -->
-  <div class="simple-header">
-    <a href="index.html"><i class="fas fa-arrow-left"></i> 返回首页</a>
-  </div>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span class="gradient-text">Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="index.html">首页</a></li>
+                        <li><a href="index.html#subjects">科目</a></li>
+                        <li><a href="tts.html">语音</a></li>
+                        <li><a href="draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
 
-  <div class="container">
-    <h1>对话语音转换</h1>
-    <form>
-      <div class="form-group">
-        <label for="dialog-input">对话文本</label>
-        <textarea id="dialog-input" rows="4" cols="50"></textarea>
-      </div>
-      <div class="form-group">
-        <label for="model-select">模型选择</label>
-        <select id="model-select">
-          <option value="default">默认模型</option>
-          <option value="custom">自定义模型</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label for="speed-control">语速</label>
-        <input type="range" id="speed-control" min="0.5" max="2.0" step="0.01" value="1.0">
-        <span id="speed-value">1.0</span>
-      </div>
-      <button type="button" id="generate-btn">生成语音</button>
-    </form>
-    <div class="status-container">
-      <span id="status"></span>
-    </div>
-    <div id="dialog-analysis" class="analysis-container hidden">
-      <h2>对话分析</h2>
-      <p>角色数量: <span id="roles-count">0</span></p>
-      <div id="roles-list" class="roles-list"></div>
-      <div id="segments-container" class="segments-container"></div>
-    </div>
-    <div id="combined-audio" class="audio-container hidden">
-      <h2>完整对话音频</h2>
-      <audio id="combined-player" controls></audio>
-      <button id="download-btn">下载完整对话音频</button>
-    </div>
-  </div>
+    <main class="main-content">
+        <div class="container">
+            <div class="section-header">
+                <h1>对话<span class="gradient-text">语音</span>转换</h1>
+                <p>为不同角色自动选择不同的声音，让对话更生动</p>
+            </div>
+            <div class="assistant-container">
+                <div class="form-group">
+                    <label for="dialog-input">输入对话文本（每个角色的台词以"角色名: "开头）：</label>
+                    <textarea id="dialog-input" placeholder="例如：
+Mom: Wake up, sweetheart! It's time for school. 
+妈妈：醒醒，宝贝！该上学了。 
+Child: Just five more minutes, please! 
+孩子：再睡五分钟嘛，求你了！"></textarea>
+                    <button class="example-btn" id="load-example">加载示例对话</button>
+                </div>
+                
+                <button id="analyze-btn" class="mb-4">分析对话</button>
+                
+                <div id="dialog-info" class="dialog-info">
+                    <h3>角色配音设置</h3>
+                    <p>我们已识别出以下角色，您可以为每个角色选择不同的声音：</p>
+                    
+                    <div id="role-list" class="role-list">
+                        <!-- Roles will be inserted here by JS -->
+                    </div>
+                </div>
+                
+                <button id="generate-btn" style="margin-top: 20px; display: none;">生成对话语音</button>
+                
+                <div class="status" id="status"></div>
+                
+                <div class="audio-container" id="audio-container">
+                    <audio id="audio-player" controls style="width: 100%; border-radius: 1.1rem;"></audio>
+                    <div class="audio-actions">
+                        <button id="download-btn" class="btn-download">
+                            <i class="fas fa-download"></i> 下载音频
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-bottom">
+                <p style="margin: 0;">&copy; 2025 Alex的学习助手。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/common.js"></script>
+    <script src="js/navigation.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dialogInput = document.getElementById('dialog-input');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const generateBtn = document.getElementById('generate-btn');
+            const dialogInfo = document.getElementById('dialog-info');
+            const roleList = document.getElementById('role-list');
+            const audioContainer = document.getElementById('audio-container');
+            const audioPlayer = document.getElementById('audio-player');
+            const downloadBtn = document.getElementById('download-btn');
+            const status = document.getElementById('status');
+            const loadExampleBtn = document.getElementById('load-example');
+            
+            let currentAudioBlob = null;
+            let identifiedRoles = [];
+            
+            // Voice options for different roles
+            const voiceOptions = {
+                male: [
+                    { value: "Chinese (Mandarin)_Elite_Young", label: "精英男青年" },
+                    { value: "Chinese (Mandarin)_Lyrical_Voice", label: "抒情男声" },
+                    { value: "Chinese (Mandarin)_Male_Announcer", label: "雄浑播音男士" },
+                    { value: "Chinese (Mandarin)_Pure-hearted_Boy", label: "纯真少年男生" },
+                    { value: "English_Gentle_Voiced_Man", label: "Gentle-voiced Man" },
+                    { value: "English_Trustworth_Man", label: "Trustworthy Man" },
+                    { value: "Cantonese_Professional_Host_Male", label: "粤语专业男主持" }
+                ],
+                female: [
+                    { value: "Chinese (Mandarin)_Young_Girl", label: "智慧少女" },
+                    { value: "Chinese (Mandarin)_Warm_Girl", label: "温暖少年女生" },
+                    { value: "English_Graceful_Lady", label: "Graceful Lady" },
+                    { value: "English_UpsetGirl", label: "Upset Girl" },
+                    { value: "English_Wiselady", label: "Wise Lady" },
+                    { value: "Cantonese_Professional_Host_Female", label: "粤语专业女主持" }
+                ],
+                child: [
+                    { value: "Chinese (Mandarin)_Pure-hearted_Boy", label: "纯真少年男生" },
+                    { value: "Chinese (Mandarin)_Warm_Girl", label: "温暖少年女生" },
+                    { value: "English_UpsetGirl", label: "Upset Girl" }
+                ]
+            };
+            
+            // Common role name mappings
+            const roleCategories = {
+                male: ["dad", "father", "grandpa", "grandfather", "uncle", "brother", "boy", "man", "mr", "sir", "male"],
+                female: ["mom", "mother", "grandma", "grandmother", "aunt", "sister", "girl", "woman", "mrs", "ms", "miss", "lady", "female"],
+                child: ["child", "kid", "baby", "boy", "girl", "son", "daughter"]
+            };
+            
+            // Load example dialog
+            loadExampleBtn.addEventListener('click', () => {
+                dialogInput.value = `Mom: Wake up, sweetheart! It's time for school. 
+妈妈：醒醒，宝贝！该上学了。 
+Child: Just five more minutes, please! 
+孩子：再睡五分钟嘛，求你了！ 
+Dad: Did you sleep well last night? 
+爸爸：昨晚睡得好吗？ 
+Child: Yes, but I had a strange dream. 
+孩子：是的，不过我做了个奇怪的梦。 
+Mom: Hurry up, or you'll be late! 
+妈妈：快点，不然你要迟到了！ 
+Child: Okay, I'm getting up now! 
+孩子：好吧，我起来了！ 
+Dad: Did you brush your teeth? 
+爸爸：你刷牙了吗？ 
+Child: Not yet. I'll do it now! 
+孩子：还没有，我现在去刷！ 
+Mom: What do you want for breakfast? 
+妈妈：你早餐想吃什么？ 
+Child: Can I have some pancakes? 
+孩子：我可以吃点煎饼吗？ 
+Dad: Don't forget to pack your school bag. 
+爸爸：别忘了整理你的书包。 
+Child: I already did it last night! 
+孩子：我昨晚已经整理好了！ 
+Mom: Wear your sweater. It's cold outside. 
+妈妈：穿上你的毛衣，外面很冷。 
+Child: But I don't like sweaters! 
+孩子：可是我不喜欢毛衣！ 
+Dad: Do you have your lunchbox? 
+爸爸：你的午餐盒带了吗？ 
+Child: Oh no! I left it in the kitchen! 
+孩子：哦不！我把它忘在厨房了！ 
+Mom: Give me a hug before you go! 
+妈妈：走之前给我一个拥抱！ 
+Child: Love you, Mom! 
+孩子：爱你，妈妈！ 
+Dad: Have a great day at school! 
+爸爸：祝你在学校度过美好的一天！ 
+Child: Thanks, Dad! See you later! 
+孩子：谢谢，爸爸！待会见！`;
+            });
+            
+            // Analyze the dialog text using DeepSeek API
+            analyzeBtn.addEventListener('click', async () => {
+                const dialogText = dialogInput.value.trim();
+                
+                if (!dialogText) {
+                    showError('请输入对话文本');
+                    return;
+                }
+                
+                showLoading('正在分析对话文本...');
+                generateBtn.style.display = 'none';
+                dialogInfo.classList.remove('visible');
+                audioContainer.classList.remove('visible');
+                
+                try {
+                    // Call DeepSeek API to analyze the dialog
+                    const messages = [
+                        {
+                            role: "system",
+                            content: "你是一个专业的对话分析助手，擅长解析双语对话内容。请帮助从对话中提取所有说话者角色，并从英文部分分析每个角色可能的性别和年龄段。对于每一个角色，仅基于角色名判断其性别（男性/女性）和类型（成人/孩子/不确定）。"
+                        },
+                        {
+                            role: "user",
+                            content: `请分析以下对话文本，找出所有说话的角色，并仅基于英文部分和角色名称判断其可能的性别和类型。结果必须按以下严格的JSON格式返回：
+                            
+{
+  "roles": [
+    {
+      "name": "角色名称，保持原文中的拼写和大小写",
+      "gender": "male或female或unknown，根据角色名判断",
+      "type": "adult或child或unknown，根据角色名判断",
+      "lines": [
+        {
+          "english": "该角色的一段英文台词",
+          "chinese": "该角色的一段中文台词"
+        },
+        ...更多台词...
+      ]
+    },
+    ...更多角色...
+  ]
+}
+
+对话文本：
+
+${dialogText}`
+                        }
+                    ];
+                    
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ messages })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('对话分析请求失败');
+                    }
+                    
+                    const data = await response.json();
+                    const assistantMessage = data.choices[0].message.content;
+                    
+                    // Extract JSON from response
+                    const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) || 
+                                      assistantMessage.match(/{[\s\S]*?}/);
+                    
+                    if (!jsonMatch) {
+                        throw new Error('未能从响应中提取有效数据');
+                    }
+                    
+                    let jsonStr = jsonMatch[0];
+                    if (jsonStr.startsWith('```json')) {
+                        jsonStr = jsonMatch[1];
+                    }
+                    
+                    // Parse the JSON response
+                    const dialogData = JSON.parse(jsonStr);
+                    identifiedRoles = dialogData.roles;
+                    
+                    // Render the role list
+                    renderRoleList(identifiedRoles);
+                    
+                    // Show the dialog info section
+                    dialogInfo.classList.add('visible');
+                    generateBtn.style.display = 'block';
+                    clearStatus();
+                    
+                } catch (error) {
+                    console.error('Dialog analysis error:', error);
+                    showError('对话分析失败: ' + error.message);
+                }
+            });
+            
+            // Render the list of identified roles
+            function renderRoleList(roles) {
+                roleList.innerHTML = '';
+                
+                roles.forEach((role, index) => {
+                    const roleDiv = document.createElement('div');
+                    roleDiv.className = 'role-item';
+                    
+                    // Determine voice category based on role name and type
+                    let voiceCategory = 'male'; // default
+                    if (role.gender === 'female' || isInCategory(role.name.toLowerCase(), roleCategories.female)) {
+                        voiceCategory = 'female';
+                    }
+                    if (role.type === 'child' || isInCategory(role.name.toLowerCase(), roleCategories.child)) {
+                        voiceCategory = 'child';
+                    }
+                    
+                    // Create voice select dropdown
+                    const voiceSelect = document.createElement('select');
+                    voiceSelect.className = 'role-voice-select';
+                    voiceSelect.id = `voice-${index}`;
+                    
+                    // Add voice options based on category
+                    const voices = voiceOptions[voiceCategory] || voiceOptions.male;
+                    voices.forEach(voice => {
+                        const option = document.createElement('option');
+                        option.value = voice.value;
+                        option.textContent = voice.label;
+                        voiceSelect.appendChild(option);
+                    });
+                    
+                    // Create role element
+                    roleDiv.innerHTML = `
+                        <div class="role-name">
+                            ${role.name}
+                            <div style="font-size: 0.8rem; color: #666; margin-top: 5px;">
+                                ${role.lines.length} 句台词
+                                ${role.gender !== 'unknown' ? ` • ${role.gender === 'male' ? '男性' : '女性'}` : ''}
+                                ${role.type !== 'unknown' ? ` • ${role.type === 'adult' ? '成人' : '儿童'}` : ''}
+                            </div>
+                        </div>
+                    `;
+                    roleDiv.appendChild(voiceSelect);
+                    roleList.appendChild(roleDiv);
+                });
+            }
+            
+            // Check if a name belongs to a category
+            function isInCategory(name, categoryTerms) {
+                return categoryTerms.some(term => name.includes(term));
+            }
+            
+            // Generate dialog audio with selected voices
+            generateBtn.addEventListener('click', async () => {
+                if (!identifiedRoles || identifiedRoles.length === 0) {
+                    showError('请先分析对话文本');
+                    return;
+                }
+                
+                generateBtn.disabled = true;
+                showLoading('正在生成对话语音...');
+                audioContainer.classList.remove('visible');
+                
+                try {
+                    // Collect voice selections for each role
+                    const roleVoices = {};
+                    identifiedRoles.forEach((role, index) => {
+                        const voiceSelect = document.getElementById(`voice-${index}`);
+                        roleVoices[role.name] = voiceSelect.value;
+                    });
+                    
+                    // Prepare the TTS request with role and voice mapping
+                    const requestData = {
+                        dialog: identifiedRoles,
+                        roleVoices: roleVoices,
+                        model: "speech-02-hd"
+                    };
+                    
+                    // Call the TTS API
+                    const response = await fetch('/api/tts-dialog', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    if (!response.ok) {
+                        let errorMessage = '语音生成失败';
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        } catch (e) {
+                            errorMessage = `语音生成失败: ${response.status} ${response.statusText}`;
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    // Process the audio response
+                    const audioData = await response.arrayBuffer();
+                    const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Store the blob for download
+                    currentAudioBlob = audioBlob;
+                    
+                    // Update audio player and show it
+                    audioPlayer.src = audioUrl;
+                    audioContainer.classList.add('visible');
+                    clearStatus();
+                    
+                    // Try to play the audio
+                    audioPlayer.play().catch(e => {
+                        console.error('Audio playback error:', e);
+                        showError('音频播放失败：' + e.message);
+                    });
+                    
+                } catch (error) {
+                    console.error('TTS Error:', error);
+                    showError(error.message || '语音生成失败，请重试');
+                } finally {
+                    // Re-enable button
+                    generateBtn.disabled = false;
+                }
+            });
+            
+            // Download button handler
+            downloadBtn.addEventListener('click', () => {
+                if (!currentAudioBlob) {
+                    showError('没有可下载的音频');
+                    return;
+                }
+                
+                const downloadUrl = URL.createObjectURL(currentAudioBlob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `dialog-${new Date().toISOString().slice(0,10)}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(downloadUrl);
+                }, 100);
+            });
+            
+            // Helper functions
+            function showError(message) {
+                status.textContent = message;
+                status.className = 'status error';
+            }
+            
+            function showLoading(message) {
+                status.textContent = message;
+                status.className = 'status loading';
+            }
+            
+            function clearStatus() {
+                status.textContent = '';
+                status.className = 'status';
+            }
+        });
+    </script>
 </body>
 </html> 
