@@ -62,14 +62,9 @@ export async function onRequestPost(context) {
       
       // Special case for Mom role - directly assign female voice to avoid mapping issues
       if (roleName === 'Mom' || roleName.toLowerCase() === 'mom') {
-        // Use a female voice that we know works well with MiniMax
-        const selectedVoiceName = requestData.roleVoices[roleName];
-        if (selectedVoiceName && selectedVoiceName.includes("English_")) {
-          voiceId = "English_Graceful_Lady"; // English female voice
-        } else {
-          voiceId = "female-shaonv"; // Default Chinese female voice
-        }
-        console.log(`Special handling for Mom role: Force using voice '${voiceId}'`);
+        // Always use a Chinese female voice for Mom - bypassing the English voices
+        voiceId = "female-shaonv"; // Default to Chinese female voice that's known to work
+        console.log(`Special handling for Mom role: Force using Chinese voice '${voiceId}' instead of '${requestData.roleVoices[roleName]}'`);
       }
       
       console.log(`Processing ${role.lines.length} lines for role '${roleName}' with voice '${voiceId}'`);
@@ -123,61 +118,101 @@ export async function onRequestPost(context) {
           console.log(`Mom role - Full payload:`, JSON.stringify(payload));
         }
         
-        // Call MiniMax API
-        const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
+        let audioGenerated = false;
+        let fallbackAttempts = 0;
+        const maxFallbackAttempts = 2; // Try up to 2 fallbacks
+        const fallbackVoices = ['female-shaonv', 'male-qn-jingying']; // Fallback voice options
         
-        const response = await fetch(apiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${API_KEY}`
-          },
-          body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`MiniMax API error for role '${roleName}': ${response.status} ${response.statusText}`, errorText);
-          
+        // Keep trying until we get audio or run out of fallbacks
+        while (!audioGenerated && fallbackAttempts <= maxFallbackAttempts) {
           try {
-            const errorData = JSON.parse(errorText);
-            throw new Error(`MiniMax API error: ${errorData.message || errorData.base_resp?.status_msg || 'Unknown error'}`);
-          } catch (e) {
-            throw new Error(`MiniMax API error: ${response.status} ${response.statusText}`);
+            // Call MiniMax API
+            const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
+            
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${API_KEY}`
+              },
+              body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error(`MiniMax API error for role '${roleName}': ${response.status} ${response.statusText}`, errorText);
+              
+              try {
+                // Try to parse the error response
+                const errorData = JSON.parse(errorText);
+                const errorMessage = `MiniMax API error: ${errorData.message || errorData.base_resp?.status_msg || 'Unknown error'}`;
+                
+                // Log detailed error information
+                console.error(`Detailed MiniMax API error:`, {
+                  status: response.status,
+                  statusText: response.statusText,
+                  errorData: errorData
+                });
+                
+                throw new Error(errorMessage);
+              } catch (parseError) {
+                // If JSON parsing fails, use the raw error text
+                throw new Error(`MiniMax API error: ${response.status} ${response.statusText} - ${errorText.substring(0, 200)}`);
+              }
+            }
+            
+            const responseData = await response.json();
+            
+            // Log response data for troubleshooting
+            if (roleName === 'Mom') {
+              console.log(`Mom role - Response status: ${response.status}`);
+              console.log(`Mom role - Response has base_resp:`, !!responseData.base_resp);
+              console.log(`Mom role - Response has audio_base64:`, !!responseData.audio_base64);
+              if (responseData.base_resp) {
+                console.log(`Mom role - base_resp status_code:`, responseData.base_resp.status_code);
+                console.log(`Mom role - base_resp status_msg:`, responseData.base_resp.status_msg);
+              }
+            }
+            
+            if (responseData.base_resp && responseData.base_resp.status_code !== 0) {
+              // More detailed error logging
+              console.error(`MiniMax API returned error status code ${responseData.base_resp.status_code}`);
+              console.error(`Error details:`, responseData.base_resp);
+              throw new Error(`MiniMax API error: ${responseData.base_resp.status_msg || 'Unknown error'}`);
+            }
+            
+            if (!responseData.audio_base64) {
+              console.error(`No audio data returned for role '${roleName}' with voice '${voiceId}'`);
+              throw new Error(`MiniMax API returned no audio data for role '${roleName}'`);
+            }
+            
+            // Convert base64 to array buffer
+            const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              bytes[i] = binary.charCodeAt(i);
+            }
+            
+            // Add audio clip to the collection
+            audioClips.push(bytes);
+            audioGenerated = true; // Success!
+            
+          } catch (error) {
+            fallbackAttempts++;
+            console.error(`Attempt ${fallbackAttempts} failed for role '${roleName}':`, error);
+            
+            if (fallbackAttempts <= maxFallbackAttempts) {
+              // Try a fallback voice
+              const fallbackVoice = fallbackVoices[fallbackAttempts - 1];
+              console.log(`Trying fallback voice '${fallbackVoice}' for role '${roleName}'`);
+              payload.voice_setting.voice_id = fallbackVoice;
+            } else {
+              // We've run out of fallbacks, propagate the error
+              throw error;
+            }
           }
         }
-        
-        const responseData = await response.json();
-        
-        // Log response data for 'Mom' role for debugging
-        if (roleName === 'Mom') {
-          console.log(`Mom role - Response status: ${response.status}`);
-          console.log(`Mom role - Response has base_resp:`, !!responseData.base_resp);
-          console.log(`Mom role - Response has audio_base64:`, !!responseData.audio_base64);
-          if (responseData.base_resp) {
-            console.log(`Mom role - base_resp status_code:`, responseData.base_resp.status_code);
-            console.log(`Mom role - base_resp status_msg:`, responseData.base_resp.status_msg);
-          }
-        }
-        
-        if (responseData.base_resp && responseData.base_resp.status_code !== 0) {
-          throw new Error(`MiniMax API error: ${responseData.base_resp.status_msg || 'Unknown error'}`);
-        }
-        
-        if (!responseData.audio_base64) {
-          throw new Error(`MiniMax API returned no audio data for role '${roleName}'`);
-        }
-        
-        // Convert base64 to array buffer
-        const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        
-        // Add audio clip to the collection
-        audioClips.push(bytes);
       }
     }
     
