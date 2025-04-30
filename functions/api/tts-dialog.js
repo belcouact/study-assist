@@ -215,10 +215,10 @@ function getMiniMaxVoiceId(frontendVoice) {
     // Chinese Mandarin voices
     "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",
     "Chinese (Mandarin)_Young_Girl": "female-shaonv",
-    "Chinese (Mandarin)_Lyrical_Voice": "Chinese (Mandarin)_Lyrical_Voice",
-    "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",
-    "Chinese (Mandarin)_Pure-hearted_Boy": "Chinese (Mandarin)_Pure-hearted_Boy",
-    "Chinese (Mandarin)_Warm_Girl": "Chinese (Mandarin)_Warm_Girl",
+    "Chinese (Mandarin)_Lyrical_Voice": "male-shuqing",
+    "Chinese (Mandarin)_Male_Announcer": "male-bobo",
+    "Chinese (Mandarin)_Pure-hearted_Boy": "male-chunzhen",
+    "Chinese (Mandarin)_Warm_Girl": "female-nuannan",
     
     // Cantonese voices
     "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",
@@ -229,7 +229,7 @@ function getMiniMaxVoiceId(frontendVoice) {
     "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",
     "English_UpsetGirl": "English_UpsetGirl",
     "English_Wiselady": "English_Wiselady",
-    "English_Trustworth_Man": "English_Trustworthy_Man"
+    "English_Trustworthy_Man": "English_Trustworthy_Man"
   };
   
   // Return mapped voice or default if mapping not found
