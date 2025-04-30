@@ -166,6 +166,11 @@
             color: #1565c0;
             display: block;
         }
+        .status.success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
         .audio-actions {
             display: flex;
             gap: 10px;
@@ -320,6 +325,7 @@ Mom: Wake up, sweetheart! It's time for school.
 Child: Just five more minutes, please! 
 孩子：再睡五分钟嘛，求你了！"></textarea>
                     <button class="example-btn" id="load-example">加载示例对话</button>
+                    <button class="example-btn" id="check-api" style="margin-left: 10px; background: rgba(247, 215, 215, 0.7);">检查API凭证</button>
                 </div>
                 
                 <button id="analyze-btn" class="mb-4">分析对话</button>
@@ -373,6 +379,7 @@ Child: Just five more minutes, please!
             const downloadBtn = document.getElementById('download-btn');
             const status = document.getElementById('status');
             const loadExampleBtn = document.getElementById('load-example');
+            const checkApiBtn = document.getElementById('check-api');
             
             let currentAudioBlob = null;
             let identifiedRoles = [];
@@ -452,6 +459,69 @@ Dad: Have a great day at school!
 爸爸：祝你在学校度过美好的一天！ 
 Child: Thanks, Dad! See you later! 
 孩子：谢谢，爸爸！待会见！`;
+            });
+            
+            // Check API credentials
+            checkApiBtn.addEventListener('click', async () => {
+                showLoading('正在检查API凭证...');
+                
+                try {
+                    const response = await fetch('/api/tts-dialog', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            dialog: [{
+                                name: "TestUser",
+                                gender: "male", 
+                                type: "adult",
+                                lines: [{
+                                    english: "Testing API credentials",
+                                    chinese: "测试API凭证"
+                                }]
+                            }],
+                            roleVoices: {
+                                "TestUser": "Chinese (Mandarin)_Elite_Young"
+                            },
+                            model: "speech-02-turbo"
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        let errorMessage = 'API凭证验证失败';
+                        try {
+                            const errorData = await response.json();
+                            console.error('API Credential Check Error:', errorData);
+                            
+                            if (errorData.error && errorData.error.includes('credential')) {
+                                errorMessage = '语音API凭证无效或未设置。请联系网站管理员。';
+                            } else if (errorData.details) {
+                                errorMessage = `API错误: ${errorData.error || ''}\n详情: ${JSON.stringify(errorData.details)}`;
+                            } else {
+                                errorMessage = errorData.error || errorMessage;
+                            }
+                        } catch (e) {
+                            errorMessage = `API凭证验证失败: ${response.status} ${response.statusText}`;
+                        }
+                        showError(errorMessage);
+                    } else {
+                        // Try to get a small piece of audio data to verify
+                        try {
+                            const audioData = await response.arrayBuffer();
+                            if (audioData.byteLength > 0) {
+                                showStatus('API凭证有效，可以正常使用语音功能', 'success');
+                            } else {
+                                showError('API返回了空的音频数据，可能存在配置问题');
+                            }
+                        } catch (e) {
+                            showError('无法解析API响应，可能存在配置问题');
+                        }
+                    }
+                } catch (error) {
+                    console.error('API credential check error:', error);
+                    showError('API凭证检查失败: ' + error.message);
+                }
             });
             
             // Analyze the dialog text using DeepSeek API
@@ -649,9 +719,27 @@ ${dialogText}`
                         let errorMessage = '语音生成失败';
                         try {
                             const errorData = await response.json();
-                            errorMessage = errorData.error || errorMessage;
+                            console.error('API Error Response:', errorData);
+                            
+                            if (errorData.details && typeof errorData.details === 'object') {
+                                // Show detailed API error for debugging
+                                const detailsStr = JSON.stringify(errorData.details, null, 2);
+                                errorMessage = `API错误: ${errorData.error || ''}\n详情: ${detailsStr}`;
+                                console.error('Detailed API error:', detailsStr);
+                            } else {
+                                errorMessage = errorData.error || errorMessage;
+                            }
+                            
+                            // Show special message for credential errors
+                            if (errorMessage.includes('credentials') || errorMessage.includes('API key') || 
+                                (errorData.details && errorData.details.message && 
+                                (errorData.details.message.includes('authorization') || 
+                                 errorData.details.message.includes('API key')))) {
+                                errorMessage = '语音API凭证无效。请检查API密钥和Group ID设置。';
+                            }
                         } catch (e) {
                             errorMessage = `语音生成失败: ${response.status} ${response.statusText}`;
+                            console.error('Failed to parse error response:', e);
                         }
                         throw new Error(errorMessage);
                     }
@@ -713,6 +801,11 @@ ${dialogText}`
             function showLoading(message) {
                 status.textContent = message;
                 status.className = 'status loading';
+            }
+            
+            function showStatus(message, type = '') {
+                status.textContent = message;
+                status.className = `status ${type}`;
             }
             
             function clearStatus() {

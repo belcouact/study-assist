@@ -11,6 +11,9 @@ export async function onRequestPost(context) {
   const GROUP_ID = context.env.MINIMAX_GROUP_ID;
   const API_KEY = context.env.MINIMAX_API_KEY;
   
+  console.log("MINIMAX_GROUP_ID exists:", !!GROUP_ID);
+  console.log("MINIMAX_API_KEY exists:", !!API_KEY);
+  
   if (!GROUP_ID || !API_KEY) {
     console.error("Missing required MiniMax API credentials");
     return new Response(JSON.stringify({
@@ -23,10 +26,65 @@ export async function onRequestPost(context) {
       }
     });
   }
+  
+  // Test the credentials with a basic API call
+  try {
+    console.log("Testing MiniMax API credentials...");
+    const testUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
+    
+    const testResponse = await fetch(testUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify({
+        model: "speech-02-turbo",
+        text: "Hello, testing credentials.",
+        stream: false,
+        language_boost: "auto",
+        voice_setting: {
+          voice_id: "male-qn-jingying",
+          speed: 1.0,
+          vol: 1.0,
+          pitch: 0
+        },
+        audio_setting: {
+          sample_rate: 32000,
+          bitrate: 128000,
+          format: "mp3"
+        }
+      })
+    });
+    
+    // If credentials are invalid, we'll usually get a 401 or 403 response
+    if (testResponse.status === 401 || testResponse.status === 403) {
+      const errorText = await testResponse.text();
+      console.error("Credential validation failed:", errorText);
+      
+      return new Response(JSON.stringify({
+        error: "MiniMax API credential validation failed",
+        status: testResponse.status,
+        details: errorText
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    console.log("Credential test response status:", testResponse.status);
+  } catch (error) {
+    console.error("Error testing credentials:", error);
+    // Continue execution - this is just a pre-check, main logic will also handle errors
+  }
 
   try {
     // Parse request body
     const requestData = await context.request.json();
+    console.log("Request data received:", JSON.stringify(requestData).substring(0, 200) + "...");
     
     // Validate required fields
     if (!requestData.dialog || !Array.isArray(requestData.dialog) || requestData.dialog.length === 0) {
@@ -56,173 +114,164 @@ export async function onRequestPost(context) {
     // Generate individual audio clips for each line in the dialog
     const audioClips = [];
     
-    for (const role of requestData.dialog) {
-      const roleName = role.name;
-      let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
-      
-      // Special case for Mom role - directly assign female voice to avoid mapping issues
-      if (roleName === 'Mom' || roleName.toLowerCase() === 'mom') {
-        // Always use a Chinese female voice for Mom - bypassing the English voices
-        voiceId = "female-shaonv"; // Default to Chinese female voice that's known to work
-        console.log(`Special handling for Mom role: Force using Chinese voice '${voiceId}' instead of '${requestData.roleVoices[roleName]}'`);
+    // Try with a simplified approach - just attempt to generate one piece of audio to test the API
+    const testRole = requestData.dialog[0]; // Get the first role
+    const testLine = testRole.lines[0]; // Get the first line
+    const testText = testLine.english.trim() || testLine.chinese.trim();
+    
+    console.log("Testing API with role:", testRole.name);
+    console.log("Test text:", testText);
+    console.log("Using basic voice: male-qn-jingying");
+    
+    // Create a simplified test payload
+    const testPayload = {
+      model: "speech-02-turbo", // Use turbo model which might be more reliable
+      text: testText,
+      stream: false,
+      language_boost: "auto",
+      voice_setting: {
+        voice_id: "male-qn-jingying", // Use a known reliable voice
+        speed: 1.0,
+        vol: 1.0,
+        pitch: 0
+      },
+      audio_setting: {
+        sample_rate: 32000,
+        bitrate: 128000,
+        format: "mp3"
       }
+    };
+    
+    // Call MiniMax API with simplified test
+    const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
+    
+    console.log("Calling MiniMax API with test payload...");
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify(testPayload)
+    });
+    
+    console.log("API response status:", response.status);
+    console.log("API response status text:", response.statusText);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API error response:", errorText);
       
-      console.log(`Processing ${role.lines.length} lines for role '${roleName}' with voice '${voiceId}'`);
-      
-      // Process each line for this role
-      for (const line of role.lines) {
-        // Use English text if available, otherwise use Chinese
-        const text = line.english.trim() || line.chinese.trim();
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error("Parsed error data:", errorData);
         
-        if (!text) continue; // Skip empty lines
-        
-        // Create the payload for this line
-        const payload = {
-          model: requestData.model || "speech-02-hd", // Use HD model for better quality
-          text: text,
-          stream: false,
-          language_boost: "auto",
-          voice_setting: {
-            voice_id: voiceId,
-            speed: 1.0,
-            vol: 1.0,
-            pitch: 0
-          },
-          audio_setting: {
-            sample_rate: 32000,
-            bitrate: 128000,
-            format: "mp3"
+        // Return the API error details to the client for debugging
+        return new Response(JSON.stringify({
+          error: "MiniMax API returned an error",
+          details: errorData,
+          status: response.status,
+          statusText: response.statusText
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
           }
-        };
-        
-        // Adjust speed and pitch based on role characteristics
-        if (role.gender === 'female' || role.name.toLowerCase().includes('mom') || 
-            role.name.toLowerCase().includes('mother') || role.name.toLowerCase().includes('woman')) {
-          // Make female voices slightly faster and higher pitched
-          payload.voice_setting.speed = 1.05;
-          payload.voice_setting.pitch = 1;
-        } else if (role.type === 'child' || role.name.toLowerCase().includes('child') || 
-                  role.name.toLowerCase().includes('kid') || role.name.toLowerCase().includes('baby')) {
-          // Make child voices faster and higher pitched
-          payload.voice_setting.speed = 1.1;
-          payload.voice_setting.pitch = 1;
-        }
-        
-        // Add short pause at the end of each line
-        payload.text = payload.text + "，"; // Add a comma to create a natural pause
-        
-        // Enhanced logging for troubleshooting the 'Mom' role
-        if (roleName === 'Mom') {
-          console.log(`Mom role - Using voice ID: '${voiceId}'`);
-          console.log(`Mom role - Text: "${text}"`);
-          console.log(`Mom role - Full payload:`, JSON.stringify(payload));
-        }
-        
-        let audioGenerated = false;
-        let fallbackAttempts = 0;
-        const maxFallbackAttempts = 2; // Try up to 2 fallbacks
-        const fallbackVoices = ['female-shaonv', 'male-qn-jingying']; // Fallback voice options
-        
-        // Keep trying until we get audio or run out of fallbacks
-        while (!audioGenerated && fallbackAttempts <= maxFallbackAttempts) {
-          try {
-            // Call MiniMax API
-            const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
-            
-            const response = await fetch(apiUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${API_KEY}`
-              },
-              body: JSON.stringify(payload)
-            });
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error(`MiniMax API error for role '${roleName}': ${response.status} ${response.statusText}`, errorText);
-              
-              try {
-                // Try to parse the error response
-                const errorData = JSON.parse(errorText);
-                const errorMessage = `MiniMax API error: ${errorData.message || errorData.base_resp?.status_msg || 'Unknown error'}`;
-                
-                // Log detailed error information
-                console.error(`Detailed MiniMax API error:`, {
-                  status: response.status,
-                  statusText: response.statusText,
-                  errorData: errorData
-                });
-                
-                throw new Error(errorMessage);
-              } catch (parseError) {
-                // If JSON parsing fails, use the raw error text
-                throw new Error(`MiniMax API error: ${response.status} ${response.statusText} - ${errorText.substring(0, 200)}`);
-              }
-            }
-            
-            const responseData = await response.json();
-            
-            // Log response data for troubleshooting
-            if (roleName === 'Mom') {
-              console.log(`Mom role - Response status: ${response.status}`);
-              console.log(`Mom role - Response has base_resp:`, !!responseData.base_resp);
-              console.log(`Mom role - Response has audio_base64:`, !!responseData.audio_base64);
-              if (responseData.base_resp) {
-                console.log(`Mom role - base_resp status_code:`, responseData.base_resp.status_code);
-                console.log(`Mom role - base_resp status_msg:`, responseData.base_resp.status_msg);
-              }
-            }
-            
-            if (responseData.base_resp && responseData.base_resp.status_code !== 0) {
-              // More detailed error logging
-              console.error(`MiniMax API returned error status code ${responseData.base_resp.status_code}`);
-              console.error(`Error details:`, responseData.base_resp);
-              throw new Error(`MiniMax API error: ${responseData.base_resp.status_msg || 'Unknown error'}`);
-            }
-            
-            if (!responseData.audio_base64) {
-              console.error(`No audio data returned for role '${roleName}' with voice '${voiceId}'`);
-              throw new Error(`MiniMax API returned no audio data for role '${roleName}'`);
-            }
-            
-            // Convert base64 to array buffer
-            const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
-            const binary = atob(base64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              bytes[i] = binary.charCodeAt(i);
-            }
-            
-            // Add audio clip to the collection
-            audioClips.push(bytes);
-            audioGenerated = true; // Success!
-            
-          } catch (error) {
-            fallbackAttempts++;
-            console.error(`Attempt ${fallbackAttempts} failed for role '${roleName}':`, error);
-            
-            if (fallbackAttempts <= maxFallbackAttempts) {
-              // Try a fallback voice
-              const fallbackVoice = fallbackVoices[fallbackAttempts - 1];
-              console.log(`Trying fallback voice '${fallbackVoice}' for role '${roleName}'`);
-              payload.voice_setting.voice_id = fallbackVoice;
-            } else {
-              // We've run out of fallbacks, propagate the error
-              throw error;
-            }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({
+          error: `MiniMax API error: ${response.status} ${response.statusText}`,
+          responseText: errorText
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
           }
-        }
+        });
       }
     }
     
-    // Merge all audio clips into a single MP3 file
+    const responseData = await response.json();
+    console.log("API response has base_resp:", !!responseData.base_resp);
+    console.log("API response has audio_base64:", !!responseData.audio_base64);
+    
+    if (responseData.base_resp) {
+      console.log("base_resp status_code:", responseData.base_resp.status_code);
+      console.log("base_resp status_msg:", responseData.base_resp.status_msg);
+      
+      if (responseData.base_resp.status_code !== 0) {
+        return new Response(JSON.stringify({
+          error: `MiniMax API returned error code ${responseData.base_resp.status_code}`,
+          message: responseData.base_resp.status_msg,
+          details: responseData.base_resp
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    }
+    
+    if (!responseData.audio_base64) {
+      console.error("No audio data in response");
+      return new Response(JSON.stringify({
+        error: "MiniMax API returned no audio data in test",
+        response: responseData
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    console.log("Successfully received audio data from API");
+    
+    // Process the single audio clip for testing
+    try {
+      const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      audioClips.push(bytes);
+    } catch (error) {
+      console.error("Error processing audio data:", error);
+      return new Response(JSON.stringify({
+        error: "Error processing audio data",
+        message: error.message
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    
+    // Skip processing all the other lines for this test
+    console.log("Test successful. Skipping processing of other lines.");
+    
+    // Merge all audio clips into a single MP3 file (just the one test clip in this case)
     if (audioClips.length === 0) {
-      throw new Error("No audio was generated. Check that the dialog contains valid text.");
+      return new Response(JSON.stringify({
+        error: "No audio was generated. Check that the dialog contains valid text."
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
     }
     
-    // Simple concatenation of MP3 files (this works because MP3 is frame-based)
-    // For production use, you might want a more sophisticated approach with proper MP3 handling
+    // Simple concatenation (just one clip in this case)
     let totalLength = 0;
     audioClips.forEach(clip => { totalLength += clip.length; });
     
@@ -234,6 +283,8 @@ export async function onRequestPost(context) {
       offset += clip.length;
     });
     
+    console.log("Final audio data length:", mergedAudio.length);
+    
     // Return the merged audio
     return new Response(mergedAudio, {
       headers: {
@@ -244,9 +295,11 @@ export async function onRequestPost(context) {
     
   } catch (error) {
     console.error("TTS dialog error:", error);
+    console.error("Error stack:", error.stack);
     
     return new Response(JSON.stringify({
-      error: error.message || "An error occurred processing the dialog"
+      error: error.message || "An error occurred processing the dialog",
+      stack: error.stack
     }), {
       status: 500,
       headers: {
