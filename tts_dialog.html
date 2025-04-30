@@ -699,11 +699,59 @@ ${dialogText}`
                     // Debug output
                     console.log('Role voices mapping:', roleVoices);
                     
+                    // Create sequence information to ensure dialog order is preserved
+                    // This extracts the original dialog sequence from the text input
+                    const originalText = dialogInput.value.trim();
+                    const dialogLines = originalText.split('\n').filter(line => line.trim());
+                    
+                    // Extract the sequence of roles from the original text
+                    const sequenceInfo = [];
+                    const dialogSequence = [];
+                    
+                    // Parse the original text to extract the sequence of roles and lines
+                    dialogLines.forEach(line => {
+                        const colonIndex = line.indexOf(':');
+                        if (colonIndex > 0) {
+                            const roleName = line.substring(0, colonIndex).trim();
+                            // Find the role in identified roles
+                            const roleIndex = identifiedRoles.findIndex(r => r.name === roleName);
+                            if (roleIndex >= 0) {
+                                // Find the line index within this role's lines
+                                const role = identifiedRoles[roleIndex];
+                                const lineText = line.substring(colonIndex + 1).trim();
+                                
+                                // Try to find the matching line in this role's lines
+                                const lineIndex = role.lines.findIndex(l => 
+                                    (l.english && l.english.includes(lineText)) || 
+                                    (l.chinese && l.chinese.includes(lineText))
+                                );
+                                
+                                if (lineIndex >= 0) {
+                                    sequenceInfo.push({
+                                        role: roleName,
+                                        line_index: lineIndex,
+                                        sequence_position: sequenceInfo.length
+                                    });
+                                    
+                                    // Also build a flattened dialog sequence
+                                    dialogSequence.push({
+                                        role: role,
+                                        line: role.lines[lineIndex]
+                                    });
+                                }
+                            }
+                        }
+                    });
+                    
+                    console.log('Dialog sequence info:', sequenceInfo);
+                    
                     // Prepare the TTS request with role and voice mapping
                     const requestData = {
                         dialog: identifiedRoles,
                         roleVoices: roleVoices,
-                        model: "speech-02-hd"
+                        model: "speech-02-hd",
+                        // Include the original sequence information
+                        original_sequence: sequenceInfo
                     };
                     
                     // Call the TTS API

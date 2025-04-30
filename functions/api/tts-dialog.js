@@ -60,39 +60,92 @@ export async function onRequestPost(context) {
     // Generate individual audio clips for each line in the dialog
     const audioClips = [];
     
-    // First, flatten the dialog into a sequence of lines with their roles
+    // Extract the dialog structure for debugging
+    console.log("Original dialog structure:");
+    requestData.dialog.forEach((role, i) => {
+      console.log(`Role ${i+1}: ${role.name} (${role.lines.length} lines)`);
+    });
+    
+    // First, analyze the dialog structure to understand its format
+    // Check if the dialog is already in sequence format or if it's grouped by role
+    const isSequentialDialog = requestData.dialog_format === 'sequential';
+    
+    // Create a flat sequential dialog from the input data - this is the key part
     const dialogSequence = [];
     
-    // Preserve the original dialog structure
-    for (let i = 0; i < requestData.dialog.length; i++) {
-      const role = requestData.dialog[i];
-      for (let j = 0; j < role.lines.length; j++) {
+    if (isSequentialDialog) {
+      // The dialog is already in sequence order, so we can use it directly
+      for (let i = 0; i < requestData.dialog.length; i++) {
+        const item = requestData.dialog[i];
         dialogSequence.push({
-          role: role,
-          line: role.lines[j],
-          index: dialogSequence.length // Keep track of the original sequence
+          role: item.role,
+          text: item.text,
+          index: i
         });
+      }
+    } else {
+      // The dialog is grouped by role, so we need to reconstruct the sequence
+      // THIS DOESN'T WORK CORRECTLY because the original sequence is lost when grouped by role
+      // Instead, we need to look at the original dialog input text to reconstruct the sequence
+      
+      // Check if there's any sequence information in the request
+      if (requestData.original_sequence && Array.isArray(requestData.original_sequence)) {
+        // Use provided sequence information if available
+        for (const seqItem of requestData.original_sequence) {
+          const role = requestData.dialog.find(r => r.name === seqItem.role);
+          if (role && role.lines[seqItem.line_index]) {
+            dialogSequence.push({
+              role: role,
+              line: role.lines[seqItem.line_index],
+              index: dialogSequence.length
+            });
+          }
+        }
+      } else {
+        // IMPORTANT: We cannot determine the correct sequence from roles with multiple lines
+        // We will log this issue but proceed with the current approach to at least generate audio
+        console.warn("WARNING: Cannot determine exact dialog sequence from the grouped roles. Audio may not follow dialog order.");
+        console.warn("Please modify the frontend to pass dialog_format='sequential' or include original_sequence.");
+        
+        // Create a naive sequential representation - this is prone to order issues
+        // but without sequence info, it's the best we can do
+        for (const role of requestData.dialog) {
+          for (const line of role.lines) {
+            dialogSequence.push({
+              role: role,
+              line: line,
+              index: dialogSequence.length
+            });
+          }
+        }
       }
     }
     
-    console.log(`Processing ${dialogSequence.length} lines in dialog sequence`);
+    // Log the reconstructed sequence for debugging
+    console.log(`Reconstructed dialog sequence (${dialogSequence.length} lines):`);
+    dialogSequence.forEach((item, i) => {
+      const roleName = item.role.name;
+      const text = item.line.english || item.line.chinese || "[empty]";
+      console.log(`  ${i+1}. ${roleName}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
+    });
     
-    // Process each line in the dialog sequence
-    for (const item of dialogSequence) {
+    // Process each line in the reconstructed sequence order
+    for (let seqIndex = 0; seqIndex < dialogSequence.length; seqIndex++) {
+      const item = dialogSequence[seqIndex];
       const role = item.role;
       const line = item.line;
       const roleName = role.name;
       let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
       
       // Use English text if available, otherwise use Chinese
-      const text = line.english.trim() || line.chinese.trim();
+      const text = line.english?.trim() || line.chinese?.trim();
       
       if (!text) {
-        console.log(`Skipping empty line for ${roleName}`);
+        console.log(`[${seqIndex+1}/${dialogSequence.length}] Skipping empty line for ${roleName}`);
         continue; // Skip empty lines
       }
       
-      console.log(`[${item.index + 1}/${dialogSequence.length}] Processing line for ${roleName}: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      console.log(`[${seqIndex+1}/${dialogSequence.length}] Processing: ${roleName} says "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
       
       // Create the payload for this line
       const payload = {
@@ -198,17 +251,18 @@ export async function onRequestPost(context) {
           throw new Error(`No audio data returned for line: "${text.substring(0, 30)}..."`);
         }
         
-        // Store the audio clip with its original sequence index to maintain order
+        // Store the audio clip with its sequence position
         audioClips.push({
-          index: item.index,
+          sequenceIndex: seqIndex,  // Use the actual sequence index from our loop
           audio: audioBytes,
-          roleName: roleName
+          roleName: roleName,
+          text: text.substring(0, 30) + (text.length > 30 ? '...' : '')
         });
         
-        console.log(`Added audio clip #${item.index + 1} for ${roleName}, length: ${audioBytes.length} bytes`);
+        console.log(`[${seqIndex+1}/${dialogSequence.length}] Successfully generated audio for ${roleName}, ${audioBytes.length} bytes`);
         
       } catch (error) {
-        console.error(`Error processing line #${item.index + 1} for ${roleName}:`, error);
+        console.error(`[${seqIndex+1}/${dialogSequence.length}] Error for ${roleName}:`, error);
         // Continue with next line instead of failing the whole request
       }
     }
@@ -226,12 +280,12 @@ export async function onRequestPost(context) {
       });
     }
     
-    // Sort the audio clips by their original sequence index
-    audioClips.sort((a, b) => a.index - b.index);
+    // Sort the audio clips by their sequence index to maintain dialog order
+    audioClips.sort((a, b) => a.sequenceIndex - b.sequenceIndex);
     
-    console.log(`Merging ${audioClips.length} audio clips in sequence order:`);
+    console.log("Final audio merge sequence:");
     audioClips.forEach((clip, i) => {
-      console.log(`  ${i+1}. ${clip.roleName}: ${clip.audio.length} bytes (original index: ${clip.index})`);
+      console.log(`  ${i+1}. ${clip.roleName}: "${clip.text}" (seq index: ${clip.sequenceIndex})`);
     });
     
     // Calculate total length of merged audio
