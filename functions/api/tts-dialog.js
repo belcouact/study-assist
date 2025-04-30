@@ -58,7 +58,19 @@ export async function onRequestPost(context) {
     
     for (const role of requestData.dialog) {
       const roleName = role.name;
-      const voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
+      let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
+      
+      // Special case for Mom role - directly assign female voice to avoid mapping issues
+      if (roleName === 'Mom' || roleName.toLowerCase() === 'mom') {
+        // Use a female voice that we know works well with MiniMax
+        const selectedVoiceName = requestData.roleVoices[roleName];
+        if (selectedVoiceName && selectedVoiceName.includes("English_")) {
+          voiceId = "English_Graceful_Lady"; // English female voice
+        } else {
+          voiceId = "female-shaonv"; // Default Chinese female voice
+        }
+        console.log(`Special handling for Mom role: Force using voice '${voiceId}'`);
+      }
       
       console.log(`Processing ${role.lines.length} lines for role '${roleName}' with voice '${voiceId}'`);
       
@@ -104,6 +116,13 @@ export async function onRequestPost(context) {
         // Add short pause at the end of each line
         payload.text = payload.text + "，"; // Add a comma to create a natural pause
         
+        // Enhanced logging for troubleshooting the 'Mom' role
+        if (roleName === 'Mom') {
+          console.log(`Mom role - Using voice ID: '${voiceId}'`);
+          console.log(`Mom role - Text: "${text}"`);
+          console.log(`Mom role - Full payload:`, JSON.stringify(payload));
+        }
+        
         // Call MiniMax API
         const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
         
@@ -129,6 +148,17 @@ export async function onRequestPost(context) {
         }
         
         const responseData = await response.json();
+        
+        // Log response data for 'Mom' role for debugging
+        if (roleName === 'Mom') {
+          console.log(`Mom role - Response status: ${response.status}`);
+          console.log(`Mom role - Response has base_resp:`, !!responseData.base_resp);
+          console.log(`Mom role - Response has audio_base64:`, !!responseData.audio_base64);
+          if (responseData.base_resp) {
+            console.log(`Mom role - base_resp status_code:`, responseData.base_resp.status_code);
+            console.log(`Mom role - base_resp status_msg:`, responseData.base_resp.status_msg);
+          }
+        }
         
         if (responseData.base_resp && responseData.base_resp.status_code !== 0) {
           throw new Error(`MiniMax API error: ${responseData.base_resp.status_msg || 'Unknown error'}`);
@@ -210,7 +240,7 @@ function getMiniMaxVoiceId(frontendVoice) {
   // Default voice if none provided
   if (!frontendVoice) return "male-qn-jingying";
   
-  // Voice mapping based on the mapping in tts.js
+  // Complete voice mapping from frontend names to MiniMax API voice IDs
   const voiceMap = {
     // Chinese Mandarin voices
     "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",
@@ -220,17 +250,20 @@ function getMiniMaxVoiceId(frontendVoice) {
     "Chinese (Mandarin)_Pure-hearted_Boy": "male-chunzhen",
     "Chinese (Mandarin)_Warm_Girl": "female-nuannan",
     
-    // Cantonese voices
+    // Cantonese voices - keeping the original IDs as they appear to be direct passes
     "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",
     "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",
     
-    // English voices
+    // English voices - these appear to use the frontend name directly as the voice ID
     "English_Graceful_Lady": "English_Graceful_Lady",
-    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man", // Note the slight difference in casing
     "English_UpsetGirl": "English_UpsetGirl",
     "English_Wiselady": "English_Wiselady",
     "English_Trustworthy_Man": "English_Trustworthy_Man"
   };
+  
+  // Log the mapping operation
+  console.log(`Voice mapping: '${frontendVoice}' -> '${voiceMap[frontendVoice] || "male-qn-jingying"}'`);
   
   // Return mapped voice or default if mapping not found
   return voiceMap[frontendVoice] || "male-qn-jingying";
