@@ -57,6 +57,7 @@
         }
         .form-group {
             margin-bottom: 24px;
+            position: relative; /* For positioning the resize handle */
         }
         label {
             display: block;
@@ -243,6 +244,16 @@
             align-items: center;
             justify-content: center;
             box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            transform: translateY(5px); /* Fine-tune vertical position */
+        }
+        
+        .resize-handle i {
+            font-size: 12px !important;
+        }
+        
+        /* Fix for browser's default resize indicator */
+        textarea::-webkit-resizer {
+            content: none;
         }
         
         /* Hero section */
@@ -504,25 +515,19 @@
                 text-align: center;
             }
             
-            .mobile-menu-toggle span {
-                display: block;
-                width: 25px;
-                height: 2px;
-                background: #4361ee;
-                margin: 5px 0;
-                transition: all 0.3s ease;
+            /* Custom resize handle for mobile */
+            .resize-handle {
+                background-color: rgba(255, 255, 255, 0.5);
+                border-radius: 3px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                transform: translateY(5px); /* Fine-tune vertical position */
             }
             
-            body.mobile-menu-open .mobile-menu-toggle span:nth-child(1) {
-                transform: rotate(45deg) translate(5px, 5px);
-            }
-            
-            body.mobile-menu-open .mobile-menu-toggle span:nth-child(2) {
-                opacity: 0;
-            }
-            
-            body.mobile-menu-open .mobile-menu-toggle span:nth-child(3) {
-                transform: rotate(-45deg) translate(7px, -6px);
+            .resize-handle i {
+                font-size: 12px !important;
             }
         }
     </style>
@@ -662,409 +667,343 @@
     <script src="js/navigation.js"></script>
 
     <script>
-        // Get DOM elements
-        const textInput = document.getElementById('text-input');
-        const voiceSelect = document.getElementById('voice-select');
-        const modelSelect = document.getElementById('model-select');
-        const emotionSensing = document.getElementById('emotion-sensing');
-        const generateBtn = document.getElementById('generate-btn');
-        const audioContainer = document.getElementById('audio-container');
-        const audioPlayer = document.getElementById('audio-player');
-        const downloadBtn = document.getElementById('download-btn');
-        const status = document.getElementById('status');
-        
-        // Add custom resize handle for iOS and other mobile devices
-        const textareaContainer = document.querySelector('.form-group');
-        let isResizing = false;
-        let initialHeight = 0;
-        let initialY = 0;
-        
-        // Create a visible resize handle element
-        const resizeHandle = document.createElement('div');
-        resizeHandle.className = 'resize-handle';
-        resizeHandle.style.position = 'absolute';
-        resizeHandle.style.width = '18px';
-        resizeHandle.style.height = '18px';
-        resizeHandle.style.cursor = 'ns-resize';
-        resizeHandle.style.zIndex = '20';
-        resizeHandle.style.opacity = '0.7';
-        resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="font-size: 12px; color: rgba(114, 9, 183, 0.7);"></i>';
-        textareaContainer.appendChild(resizeHandle);
-        
-        // Position the resize handle at the bottom right of the textarea
-        function updateResizeHandlePosition() {
-            const textareaRect = textInput.getBoundingClientRect();
-            const containerRect = textareaContainer.getBoundingClientRect();
+        document.addEventListener('DOMContentLoaded', () => {
+            const textInput = document.getElementById('text-input');
+            const voiceSelect = document.getElementById('voice-select');
+            const modelSelect = document.getElementById('model-select');
+            const emotionSensing = document.getElementById('emotion-sensing');
+            const generateBtn = document.getElementById('generate-btn');
+            const audioContainer = document.getElementById('audio-container');
+            const audioPlayer = document.getElementById('audio-player');
+            const downloadBtn = document.getElementById('download-btn');
+            const status = document.getElementById('status');
+            let currentAudioBlob = null;
             
-            // Calculate position relative to the textarea container
-            const bottom = containerRect.height - (textareaRect.bottom - containerRect.top) - 3;
-            const right = containerRect.width - (textareaRect.right - containerRect.left) - 3;
+            // Add custom resize handle for textarea
+            const formGroup = document.querySelector('.form-group');
+            const textarea = textInput;
+            let isResizing = false;
+            let initialHeight = 0;
+            let initialY = 0;
             
-            resizeHandle.style.bottom = `${bottom}px`;
-            resizeHandle.style.right = `${right}px`;
-        }
-        
-        // Update position initially and when window resizes
-        updateResizeHandlePosition();
-        window.addEventListener('resize', updateResizeHandlePosition);
-        
-        // Also update position when textarea height changes
-        const resizeObserver = new ResizeObserver(() => {
+            // Create a visible resize handle element
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'resize-handle';
+            resizeHandle.style.position = 'absolute';
+            resizeHandle.style.width = '18px';
+            resizeHandle.style.height = '18px';
+            resizeHandle.style.cursor = 'ns-resize';
+            resizeHandle.style.zIndex = '20';
+            resizeHandle.style.opacity = '0.7';
+            resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="font-size: 12px; color: rgba(114, 9, 183, 0.7);"></i>';
+            formGroup.appendChild(resizeHandle);
+            
+            // Position the resize handle at the bottom right of the textarea
+            function updateResizeHandlePosition() {
+                const textareaRect = textarea.getBoundingClientRect();
+                const containerRect = formGroup.getBoundingClientRect();
+                
+                // Calculate position relative to the form group container
+                const bottom = containerRect.height - (textareaRect.bottom - containerRect.top) - 3;
+                const right = containerRect.width - (textareaRect.right - containerRect.left) - 3;
+                
+                resizeHandle.style.bottom = `${bottom}px`;
+                resizeHandle.style.right = `${right}px`;
+            }
+            
+            // Update position initially and when window resizes
             updateResizeHandlePosition();
-        });
-        resizeObserver.observe(textInput);
-        
-        // Mouse events for desktop
-        resizeHandle.addEventListener('mousedown', (e) => {
-            isResizing = true;
-            initialHeight = textInput.offsetHeight;
-            initialY = e.clientY;
-            e.preventDefault();
-        });
-        
-        document.addEventListener('mousemove', (e) => {
-            if (!isResizing) return;
-            const delta = e.clientY - initialY;
-            const newHeight = initialHeight + delta;
-            if (newHeight >= 48 && newHeight <= 200) {
-                textInput.style.height = newHeight + 'px';
-                updateResizeHandlePosition(); // Update handle position while resizing
-            }
-        });
-        
-        document.addEventListener('mouseup', () => {
-            isResizing = false;
-        });
-        
-        // Touch events for mobile
-        resizeHandle.addEventListener('touchstart', (e) => {
-            isResizing = true;
-            initialHeight = textInput.offsetHeight;
-            initialY = e.touches[0].clientY;
-            e.preventDefault();
-        });
-        
-        document.addEventListener('touchmove', (e) => {
-            if (!isResizing) return;
-            const delta = e.touches[0].clientY - initialY;
-            const newHeight = initialHeight + delta;
-            if (newHeight >= 48 && newHeight <= 200) {
-                textInput.style.height = newHeight + 'px';
-                updateResizeHandlePosition(); // Update handle position while resizing
-            }
-        });
-        
-        document.addEventListener('touchend', () => {
-            isResizing = false;
-        });
-        
-        // Store audio blob for download
-        let currentAudioBlob = null;
-        
-        // Set example text based on selected voice language
-        /*
-        voiceSelect.addEventListener('change', () => {
-            const selectedVoice = voiceSelect.value;
+            window.addEventListener('resize', updateResizeHandlePosition);
             
-            // Default Chinese example
-            let exampleText = "人工智能不是要替代人类，而是要增强人类的能力。";
+            // Also update position when textarea height changes
+            const resizeObserver = new ResizeObserver(() => {
+                updateResizeHandlePosition();
+            });
+            resizeObserver.observe(textarea);
             
-            // English examples
-            if (selectedVoice.startsWith("English_")) {
-                //exampleText = "Artificial intelligence is not meant to replace humans, but to enhance human capabilities.";
-            }
-            // Japanese example
-            else if (selectedVoice.startsWith("Japanese_")) {
-                //exampleText = "人工知能は人間に取って代わるものではなく、人間の能力を高めるためのものです。";
-            }
-            // Korean example
-            else if (selectedVoice.startsWith("Korean_")) {
-                //exampleText = "인공 지능은 인간을 대체하는 것이 아니라 인간의 능력을 향상시키기 위한 것입니다.";
-            }
+            // Mouse events for desktop
+            resizeHandle.addEventListener('mousedown', (e) => {
+                isResizing = true;
+                initialHeight = textarea.offsetHeight;
+                initialY = e.clientY;
+                e.preventDefault();
+            });
             
-            textInput.value = exampleText;
-        });
-        */
-
-        // Emotion sensing using DeepSeek API
-        async function analyzeTextEmotion(text) {
-            try {
-                const messages = [
-                    {
-                        role: "system",
-                        content: "你是一位情感分析和语音表达专家，擅长分析文本的情感层次和语调变化。你的任务是深度分析文本的情感基调、表达意图和语调起伏，为文本转语音(TTS)提供最佳参数，使其听起来自然且富有感情。\n\n你应考虑的因素包括：\n1. 文本的主题和整体基调（悲伤、喜悦、严肃、轻松等）\n2. 句子的结构和逻辑关系（因果、递进、对比等）\n3. 重点词句和关键信息\n4. 适合的语速变化（某些段落可能需要放慢或加快）\n5. 音调高低（疑问、惊讶、肯定等不同语气）\n6. 音量变化（强调或低语的部分）\n7. 停顿设置（句间停顿、意群停顿等）\n\n针对不同文体（如诗词、散文、新闻、说明文等），你应该采用不同的分析策略。\n\n**特别重要：你必须对文本中的每个句子做单独的情感分析**，因为同一段文本中的不同句子可能表达不同的情绪。**请确保返回的句子文本中不包含任何XML、HTML或SSML标记，只返回原始文本。**"
-                    },
-                    {
-                        role: "user",
-                        content: `请对以下文本进行深度情感分析，并提供适合TTS朗读的精确参数：\n\n"${text}"\n\n请以JSON格式返回以下参数：\n{\n  "emotion": "文本的整体情绪基调，如'沉思'、'欢快'、'悲伤'、'严肃'等",\n  "speed": 0.5到2.0之间的数值（1.0为基准语速，<1.0变慢，>1.0变快）,\n  "pitch": -1、0或1这三个整数值（0为基准音调，负值降低，正值提高）,\n  "volume": 0.1到2.0之间的数值（音量大小，1.0为基准）,\n  "pause_duration": 0.5到2.0之间的数值（停顿时长倍数，1.0为基准）,\n  "emphasis": ["需要强调的关键词或短语列表"],\n  "sentence_analysis": [\n    {\n      "text": "原始句子文本，不包含任何标记",\n      "emotion": "句子的情绪，如'惊讶'、'感伤'、'质疑'等",\n      "speed": 0.5到2.0之间的具体数值,\n      "pitch": 只能是-1、0或1的整数,\n      "volume": 0.1到2.0之间的具体数值\n    },\n    {...其他句子...}\n  ]\n}\n\n请特别注意：\n1. **必须对每个句子进行独立的情绪分析**，因为同一文本中的不同句子可能有不同的情绪\n2. **所有句子文本必须是原始文本，不要添加任何HTML、XML或SSML标记**\n3. 诗词类文本的每一句通常都有独特的情感和表达方式\n4. 悲伤情绪通常对应较慢语速、较低音调和较低音量\n5. 欢快情绪通常对应较快语速、较高音调和较高音量\n6. 严肃/庄重情绪通常对应适中语速、较低音调和适中音量\n7. 疑问句通常需要尾音上扬（较高音调）\n8. 感叹句通常需要适当加强语气（音量增大）\n9. 音调(pitch)必须是整数，且只能是-1、0或1这三个值，不能有小数`
-                    }
-                ];
-                
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ messages })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('情绪分析请求失败');
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizing) return;
+                const delta = e.clientY - initialY;
+                const newHeight = initialHeight + delta;
+                if (newHeight >= 48 && newHeight <= 200) {
+                    textarea.style.height = newHeight + 'px';
+                    updateResizeHandlePosition(); // Update handle position while resizing
                 }
-                
-                const data = await response.json();
-                const assistantMessage = data.choices[0].message.content;
-                
-                // Extract JSON from response
-                const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) || 
-                                  assistantMessage.match(/{[\s\S]*?}/);
-                
-                if (jsonMatch) {
-                    let jsonStr = jsonMatch[0];
-                    if (jsonStr.startsWith('```json')) {
-                        jsonStr = jsonMatch[1];
-                    }
-                    
-                    try {
-                        const emotionParams = JSON.parse(jsonStr);
-                        console.log('Emotion analysis result:', emotionParams);
-                        
-                        // Limit pitch values to -1 to 1 range for natural sound
-                        if (emotionParams.pitch !== undefined) {
-                            emotionParams.pitch = Math.round(Math.max(-1, Math.min(1, emotionParams.pitch)));
-                        }
-                        
-                        // Also limit pitch in sentence analysis if available
-                        if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis)) {
-                            emotionParams.sentence_analysis.forEach(sentence => {
-                                if (sentence.pitch !== undefined) {
-                                    sentence.pitch = Math.round(Math.max(-1, Math.min(1, sentence.pitch)));
-                                }
-                            });
-                        }
-                        
-                        return emotionParams;
-                    } catch (e) {
-                        console.error('Failed to parse emotion analysis JSON:', e);
-                        throw new Error('情绪分析结果解析失败');
-                    }
-                } else {
-                    console.error('No JSON found in response:', assistantMessage);
-                    throw new Error('未找到情绪分析结果');
-                }
-            } catch (error) {
-                console.error('Error analyzing text emotion:', error);
-                showError('情绪分析失败：' + error.message);
-                return null;
-            }
-        }
-        
-        // Generate speech
-        generateBtn.addEventListener('click', async () => {
-            const text = textInput.value.trim();
+            });
             
-            if (!text) {
-                showError('请输入要转换的文字');
-                return;
-            }
+            document.addEventListener('mouseup', () => {
+                isResizing = false;
+            });
             
-            // Disable button and show loading status
-            generateBtn.disabled = true;
-            showLoading('正在生成语音...');
-            audioContainer.classList.remove('visible');
+            // Touch events for mobile
+            resizeHandle.addEventListener('touchstart', (e) => {
+                isResizing = true;
+                initialHeight = textarea.offsetHeight;
+                initialY = e.touches[0].clientY;
+                e.preventDefault();
+            });
             
-            try {
-                // Prepare request data
-                let requestData = {
-                    text: text,
-                    voice: voiceSelect.value,
-                    model: modelSelect.value,
-                    speed: 1.0,
-                    pitch: 0,
-                    volume: 1.0
-                };
-                
-                // Apply emotion sensing if enabled
-                const emotionSensingEnabled = document.getElementById('emotion-sensing').checked;
-                
-                if (emotionSensingEnabled) {
-                    showLoading('正在分析文本情绪...');
-                    document.querySelector('.checkbox-label').classList.add('emotion-active');
-                    const emotionParams = await analyzeTextEmotion(text);
-                    
-                    if (emotionParams) {
-                        showLoading('应用情绪分析结果...');
-                        
-                        // Apply the emotion parameters
-                        if (emotionParams.speed !== undefined) requestData.speed = emotionParams.speed;
-                        if (emotionParams.pitch !== undefined) requestData.pitch = Math.round(emotionParams.pitch);
-                        if (emotionParams.volume !== undefined) requestData.volume = emotionParams.volume;
-                        if (emotionParams.pause_duration !== undefined) requestData.pause_duration = emotionParams.pause_duration;
-                        
-                        // Add additional emotion metadata
-                        requestData.emotion = emotionParams.emotion;
-                        requestData.emphasis = emotionParams.emphasis;
-                        
-                        // Add sentence-level analysis if available
-                        if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis)) {
-                            requestData.sentence_analysis = emotionParams.sentence_analysis;
-                        }
-                        
-                        console.log('Applied emotion parameters:', requestData);
-                        
-                        // Display emotion analysis results
-                        document.getElementById('detected-emotion').textContent = emotionParams.emotion || '-';
-                        document.getElementById('emotion-speed').textContent = emotionParams.speed?.toFixed(2) || '-';
-                        document.getElementById('emotion-pitch').textContent = emotionParams.pitch || '-';
-                        document.getElementById('emotion-volume').textContent = emotionParams.volume?.toFixed(2) || '-';
-                        
-                        // Show emphasis phrases if available
-                        const emphasisEl = document.getElementById('emotion-emphasis');
-                        if (emotionParams.emphasis && emotionParams.emphasis.length > 0) {
-                            emphasisEl.textContent = `强调：${emotionParams.emphasis.join('、')}`;
-                        } else {
-                            emphasisEl.textContent = '';
-                        }
-                        
-                        // Display sentence-level emotion analysis
-                        const sentenceContainer = document.getElementById('sentence-emotions-container');
-                        sentenceContainer.innerHTML = ''; // Clear previous results
-                        
-                        if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis) && 
-                            emotionParams.sentence_analysis.length > 0) {
-                            
-                            emotionParams.sentence_analysis.forEach(sentence => {
-                                const sentenceEl = document.createElement('div');
-                                sentenceEl.className = 'sentence-item';
-                                
-                                const textEl = document.createElement('div');
-                                textEl.className = 'sentence-text';
-                                textEl.textContent = sentence.text;
-                                
-                                const emotionEl = document.createElement('div');
-                                emotionEl.className = 'sentence-emotion';
-                                emotionEl.textContent = `情绪：${sentence.emotion || '-'}`;
-                                
-                                const paramsEl = document.createElement('div');
-                                paramsEl.className = 'sentence-params';
-                                paramsEl.innerHTML = `
-                                    <span>语速：${sentence.speed?.toFixed(2) || '-'}</span>
-                                    <span>音调：${sentence.pitch || '-'}</span>
-                                    <span>音量：${sentence.volume?.toFixed(2) || '-'}</span>
-                                `;
-                                
-                                sentenceEl.appendChild(textEl);
-                                sentenceEl.appendChild(emotionEl);
-                                sentenceEl.appendChild(paramsEl);
-                                
-                                sentenceContainer.appendChild(sentenceEl);
-                            });
-                        } else {
-                            sentenceContainer.innerHTML = '<div class="sentence-item">没有句子级别分析结果</div>';
-                        }
-                        
-                        // Show emotion result box
-                        document.getElementById('emotion-result').classList.add('visible');
-                    }
-                    
-                    document.querySelector('.checkbox-label').classList.remove('emotion-active');
-                    showLoading('正在生成语音...');
+            document.addEventListener('touchmove', (e) => {
+                if (!isResizing) return;
+                const delta = e.touches[0].clientY - initialY;
+                const newHeight = initialHeight + delta;
+                if (newHeight >= 48 && newHeight <= 200) {
+                    textarea.style.height = newHeight + 'px';
+                    updateResizeHandlePosition(); // Update handle position while resizing
                 }
-                
-                console.log('Sending TTS request:', requestData);
-                
-                // Call the TTS API
-                const response = await fetch('/api/tts', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-                
-                console.log('Response status:', response.status);
-                console.log('Response type:', response.headers.get('Content-Type'));
-                
-                if (!response.ok) {
-                    // Try to parse error message
-                    let errorMessage = '语音生成失败';
-                    try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || errorMessage;
-                        console.error('API Error:', errorData);
-                    } catch (e) {
-                        // If we can't parse JSON, use status text
-                        errorMessage = `语音生成失败: ${response.status} ${response.statusText}`;
-                        console.error('Failed to parse error response:', e);
-                    }
-                    throw new Error(errorMessage);
-                }
-                
-                // Check content type to handle response appropriately
-                const contentType = response.headers.get('Content-Type') || '';
-                console.log('Content type:', contentType);
-                
-                // Clone the response for diagnostic purposes
-                const responseClone = response.clone();
+            });
+            
+            document.addEventListener('touchend', () => {
+                isResizing = false;
+            });
+            
+            // Emotion sensing using DeepSeek API
+            async function analyzeTextEmotion(text) {
                 try {
-                    const rawText = await responseClone.text();
-                    // console.log('Raw API response:', rawText);
-                } catch (e) {
-                    console.error('Could not read raw response:', e);
+                    const messages = [
+                        {
+                            role: "system",
+                            content: "你是一位情感分析和语音表达专家，擅长分析文本的情感层次和语调变化。你的任务是深度分析文本的情感基调、表达意图和语调起伏，为文本转语音(TTS)提供最佳参数，使其听起来自然且富有感情。\n\n你应考虑的因素包括：\n1. 文本的主题和整体基调（悲伤、喜悦、严肃、轻松等）\n2. 句子的结构和逻辑关系（因果、递进、对比等）\n3. 重点词句和关键信息\n4. 适合的语速变化（某些段落可能需要放慢或加快）\n5. 音调高低（疑问、惊讶、肯定等不同语气）\n6. 音量变化（强调或低语的部分）\n7. 停顿设置（句间停顿、意群停顿等）\n\n针对不同文体（如诗词、散文、新闻、说明文等），你应该采用不同的分析策略。\n\n**特别重要：你必须对文本中的每个句子做单独的情感分析**，因为同一段文本中的不同句子可能表达不同的情绪。**请确保返回的句子文本中不包含任何XML、HTML或SSML标记，只返回原始文本。**"
+                        },
+                        {
+                            role: "user",
+                            content: `请对以下文本进行深度情感分析，并提供适合TTS朗读的精确参数：\n\n"${text}"\n\n请以JSON格式返回以下参数：\n{\n  "emotion": "文本的整体情绪基调，如'沉思'、'欢快'、'悲伤'、'严肃'等",\n  "speed": 0.5到2.0之间的数值（1.0为基准语速，<1.0变慢，>1.0变快）,\n  "pitch": -1、0或1这三个整数值（0为基准音调，负值降低，正值提高）,\n  "volume": 0.1到2.0之间的数值（音量大小，1.0为基准）,\n  "pause_duration": 0.5到2.0之间的数值（停顿时长倍数，1.0为基准）,\n  "emphasis": ["需要强调的关键词或短语列表"],\n  "sentence_analysis": [\n    {\n      "text": "原始句子文本，不包含任何标记",\n      "emotion": "句子的情绪，如'惊讶'、'感伤'、'质疑'等",\n      "speed": 0.5到2.0之间的具体数值,\n      "pitch": 只能是-1、0或1的整数,\n      "volume": 0.1到2.0之间的具体数值\n    },\n    {...其他句子...}\n  ]\n}\n\n请特别注意：\n1. **必须对每个句子进行独立的情绪分析**，因为同一文本中的不同句子可能有不同的情绪\n2. **所有句子文本必须是原始文本，不要添加任何HTML、XML或SSML标记**\n3. 诗词类文本的每一句通常都有独特的情感和表达方式\n4. 悲伤情绪通常对应较慢语速、较低音调和较低音量\n5. 欢快情绪通常对应较快语速、较高音调和较高音量\n6. 严肃/庄重情绪通常对应适中语速、较低音调和适中音量\n7. 疑问句通常需要尾音上扬（较高音调）\n8. 感叹句通常需要适当加强语气（音量增大）\n9. 音调(pitch)必须是整数，且只能是-1、0或1这三个值，不能有小数`
+                        }
+                    ];
+                    
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ messages })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('情绪分析请求失败');
+                    }
+                    
+                    const data = await response.json();
+                    const assistantMessage = data.choices[0].message.content;
+                    
+                    // Extract JSON from response
+                    const jsonMatch = assistantMessage.match(/```json\n([\s\S]*?)\n```/) || 
+                                      assistantMessage.match(/{[\s\S]*?}/);
+                    
+                    if (jsonMatch) {
+                        let jsonStr = jsonMatch[0];
+                        if (jsonStr.startsWith('```json')) {
+                            jsonStr = jsonMatch[1];
+                        }
+                        
+                        try {
+                            const emotionParams = JSON.parse(jsonStr);
+                            console.log('Emotion analysis result:', emotionParams);
+                            
+                            // Limit pitch values to -1 to 1 range for natural sound
+                            if (emotionParams.pitch !== undefined) {
+                                emotionParams.pitch = Math.round(Math.max(-1, Math.min(1, emotionParams.pitch)));
+                            }
+                            
+                            // Also limit pitch in sentence analysis if available
+                            if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis)) {
+                                emotionParams.sentence_analysis.forEach(sentence => {
+                                    if (sentence.pitch !== undefined) {
+                                        sentence.pitch = Math.round(Math.max(-1, Math.min(1, sentence.pitch)));
+                                    }
+                                });
+                            }
+                            
+                            return emotionParams;
+                        } catch (e) {
+                            console.error('Failed to parse emotion analysis JSON:', e);
+                            throw new Error('情绪分析结果解析失败');
+                        }
+                    } else {
+                        console.error('No JSON found in response:', assistantMessage);
+                        throw new Error('未找到情绪分析结果');
+                    }
+                } catch (error) {
+                    console.error('Error analyzing text emotion:', error);
+                    showError('情绪分析失败：' + error.message);
+                    return null;
+                }
+            }
+            
+            // Generate speech
+            generateBtn.addEventListener('click', async () => {
+                const text = textInput.value.trim();
+                
+                if (!text) {
+                    showError('请输入要转换的文字');
+                    return;
                 }
                 
-                if (contentType.includes('audio/mp3')) {
-                    // Handle binary audio data
-                    try {
-                        // Get the audio data and create blob URL
-                        const audioData = await response.arrayBuffer();
-                        console.log('Received audio data bytes:', audioData.byteLength);
+                // Disable button and show loading status
+                generateBtn.disabled = true;
+                showLoading('正在生成语音...');
+                audioContainer.classList.remove('visible');
+                
+                try {
+                    // Prepare request data
+                    let requestData = {
+                        text: text,
+                        voice: voiceSelect.value,
+                        model: modelSelect.value,
+                        speed: 1.0,
+                        pitch: 0,
+                        volume: 1.0
+                    };
+                    
+                    // Apply emotion sensing if enabled
+                    const emotionSensingEnabled = document.getElementById('emotion-sensing').checked;
+                    
+                    if (emotionSensingEnabled) {
+                        showLoading('正在分析文本情绪...');
+                        document.querySelector('.checkbox-label').classList.add('emotion-active');
+                        const emotionParams = await analyzeTextEmotion(text);
                         
-                        if (audioData.byteLength === 0) {
-                            throw new Error('收到的音频数据为空');
+                        if (emotionParams) {
+                            showLoading('应用情绪分析结果...');
+                            
+                            // Apply the emotion parameters
+                            if (emotionParams.speed !== undefined) requestData.speed = emotionParams.speed;
+                            if (emotionParams.pitch !== undefined) requestData.pitch = Math.round(emotionParams.pitch);
+                            if (emotionParams.volume !== undefined) requestData.volume = emotionParams.volume;
+                            if (emotionParams.pause_duration !== undefined) requestData.pause_duration = emotionParams.pause_duration;
+                            
+                            // Add additional emotion metadata
+                            requestData.emotion = emotionParams.emotion;
+                            requestData.emphasis = emotionParams.emphasis;
+                            
+                            // Add sentence-level analysis if available
+                            if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis)) {
+                                requestData.sentence_analysis = emotionParams.sentence_analysis;
+                            }
+                            
+                            console.log('Applied emotion parameters:', requestData);
+                            
+                            // Display emotion analysis results
+                            document.getElementById('detected-emotion').textContent = emotionParams.emotion || '-';
+                            document.getElementById('emotion-speed').textContent = emotionParams.speed?.toFixed(2) || '-';
+                            document.getElementById('emotion-pitch').textContent = emotionParams.pitch || '-';
+                            document.getElementById('emotion-volume').textContent = emotionParams.volume?.toFixed(2) || '-';
+                            
+                            // Show emphasis phrases if available
+                            const emphasisEl = document.getElementById('emotion-emphasis');
+                            if (emotionParams.emphasis && emotionParams.emphasis.length > 0) {
+                                emphasisEl.textContent = `强调：${emotionParams.emphasis.join('、')}`;
+                            } else {
+                                emphasisEl.textContent = '';
+                            }
+                            
+                            // Display sentence-level emotion analysis
+                            const sentenceContainer = document.getElementById('sentence-emotions-container');
+                            sentenceContainer.innerHTML = ''; // Clear previous results
+                            
+                            if (emotionParams.sentence_analysis && Array.isArray(emotionParams.sentence_analysis) && 
+                                emotionParams.sentence_analysis.length > 0) {
+                                
+                                emotionParams.sentence_analysis.forEach(sentence => {
+                                    const sentenceEl = document.createElement('div');
+                                    sentenceEl.className = 'sentence-item';
+                                    
+                                    const textEl = document.createElement('div');
+                                    textEl.className = 'sentence-text';
+                                    textEl.textContent = sentence.text;
+                                    
+                                    const emotionEl = document.createElement('div');
+                                    emotionEl.className = 'sentence-emotion';
+                                    emotionEl.textContent = `情绪：${sentence.emotion || '-'}`;
+                                    
+                                    const paramsEl = document.createElement('div');
+                                    paramsEl.className = 'sentence-params';
+                                    paramsEl.innerHTML = `
+                                        <span>语速：${sentence.speed?.toFixed(2) || '-'}</span>
+                                        <span>音调：${sentence.pitch || '-'}</span>
+                                        <span>音量：${sentence.volume?.toFixed(2) || '-'}</span>
+                                    `;
+                                    
+                                    sentenceEl.appendChild(textEl);
+                                    sentenceEl.appendChild(emotionEl);
+                                    sentenceEl.appendChild(paramsEl);
+                                    
+                                    sentenceContainer.appendChild(sentenceEl);
+                                });
+                            } else {
+                                sentenceContainer.innerHTML = '<div class="sentence-item">没有句子级别分析结果</div>';
+                            }
+                            
+                            // Show emotion result box
+                            document.getElementById('emotion-result').classList.add('visible');
                         }
                         
-                        const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
-                        const audioUrl = URL.createObjectURL(audioBlob);
-                        
-                        // Store the blob for download
-                        currentAudioBlob = audioBlob;
-                        
-                        // Update audio player and show it
-                        audioPlayer.src = audioUrl;
-                        audioContainer.classList.add('visible');
-                        clearStatus();
-                        
-                        // Try to play the audio
-                        audioPlayer.play().catch(e => {
-                            console.error('Audio playback error:', e);
-                            showError('音频播放失败：' + e.message);
-                        });
-                    } catch (e) {
-                        console.error('Audio processing error:', e);
-                        throw new Error('音频处理失败：' + e.message);
+                        document.querySelector('.checkbox-label').classList.remove('emotion-active');
+                        showLoading('正在生成语音...');
                     }
-                } else if (contentType.includes('application/json')) {
-                    // Handle JSON response
+                    
+                    console.log('Sending TTS request:', requestData);
+                    
+                    // Call the TTS API
+                    const response = await fetch('/api/tts', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    console.log('Response status:', response.status);
+                    console.log('Response type:', response.headers.get('Content-Type'));
+                    
+                    if (!response.ok) {
+                        // Try to parse error message
+                        let errorMessage = '语音生成失败';
+                        try {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                            console.error('API Error:', errorData);
+                        } catch (e) {
+                            // If we can't parse JSON, use status text
+                            errorMessage = `语音生成失败: ${response.status} ${response.statusText}`;
+                            console.error('Failed to parse error response:', e);
+                        }
+                        throw new Error(errorMessage);
+                    }
+                    
+                    // Check content type to handle response appropriately
+                    const contentType = response.headers.get('Content-Type') || '';
+                    console.log('Content type:', contentType);
+                    
+                    // Clone the response for diagnostic purposes
+                    const responseClone = response.clone();
                     try {
-                        const jsonData = await response.json();
-                        console.log('Received JSON response:', jsonData);
-                        
-                        if (jsonData.error) {
-                            throw new Error(jsonData.error);
-                        }
-                        
-                        if (jsonData.base_resp && jsonData.base_resp.status_code !== 0) {
-                            const errorMsg = jsonData.base_resp.status_msg || '未知错误';
-                            console.error('API Error Details:', jsonData.base_resp);
-                            throw new Error(`API错误 ${jsonData.base_resp.status_code}: ${errorMsg}`);
-                        }
-                        
-                        if (jsonData.audio_base64) {
-                            // Handle base64 encoded audio
-                            const base64 = jsonData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
-                            const audioBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-                            const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+                        const rawText = await responseClone.text();
+                        // console.log('Raw API response:', rawText);
+                    } catch (e) {
+                        console.error('Could not read raw response:', e);
+                    }
+                    
+                    if (contentType.includes('audio/mp3')) {
+                        // Handle binary audio data
+                        try {
+                            // Get the audio data and create blob URL
+                            const audioData = await response.arrayBuffer();
+                            console.log('Received audio data bytes:', audioData.byteLength);
+                            
+                            if (audioData.byteLength === 0) {
+                                throw new Error('收到的音频数据为空');
+                            }
+                            
+                            const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
                             const audioUrl = URL.createObjectURL(audioBlob);
                             
                             // Store the blob for download
@@ -1075,87 +1014,128 @@
                             audioContainer.classList.add('visible');
                             clearStatus();
                             
-                            // Play the audio
+                            // Try to play the audio
                             audioPlayer.play().catch(e => {
                                 console.error('Audio playback error:', e);
-                                showError('音频播放失败');
+                                showError('音频播放失败：' + e.message);
                             });
-                        } else {
-                            // If no audio_base64 and no error, log the full response to debug
-                            console.log('Full API response:', jsonData);
-                            throw new Error('服务器返回了无效的响应格式');
+                        } catch (e) {
+                            console.error('Audio processing error:', e);
+                            throw new Error('音频处理失败：' + e.message);
                         }
-                    } catch (e) {
-                        console.error('JSON processing error:', e);
-                        throw new Error('处理服务器响应失败：' + e.message);
+                    } else if (contentType.includes('application/json')) {
+                        // Handle JSON response
+                        try {
+                            const jsonData = await response.json();
+                            console.log('Received JSON response:', jsonData);
+                            
+                            if (jsonData.error) {
+                                throw new Error(jsonData.error);
+                            }
+                            
+                            if (jsonData.base_resp && jsonData.base_resp.status_code !== 0) {
+                                const errorMsg = jsonData.base_resp.status_msg || '未知错误';
+                                console.error('API Error Details:', jsonData.base_resp);
+                                throw new Error(`API错误 ${jsonData.base_resp.status_code}: ${errorMsg}`);
+                            }
+                            
+                            if (jsonData.audio_base64) {
+                                // Handle base64 encoded audio
+                                const base64 = jsonData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
+                                const audioBuffer = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+                                const audioBlob = new Blob([audioBuffer], { type: 'audio/mp3' });
+                                const audioUrl = URL.createObjectURL(audioBlob);
+                                
+                                // Store the blob for download
+                                currentAudioBlob = audioBlob;
+                                
+                                // Update audio player and show it
+                                audioPlayer.src = audioUrl;
+                                audioContainer.classList.add('visible');
+                                clearStatus();
+                                
+                                // Play the audio
+                                audioPlayer.play().catch(e => {
+                                    console.error('Audio playback error:', e);
+                                    showError('音频播放失败');
+                                });
+                            } else {
+                                // If no audio_base64 and no error, log the full response to debug
+                                console.log('Full API response:', jsonData);
+                                throw new Error('服务器返回了无效的响应格式');
+                            }
+                        } catch (e) {
+                            console.error('JSON processing error:', e);
+                            throw new Error('处理服务器响应失败：' + e.message);
+                        }
+                    } else {
+                        throw new Error(`不支持的响应类型: ${contentType}`);
                     }
-                } else {
-                    throw new Error(`不支持的响应类型: ${contentType}`);
+                    
+                } catch (error) {
+                    console.error('TTS Error:', error);
+                    showError(error.message || '语音生成失败，请重试');
+                } finally {
+                    // Re-enable button
+                    generateBtn.disabled = false;
+                }
+            });
+            
+            // Download button handler
+            downloadBtn.addEventListener('click', () => {
+                if (!currentAudioBlob) {
+                    showError('没有可下载的音频');
+                    return;
                 }
                 
-            } catch (error) {
-                console.error('TTS Error:', error);
-                showError(error.message || '语音生成失败，请重试');
-            } finally {
-                // Re-enable button
-                generateBtn.disabled = false;
-            }
-        });
-        
-        // Download button handler
-        downloadBtn.addEventListener('click', () => {
-            if (!currentAudioBlob) {
-                showError('没有可下载的音频');
-                return;
+                // Create a download link
+                const downloadUrl = URL.createObjectURL(currentAudioBlob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = `tts-${new Date().toISOString().slice(0,10)}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(downloadUrl);
+                }, 100);
+            });
+            
+            // Helper functions
+            function showError(message) {
+                status.textContent = message;
+                status.className = 'status error';
             }
             
-            // Create a download link
-            const downloadUrl = URL.createObjectURL(currentAudioBlob);
-            const a = document.createElement('a');
-            a.href = downloadUrl;
-            a.download = `tts-${new Date().toISOString().slice(0,10)}.mp3`;
-            document.body.appendChild(a);
-            a.click();
-            
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(downloadUrl);
-            }, 100);
-        });
-        
-        // Helper functions
-        function showError(message) {
-            status.textContent = message;
-            status.className = 'status error';
-        }
-        
-        function showLoading(message) {
-            status.textContent = message;
-            status.className = 'status loading';
-        }
-        
-        function clearStatus() {
-            status.textContent = '';
-            status.className = 'status';
-        }
-        
-        // Hide emotion result when checkbox is unchecked
-        document.getElementById('emotion-sensing').addEventListener('change', function() {
-            if (!this.checked) {
-                document.getElementById('emotion-result').classList.remove('visible');
+            function showLoading(message) {
+                status.textContent = message;
+                status.className = 'status loading';
             }
-        });
-        
-        // Sample text buttons
-        document.getElementById('sample-poem').addEventListener('click', () => {
-            textInput.value = "烟笼寒水月笼沙，夜泊秦淮近酒家。\n商女不知亡国恨，隔江犹唱《后庭花》。";
-            document.getElementById('emotion-sensing').checked = true;
-        });
-        
-        document.getElementById('sample-emotion').addEventListener('click', () => {
-            textInput.value = "曾经沧海难为水，除却巫山不是云。\n取次花丛懒回顾，半缘修道半缘君。";
-            document.getElementById('emotion-sensing').checked = true;
+            
+            function clearStatus() {
+                status.textContent = '';
+                status.className = 'status';
+            }
+            
+            // Hide emotion result when checkbox is unchecked
+            document.getElementById('emotion-sensing').addEventListener('change', function() {
+                if (!this.checked) {
+                    document.getElementById('emotion-result').classList.remove('visible');
+                }
+            });
+            
+            // Sample text buttons
+            document.getElementById('sample-poem').addEventListener('click', () => {
+                textInput.value = "烟笼寒水月笼沙，夜泊秦淮近酒家。\n商女不知亡国恨，隔江犹唱《后庭花》。";
+                document.getElementById('emotion-sensing').checked = true;
+            });
+            
+            document.getElementById('sample-emotion').addEventListener('click', () => {
+                textInput.value = "曾经沧海难为水，除却巫山不是云。\n取次花丛懒回顾，半缘修道半缘君。";
+                document.getElementById('emotion-sensing').checked = true;
+            });
         });
     </script>
 </body>
