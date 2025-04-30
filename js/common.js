@@ -6,11 +6,21 @@
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize all components
-    initMobileMenu();
-    initSmoothScroll();
-    initSliders();
-    initAnimations();
-    initFirstVisitPrompt();
+    try {
+        // Only initialize mobile menu if the toggle exists
+        if (document.querySelector('.mobile-menu-toggle')) {
+            initMobileMenu();
+        } else {
+            console.log('Mobile menu toggle not found. Skipping mobile menu initialization.');
+        }
+        
+        initSmoothScroll();
+        initSliders();
+        initAnimations();
+        initFirstVisitPrompt();
+    } catch (error) {
+        console.error('Error during initialization:', error);
+    }
 });
 
 /**
@@ -92,8 +102,12 @@ function initSmoothScroll() {
  * Initialize Sliders
  */
 function initSliders() {
-    // Testimonials Slider
-    initTestimonialsSlider();
+    // Only initialize testimonials slider if the slider element exists
+    if (document.querySelector('.testimonials-slider')) {
+        initTestimonialsSlider();
+    } else {
+        console.log('Testimonials slider not found. Skipping slider initialization.');
+    }
 }
 
 /**
@@ -288,24 +302,37 @@ function deleteCookie(name) {
 
 // Initialize first-time visit profile prompt
 function initFirstVisitPrompt() {
-    // Check if this is the first visit
-    const hasVisited = localStorage.getItem('hasVisitedBefore');
-    
-    if (!hasVisited) {
-        // Set the flag for future visits
-        localStorage.setItem('hasVisitedBefore', 'true');
-        
-        // Check if profile is already set
-        const profile = localStorage.getItem('educationalProfile');
-        
-        // If profile is not set, show the modal after a short delay
-        if (!profile) {
-            setTimeout(() => {
-                // Check if the profile modal function exists and call it
-                if (typeof showProfileModal === 'function') {
-                    showProfileModal();
-                }
-            }, 1500); // Short delay to allow page to load completely
+    try {
+        // Check if we're on a page where this is relevant
+        // Skip this on utility pages like tts_dialog, draw, etc.
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('tts_dialog') || 
+            currentPath.includes('draw') || 
+            currentPath.includes('admin')) {
+            return;
         }
+        
+        // Check if this is the first visit
+        const hasVisited = localStorage.getItem('hasVisitedBefore');
+        
+        if (!hasVisited) {
+            // Set the flag for future visits
+            localStorage.setItem('hasVisitedBefore', 'true');
+            
+            // Check if profile is already set
+            const profile = localStorage.getItem('educationalProfile');
+            
+            // If profile is not set, show the modal after a short delay
+            if (!profile) {
+                setTimeout(() => {
+                    // Check if the profile modal function exists and call it
+                    if (typeof showProfileModal === 'function') {
+                        showProfileModal();
+                    }
+                }, 1500); // Short delay to allow page to load completely
+            }
+        }
+    } catch (error) {
+        console.error('Error in initFirstVisitPrompt:', error);
     }
 } 

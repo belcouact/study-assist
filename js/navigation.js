@@ -4,10 +4,21 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize navigation functionality
-    initActiveNavLinks();
-    initScrollBehavior();
-    initFirstVisitPrompt();
+    try {
+        // Check if we're on a page with navigation
+        const hasNavigation = document.querySelector('.main-nav');
+        
+        if (hasNavigation) {
+            // Initialize navigation functionality
+            initActiveNavLinks();
+            initScrollBehavior();
+            initFirstVisitPrompt();
+        } else {
+            console.log('Navigation not found. Skipping navigation initialization.');
+        }
+    } catch (error) {
+        console.error('Error initializing navigation:', error);
+    }
 });
 
 /**
@@ -15,6 +26,10 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 function initActiveNavLinks() {
     const navLinks = document.querySelectorAll('.main-nav a');
+    
+    if (navLinks.length === 0) {
+        return; // No navigation links found
+    }
     
     // Get current page path
     const currentPath = window.location.pathname;
@@ -35,7 +50,7 @@ function initActiveNavLinks() {
         navLinks.forEach(link => {
             const linkPath = link.getAttribute('href');
             
-            if (currentPath.includes(linkPath) && linkPath !== 'index.html' && linkPath !== '/') {
+            if (linkPath && currentPath.includes(linkPath) && linkPath !== 'index.html' && linkPath !== '/') {
                 setActiveNavLink(navLinks, link);
             }
         });
@@ -119,7 +134,12 @@ function initScrollBehavior() {
  */
 function initStickyHeader() {
     const header = document.querySelector('.main-header');
-    const headerHeight = header ? header.offsetHeight : 0;
+    
+    if (!header) {
+        return; // No header found
+    }
+    
+    const headerHeight = header.offsetHeight;
     
     // Add scroll event listener
     window.addEventListener('scroll', throttle(() => {
@@ -262,24 +282,34 @@ function navigateToSection(sectionId) {
 
 // Initialize first-time visit profile prompt
 function initFirstVisitPrompt() {
-    // Check if this is the first visit
-    const hasVisited = localStorage.getItem('hasVisitedBefore');
-    
-    if (!hasVisited) {
-        // Set the flag for future visits
-        localStorage.setItem('hasVisitedBefore', 'true');
-        
-        // Check if profile is already set
-        const profile = localStorage.getItem('educationalProfile');
-        
-        // If profile is not set, show the modal after a short delay
-        if (!profile) {
-            setTimeout(() => {
-                // Check if the profile modal function exists and call it
-                if (typeof showProfileModal === 'function') {
-                    showProfileModal();
-                }
-            }, 1500); // Short delay to allow page to load completely
+    try {
+        // Check if we're on a page where this is relevant
+        // Skip this on utility pages like tts_dialog, draw, etc.
+        const currentPath = window.location.pathname;
+        if (currentPath.includes('tts_dialog') || 
+            currentPath.includes('draw') || 
+            currentPath.includes('admin')) {
+            return;
         }
+        
+        // Check if this is the first visit
+        const hasVisited = localStorage.getItem('hasVisitedBefore');
+        
+        if (!hasVisited) {
+            // Set the flag for future visits
+            localStorage.setItem('hasVisitedBefore', 'true');
+            
+            // Check if profile is already set
+            const profile = localStorage.getItem('educationalProfile');
+            
+            // If profile is not set, show the modal after a short delay
+            if (!profile && typeof showProfileModal === 'function') {
+                setTimeout(() => {
+                    showProfileModal();
+                }, 1500); // Short delay to allow page to load completely
+            }
+        }
+    } catch (error) {
+        console.error('Error in initFirstVisitPrompt:', error);
     }
 } 
