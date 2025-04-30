@@ -21,262 +21,277 @@
           let combinedAudioBlob = null;
           
           // Update speed value display when slider changes
-          speedControl.addEventListener('input', () => {
-              speedValue.textContent = speedControl.value;
-          });
+          if (speedControl && speedValue) {
+              speedControl.addEventListener('input', () => {
+                  speedValue.textContent = speedControl.value;
+              });
+          }
           
           // Add custom resize handle for textarea
           const formGroup = document.querySelector('.form-group');
           const textarea = dialogInput;
-          let isResizing = false;
-          let initialHeight = 0;
-          let initialY = 0;
           
-          // Create a visible resize handle element
-          const resizeHandle = document.createElement('div');
-          resizeHandle.className = 'resize-handle';
-          resizeHandle.style.position = 'absolute';
-          resizeHandle.style.width = '18px';
-          resizeHandle.style.height = '18px';
-          resizeHandle.style.cursor = 'ns-resize';
-          resizeHandle.style.zIndex = '20';
-          resizeHandle.style.opacity = '0.7';
-          resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="font-size: 12px; color: rgba(114, 9, 183, 0.7);"></i>';
-          formGroup.appendChild(resizeHandle);
-          
-          // Position the resize handle at the bottom right of the textarea
-          function updateResizeHandlePosition() {
-              const textareaRect = textarea.getBoundingClientRect();
-              const containerRect = formGroup.getBoundingClientRect();
+          // Only setup the resize functionality if both formGroup and textarea exist
+          if (formGroup && textarea) {
+              let isResizing = false;
+              let initialHeight = 0;
+              let initialY = 0;
               
-              // Calculate position relative to the form group container
-              const bottom = containerRect.height - (textareaRect.bottom - containerRect.top) - 3;
-              const right = containerRect.width - (textareaRect.right - containerRect.left) - 3;
+              // Create a visible resize handle element
+              const resizeHandle = document.createElement('div');
+              resizeHandle.className = 'resize-handle';
+              resizeHandle.style.position = 'absolute';
+              resizeHandle.style.width = '18px';
+              resizeHandle.style.height = '18px';
+              resizeHandle.style.cursor = 'ns-resize';
+              resizeHandle.style.zIndex = '20';
+              resizeHandle.style.opacity = '0.7';
+              resizeHandle.innerHTML = '<i class="fas fa-grip-lines" style="font-size: 12px; color: rgba(114, 9, 183, 0.7);"></i>';
+              formGroup.appendChild(resizeHandle);
               
-              resizeHandle.style.bottom = `${bottom}px`;
-              resizeHandle.style.right = `${right}px`;
+              // Position the resize handle at the bottom right of the textarea
+              function updateResizeHandlePosition() {
+                  const textareaRect = textarea.getBoundingClientRect();
+                  const containerRect = formGroup.getBoundingClientRect();
+                  
+                  // Calculate position relative to the form group container
+                  const bottom = containerRect.height - (textareaRect.bottom - containerRect.top) - 3;
+                  const right = containerRect.width - (textareaRect.right - containerRect.left) - 3;
+                  
+                  resizeHandle.style.bottom = `${bottom}px`;
+                  resizeHandle.style.right = `${right}px`;
+              }
+              
+              // Update position initially and when window resizes
+              updateResizeHandlePosition();
+              window.addEventListener('resize', updateResizeHandlePosition);
+              
+              // Also update position when textarea height changes
+              const resizeObserver = new ResizeObserver(() => {
+                  updateResizeHandlePosition();
+              });
+              resizeObserver.observe(textarea);
+              
+              // Mouse events for desktop
+              resizeHandle.addEventListener('mousedown', (e) => {
+                  isResizing = true;
+                  initialHeight = textarea.offsetHeight;
+                  initialY = e.clientY;
+                  e.preventDefault();
+              });
+              
+              document.addEventListener('mousemove', (e) => {
+                  if (!isResizing) return;
+                  const delta = e.clientY - initialY;
+                  const newHeight = initialHeight + delta;
+                  if (newHeight >= 48 && newHeight <= 300) {
+                      textarea.style.height = newHeight + 'px';
+                      updateResizeHandlePosition(); // Update handle position while resizing
+                  }
+              });
+              
+              document.addEventListener('mouseup', () => {
+                  isResizing = false;
+              });
+              
+              // Touch events for mobile
+              resizeHandle.addEventListener('touchstart', (e) => {
+                  isResizing = true;
+                  initialHeight = textarea.offsetHeight;
+                  initialY = e.touches[0].clientY;
+                  e.preventDefault();
+              });
+              
+              document.addEventListener('touchmove', (e) => {
+                  if (!isResizing) return;
+                  const delta = e.touches[0].clientY - initialY;
+                  const newHeight = initialHeight + delta;
+                  if (newHeight >= 48 && newHeight <= 300) {
+                      textarea.style.height = newHeight + 'px';
+                      updateResizeHandlePosition(); // Update handle position while resizing
+                  }
+              });
+              
+              document.addEventListener('touchend', () => {
+                  isResizing = false;
+              });
           }
           
-          // Update position initially and when window resizes
-          updateResizeHandlePosition();
-          window.addEventListener('resize', updateResizeHandlePosition);
-          
-          // Also update position when textarea height changes
-          const resizeObserver = new ResizeObserver(() => {
-              updateResizeHandlePosition();
-          });
-          resizeObserver.observe(textarea);
-          
-          // Mouse events for desktop
-          resizeHandle.addEventListener('mousedown', (e) => {
-              isResizing = true;
-              initialHeight = textarea.offsetHeight;
-              initialY = e.clientY;
-              e.preventDefault();
-          });
-          
-          document.addEventListener('mousemove', (e) => {
-              if (!isResizing) return;
-              const delta = e.clientY - initialY;
-              const newHeight = initialHeight + delta;
-              if (newHeight >= 48 && newHeight <= 300) {
-                  textarea.style.height = newHeight + 'px';
-                  updateResizeHandlePosition(); // Update handle position while resizing
-              }
-          });
-          
-          document.addEventListener('mouseup', () => {
-              isResizing = false;
-          });
-          
-          // Touch events for mobile
-          resizeHandle.addEventListener('touchstart', (e) => {
-              isResizing = true;
-              initialHeight = textarea.offsetHeight;
-              initialY = e.touches[0].clientY;
-              e.preventDefault();
-          });
-          
-          document.addEventListener('touchmove', (e) => {
-              if (!isResizing) return;
-              const delta = e.touches[0].clientY - initialY;
-              const newHeight = initialHeight + delta;
-              if (newHeight >= 48 && newHeight <= 300) {
-                  textarea.style.height = newHeight + 'px';
-                  updateResizeHandlePosition(); // Update handle position while resizing
-              }
-          });
-          
-          document.addEventListener('touchend', () => {
-              isResizing = false;
-          });
-          
           // Generate dialog TTS
-          generateBtn.addEventListener('click', async () => {
-              const dialogText = dialogInput.value.trim();
-              
-              if (!dialogText) {
-                  showError('请输入要转换的对话文本');
-                  return;
-              }
-              
-              // Disable button and show loading status
-              generateBtn.disabled = true;
-              showLoading('正在分析对话文本...');
-              dialogAnalysis.classList.remove('visible');
-              combinedAudio.classList.remove('visible');
-              segmentsContainer.innerHTML = '';
-              rolesList.innerHTML = '';
-              
-              try {
-                  // Prepare request data
-                  const requestData = {
-                      dialog_text: dialogText,
-                      model: modelSelect.value,
-                      speed: parseFloat(speedControl.value),
-                      pitch: 0,
-                      volume: 1.0
-                  };
+          if (generateBtn && dialogInput) {
+              generateBtn.addEventListener('click', async () => {
+                  const dialogText = dialogInput.value.trim();
                   
-                  // Call the Dialog TTS API
-                  const response = await fetch('/api/tts_dialog', {
-                      method: 'POST',
-                      headers: {
-                          'Content-Type': 'application/json'
-                      },
-                      body: JSON.stringify(requestData)
-                  });
-                  
-                  if (!response.ok) {
-                      // Try to parse error message
-                      let errorMessage = '对话语音生成失败';
-                      try {
-                          const errorData = await response.json();
-                          errorMessage = errorData.error || errorMessage;
-                          console.error('API Error:', errorData);
-                      } catch (e) {
-                          // If we can't parse JSON, use status text
-                          errorMessage = `对话语音生成失败: ${response.status} ${response.statusText}`;
-                          console.error('Failed to parse error response:', e);
-                      }
-                      throw new Error(errorMessage);
+                  if (!dialogText) {
+                      showError('请输入要转换的对话文本');
+                      return;
                   }
                   
-                  // Parse the successful response
-                  const responseData = await response.json();
-                  console.log('Dialog TTS Response:', responseData);
+                  // Disable button and show loading status
+                  generateBtn.disabled = true;
+                  showLoading('正在分析对话文本...');
                   
-                  if (!responseData.success || !responseData.analysis || !responseData.audio_segments) {
-                      throw new Error('服务器返回了无效的响应格式');
-                  }
+                  if (dialogAnalysis) dialogAnalysis.classList.remove('visible');
+                  if (combinedAudio) combinedAudio.classList.remove('visible');
+                  if (segmentsContainer) segmentsContainer.innerHTML = '';
+                  if (rolesList) rolesList.innerHTML = '';
                   
-                  // Display dialog analysis results
-                  const analysis = responseData.analysis;
-                  audioSegments = responseData.audio_segments;
-                  
-                  // Update roles count
-                  rolesCount.textContent = analysis.roles.length;
-                  
-                  // Display roles
-                  analysis.roles.forEach((role, index) => {
-                      const roleBadge = document.createElement('div');
-                      roleBadge.className = 'role-badge';
-                      roleBadge.innerHTML = `<i class="fas fa-user"></i> ${role}`;
-                      rolesList.appendChild(roleBadge);
-                  });
-                  
-                  // Display dialog segments with their audio
-                  audioSegments.forEach((segment, index) => {
-                      const segmentItem = document.createElement('div');
-                      segmentItem.className = 'segment-item';
+                  try {
+                      // Prepare request data
+                      const requestData = {
+                          dialog_text: dialogText,
+                          model: modelSelect ? modelSelect.value : 'default',
+                          speed: speedControl ? parseFloat(speedControl.value) : 1.0,
+                          pitch: 0,
+                          volume: 1.0
+                      };
                       
-                      // Role heading with icon
-                      const roleElement = document.createElement('div');
-                      roleElement.className = 'segment-role';
-                      roleElement.innerHTML = `<i class="fas fa-user-circle"></i> ${segment.role}`;
+                      // Call the Dialog TTS API
+                      const response = await fetch('/api/tts_dialog', {
+                          method: 'POST',
+                          headers: {
+                              'Content-Type': 'application/json'
+                          },
+                          body: JSON.stringify(requestData)
+                      });
                       
-                      // Text content
-                      const textElement = document.createElement('div');
-                      textElement.className = 'segment-text';
-                      textElement.textContent = segment.text;
-                      
-                      // Create audio element if audio data is available
-                      const audioElement = document.createElement('audio');
-                      audioElement.className = 'segment-audio';
-                      audioElement.controls = true;
-                      
-                      if (segment.audio_base64) {
-                          // Create blob from base64
-                          const audioBlob = base64ToBlob(segment.audio_base64, 'audio/mp3');
-                          const audioUrl = URL.createObjectURL(audioBlob);
-                          audioElement.src = audioUrl;
+                      if (!response.ok) {
+                          // Try to parse error message
+                          let errorMessage = '对话语音生成失败';
+                          try {
+                              const errorData = await response.json();
+                              errorMessage = errorData.error || errorMessage;
+                              console.error('API Error:', errorData);
+                          } catch (e) {
+                              // If we can't parse JSON, use status text
+                              errorMessage = `对话语音生成失败: ${response.status} ${response.statusText}`;
+                              console.error('Failed to parse error response:', e);
+                          }
+                          throw new Error(errorMessage);
                       }
                       
-                      // Add elements to segment
-                      segmentItem.appendChild(roleElement);
-                      segmentItem.appendChild(textElement);
-                      segmentItem.appendChild(audioElement);
+                      // Parse the successful response
+                      const responseData = await response.json();
+                      console.log('Dialog TTS Response:', responseData);
                       
-                      // Add segment to container
-                      segmentsContainer.appendChild(segmentItem);
-                  });
-                  
-                  // Show the dialog analysis section
-                  dialogAnalysis.classList.add('visible');
-                  clearStatus();
-                  
-                  // Create combined audio if there are multiple segments
-                  if (audioSegments.length > 1) {
-                      showLoading('正在合成完整对话音频...');
+                      if (!responseData.success || !responseData.analysis || !responseData.audio_segments) {
+                          throw new Error('服务器返回了无效的响应格式');
+                      }
                       
-                      try {
-                          // Combine audio segments using Web Audio API
-                          const combinedBuffer = await combineAudioSegments();
-                          combinedAudioBlob = await audioBufferToBlob(combinedBuffer);
+                      // Display dialog analysis results
+                      const analysis = responseData.analysis;
+                      audioSegments = responseData.audio_segments;
+                      
+                      // Update roles count
+                      if (rolesCount) rolesCount.textContent = analysis.roles.length;
+                      
+                      // Display roles
+                      if (rolesList) {
+                          analysis.roles.forEach((role, index) => {
+                              const roleBadge = document.createElement('div');
+                              roleBadge.className = 'role-badge';
+                              roleBadge.innerHTML = `<i class="fas fa-user"></i> ${role}`;
+                              rolesList.appendChild(roleBadge);
+                          });
+                      }
+                      
+                      // Display dialog segments with their audio
+                      if (segmentsContainer) {
+                          audioSegments.forEach((segment, index) => {
+                              const segmentItem = document.createElement('div');
+                              segmentItem.className = 'segment-item';
+                              
+                              // Role heading with icon
+                              const roleElement = document.createElement('div');
+                              roleElement.className = 'segment-role';
+                              roleElement.innerHTML = `<i class="fas fa-user-circle"></i> ${segment.role}`;
+                              
+                              // Text content
+                              const textElement = document.createElement('div');
+                              textElement.className = 'segment-text';
+                              textElement.textContent = segment.text;
+                              
+                              // Create audio element if audio data is available
+                              const audioElement = document.createElement('audio');
+                              audioElement.className = 'segment-audio';
+                              audioElement.controls = true;
+                              
+                              if (segment.audio_base64) {
+                                  // Create blob from base64
+                                  const audioBlob = base64ToBlob(segment.audio_base64, 'audio/mp3');
+                                  const audioUrl = URL.createObjectURL(audioBlob);
+                                  audioElement.src = audioUrl;
+                              }
+                              
+                              // Add elements to segment
+                              segmentItem.appendChild(roleElement);
+                              segmentItem.appendChild(textElement);
+                              segmentItem.appendChild(audioElement);
+                              
+                              // Add segment to container
+                              segmentsContainer.appendChild(segmentItem);
+                          });
+                      }
+                      
+                      // Show the dialog analysis section
+                      if (dialogAnalysis) dialogAnalysis.classList.add('visible');
+                      clearStatus();
+                      
+                      // Create combined audio if there are multiple segments
+                      if (audioSegments.length > 1 && combinedPlayer && combinedAudio) {
+                          showLoading('正在合成完整对话音频...');
                           
-                          // Set the combined audio source
-                          const combinedAudioUrl = URL.createObjectURL(combinedAudioBlob);
-                          combinedPlayer.src = combinedAudioUrl;
-                          
-                          // Show the combined audio player
-                          combinedAudio.classList.add('visible');
-                          clearStatus();
-                      } catch (error) {
-                          console.error('Error combining audio:', error);
-                          showError('无法合成完整对话音频: ' + error.message);
+                          try {
+                              // Combine audio segments using Web Audio API
+                              const combinedBuffer = await combineAudioSegments();
+                              combinedAudioBlob = await audioBufferToBlob(combinedBuffer);
+                              
+                              // Set the combined audio source
+                              const combinedAudioUrl = URL.createObjectURL(combinedAudioBlob);
+                              combinedPlayer.src = combinedAudioUrl;
+                              
+                              // Show the combined audio player
+                              combinedAudio.classList.add('visible');
+                              clearStatus();
+                          } catch (error) {
+                              console.error('Error combining audio:', error);
+                              showError('无法合成完整对话音频: ' + error.message);
+                          }
                       }
+                      
+                  } catch (error) {
+                      console.error('Dialog TTS Error:', error);
+                      showError(error.message || '对话语音生成失败，请重试');
+                  } finally {
+                      // Re-enable button
+                      generateBtn.disabled = false;
                   }
-                  
-              } catch (error) {
-                  console.error('Dialog TTS Error:', error);
-                  showError(error.message || '对话语音生成失败，请重试');
-              } finally {
-                  // Re-enable button
-                  generateBtn.disabled = false;
-              }
-          });
+              });
+          }
           
           // Download combined audio
-          downloadBtn.addEventListener('click', () => {
-              if (!combinedAudioBlob) {
-                  showError('没有可下载的完整对话音频');
-                  return;
-              }
-              
-              // Create a download link
-              const downloadUrl = URL.createObjectURL(combinedAudioBlob);
-              const a = document.createElement('a');
-              a.href = downloadUrl;
-              a.download = `dialog-${new Date().toISOString().slice(0,10)}.mp3`;
-              document.body.appendChild(a);
-              a.click();
-              
-              // Clean up
-              setTimeout(() => {
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(downloadUrl);
-              }, 100);
-          });
+          if (downloadBtn) {
+              downloadBtn.addEventListener('click', () => {
+                  if (!combinedAudioBlob) {
+                      showError('没有可下载的完整对话音频');
+                      return;
+                  }
+                  
+                  // Create a download link
+                  const downloadUrl = URL.createObjectURL(combinedAudioBlob);
+                  const a = document.createElement('a');
+                  a.href = downloadUrl;
+                  a.download = `dialog-${new Date().toISOString().slice(0,10)}.mp3`;
+                  document.body.appendChild(a);
+                  a.click();
+                  
+                  // Clean up
+                  setTimeout(() => {
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(downloadUrl);
+                  }, 100);
+              });
+          }
           
           // Helper function to convert base64 to blob
           function base64ToBlob(base64, mimeType) {
@@ -436,18 +451,28 @@
           
           // Helper functions for status display
           function showError(message) {
-              statusElement.textContent = message;
-              statusElement.className = 'status error';
+              if (statusElement) {
+                  statusElement.textContent = message;
+                  statusElement.className = 'status error';
+              } else {
+                  console.error(message);
+              }
           }
           
           function showLoading(message) {
-              statusElement.textContent = message;
-              statusElement.className = 'status loading';
+              if (statusElement) {
+                  statusElement.textContent = message;
+                  statusElement.className = 'status loading';
+              } else {
+                  console.log(message);
+              }
           }
           
           function clearStatus() {
-              statusElement.textContent = '';
-              statusElement.className = 'status';
+              if (statusElement) {
+                  statusElement.textContent = '';
+                  statusElement.className = 'status';
+              }
           }
       });
   </script>
