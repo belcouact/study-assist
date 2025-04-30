@@ -88,9 +88,6 @@ export async function onRequestPost(context) {
           }
         };
         
-        // Log the voice ID being used for debugging
-        console.log(`Using voice ID "${voiceId}" for role "${roleName}" with line: "${text.substring(0, 30)}..."`);
-        
         // Adjust speed and pitch based on role characteristics
         if (role.gender === 'female' || role.name.toLowerCase().includes('mom') || 
             role.name.toLowerCase().includes('mother') || role.name.toLowerCase().includes('woman')) {
@@ -125,18 +122,8 @@ export async function onRequestPost(context) {
           
           try {
             const errorData = JSON.parse(errorText);
-            const errorMsg = errorData.message || errorData.base_resp?.status_msg || 'Unknown error';
-            
-            // Check for voice-related errors
-            if (errorMsg.includes('voice') || errorMsg.includes('not found')) {
-              throw new Error(`Voice '${voiceId}' not found or invalid. Please try a different voice for '${roleName}'.`);
-            }
-            
-            throw new Error(`MiniMax API error: ${errorMsg}`);
+            throw new Error(`MiniMax API error: ${errorData.message || errorData.base_resp?.status_msg || 'Unknown error'}`);
           } catch (e) {
-            if (e.message.includes('Voice')) {
-              throw e; // Re-throw our custom voice error
-            }
             throw new Error(`MiniMax API error: ${response.status} ${response.statusText}`);
           }
         }
@@ -221,29 +208,26 @@ export async function onRequestOptions() {
 // Function to map frontend voice names to MiniMax voice IDs
 function getMiniMaxVoiceId(frontendVoice) {
   const voiceMap = {
-    // Simplified map with only the most reliable voices
-    // Chinese voices (Mandarin only)
-    "Chinese (Mandarin)_Male": "zh-Male-1",
-    "Chinese (Mandarin)_Female": "zh-Female-1",
-    
-    // English voices (limited options)
-    "English_Male": "en-Male-1",
-    "English_Female": "en-Female-1",
-    
-    // Legacy voice mappings for backward compatibility
-    "Chinese (Mandarin)_Elite_Young": "zh-Male-1",
-    "Chinese (Mandarin)_Young_Girl": "zh-Female-1",
-    "Chinese (Mandarin)_Lyrical_Voice": "zh-Male-1",
+    // Chinese Mandarin voices
+    "Chinese (Mandarin)_Elite_Young": "zh-Male-6",
+    "Chinese (Mandarin)_Young_Girl": "zh-Female-3",
+    "Chinese (Mandarin)_Lyrical_Voice": "zh-Male-3",
     "Chinese (Mandarin)_Male_Announcer": "zh-Male-1",
-    "Chinese (Mandarin)_Pure-hearted_Boy": "zh-Male-1",
-    "Chinese (Mandarin)_Warm_Girl": "zh-Female-1",
+    "Chinese (Mandarin)_Pure-hearted_Boy": "zh-Male-5",
+    "Chinese (Mandarin)_Warm_Girl": "zh-Female-4",
+    
+    // Cantonese voices
+    "Cantonese_Professional_Host_Female": "zh-yue-Female-1",
+    "Cantonese_Professional_Host_Male": "zh-yue-Male-1",
+    
+    // English voices
     "English_Graceful_Lady": "en-Female-1",
     "English_Gentle_Voiced_Man": "en-Male-1",
-    "English_UpsetGirl": "en-Female-1",
-    "English_Wiselady": "en-Female-1",
-    "English_Trustworth_Man": "en-Male-1"
+    "English_UpsetGirl": "en-Female-2",
+    "English_Wiselady": "en-Female-3",
+    "English_Trustworth_Man": "en-Male-3"
   };
   
   // Return the mapped voice ID or default to a standard voice
-  return voiceMap[frontendVoice] || "zh-Male-1";
+  return voiceMap[frontendVoice] || "zh-Male-6";
 } 
