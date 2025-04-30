@@ -198,13 +198,50 @@
         }
         .image-result {
             margin-top: 2.2rem;
+            width: 100%;
+            max-width: 100%;
+            min-height: 200px;
+            overflow: hidden;
             text-align: center;
+            transition: all 0.3s ease;
+            position: relative;
         }
         .image-result img {
             max-width: 100%;
-            border-radius: 1.5rem;
-            box-shadow: 0 4px 16px rgba(76,201,240,0.13);
-            border: 2.5px solid #e0c3fc;
+            height: auto;
+            border-radius: 0.8rem;
+            box-shadow: 0 4px 16px rgba(76, 201, 240, 0.12);
+        }
+        
+        .loading-image {
+            padding: 2rem;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 0.8rem;
+            font-size: 1.15rem;
+            color: #4361ee;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 8px rgba(76, 201, 240, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .loading-image:after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            margin-left: 15px;
+            border: 3px solid #e0c3fc;
+            border-top: 3px solid #4361ee;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         @media screen and (max-width: 768px) {
             .demo-container {
@@ -734,8 +771,18 @@
 
             async function generateImage(prompt) {
                 try {
-                        addMessage(prompt, true);
-                    addMessage('正在生成图片，请稍候...');
+                    // Step 1: Show user input
+                    addMessage(prompt, true);
+                    addMessage('正在处理你的请求，请稍候...');
+
+                    // Get resolution values
+                    const [width, height] = resolutionSelect.value.split(':');
+                    
+                    // Get style value
+                    const styleSelect = document.getElementById('style-select');
+                    const selectedStyle = styleSelect.value;
+                    
+                    // Step 1: Send to DeepSeek API to transform user input to optimized output
                     const response = await fetch('/api/chat', {
                         method: 'POST',
                         headers: {
@@ -745,7 +792,18 @@
                             messages: [
                                 {
                                     "role": "system",
-                                    "content": getSystemPrompt()
+                                    "content": `你是一位专业摄影师和艺术指导，拥有丰富的图像构图和艺术创作经验。你的任务是帮助用户优化他们的图像生成提示，使其能够生成更加生动、专业和精美的图片。
+你会根据用户发送的关键词发挥你的想象力，并且：
+1. 增加关于视角、光线效果和色彩的细节
+2. 添加构图、景深和焦点的专业描述
+3. 应用用户选择的艺术风格：${selectedStyle}
+4. 增强画面细节和元素间的关系
+
+请按照以下格式回复：
+1. 中文描述：[你对用户提示的完整优化描述，用中文]
+2. 英文描述：[将优化后的描述翻译为英文，用于生成图像]
+
+注意：请确保你的英文描述适合文生图模型使用，避免使用标点符号，使用空格分隔单词和短语。不要在回复中包含任何URL或图片markdown。`
                                 },
                                 {
                                     "role": "user",
@@ -756,43 +814,54 @@
                     });
 
                     if (!response.ok) {
-                        throw new Error('Failed to generate image');
+                        throw new Error('无法连接到DeepSeek API');
                     }
 
                     const data = await response.json();
-                    if (data.choices && data.choices[0] && data.choices[0].message) {
-                        const aiResponse = data.choices[0].message.content;
-                        
-                        // Extract the image URL from the response
-                        // First try to match the markdown format
-                        let imageUrl = null;
-                        const markdownMatch = aiResponse.match(/!\[imagel\\\(([^\)]+)\\\)/);
-                        if (markdownMatch) {
-                            imageUrl = markdownMatch[1].replace(/\\\\/g, '');
-                        } else {
-                            // If markdown format not found, try to find the direct URL
-                            const urlMatch = aiResponse.match(/https:\/\/image\.pollinations\.ai\/prompt\/[^?\s]+\?[^\s]+/);
-                            if (urlMatch) {
-                                imageUrl = urlMatch[0];
-                            }
-                        }
-                        
-                        if (imageUrl) {
-                            // Display the generated image
-                            imageResult.innerHTML = `<img src="${imageUrl}" alt="Generated image">`;
-                            
-                            // Add AI response message
-                            addMessage('图片已生成，即将出现在此对话框下面！你可以继续输入新的描述来生成更多图片。');
-                        } else {
-                            console.error('AI Response:', aiResponse);
-                            throw new Error('Invalid image URL format in response');
-                        }
-                    } else {
-                        throw new Error('Invalid response format');
+                    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                        throw new Error('API返回格式无效');
                     }
+
+                    // Extract the AI response
+                    const aiResponse = data.choices[0].message.content;
+                    
+                    // Show the optimized description to the user
+                    addMessage(aiResponse);
+                    
+                    // Step 2: Extract the English description and create the image URL
+                    let englishDescription = "";
+                    
+                    // Try to extract the English description
+                    const englishMatch = aiResponse.match(/英文描述：\s*\[([^\]]+)\]/);
+                    if (englishMatch) {
+                        englishDescription = englishMatch[1].trim();
+                    } else {
+                        // Fallback: try to find any English text after "英文描述："
+                        const fallbackMatch = aiResponse.match(/英文描述：\s*(.+?)(?:\n|$)/);
+                        if (fallbackMatch) {
+                            englishDescription = fallbackMatch[1].trim();
+                        } else {
+                            throw new Error('无法从AI响应中提取英文描述');
+                        }
+                    }
+                    
+                    // Encode the description for URL
+                    const encodedDescription = encodeURIComponent(englishDescription);
+                    
+                    // Step 3: Create the image URL
+                    const imageUrl = `https://image.pollinations.ai/prompt/${encodedDescription}?width=${width}&height=${height}&model=flux&enhance=true&private=true&nologo=true&safe=true`;
+                    
+                    // Display the image
+                    imageResult.innerHTML = `
+                        <div class="loading-image">正在生成图像...</div>
+                        <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
+                    `;
+                    
+                    addMessage('图片已生成！请查看下方图片区域。你可以继续输入新的描述来生成更多图片。');
+                    
                 } catch (error) {
                     console.error('Error:', error);
-                    addMessage('抱歉，生成图片时出现错误。请稍后重试。');
+                    addMessage(`抱歉，生成图片时出现错误: ${error.message}。请稍后重试。`);
                 }
             }
 
