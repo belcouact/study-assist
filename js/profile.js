@@ -65,9 +65,8 @@ function updateProfileDisplay() {
     
     if (EDUCATIONAL_PROFILE.school && EDUCATIONAL_PROFILE.grade && EDUCATIONAL_PROFILE.semester) {
         profileDisplay.textContent = `${EDUCATIONAL_PROFILE.school} | ${EDUCATIONAL_PROFILE.grade} | ${EDUCATIONAL_PROFILE.semester}`;
-        profileDisplay.style.display = 'block';
     } else {
-        profileDisplay.style.display = 'none';
+        profileDisplay.textContent = '未设置';
     }
 }
 
