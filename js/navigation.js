@@ -109,24 +109,44 @@ function updateActiveNavOnScroll(navLinks) {
  * @param {Element} activeLink - The link to set as active
  */
 function setActiveNavLink(navLinks, activeLink) {
+    // Check if both parameters exist
+    if (!navLinks || !activeLink) return;
+    
     // Remove active class from all links
     navLinks.forEach(link => {
-        link.classList.remove('active');
+        if (link && link.classList) {
+            link.classList.remove('active');
+        }
     });
     
     // Add active class to the current link
-    activeLink.classList.add('active');
+    if (activeLink && activeLink.classList) {
+        activeLink.classList.add('active');
+    }
 }
 
 /**
  * Initialize scroll behavior for navigation
  */
 function initScrollBehavior() {
-    // Add sticky header behavior
-    initStickyHeader();
-    
-    // Add scroll to top button
-    initScrollToTopButton();
+    try {
+        // Check if we're on a page where scroll behavior should be applied
+        // Skip on utility pages 
+        const currentPath = window.location.pathname;
+        const isUtilityPage = currentPath.includes('tts_dialog') || 
+                             currentPath.includes('draw') || 
+                             currentPath.includes('admin');
+        
+        // Only add sticky header if relevant
+        if (!isUtilityPage && document.querySelector('.main-header')) {
+            initStickyHeader();
+        }
+        
+        // Add scroll to top button on all pages
+        initScrollToTopButton();
+    } catch (error) {
+        console.error('Error initializing scroll behavior:', error);
+    }
 }
 
 /**
@@ -141,8 +161,11 @@ function initStickyHeader() {
     
     const headerHeight = header.offsetHeight;
     
-    // Add scroll event listener
+    // Add scroll event listener with additional null check for header
     window.addEventListener('scroll', throttle(() => {
+        // Additional check to ensure header still exists when scroll event fires
+        if (!document.querySelector('.main-header')) return;
+        
         if (window.scrollY > headerHeight) {
             header.classList.add('sticky-header');
         } else {
@@ -155,69 +178,92 @@ function initStickyHeader() {
  * Initialize scroll to top button
  */
 function initScrollToTopButton() {
-    // Create the scroll to top button if it doesn't exist
-    let scrollTopBtn = document.querySelector('.scroll-top-btn');
-    
-    if (!scrollTopBtn) {
-        scrollTopBtn = document.createElement('button');
-        scrollTopBtn.className = 'scroll-top-btn';
-        scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
-        scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
-        document.body.appendChild(scrollTopBtn);
+    try {
+        // Create the scroll to top button if it doesn't exist
+        let scrollTopBtn = document.querySelector('.scroll-top-btn');
         
-        // Style the button with CSS
-        scrollTopBtn.style.position = 'fixed';
-        scrollTopBtn.style.bottom = '20px';
-        scrollTopBtn.style.right = '20px';
-        scrollTopBtn.style.width = '40px';
-        scrollTopBtn.style.height = '40px';
-        scrollTopBtn.style.borderRadius = '50%';
-        scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
-        scrollTopBtn.style.color = 'white';
-        scrollTopBtn.style.border = 'none';
-        scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
-        scrollTopBtn.style.cursor = 'pointer';
-        scrollTopBtn.style.opacity = '0';
-        scrollTopBtn.style.visibility = 'hidden';
-        scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
-        scrollTopBtn.style.zIndex = '999';
-        scrollTopBtn.style.display = 'flex';
-        scrollTopBtn.style.alignItems = 'center';
-        scrollTopBtn.style.justifyContent = 'center';
-        
-        // Create arrow icon
-        const arrowStyle = document.createElement('style');
-        arrowStyle.textContent = `
-            .arrow-up {
-                width: 0;
-                height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-bottom: 12px solid white;
-                display: block;
+        if (!scrollTopBtn) {
+            scrollTopBtn = document.createElement('button');
+            scrollTopBtn.className = 'scroll-top-btn';
+            scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
+            scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
+            
+            // Make sure document.body exists before appending
+            if (document.body) {
+                document.body.appendChild(scrollTopBtn);
+            } else {
+                console.warn('Document body not found, cannot append scroll-to-top button');
+                return;
             }
-        `;
-        document.head.appendChild(arrowStyle);
-    }
-    
-    // Show/hide the button based on scroll position
-    window.addEventListener('scroll', throttle(() => {
-        if (window.scrollY > 300) {
-            scrollTopBtn.style.opacity = '1';
-            scrollTopBtn.style.visibility = 'visible';
-        } else {
+            
+            // Style the button with CSS
+            scrollTopBtn.style.position = 'fixed';
+            scrollTopBtn.style.bottom = '20px';
+            scrollTopBtn.style.right = '20px';
+            scrollTopBtn.style.width = '40px';
+            scrollTopBtn.style.height = '40px';
+            scrollTopBtn.style.borderRadius = '50%';
+            scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
+            scrollTopBtn.style.color = 'white';
+            scrollTopBtn.style.border = 'none';
+            scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
+            scrollTopBtn.style.cursor = 'pointer';
             scrollTopBtn.style.opacity = '0';
             scrollTopBtn.style.visibility = 'hidden';
+            scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
+            scrollTopBtn.style.zIndex = '999';
+            scrollTopBtn.style.display = 'flex';
+            scrollTopBtn.style.alignItems = 'center';
+            scrollTopBtn.style.justifyContent = 'center';
+            
+            // Create arrow icon
+            try {
+                const arrowStyle = document.createElement('style');
+                arrowStyle.textContent = `
+                    .arrow-up {
+                        width: 0;
+                        height: 0;
+                        border-left: 8px solid transparent;
+                        border-right: 8px solid transparent;
+                        border-bottom: 12px solid white;
+                        display: block;
+                    }
+                `;
+                if (document.head) {
+                    document.head.appendChild(arrowStyle);
+                }
+            } catch (e) {
+                console.error('Could not create arrow style:', e);
+            }
         }
-    }, 100));
-    
-    // Scroll to top when clicked
-    scrollTopBtn.addEventListener('click', () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
+        
+        // Show/hide the button based on scroll position - ensure button still exists
+        const scrollHandler = throttle(() => {
+            // Verify the button still exists in the DOM
+            const btn = document.querySelector('.scroll-top-btn');
+            if (!btn) return;
+            
+            if (window.scrollY > 300) {
+                btn.style.opacity = '1';
+                btn.style.visibility = 'visible';
+            } else {
+                btn.style.opacity = '0';
+                btn.style.visibility = 'hidden';
+            }
+        }, 100);
+        
+        window.addEventListener('scroll', scrollHandler);
+        
+        // Scroll to top when clicked
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
         });
-    });
+    } catch (error) {
+        console.error('Error initializing scroll-to-top button:', error);
+    }
 }
 
 /**
