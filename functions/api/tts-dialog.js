@@ -120,11 +120,14 @@ export async function onRequestPost(context) {
       let text;
       if (requestData.language_preference === 'chinese') {
         text = line.chinese?.trim() || line.english?.trim();
+        console.log(`Using Chinese text for ${roleName} (fallback to English if needed)`);
       } else if (requestData.language_preference === 'english') {
         text = line.english?.trim() || line.chinese?.trim();
+        console.log(`Using English text for ${roleName} (fallback to Chinese if needed)`);
       } else {
         // Default behavior - prefer English if available
         text = line.english?.trim() || line.chinese?.trim();
+        console.log(`No language preference specified for ${roleName}, defaulting to English`);
       }
       
       if (!text) {

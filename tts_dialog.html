@@ -237,6 +237,17 @@
             background: rgba(236,222,255,0.9);
         }
         
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin-right: 5px;
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+            color: white;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
         @media (max-width: 768px) {
             .assistant-container {
                 padding: 1.5rem 1.2rem;
@@ -338,11 +349,22 @@ Child: Just five more minutes, please!
                     </div>
                     
                     <div class="form-group" style="margin-top: 15px;">
-                        <label for="language-preference">语言偏好：</label>
-                        <select id="language-preference" style="width: auto; display: inline-block; margin-left: 10px;">
-                            <option value="english">优先使用英文</option>
-                            <option value="chinese">优先使用中文</option>
-                        </select>
+                        <label>检测到的语言：</label>
+                        <span id="detected-languages"></span>
+                        
+                        <div id="language-selection" style="margin-top: 10px; display: none;">
+                            <label>请选择输出语言：</label>
+                            <div style="margin-top: 8px;">
+                                <label style="display: inline-block; margin-right: 15px; cursor: pointer;">
+                                    <input type="radio" name="language-preference" value="english" checked> 
+                                    <span style="margin-left: 5px;">英语</span>
+                                </label>
+                                <label style="display: inline-block; margin-right: 15px; cursor: pointer;">
+                                    <input type="radio" name="language-preference" value="chinese"> 
+                                    <span style="margin-left: 5px;">中文</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -386,10 +408,15 @@ Child: Just five more minutes, please!
             const downloadBtn = document.getElementById('download-btn');
             const status = document.getElementById('status');
             const loadExampleBtn = document.getElementById('load-example');
-            const languagePreference = document.getElementById('language-preference');
+            const detectedLanguagesEl = document.getElementById('detected-languages');
+            const languageSelectionEl = document.getElementById('language-selection');
             
             let currentAudioBlob = null;
             let identifiedRoles = [];
+            let detectedLanguages = {
+                hasEnglish: false,
+                hasChinese: false
+            };
             
             // Voice options for different roles
             const voiceOptions = {
@@ -481,13 +508,14 @@ Child: Thanks, Dad! See you later!
                 generateBtn.style.display = 'none';
                 dialogInfo.classList.remove('visible');
                 audioContainer.classList.remove('visible');
+                languageSelectionEl.style.display = 'none';
                 
                 try {
                     // Call DeepSeek API to analyze the dialog
                     const messages = [
                         {
                             role: "system",
-                            content: "你是一个专业的对话分析助手，擅长解析双语对话内容。请帮助从对话中提取所有说话者角色，并从英文部分分析每个角色可能的性别和年龄段。对于每一个角色，仅基于角色名判断其性别（男性/女性）和类型（成人/孩子/不确定）。"
+                            content: "你是一个专业的对话分析助手，擅长解析双语对话内容。请帮助从对话中提取所有说话者角色，并从英文部分分析每个角色可能的性别和年龄段。对于每一个角色，仅基于角色名判断其性别（男性/女性）和类型（成人/孩子/不确定）。此外，请检测对话中存在哪些语言（英文/中文）。"
                         },
                         {
                             role: "user",
@@ -508,7 +536,11 @@ Child: Thanks, Dad! See you later!
       ]
     },
     ...更多角色...
-  ]
+  ],
+  "languages": {
+    "hasEnglish": true/false, 根据是否有英文台词,
+    "hasChinese": true/false, 根据是否有中文台词
+  }
 }
 
 对话文本：
@@ -549,6 +581,24 @@ ${dialogText}`
                     const dialogData = JSON.parse(jsonStr);
                     identifiedRoles = dialogData.roles;
                     
+                    // Extract detected languages
+                    if (dialogData.languages) {
+                        detectedLanguages = dialogData.languages;
+                    } else {
+                        // Fallback detection if API didn't return languages info
+                        detectedLanguages = {
+                            hasEnglish: identifiedRoles.some(role => 
+                                role.lines.some(line => line.english && line.english.trim().length > 0)
+                            ),
+                            hasChinese: identifiedRoles.some(role => 
+                                role.lines.some(line => line.chinese && line.chinese.trim().length > 0)
+                            )
+                        };
+                    }
+                    
+                    // Update the detected languages display
+                    updateDetectedLanguagesDisplay();
+                    
                     // Render the role list
                     renderRoleList(identifiedRoles);
                     
@@ -562,6 +612,29 @@ ${dialogText}`
                     showError('对话分析失败: ' + error.message);
                 }
             });
+            
+            // Update the detected languages display
+            function updateDetectedLanguagesDisplay() {
+                let languagesText = '';
+                
+                if (detectedLanguages.hasEnglish && detectedLanguages.hasChinese) {
+                    languagesText = '<span class="badge">英文</span> <span class="badge">中文</span>';
+                    languageSelectionEl.style.display = 'block';
+                    // Preselect English by default
+                    document.querySelector('input[name="language-preference"][value="english"]').checked = true;
+                } else if (detectedLanguages.hasEnglish) {
+                    languagesText = '<span class="badge">英文</span>';
+                    languageSelectionEl.style.display = 'none';
+                } else if (detectedLanguages.hasChinese) {
+                    languagesText = '<span class="badge">中文</span>';
+                    languageSelectionEl.style.display = 'none';
+                } else {
+                    languagesText = '<span class="badge">未检测到支持的语言</span>';
+                    languageSelectionEl.style.display = 'none';
+                }
+                
+                detectedLanguagesEl.innerHTML = languagesText;
+            }
             
             // Render the list of identified roles
             function renderRoleList(roles) {
@@ -746,7 +819,17 @@ ${dialogText}`
                     console.log(`Final dialog sequence (${sequenceInfo.length} lines):`, sequenceInfo);
                     
                     // Get language preference
-                    const selectedLanguage = languagePreference.value;
+                    let selectedLanguage;
+                    if (detectedLanguages.hasEnglish && detectedLanguages.hasChinese) {
+                        // Get from selected radio button
+                        selectedLanguage = document.querySelector('input[name="language-preference"]:checked').value;
+                    } else if (detectedLanguages.hasEnglish) {
+                        selectedLanguage = "english";
+                    } else if (detectedLanguages.hasChinese) {
+                        selectedLanguage = "chinese";
+                    } else {
+                        selectedLanguage = "english"; // Default fallback
+                    }
                     console.log(`Selected language preference: ${selectedLanguage}`);
                     
                     // Prepare the TTS request with role and voice mapping
