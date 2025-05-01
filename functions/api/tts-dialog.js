@@ -80,14 +80,26 @@ export async function onRequestPost(context) {
       console.log("Using provided original_sequence information for dialog order");
       console.log(`Sequence info has ${requestData.original_sequence.length} entries`);
       
-      for (const seqItem of requestData.original_sequence) {
+      // First, make sure the sequence information is in the correct order
+      // Sort by sequence_position if it exists
+      const sortedSequence = [...requestData.original_sequence].sort((a, b) => {
+        if (a.sequence_position !== undefined && b.sequence_position !== undefined) {
+          return a.sequence_position - b.sequence_position;
+        }
+        return 0; // Keep original order if no sequence_position
+      });
+      
+      // Now map each sequence item to a dialog item
+      for (const seqItem of sortedSequence) {
         const role = requestData.dialog.find(r => r.name === seqItem.role);
         if (role && role.lines[seqItem.line_index]) {
           dialogSequence.push({
             role: role,
             line: role.lines[seqItem.line_index],
             index: dialogSequence.length,
-            originalLine: seqItem.original_line
+            originalLine: seqItem.original_line,
+            originalPosition: seqItem.sequence_position !== undefined ? 
+                            seqItem.sequence_position : dialogSequence.length
           });
         } else {
           console.warn(`Could not find role "${seqItem.role}" or line index ${seqItem.line_index} for that role`);
@@ -170,6 +182,12 @@ export async function onRequestPost(context) {
       const line = item.line;
       const roleName = role.name;
       let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
+      
+      // Track the original position for precise ordering later
+      const originalPosition = item.originalPosition !== undefined ? 
+                             item.originalPosition : seqIndex;
+      
+      console.log(`Processing item with original position: ${originalPosition}, role: ${roleName}`);
       
       // Use English text if available, otherwise use Chinese
       // Allow language selection based on user preference
@@ -308,7 +326,8 @@ export async function onRequestPost(context) {
           sequenceIndex: seqIndex,  // Use the actual sequence index from our loop
           audio: audioBytes,
           roleName: roleName,
-          text: text.substring(0, 30) + (text.length > 30 ? '...' : '')
+          text: text.substring(0, 30) + (text.length > 30 ? '...' : ''),
+          position: originalPosition  // Use the original position from the dialog text
         });
         
         console.log(`[${seqIndex+1}/${dialogSequence.length}] Successfully generated audio for ${roleName}, ${audioBytes.length} bytes`);
@@ -333,11 +352,11 @@ export async function onRequestPost(context) {
     }
     
     // Sort the audio clips by their sequence index to maintain dialog order
-    audioClips.sort((a, b) => a.sequenceIndex - b.sequenceIndex);
+    audioClips.sort((a, b) => a.position - b.position);
     
     console.log("Final audio merge sequence:");
     audioClips.forEach((clip, i) => {
-      console.log(`  ${i+1}. ${clip.roleName}: "${clip.text}" (seq index: ${clip.sequenceIndex})`);
+      console.log(`  ${i+1}. ${clip.roleName}: "${clip.text}" (position: ${clip.position})`);
     });
     
     // Calculate total length of merged audio

@@ -783,7 +783,7 @@ ${dialogText}`
                                     sequenceInfo.push({
                                         role: roleName,
                                         line_index: bestMatchIndex,
-                                        sequence_position: sequenceInfo.length,
+                                        sequence_position: lineIndex,  // Use the actual line index from the input text
                                         original_line: lineText
                                     });
                                 } else {
@@ -801,7 +801,7 @@ ${dialogText}`
                                             sequenceInfo.push({
                                                 role: roleName,
                                                 line_index: i,
-                                                sequence_position: sequenceInfo.length,
+                                                sequence_position: lineIndex,  // Use the actual line index from the input text
                                                 original_line: lineText,
                                                 is_fallback: true
                                             });
@@ -837,6 +837,18 @@ ${dialogText}`
                     
                     // Log the final sequence information
                     console.log(`Final dialog sequence (${sequenceInfo.length} lines):`, sequenceInfo);
+                    
+                    // Sort sequence by sequence_position to ensure proper order
+                    sequenceInfo.sort((a, b) => a.sequence_position - b.sequence_position);
+                    
+                    // Log the sorted sequence
+                    console.log(`Sequence after sorting by position:`);
+                    sequenceInfo.forEach((seq, i) => {
+                        const role = seq.role;
+                        const lineIndex = seq.line_index;
+                        const position = seq.sequence_position;
+                        console.log(`${i+1}. Position ${position}: ${role} line ${lineIndex}`);
+                    });
                     
                     // Verify if all original lines are accounted for
                     if (sequenceInfo.length < dialogLines.length) {
@@ -875,18 +887,18 @@ ${dialogText}`
                                             .map(si => si.line_index);
                                         
                                         // Find an unused line index or use 0 as fallback
-                                        let lineIndex = 0;
+                                        let lineIndexInRole = 0;
                                         for (let i = 0; i < role.lines.length; i++) {
                                             if (!usedIndices.includes(i)) {
-                                                lineIndex = i;
+                                                lineIndexInRole = i;
                                                 break;
                                             }
                                         }
                                         
                                         sequenceInfo.push({
                                             role: roleName,
-                                            line_index: lineIndex,
-                                            sequence_position: sequenceInfo.length,
+                                            line_index: lineIndexInRole,
+                                            sequence_position: lineIndex,  // Use the actual line index from the original dialog
                                             original_line: lineText,
                                             is_emergency_fallback: true
                                         });
