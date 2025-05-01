@@ -170,6 +170,13 @@
             background-color: #e8f5e9;
             color: #2e7d32;
             display: block;
+            animation: fadeInOut 3s forwards;
+        }
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            80% { opacity: 1; }
+            100% { opacity: 0.7; }
         }
         .audio-actions {
             display: flex;
@@ -495,20 +502,12 @@ Child: Thanks, Dad! See you later!
 孩子：谢谢，爸爸！待会见！`;
             });
             
-            // Analyze the dialog text using DeepSeek API
-            analyzeBtn.addEventListener('click', async () => {
-                const dialogText = dialogInput.value.trim();
-                
+            // Helper function to analyze dialog text
+            async function analyzeDialog(dialogText) {
                 if (!dialogText) {
                     showError('请输入对话文本');
-                    return;
+                    return false;
                 }
-                
-                showLoading('正在分析对话文本...');
-                generateBtn.style.display = 'none';
-                dialogInfo.classList.remove('visible');
-                audioContainer.classList.remove('visible');
-                languageSelectionEl.style.display = 'none';
                 
                 try {
                     // Call DeepSeek API to analyze the dialog
@@ -607,10 +606,24 @@ ${dialogText}`
                     generateBtn.style.display = 'block';
                     clearStatus();
                     
+                    return true;
                 } catch (error) {
                     console.error('Dialog analysis error:', error);
                     showError('对话分析失败: ' + error.message);
+                    return false;
                 }
+            }
+            
+            // Analyze the dialog text using DeepSeek API
+            analyzeBtn.addEventListener('click', async () => {
+                const dialogText = dialogInput.value.trim();
+                generateBtn.style.display = 'none';
+                dialogInfo.classList.remove('visible');
+                audioContainer.classList.remove('visible');
+                languageSelectionEl.style.display = 'none';
+                
+                showLoading('正在分析对话文本...');
+                await analyzeDialog(dialogText);
             });
             
             // Update the detected languages display
@@ -706,6 +719,81 @@ ${dialogText}`
                 audioContainer.classList.remove('visible');
                 
                 try {
+                    // Check if dialog is in single paragraph format that needs to be reformatted
+                    const originalText = dialogInput.value.trim();
+                    const lineCount = originalText.split('\n').filter(line => line.trim()).length;
+                    
+                    // Check for common patterns in single-paragraph dialog
+                    const hasMultipleColons = (originalText.match(/:/g) || []).length >= 3;
+                    const spaceAfterName = originalText.match(/\w+:\s/g);
+                    const hasNames = spaceAfterName && spaceAfterName.length >= 3;
+                    
+                    // More sophisticated detection logic
+                    const speakerPattern = /\b(Mom|Dad|Child|Mother|Father|妈妈|爸爸|孩子)(?=:)/gi;
+                    const potentialSpeakers = originalText.match(speakerPattern) || [];
+                    const uniqueSpeakers = new Set(potentialSpeakers.map(s => s.toLowerCase()));
+                    
+                    // If text contains multiple speakers but few line breaks, likely needs reformatting
+                    const needsReformatting = lineCount < uniqueSpeakers.size && 
+                                             hasMultipleColons && 
+                                             hasNames &&
+                                             uniqueSpeakers.size >= 2;
+                    
+                    if (needsReformatting) {
+                        showLoading('检测到单段对话格式，正在重新格式化...');
+                        
+                        // Request reformatting from DeepSeek API
+                        const formatMessages = [
+                            {
+                                role: "system",
+                                content: "你是一个专业的文本格式化助手，擅长将单段式对话文本重新格式化为多行对话格式。你需要确保每个角色的对话都正确分隔，特别是中英文混合的对话。"
+                            },
+                            {
+                                role: "user",
+                                content: `请将以下单段对话文本重新格式化为多行对话，使每个角色的台词占一行，并严格保持中英文内容。
+
+格式要求：
+1. 每个角色的台词应该单独占一行
+2. 格式为"角色名: 台词内容"
+3. 如果台词同时包含英文和中文，保持原样
+4. 不要添加任何额外说明，只返回格式化后的文本
+
+原始文本：
+${originalText}
+
+请只返回格式化后的对话文本，不要添加任何其他文字或解释。`
+                            }
+                        ];
+                        
+                        const formatResponse = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ messages: formatMessages })
+                        });
+                        
+                        if (!formatResponse.ok) {
+                            throw new Error('对话格式化请求失败');
+                        }
+                        
+                        const formatData = await formatResponse.json();
+                        const formattedText = formatData.choices[0].message.content.trim();
+                        
+                        console.log('原始对话文本:', originalText);
+                        console.log('格式化后文本:', formattedText);
+                        
+                        // Update the dialog input with formatted text
+                        dialogInput.value = formattedText;
+                        
+                        // Show success message about reformatting
+                        showStatus('对话已自动重新格式化为多行格式', 'success');
+                        
+                        // Re-run the dialog analysis with the formatted text
+                        showLoading('正在分析重新格式化的对话...');
+                        await analyzeDialog(formattedText);
+                    }
+                    
                     // Collect voice selections for each role
                     const roleVoices = {};
                     identifiedRoles.forEach((role, index) => {
@@ -718,8 +806,8 @@ ${dialogText}`
                     
                     // Create sequence information to ensure dialog order is preserved
                     // This extracts the original dialog sequence from the text input
-                    const originalText = dialogInput.value.trim();
-                    const dialogLines = originalText.split('\n').filter(line => line.trim());
+                    const dialogText = dialogInput.value.trim();
+                    const dialogLines = dialogText.split('\n').filter(line => line.trim());
                     
                     // Extract the sequence of roles from the original text
                     const sequenceInfo = [];
