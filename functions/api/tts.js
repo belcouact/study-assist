@@ -476,33 +476,87 @@ function getMiniMaxVoiceId(frontendVoice) {
   // Full list of voices for MiniMax TTS API
   const voiceMap = {
     // Chinese Mandarin voices
-    "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",         // 精英青年音色
-    "Chinese (Mandarin)_College_Student": "male-qn-daxuesheng",   // 青年大学生音色
-    "Chinese (Mandarin)_Young_Girl": "female-shaonv",             // 少女音色
-    "Chinese (Mandarin)_Mature_Woman": "female-chengshu",         // 成熟女性音色
-    "Chinese (Mandarin)_Sweet_Woman": "female-tianmei",           // 甜美女性音色
-    "Chinese (Mandarin)_Male_Presenter": "presenter_male",        // 男性主持人
-    "Chinese (Mandarin)_Female_Presenter": "presenter_female",    // 女性主持人
-    "Chinese (Mandarin)_Cute_Boy": "cute_boy",                    // 可爱男童
-    "Chinese (Mandarin)_Lovely_Girl": "lovely_girl",              // 萌萌女童
-    "Chinese (Mandarin)_News_Anchor": "Chinese (Mandarin)_News_Anchor",               // 新闻女声
-    "Chinese (Mandarin)_Refreshing_Young_Man": "Chinese (Mandarin)_Refreshing_Young_Man", // 舒朗男声
-    "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",         // 播报男声
-    "Chinese (Mandarin)_Lyrical_Voice": "Chinese (Mandarin)_Lyrical_Voice",           // 抒情男声
-    "Chinese (Mandarin)_Pure-hearted_Boy": "Chinese (Mandarin)_Pure-hearted_Boy",     // 纯真少年男生
-    "Chinese (Mandarin)_Warm_Girl": "Chinese (Mandarin)_Warm_Girl",                   // 温暖少年女生
-    
-    // Cantonese voices
-    "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",  // 专业女主持
-    "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",    // 专业男主持
+    "male-qn-qingse": "male-qn-qingse",                 // 青涩青年音色
+    "male-qn-jingying": "male-qn-jingying",             // 精英青年音色
+    "male-qn-badao": "male-qn-badao",                   // 霸道青年音色
+    "female-shaonv": "female-shaonv",                   // 少女音色
+    "female-yujie": "female-yujie",                     // 御姐音色
+    "female-chengshu": "female-chengshu",               // 成熟女性音色
+    "female-tianmei": "female-tianmei",                 // 甜美女性音色
+    "presenter_male": "presenter_male",                 // 男性主持人
+    "presenter_female": "presenter_female",             // 女性主持人
+    "audiobook_male_1": "audiobook_male_1",             // 男性有声书1
+    "audiobook_male_2": "audiobook_male_2",             // 男性有声书2
+    "audiobook_female_1": "audiobook_female_1",         // 女性有声书1
+    "audiobook_female_2": "audiobook_female_2",         // 女性有声书2
+    "clever_boy": "clever_boy",                         // 聪明男童
+    "cute_boy": "cute_boy",                             // 可爱男童
+    "lovely_girl": "lovely_girl",                       // 萌萌女童
+    "junlang_nanyou": "junlang_nanyou",                 // 俊朗男友
+    "chunzhen_xuedi": "chunzhen_xuedi",                 // 纯真学弟
+    "qiaopi_mengmei": "qiaopi_mengmei",                 // 俏皮萌妹
     
     // English voices
+    "Santa_Claus": "Santa_Claus",                       // Santa Claus
+    "Grinch": "Grinch",                                 // Grinch
+    "Rudolph": "Rudolph",                               // Rudolph
+    "Arnold": "Arnold",                                 // Arnold
+    "Charming_Santa": "Charming_Santa",                 // Charming Santa
+    "Charming_Lady": "Charming_Lady",                   // Charming Lady
+    "Sweet_Girl": "Sweet_Girl",                         // Sweet Girl
+    "Cute_Elf": "Cute_Elf",                             // Cute Elf
+    "Attractive_Girl": "Attractive_Girl",               // Attractive Girl
+    "Serene_Woman": "Serene_Woman",                     // Serene Woman
+    
+    // Chinese Mandarin voices (alternative labeling)
+    "Chinese (Mandarin)_News_Anchor": "Chinese (Mandarin)_News_Anchor",                   // 新闻女声
+    "Chinese (Mandarin)_Refreshing_Young_Man": "Chinese (Mandarin)_Refreshing_Young_Man", // 舒朗男声
+    "Chinese (Mandarin)_Unrestrained_Young_Man": "Chinese (Mandarin)_Unrestrained_Young_Man", // 不羁青年
+    "Chinese (Mandarin)_Kind-hearted_Antie": "Chinese (Mandarin)_Kind-hearted_Antie",     // 热心大婶
+    "Chinese (Mandarin)_Gentleman": "Chinese (Mandarin)_Gentleman",                       // 温润男声
+    "Chinese (Mandarin)_Male_Announcer": "Chinese (Mandarin)_Male_Announcer",             // 播报男声
+    "Chinese (Mandarin)_Sweet_Lady": "Chinese (Mandarin)_Sweet_Lady",                     // 甜美女声
+    "Chinese (Mandarin)_Wise_Women": "Chinese (Mandarin)_Wise_Women",                     // 阅历姐姐
+    "Chinese (Mandarin)_Gentle_Youth": "Chinese (Mandarin)_Gentle_Youth",                 // 温润青年
+    "Chinese (Mandarin)_Warm_Girl": "Chinese (Mandarin)_Warm_Girl",                       // 温暖少女
+    "Chinese (Mandarin)_Kind-hearted_Elder": "Chinese (Mandarin)_Kind-hearted_Elder",     // 花甲奶奶
+    "Chinese (Mandarin)_Radio_Host": "Chinese (Mandarin)_Radio_Host",                     // 电台男主播
+    "Chinese (Mandarin)_Lyrical_Voice": "Chinese (Mandarin)_Lyrical_Voice",               // 抒情男声
+    "Chinese (Mandarin)_Straightforward_Boy": "Chinese (Mandarin)_Straightforward_Boy",   // 率真弟弟
+    "Chinese (Mandarin)_Sincere_Adult": "Chinese (Mandarin)_Sincere_Adult",               // 真诚青年
+    "Chinese (Mandarin)_Gentle_Senior": "Chinese (Mandarin)_Gentle_Senior",               // 温柔学姐
+    "Chinese (Mandarin)_Stubborn_Friend": "Chinese (Mandarin)_Stubborn_Friend",           // 嘴硬竹马
+    "Chinese (Mandarin)_Crisp_Girl": "Chinese (Mandarin)_Crisp_Girl",                     // 清脆少女
+    "Chinese (Mandarin)_Pure-hearted_Boy": "Chinese (Mandarin)_Pure-hearted_Boy",         // 清澈邻家弟弟
+    
+    // Cantonese voices
+    "Cantonese_ProfessionalHost（F)": "Cantonese_ProfessionalHost（F)",                   // 专业女主持
+    "Cantonese_ProfessionalHost（M)": "Cantonese_ProfessionalHost（M)",                   // 专业男主持
+    "Cantonese_PlayfulMan": "Cantonese_PlayfulMan",                                       // 活泼男声
+    "Cantonese_CuteGirl": "Cantonese_CuteGirl",                                           // 可爱女孩
+    
+    // English voices (alternative labeling)
     "English_Trustworthy_Man": "English_Trustworthy_Man",           // Trustworthy Man
     "English_Graceful_Lady": "English_Graceful_Lady",               // Graceful Lady
-    "English_Diligent_Man": "English_Diligent_Man",                 // Diligent Man
-    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",       // Gentle-voiced man
-    "English_UpsetGirl": "English_UpsetGirl",                       // Upset Girl
-    "English_Wiselady": "English_Wiselady"                          // Wise Lady
+    "English_Aussie_Bloke": "English_Aussie_Bloke",                 // Aussie Bloke
+    "English_Gentle-voiced_man": "English_Gentle-voiced_man",       // Gentle-voiced man
+    
+    // Backward compatibility with old naming
+    "Chinese (Mandarin)_Elite_Young": "male-qn-jingying",
+    "Chinese (Mandarin)_College_Student": "male-qn-daxuesheng",
+    "Chinese (Mandarin)_Young_Girl": "female-shaonv",
+    "Chinese (Mandarin)_Mature_Woman": "female-chengshu",
+    "Chinese (Mandarin)_Sweet_Woman": "female-tianmei",
+    "Chinese (Mandarin)_Male_Presenter": "presenter_male",
+    "Chinese (Mandarin)_Female_Presenter": "presenter_female",
+    "Chinese (Mandarin)_Cute_Boy": "cute_boy",
+    "Chinese (Mandarin)_Lovely_Girl": "lovely_girl",
+    "Cantonese_Professional_Host_Female": "Cantonese_ProfessionalHost（F)",
+    "Cantonese_Professional_Host_Male": "Cantonese_ProfessionalHost（M)",
+    "English_Diligent_Man": "English_Diligent_Man",
+    "English_Gentle_Voiced_Man": "English_Gentle-voiced_man",
+    "English_UpsetGirl": "English_UpsetGirl",
+    "English_Wiselady": "English_Wiselady"
   };
   
   // Return mapped voice or default if mapping not found
