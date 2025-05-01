@@ -271,6 +271,36 @@
             display: flex;
             margin-top: 10px;
             margin-bottom: 5px;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .filter-dropdowns {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .filter-select {
+            padding: 8px 14px;
+            font-size: 0.9rem;
+            color: #4361ee;
+            background: rgba(236,222,255,0.5);
+            border: 1px solid #e0c3fc;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex: 1;
+            outline: none;
+        }
+        
+        .filter-select:hover {
+            background: rgba(236,222,255,0.7);
+        }
+        
+        .filter-select:focus {
+            border-color: #7209b7;
+            box-shadow: 0 0 0 2px rgba(114, 9, 183, 0.1);
         }
         
         .badge {
@@ -317,23 +347,48 @@
                 border-radius: 0.8rem;
                 padding: 0.8rem;
             }
+            
+            /* Filter dropdowns responsive styles */
+            .filter-dropdowns {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .filter-select, .example-select {
+                width: 100%;
+                max-width: 100%;
+                font-size: 0.9rem;
+                padding: 6px 12px;
+            }
+            
+            .example-controls {
+                gap: 8px;
+            }
+            
+            .helper-text {
+                font-size: 0.8rem;
+            }
+            
             .controls {
                 gap: 0.6rem;
                 flex-direction: column;
             }
+            
             .control-group {
                 flex: 1 1 100%;
                 border-radius: 0.8rem;
             }
+            
             .role-item {
                 flex-direction: column;
                 align-items: flex-start;
             }
+            
             .role-voice-select {
                 width: 100%;
                 min-width: 100%;
             }
-
+            
             /* Mobile menu styles */
             .mobile-menu-toggle {
                 display: block;
@@ -428,13 +483,23 @@ Mom: Wake up, sweetheart! It's time for school.
 Child: Just five more minutes, please! 
 孩子：再睡五分钟嘛，求你了！"></textarea>
                     <div class="example-controls">
+                        <div class="filter-dropdowns">
+                            <select id="grade-filter" class="filter-select">
+                                <option value="">选择年级...</option>
+                                <!-- SUB_TYPE1 options will be populated from DB -->
+                            </select>
+                            <select id="scene-filter" class="filter-select">
+                                <option value="">选择情景...</option>
+                                <!-- SCENE options will be populated from DB -->
+                            </select>
+                        </div>
                         <select id="dialog-examples" class="example-select">
                             <option value="">选择对话模板...</option>
                             <!-- Options will be populated from DB -->
                         </select>
                     </div>
                     <div class="helper-text">
-                        从下拉列表中选择对话类型，加载示例对话到文本框中。
+                        选择年级和情景筛选对话模板，然后从下拉列表中选择对话类型加载到文本框中。
                     </div>
                 </div>
                 
@@ -510,6 +575,8 @@ Child: Just five more minutes, please!
             const detectedLanguagesEl = document.getElementById('detected-languages');
             const languageSelectionEl = document.getElementById('language-selection');
             const dialogExamplesSelect = document.getElementById('dialog-examples');
+            const gradeFilterSelect = document.getElementById('grade-filter');
+            const sceneFilterSelect = document.getElementById('scene-filter');
             
             let currentAudioBlob = null;
             let identifiedRoles = [];
@@ -517,9 +584,14 @@ Child: Just five more minutes, please!
                 hasEnglish: false,
                 hasChinese: false
             };
+            let allDialogData = []; // Store all dialog data for filtering
             
-            // Fetch dialog examples from the database
-            fetchDialogTypes();
+            // Fetch dialog data and populate dropdowns
+            fetchDialogData();
+            
+            // Event listeners for filter dropdowns
+            gradeFilterSelect.addEventListener('change', filterDialogOptions);
+            sceneFilterSelect.addEventListener('change', filterDialogOptions);
             
             // Event listener for dialog examples dropdown
             dialogExamplesSelect.addEventListener('change', async () => {
@@ -528,7 +600,7 @@ Child: Just five more minutes, please!
                     showLoading(`正在加载「${selectedType}」对话模板...`);
                     
                     try {
-                        const dialogContent = await fetchDialogContent(selectedType);
+                        const dialogContent = getDialogContentByType(selectedType);
                         if (dialogContent) {
                             dialogInput.value = dialogContent;
                             showStatus(`「${selectedType}」对话模板已加载`, 'success');
@@ -548,54 +620,104 @@ Child: Just five more minutes, please!
                 }
             });
             
-            // Function to fetch dialog types from database
-            async function fetchDialogTypes() {
+            // Function to fetch all dialog data and populate all dropdowns
+            async function fetchDialogData() {
                 try {
+                    showLoading('正在加载对话数据...');
                     const response = await fetch('/api/db/query/english_dialog');
                     
                     if (!response.ok) {
-                        throw new Error('获取对话类型失败');
+                        throw new Error('获取对话数据失败');
                     }
                     
                     const data = await response.json();
                     
                     if (data.success && Array.isArray(data.data)) {
-                        // Extract unique dialog types
-                        const types = [...new Set(data.data.map(item => item.TYPE))].filter(Boolean);
+                        allDialogData = data.data;
                         
-                        // Populate select with unique types
-                        types.sort().forEach(type => {
+                        // Populate grade filter (SUB_TYPE1)
+                        const grades = [...new Set(data.data.map(item => item.SUB_TYPE1))].filter(Boolean);
+                        grades.sort().forEach(grade => {
                             const option = document.createElement('option');
-                            option.value = type;
-                            option.textContent = type;
-                            dialogExamplesSelect.appendChild(option);
+                            option.value = grade;
+                            option.textContent = grade;
+                            gradeFilterSelect.appendChild(option);
                         });
+                        
+                        // Populate scene filter (SCENE)
+                        const scenes = [...new Set(data.data.map(item => item.SCENE))].filter(Boolean);
+                        scenes.sort().forEach(scene => {
+                            const option = document.createElement('option');
+                            option.value = scene;
+                            option.textContent = scene;
+                            sceneFilterSelect.appendChild(option);
+                        });
+                        
+                        // Populate types dropdown with all types initially
+                        populateDialogTypesDropdown();
+                        clearStatus();
                     }
                 } catch (error) {
-                    console.error('获取对话类型错误:', error);
+                    console.error('获取对话数据错误:', error);
+                    showError('加载对话数据失败: ' + error.message);
                 }
             }
             
-            // Function to fetch dialog content by type
-            async function fetchDialogContent(type) {
-                const response = await fetch('/api/db/query/english_dialog');
-                
-                if (!response.ok) {
-                    throw new Error('获取对话内容失败');
+            // Function to populate the dialog types dropdown based on filters
+            function populateDialogTypesDropdown(filteredData = null) {
+                // Clear existing options except the first one
+                while (dialogExamplesSelect.options.length > 1) {
+                    dialogExamplesSelect.remove(1);
                 }
                 
-                const data = await response.json();
+                // Use filtered data or all data
+                const dataToUse = filteredData || allDialogData;
                 
-                if (data.success && Array.isArray(data.data)) {
-                    // Find the dialog with the selected type
-                    const dialog = data.data.find(item => item.TYPE === type);
-                    
-                    if (dialog && dialog.CONTENT) {
-                        return dialog.CONTENT;
-                    }
+                // Extract unique dialog types
+                const types = [...new Set(dataToUse.map(item => item.TYPE))].filter(Boolean);
+                
+                // Populate select with unique types
+                types.sort().forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    dialogExamplesSelect.appendChild(option);
+                });
+                
+                // Update helper text if no results
+                if (types.length === 0) {
+                    document.querySelector('.helper-text').textContent = 
+                        '当前筛选条件下没有对话模板，请调整年级或情景选择。';
+                } else {
+                    document.querySelector('.helper-text').textContent = 
+                        '选择年级和情景筛选对话模板，然后从下拉列表中选择对话类型加载到文本框中。';
+                }
+            }
+            
+            // Function to filter dialog options based on selected grade and scene
+            function filterDialogOptions() {
+                const selectedGrade = gradeFilterSelect.value;
+                const selectedScene = sceneFilterSelect.value;
+                
+                // Filter the data based on selections
+                let filteredData = allDialogData;
+                
+                if (selectedGrade) {
+                    filteredData = filteredData.filter(item => item.SUB_TYPE1 === selectedGrade);
                 }
                 
-                return null;
+                if (selectedScene) {
+                    filteredData = filteredData.filter(item => item.SCENE === selectedScene);
+                }
+                
+                // Repopulate the dialog types dropdown with filtered data
+                populateDialogTypesDropdown(filteredData);
+            }
+            
+            // Function to get dialog content by type from the stored data
+            function getDialogContentByType(type) {
+                const dialog = allDialogData.find(item => item.TYPE === type);
+                return dialog && dialog.CONTENT ? dialog.CONTENT : null;
             }
             
             // Voice options for different roles
