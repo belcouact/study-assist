@@ -57,172 +57,96 @@ export async function onRequestPost(context) {
       });
     }
     
-    // Generate individual audio clips for each line in the dialog
-    const audioClips = [];
-    
-    // Extract the dialog structure for debugging
-    console.log("Original dialog structure:");
-    console.log(`Total Roles: ${requestData.dialog.length}`);
-    let totalLines = 0;
-    requestData.dialog.forEach((role, i) => {
-      console.log(`Role ${i+1}: ${role.name} (${role.lines.length} lines)`);
-      totalLines += role.lines.length;
-    });
-    console.log(`Total lines across all roles: ${totalLines}`);
-    
-    // First, analyze the dialog structure to understand its format
-    // Create a flat sequential dialog from the input data - this is the key part
-    const dialogSequence = [];
-    
-    // Check if there's any sequence information in the request
-    if (requestData.original_sequence && Array.isArray(requestData.original_sequence)) {
-      // Use provided sequence information if available
-      console.log("Using provided original_sequence information for dialog order");
-      console.log(`Sequence info has ${requestData.original_sequence.length} entries`);
-      
-      // First, make sure the sequence information is in the correct order
-      // Sort by sequence_position if it exists
-      const sortedSequence = [...requestData.original_sequence].sort((a, b) => {
-        if (a.sequence_position !== undefined && b.sequence_position !== undefined) {
-          return a.sequence_position - b.sequence_position;
-        }
-        return 0; // Keep original order if no sequence_position
-      });
-      
-      // Now map each sequence item to a dialog item
-      for (const seqItem of sortedSequence) {
-        const role = requestData.dialog.find(r => r.name === seqItem.role);
-        if (role && role.lines[seqItem.line_index]) {
-          dialogSequence.push({
-            role: role,
-            line: role.lines[seqItem.line_index],
-            index: dialogSequence.length,
-            originalLine: seqItem.original_line,
-            originalPosition: seqItem.sequence_position !== undefined ? 
-                            seqItem.sequence_position : dialogSequence.length
-          });
-        } else {
-          console.warn(`Could not find role "${seqItem.role}" or line index ${seqItem.line_index} for that role`);
-        }
-      }
-    } else {
-      // Create a fallback sequential representation - this is suboptimal but better than failing
-      console.warn("WARNING: No sequence information provided. Falling back to grouped roles.");
-      for (const role of requestData.dialog) {
-        for (const line of role.lines) {
-          dialogSequence.push({
-            role: role,
-            line: line,
-            index: dialogSequence.length
-          });
-        }
-      }
-    }
-    
-    // Log the reconstructed sequence for debugging
-    console.log(`Reconstructed dialog sequence (${dialogSequence.length} lines out of ${totalLines} total lines):`);
-    dialogSequence.forEach((item, i) => {
-      const roleName = item.role.name;
-      const text = item.line.english || item.line.chinese || "[empty]";
-      console.log(`  ${i+1}. ${roleName}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
+    // 重要：完全重设整体处理逻辑 - 首先获取角色名到角色对象的映射
+    console.log("创建角色名到角色对象的映射...");
+    const roleMap = {};
+    requestData.dialog.forEach(role => {
+      roleMap[role.name] = role;
     });
     
-    // If we don't have all lines, try a more aggressive approach
-    if (dialogSequence.length < totalLines && requestData.original_sequence) {
-      console.warn("Not all lines were matched in sequence, trying direct mapping approach");
-      
-      // Clear the sequence and start over
-      dialogSequence.length = 0;
-      
-      // Create a mapping from role names to their dialog objects
-      const roleMap = {};
-      requestData.dialog.forEach(role => {
-        roleMap[role.name] = role;
+    // 确保收到了顺序信息
+    if (!requestData.original_sequence || !Array.isArray(requestData.original_sequence)) {
+      console.error("缺少顺序信息，无法确定对话顺序");
+      return new Response(JSON.stringify({
+        error: "Missing sequence information. Cannot determine dialog order."
+      }), {
+        status: 400,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
-      
-      // Directly map sequence items to lines
-      for (const seqItem of requestData.original_sequence) {
-        const role = roleMap[seqItem.role];
-        if (role && role.lines[seqItem.line_index]) {
-          dialogSequence.push({
-            role: role,
-            line: role.lines[seqItem.line_index],
-            index: dialogSequence.length,
-            originalLine: seqItem.original_line
-          });
-        }
-      }
-      
-      console.log(`After direct mapping: ${dialogSequence.length} lines in sequence`);
     }
     
-    // Last resort - if we still don't have enough lines or sequence is empty
-    if (dialogSequence.length === 0 || dialogSequence.length < totalLines / 2) {
-      console.warn("Critical: Sequence reconstruction failed, using all lines in order");
-      dialogSequence.length = 0; // Clear any existing items
+    // 按照sequence_position排序原始序列
+    const sortedSequence = [...requestData.original_sequence].sort((a, b) => {
+      return a.sequence_position - b.sequence_position;
+    });
+    
+    console.log(`按顺序排列的对话序列 (${sortedSequence.length} 行):`);
+    sortedSequence.forEach((seq, i) => {
+      console.log(`${i+1}. 位置 ${seq.sequence_position}: ${seq.role} 行 ${seq.line_index}`);
+    });
+    
+    // 逐行处理对话并生成音频
+    const audioSegments = [];
+    
+    // 为每一行生成音频，严格按照原始顺序处理
+    for (let i = 0; i < sortedSequence.length; i++) {
+      const seq = sortedSequence[i];
+      const roleName = seq.role;
+      const lineIndex = seq.line_index;
       
-      // Just use all lines from all roles in the order they appear
-      for (const role of requestData.dialog) {
-        for (const line of role.lines) {
-          dialogSequence.push({
-            role: role,
-            line: line,
-            index: dialogSequence.length
-          });
-        }
+      // 获取角色对象
+      const role = roleMap[roleName];
+      if (!role) {
+        console.warn(`找不到角色 "${roleName}"，跳过此行`);
+        continue;
       }
       
-      console.log(`Fallback to all lines: ${dialogSequence.length} lines in sequence`);
-    }
-    
-    // Process each line in the reconstructed sequence order
-    for (let seqIndex = 0; seqIndex < dialogSequence.length; seqIndex++) {
-      const item = dialogSequence[seqIndex];
-      const role = item.role;
-      const line = item.line;
-      const roleName = role.name;
-      let voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
+      // 获取该角色的台词
+      const line = role.lines[lineIndex];
+      if (!line) {
+        console.warn(`找不到角色 "${roleName}" 的第 ${lineIndex} 行台词，跳过此行`);
+        continue;
+      }
       
-      // Track the original position for precise ordering later
-      const originalPosition = item.originalPosition !== undefined ? 
-                             item.originalPosition : seqIndex;
+      // 获取语音ID
+      const voiceId = getMiniMaxVoiceId(requestData.roleVoices[roleName]);
       
-      console.log(`Processing item with original position: ${originalPosition}, role: ${roleName}`);
-      
-      // Use English text if available, otherwise use Chinese
-      // Allow language selection based on user preference
+      // 根据语言偏好选择文本
       let text;
       if (requestData.language_preference === 'chinese') {
         text = line.chinese?.trim() || line.english?.trim();
-        console.log(`Using Chinese text for ${roleName} (fallback to English if needed)`);
+        console.log(`使用中文文本: "${roleName}" (如果需要会回退到英文)`);
       } else if (requestData.language_preference === 'english') {
         text = line.english?.trim() || line.chinese?.trim();
-        console.log(`Using English text for ${roleName} (fallback to Chinese if needed)`);
+        console.log(`使用英文文本: "${roleName}" (如果需要会回退到中文)`);
       } else {
-        // Default behavior - prefer English if available
+        // 默认行为 - 优先使用英文
         text = line.english?.trim() || line.chinese?.trim();
-        console.log(`No language preference specified for ${roleName}, defaulting to English`);
+        console.log(`未指定语言偏好: "${roleName}"，默认使用英文`);
       }
       
       if (!text) {
-        console.log(`[${seqIndex+1}/${dialogSequence.length}] Skipping empty line for ${roleName}`);
-        continue; // Skip empty lines
+        console.log(`[${i+1}/${sortedSequence.length}] 跳过空行: ${roleName}`);
+        continue; // 跳过空行
       }
       
-      console.log(`[${seqIndex+1}/${dialogSequence.length}] Processing: ${roleName} says "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
-      console.log(`Using voice ID: ${voiceId}`);
+      console.log(`[${i+1}/${sortedSequence.length}] 处理: ${roleName} 说 "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"`);
+      console.log(`使用语音ID: ${voiceId}`);
       
-      // Create the payload for this line
+      // 创建请求payload
       const payload = {
-        model: requestData.model || "speech-02-turbo", // Use turbo model for better compatibility
+        model: requestData.model || "speech-02-turbo",
         text: text,
         stream: false,
         language_boost: "auto",
         voice_setting: {
           voice_id: voiceId,
-          speed: 1.0,  // Fixed speed (no adjustment)
-          vol: 1.0,    // Fixed volume
-          pitch: 0     // Fixed pitch (no adjustment)
+          speed: 1.0,  // 固定速度
+          vol: 1.0,    // 固定音量
+          pitch: 0     // 固定音调
         },
         audio_setting: {
           sample_rate: 32000,
@@ -231,14 +155,14 @@ export async function onRequestPost(context) {
         }
       };
       
-      // Add short pause at the end of each line
-      payload.text = payload.text + "，"; // Add a comma to create a natural pause
+      // 在每句话结尾添加短暂停顿
+      payload.text = payload.text + "，";
       
-      // Call MiniMax API
+      // 调用MiniMax API
       const apiUrl = `https://api.minimax.chat/v1/t2a_v2?GroupId=${GROUP_ID}`;
       
       try {
-        console.log(`Sending request to MiniMax API for role '${roleName}'`);
+        console.log(`发送请求到MiniMax API，角色: '${roleName}'，顺序: ${i+1}`);
         const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
@@ -248,100 +172,87 @@ export async function onRequestPost(context) {
           body: JSON.stringify(payload)
         });
         
-        // Check response status
+        // 检查响应状态
         if (!response.ok) {
           const errorText = await response.text();
-          console.error(`MiniMax API error for role '${roleName}': ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`MiniMax API error: ${response.status} ${response.statusText}`);
+          console.error(`MiniMax API错误: ${roleName}, ${response.status}`, errorText);
+          throw new Error(`MiniMax API错误: ${response.status}`);
         }
         
-        // Check response content type
-        const contentType = response.headers.get('Content-Type') || '';
-        console.log(`Response Content-Type: ${contentType}`);
-        
+        // 获取并处理音频数据
         let audioBytes;
+        const contentType = response.headers.get('Content-Type') || '';
         
         if (contentType.includes('application/json')) {
-          // Process JSON response
+          // 处理JSON响应
           const responseData = await response.json();
-          console.log(`Received JSON response for ${roleName}`);
           
-          // Process audio data based on response format
+          // 处理不同格式的音频数据
           if (responseData.data && responseData.data.audio) {
-            // Extract the audio data (newer API format)
             const audioData = responseData.data.audio;
             
-            // Determine if it's hex or base64
             if (/^[0-9a-fA-F]+$/.test(audioData)) {
-              // Convert hex to binary
+              // 十六进制格式
               audioBytes = new Uint8Array(audioData.length / 2);
-              for (let i = 0; i < audioData.length; i += 2) {
-                audioBytes[i / 2] = parseInt(audioData.substring(i, i + 2), 16);
+              for (let j = 0; j < audioData.length; j += 2) {
+                audioBytes[j / 2] = parseInt(audioData.substring(j, j + 2), 16);
               }
-              console.log(`Converted hex audio data (${audioBytes.byteLength} bytes)`);
             } else {
-              // Assume base64 and convert to binary
+              // Base64格式
               const binaryString = atob(audioData);
               audioBytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                audioBytes[i] = binaryString.charCodeAt(i);
+              for (let j = 0; j < binaryString.length; j++) {
+                audioBytes[j] = binaryString.charCodeAt(j);
               }
-              console.log(`Converted base64 audio data (${audioBytes.byteLength} bytes)`);
             }
           } else if (responseData.audio_base64) {
-            // Process audio base64 response (legacy format)
+            // 旧的Base64格式
             const base64 = responseData.audio_base64.replace(/^data:audio\/\w+;base64,/, '');
             const binary = atob(base64);
             audioBytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) {
-              audioBytes[i] = binary.charCodeAt(i);
+            for (let j = 0; j < binary.length; j++) {
+              audioBytes[j] = binary.charCodeAt(j);
             }
-            console.log(`Converted legacy base64 audio data (${audioBytes.byteLength} bytes)`);
           } else if (responseData.audio_file || (responseData.data && responseData.data.audio_file)) {
-            // Handle audio_file URLs
+            // 处理音频文件URL
             const audioFileUrl = responseData.audio_file || (responseData.data && responseData.data.audio_file);
             
             if (audioFileUrl) {
-              console.log(`Audio file URL received: ${audioFileUrl}`);
-              // Fetch the audio file
               const audioFileResponse = await fetch(audioFileUrl);
               const audioBuffer = await audioFileResponse.arrayBuffer();
               audioBytes = new Uint8Array(audioBuffer);
-              console.log(`Downloaded audio file (${audioBytes.byteLength} bytes)`);
             }
           }
         } else {
-          // Assume binary audio data from response
+          // 假设是二进制音频数据
           const audioBuffer = await response.arrayBuffer();
           audioBytes = new Uint8Array(audioBuffer);
-          console.log(`Received binary audio response (${audioBytes.byteLength} bytes)`);
         }
         
         if (!audioBytes || audioBytes.length === 0) {
-          throw new Error(`No audio data returned for line: "${text.substring(0, 30)}..."`);
+          throw new Error(`没有返回音频数据: "${text.substring(0, 30)}..."`);
         }
         
-        // Store the audio clip with its sequence position
-        audioClips.push({
-          sequenceIndex: seqIndex,  // Use the actual sequence index from our loop
+        // 将音频段保存到数组中，使用原始顺序作为索引
+        audioSegments.push({
+          originalIndex: i,  // 使用循环索引作为原始位置
           audio: audioBytes,
-          roleName: roleName,
-          text: text.substring(0, 30) + (text.length > 30 ? '...' : ''),
-          position: originalPosition  // Use the original position from the dialog text
+          role: roleName,
+          text: text.substring(0, 30) + (text.length > 30 ? '...' : '')
         });
         
-        console.log(`[${seqIndex+1}/${dialogSequence.length}] Successfully generated audio for ${roleName}, ${audioBytes.length} bytes`);
+        console.log(`[${i+1}/${sortedSequence.length}] 成功生成音频: ${roleName}, ${audioBytes.length} 字节`);
         
       } catch (error) {
-        console.error(`[${seqIndex+1}/${dialogSequence.length}] Error for ${roleName}:`, error);
-        // Continue with next line instead of failing the whole request
+        console.error(`[${i+1}/${sortedSequence.length}] 处理错误: ${roleName}:`, error);
+        // 继续处理下一行，而不是失败整个请求
       }
     }
     
-    // Merge all audio clips into a single MP3 file
-    if (audioClips.length === 0) {
+    // 如果没有生成任何音频，返回错误
+    if (audioSegments.length === 0) {
       return new Response(JSON.stringify({
-        error: "No audio was generated. Check that the dialog contains valid text."
+        error: "没有生成任何音频。请检查对话文本是否有效。"
       }), {
         status: 500,
         headers: {
@@ -351,31 +262,31 @@ export async function onRequestPost(context) {
       });
     }
     
-    // Sort the audio clips by their sequence index to maintain dialog order
-    audioClips.sort((a, b) => a.position - b.position);
+    // 按原始索引排序音频段
+    audioSegments.sort((a, b) => a.originalIndex - b.originalIndex);
     
-    console.log("Final audio merge sequence:");
-    audioClips.forEach((clip, i) => {
-      console.log(`  ${i+1}. ${clip.roleName}: "${clip.text}" (position: ${clip.position})`);
+    console.log("最终音频合并顺序:");
+    audioSegments.forEach((segment, i) => {
+      console.log(`  ${i+1}. ${segment.role}: "${segment.text}" (原始位置: ${segment.originalIndex})`);
     });
     
-    // Calculate total length of merged audio
+    // 计算合并后的音频总长度
     let totalLength = 0;
-    audioClips.forEach(clip => { totalLength += clip.audio.length; });
+    audioSegments.forEach(segment => { totalLength += segment.audio.length; });
     
-    // Create buffer for merged audio
+    // 创建合并后的音频缓冲区
     const mergedAudio = new Uint8Array(totalLength);
     let offset = 0;
     
-    // Concatenate all clips in the correct sequence order
-    audioClips.forEach(clip => {
-      mergedAudio.set(clip.audio, offset);
-      offset += clip.audio.length;
+    // 按顺序拼接所有音频段
+    audioSegments.forEach(segment => {
+      mergedAudio.set(segment.audio, offset);
+      offset += segment.audio.length;
     });
     
-    console.log(`Final merged audio length: ${mergedAudio.length} bytes`);
+    console.log(`最终合并音频长度: ${mergedAudio.length} 字节`);
     
-    // Return the merged audio
+    // 返回合并后的音频
     return new Response(mergedAudio, {
       headers: {
         ...corsHeaders,
@@ -385,11 +296,11 @@ export async function onRequestPost(context) {
     });
     
   } catch (error) {
-    console.error("TTS dialog error:", error);
-    console.error("Error stack:", error.stack);
+    console.error("TTS对话错误:", error);
+    console.error("错误栈:", error.stack);
     
     return new Response(JSON.stringify({
-      error: error.message || "An error occurred processing the dialog",
+      error: error.message || "处理对话时发生错误",
       stack: error.stack
     }), {
       status: 500,
