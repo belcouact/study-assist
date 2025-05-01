@@ -244,6 +244,37 @@
             background: rgba(236,222,255,0.9);
         }
         
+        .example-select {
+            flex: 1;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            color: #4361ee;
+            background: rgba(236,222,255,0.7);
+            border: 1px solid #e0c3fc;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            max-width: 250px;
+            outline: none;
+        }
+        
+        .example-select:hover {
+            background: rgba(236,222,255,0.9);
+        }
+        
+        .example-select:focus {
+            border-color: #7209b7;
+            box-shadow: 0 0 0 2px rgba(114, 9, 183, 0.1);
+        }
+        
+        .example-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
         .badge {
             display: inline-block;
             padding: 4px 8px;
@@ -253,6 +284,13 @@
             border-radius: 12px;
             font-size: 0.85rem;
             font-weight: 500;
+        }
+        
+        .helper-text {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #666;
+            font-style: italic;
         }
         
         @media (max-width: 768px) {
@@ -391,7 +429,16 @@ Mom: Wake up, sweetheart! It's time for school.
 妈妈：醒醒，宝贝！该上学了。 
 Child: Just five more minutes, please! 
 孩子：再睡五分钟嘛，求你了！"></textarea>
-                    <button class="example-btn" id="load-example">加载示例对话</button>
+                    <div class="example-controls">
+                        <button class="example-btn" id="load-example">加载示例对话</button>
+                        <select id="dialog-examples" class="example-select">
+                            <option value="">选择对话模板...</option>
+                            <!-- Options will be populated from DB -->
+                        </select>
+                    </div>
+                    <div class="helper-text">
+                        从下拉列表中选择对话类型，系统会自动加载对应的示例对话到文本框中。
+                    </div>
                 </div>
                 
                 <button id="analyze-btn" class="mb-4">分析对话</button>
@@ -466,6 +513,7 @@ Child: Just five more minutes, please!
             const loadExampleBtn = document.getElementById('load-example');
             const detectedLanguagesEl = document.getElementById('detected-languages');
             const languageSelectionEl = document.getElementById('language-selection');
+            const dialogExamplesSelect = document.getElementById('dialog-examples');
             
             let currentAudioBlob = null;
             let identifiedRoles = [];
@@ -473,6 +521,86 @@ Child: Just five more minutes, please!
                 hasEnglish: false,
                 hasChinese: false
             };
+            
+            // Fetch dialog examples from the database
+            fetchDialogTypes();
+            
+            // Event listener for dialog examples dropdown
+            dialogExamplesSelect.addEventListener('change', async () => {
+                if (dialogExamplesSelect.value) {
+                    const selectedType = dialogExamplesSelect.value;
+                    showLoading(`正在加载「${selectedType}」对话模板...`);
+                    
+                    try {
+                        const dialogContent = await fetchDialogContent(selectedType);
+                        if (dialogContent) {
+                            dialogInput.value = dialogContent;
+                            showStatus(`「${selectedType}」对话模板已加载`, 'success');
+                            
+                            // Reset dropdown after a short delay
+                            setTimeout(() => {
+                                dialogExamplesSelect.value = '';
+                            }, 1000);
+                        } else {
+                            showError(`无法获取「${selectedType}」对话模板内容`);
+                        }
+                    } catch (error) {
+                        console.error('获取对话内容错误:', error);
+                        showError('获取对话内容失败: ' + error.message);
+                        dialogExamplesSelect.value = '';
+                    }
+                }
+            });
+            
+            // Function to fetch dialog types from database
+            async function fetchDialogTypes() {
+                try {
+                    const response = await fetch('/api/db/query/english_dialog');
+                    
+                    if (!response.ok) {
+                        throw new Error('获取对话类型失败');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.success && Array.isArray(data.data)) {
+                        // Extract unique dialog types
+                        const types = [...new Set(data.data.map(item => item.TYPE))].filter(Boolean);
+                        
+                        // Populate select with unique types
+                        types.sort().forEach(type => {
+                            const option = document.createElement('option');
+                            option.value = type;
+                            option.textContent = type;
+                            dialogExamplesSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error('获取对话类型错误:', error);
+                }
+            }
+            
+            // Function to fetch dialog content by type
+            async function fetchDialogContent(type) {
+                const response = await fetch('/api/db/query/english_dialog');
+                
+                if (!response.ok) {
+                    throw new Error('获取对话内容失败');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && Array.isArray(data.data)) {
+                    // Find the dialog with the selected type
+                    const dialog = data.data.find(item => item.TYPE === type);
+                    
+                    if (dialog && dialog.CONTENT) {
+                        return dialog.CONTENT;
+                    }
+                }
+                
+                return null;
+            }
             
             // Voice options for different roles
             const voiceOptions = {
@@ -1212,9 +1340,18 @@ ${originalText}
                 status.className = 'status loading';
             }
             
-            function showStatus(message, type = '') {
+            function showStatus(message, type) {
                 status.textContent = message;
                 status.className = `status ${type}`;
+                
+                // Auto-clear success messages after a few seconds
+                if (type === 'success') {
+                    setTimeout(() => {
+                        if (status.textContent === message) {
+                            clearStatus();
+                        }
+                    }, 3000);
+                }
             }
             
             function clearStatus() {
