@@ -888,6 +888,18 @@ ${dialogText}`
                     
                     // Parse the JSON response
                     const dialogData = JSON.parse(jsonStr);
+                    
+                    // Clean role names of invisible Unicode characters
+                    if (dialogData.roles && Array.isArray(dialogData.roles)) {
+                        dialogData.roles.forEach(role => {
+                            if (role.name) {
+                                // Remove zero-width spaces and other invisible Unicode characters
+                                role.name = role.name.replace(/[\u200B-\u200D\uFEFF\u00A0\u2000-\u200F]/g, '');
+                                console.log(`Normalized role name: "${role.name}"`);
+                            }
+                        });
+                    }
+                    
                     identifiedRoles = dialogData.roles;
                     
                     // Extract detected languages
@@ -1028,6 +1040,9 @@ ${dialogText}`
                 showLoading('正在生成对话语音...');
                 audioContainer.classList.remove('visible');
                 
+                // Track if there are issues with invisible Unicode characters
+                let hasNormalizationIssues = false;
+                
                 try {
                     // Check if dialog is in single paragraph format that needs to be reformatted
                     const originalText = dialogInput.value.trim();
@@ -1131,16 +1146,48 @@ ${originalText}
                         // Find role name before the colon
                         const colonIndex = line.indexOf(':');
                         if (colonIndex > 0) {
-                            const roleName = line.substring(0, colonIndex).trim();
+                            // Get the raw role name and clean it by removing invisible Unicode characters
+                            let rawRoleName = line.substring(0, colonIndex).trim();
+                            // Remove zero-width spaces and other invisible Unicode characters
+                            const cleanRoleName = rawRoleName.replace(/[\u200B-\u200D\uFEFF\u00A0\u2000-\u200F]/g, '');
+                            
+                            // Detect if the name was changed during cleaning (invisible characters detected)
+                            if (rawRoleName !== cleanRoleName) {
+                                console.warn(`Invisible Unicode characters detected in role name: "${rawRoleName}" -> "${cleanRoleName}"`);
+                                // Set the normalization flag in outer scope
+                                hasNormalizationIssues = true;
+                            }
+                            
                             const lineText = line.substring(colonIndex + 1).trim();
                             
                             // Skip empty lines
                             if (!lineText) return;
                             
-                            console.log(`Line ${lineIndex+1}: Role "${roleName}", Text: "${lineText.substring(0, 20)}..."`);
+                            console.log(`Line ${lineIndex+1}: Role "${cleanRoleName}", Text: "${lineText.substring(0, 20)}..."`);
                             
-                            // Find the matching role in identifiedRoles
-                            const roleIndex = identifiedRoles.findIndex(r => r.name === roleName);
+                            // Find the matching role in identifiedRoles by doing a fuzzy match on role names
+                            let roleIndex = identifiedRoles.findIndex(r => {
+                                // Direct match
+                                if (r.name === cleanRoleName) return true;
+                                
+                                // Case insensitive match
+                                if (r.name.toLowerCase() === cleanRoleName.toLowerCase()) return true;
+                                
+                                // Check if the name is contained within
+                                if (cleanRoleName.includes(r.name) || r.name.includes(cleanRoleName)) return true;
+                                
+                                return false;
+                            });
+                            
+                            // If not found, try an even more relaxed match
+                            if (roleIndex < 0) {
+                                roleIndex = identifiedRoles.findIndex(r => {
+                                    // Remove all spaces and compare
+                                    const normalizedRole = r.name.replace(/\s+/g, '').toLowerCase();
+                                    const normalizedInput = cleanRoleName.replace(/\s+/g, '').toLowerCase();
+                                    return normalizedRole === normalizedInput;
+                                });
+                            }
                             
                             if (roleIndex >= 0) {
                                 const role = identifiedRoles[roleIndex];
@@ -1179,7 +1226,7 @@ ${originalText}
                                     console.log(`-> Matched to line index ${bestMatchIndex} (score: ${bestMatchScore})`);
                                     
                                     sequenceInfo.push({
-                                        role: roleName,
+                                        role: cleanRoleName,
                                         line_index: bestMatchIndex,
                                         sequence_position: lineIndex,  // Use the actual line index from the input text
                                         original_line: lineText
@@ -1190,14 +1237,14 @@ ${originalText}
                                     // Fall back to a simple position-based match as last resort
                                     // Try to find a line that hasn't been matched yet
                                     const usedIndices = sequenceInfo
-                                        .filter(si => si.role === roleName)
+                                        .filter(si => si.role === cleanRoleName)
                                         .map(si => si.line_index);
                                     
                                     for (let i = 0; i < role.lines.length; i++) {
                                         if (!usedIndices.includes(i)) {
                                             console.log(`-> Falling back to position-based match at index ${i}`);
                                             sequenceInfo.push({
-                                                role: roleName,
+                                                role: cleanRoleName,
                                                 line_index: i,
                                                 sequence_position: lineIndex,  // Use the actual line index from the input text
                                                 original_line: lineText,
@@ -1208,7 +1255,7 @@ ${originalText}
                                     }
                                 }
                             } else {
-                                console.warn(`Role "${roleName}" not found in identified roles.`);
+                                console.warn(`Role "${cleanRoleName}" not found in identified roles.`);
                             }
                         } else {
                             console.warn(`Line doesn't follow "Role: Text" format: "${line}"`);
@@ -1252,6 +1299,9 @@ ${originalText}
                     if (sequenceInfo.length < dialogLines.length) {
                         console.warn(`Not all lines were matched! Original: ${dialogLines.length}, Matched: ${sequenceInfo.length}`);
                         
+                        // Set a flag to tell the API when we're dealing with known problem content
+                        let hasNormalizationIssues = false;
+                        
                         // To ensure all dialog lines are included, we'll create a mapping of which lines 
                         // from the original text have been matched
                         const matchedLines = new Set();
@@ -1265,23 +1315,38 @@ ${originalText}
                         dialogLines.forEach((line, lineIndex) => {
                             const colonIndex = line.indexOf(':');
                             if (colonIndex > 0) {
-                                const roleName = line.substring(0, colonIndex).trim();
+                                // Clean the role name to remove invisible characters
+                                let rawRoleName = line.substring(0, colonIndex).trim();
+                                const cleanRoleName = rawRoleName.replace(/[\u200B-\u200D\uFEFF\u00A0\u2000-\u200F]/g, '');
                                 const lineText = line.substring(colonIndex + 1).trim();
                                 
                                 if (!lineText) return; // Skip empty lines
                                 
-                                const key = `${roleName}:${lineText}`;
-                                if (!matchedLines.has(key)) {
+                                const key = `${cleanRoleName}:${lineText}`;
+                                const originalKey = `${rawRoleName}:${lineText}`;
+                                
+                                // Check both original and cleaned keys
+                                if (!matchedLines.has(key) && !matchedLines.has(originalKey)) {
                                     console.log(`Adding previously unmatched line: ${key}`);
                                     
-                                    // Find the role
-                                    const roleIndex = identifiedRoles.findIndex(r => r.name === roleName);
+                                    // Find the role with fuzzy matching
+                                    let roleIndex = identifiedRoles.findIndex(r => {
+                                        if (r.name === rawRoleName) return true;
+                                        if (r.name.toLowerCase() === rawRoleName.toLowerCase()) return true;
+                                        if (rawRoleName.includes(r.name) || r.name.includes(rawRoleName)) return true;
+                                        
+                                        // Remove all spaces and compare
+                                        const normalizedRole = r.name.replace(/\s+/g, '').toLowerCase();
+                                        const normalizedInput = rawRoleName.replace(/\s+/g, '').toLowerCase();
+                                        return normalizedRole === normalizedInput;
+                                    });
+                                    
                                     if (roleIndex >= 0) {
                                         // Add as a new entry with best-effort line matching
                                         // Find the first unused line for this role
                                         const role = identifiedRoles[roleIndex];
                                         const usedIndices = sequenceInfo
-                                            .filter(si => si.role === roleName)
+                                            .filter(si => si.role === cleanRoleName)
                                             .map(si => si.line_index);
                                         
                                         // Find an unused line index or use 0 as fallback
@@ -1294,12 +1359,18 @@ ${originalText}
                                         }
                                         
                                         sequenceInfo.push({
-                                            role: roleName,
+                                            role: cleanRoleName,
                                             line_index: lineIndexInRole,
                                             sequence_position: lineIndex,  // Use the actual line index from the original dialog
                                             original_line: lineText,
                                             is_emergency_fallback: true
                                         });
+                                        
+                                        // Set flag when we had to do special processing for role names
+                                        if (rawRoleName !== cleanRoleName) {
+                                            hasNormalizationIssues = true;
+                                            console.log('Unicode normalization issues detected in role names');
+                                        }
                                     }
                                 }
                             }
@@ -1330,7 +1401,9 @@ ${originalText}
                         // Include the original sequence information
                         original_sequence: sequenceInfo,
                         // Include language preference
-                        language_preference: selectedLanguage
+                        language_preference: selectedLanguage,
+                        // Add flag for normalization issues
+                        has_normalization_issues: hasNormalizationIssues || false
                     };
                     
                     // Call the TTS API
