@@ -303,6 +303,15 @@
             box-shadow: 0 0 0 2px rgba(114, 9, 183, 0.1);
         }
         
+        .filter-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7209b7;
+            font-size: 0.8rem;
+            width: 20px;
+        }
+        
         .badge {
             display: inline-block;
             padding: 4px 8px;
@@ -352,6 +361,10 @@
             .filter-dropdowns {
                 flex-direction: column;
                 gap: 8px;
+            }
+            
+            .filter-arrow {
+                display: none; /* Hide arrow on mobile */
             }
             
             .filter-select, .example-select {
@@ -488,18 +501,21 @@ Child: Just five more minutes, please!
                                 <option value="">选择年级...</option>
                                 <!-- SUB_TYPE1 options will be populated from DB -->
                             </select>
+                            <div class="filter-arrow">
+                                <i class="fas fa-chevron-right"></i>
+                            </div>
                             <select id="scene-filter" class="filter-select">
                                 <option value="">选择情景...</option>
                                 <!-- SCENE options will be populated from DB -->
                             </select>
                         </div>
                         <select id="dialog-examples" class="example-select">
-                            <option value="">选择对话模板...</option>
+                            <option value="">选择对话...</option>
                             <!-- Options will be populated from DB -->
                         </select>
                     </div>
                     <div class="helper-text">
-                        选择年级和情景筛选对话模板，然后从下拉列表中选择对话类型加载到文本框中。
+                        先选择年级，再选择相应的情景，最后从下拉列表中选择对话模板加载到文本框中。
                     </div>
                 </div>
                 
@@ -590,7 +606,13 @@ Child: Just five more minutes, please!
             fetchDialogData();
             
             // Event listeners for filter dropdowns
-            gradeFilterSelect.addEventListener('change', filterDialogOptions);
+            gradeFilterSelect.addEventListener('change', () => {
+                // First update scene dropdown based on selected grade
+                updateSceneDropdown();
+                // Then filter dialog options based on both filters
+                filterDialogOptions();
+            });
+            
             sceneFilterSelect.addEventListener('change', filterDialogOptions);
             
             // Event listener for dialog examples dropdown
@@ -644,14 +666,8 @@ Child: Just five more minutes, please!
                             gradeFilterSelect.appendChild(option);
                         });
                         
-                        // Populate scene filter (SCENE)
-                        const scenes = [...new Set(data.data.map(item => item.SCENE))].filter(Boolean);
-                        scenes.sort().forEach(scene => {
-                            const option = document.createElement('option');
-                            option.value = scene;
-                            option.textContent = scene;
-                            sceneFilterSelect.appendChild(option);
-                        });
+                        // Initialize scene dropdown with all scenes initially
+                        updateSceneDropdown();
                         
                         // Populate types dropdown with all types initially
                         populateDialogTypesDropdown();
@@ -690,7 +706,7 @@ Child: Just five more minutes, please!
                         '当前筛选条件下没有对话模板，请调整年级或情景选择。';
                 } else {
                     document.querySelector('.helper-text').textContent = 
-                        '选择年级和情景筛选对话模板，然后从下拉列表中选择对话类型加载到文本框中。';
+                        '先选择年级，再选择相应的情景，最后从下拉列表中选择对话模板加载到文本框中。';
                 }
             }
             
@@ -1431,6 +1447,43 @@ ${originalText}
             function clearStatus() {
                 status.textContent = '';
                 status.className = 'status';
+            }
+            
+            // Function to update scene dropdown based on selected grade
+            function updateSceneDropdown() {
+                const selectedGrade = gradeFilterSelect.value;
+                
+                // Clear existing options except the first one
+                while (sceneFilterSelect.options.length > 1) {
+                    sceneFilterSelect.remove(1);
+                }
+                
+                // If no grade selected, show all scenes
+                if (!selectedGrade) {
+                    const allScenes = [...new Set(allDialogData.map(item => item.SCENE))].filter(Boolean);
+                    allScenes.sort().forEach(scene => {
+                        const option = document.createElement('option');
+                        option.value = scene;
+                        option.textContent = scene;
+                        sceneFilterSelect.appendChild(option);
+                    });
+                    return;
+                }
+                
+                // Filter scenes based on selected grade
+                const filteredData = allDialogData.filter(item => item.SUB_TYPE1 === selectedGrade);
+                const availableScenes = [...new Set(filteredData.map(item => item.SCENE))].filter(Boolean);
+                
+                // Add filtered scenes to dropdown
+                availableScenes.sort().forEach(scene => {
+                    const option = document.createElement('option');
+                    option.value = scene;
+                    option.textContent = scene;
+                    sceneFilterSelect.appendChild(option);
+                });
+                
+                // Reset scene selection when grade changes
+                sceneFilterSelect.value = '';
             }
         });
     </script>
