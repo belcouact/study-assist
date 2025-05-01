@@ -62,9 +62,13 @@ export async function onRequestPost(context) {
     
     // Extract the dialog structure for debugging
     console.log("Original dialog structure:");
+    console.log(`Total Roles: ${requestData.dialog.length}`);
+    let totalLines = 0;
     requestData.dialog.forEach((role, i) => {
       console.log(`Role ${i+1}: ${role.name} (${role.lines.length} lines)`);
+      totalLines += role.lines.length;
     });
+    console.log(`Total lines across all roles: ${totalLines}`);
     
     // First, analyze the dialog structure to understand its format
     // Create a flat sequential dialog from the input data - this is the key part
@@ -74,6 +78,8 @@ export async function onRequestPost(context) {
     if (requestData.original_sequence && Array.isArray(requestData.original_sequence)) {
       // Use provided sequence information if available
       console.log("Using provided original_sequence information for dialog order");
+      console.log(`Sequence info has ${requestData.original_sequence.length} entries`);
+      
       for (const seqItem of requestData.original_sequence) {
         const role = requestData.dialog.find(r => r.name === seqItem.role);
         if (role && role.lines[seqItem.line_index]) {
@@ -83,6 +89,8 @@ export async function onRequestPost(context) {
             index: dialogSequence.length,
             originalLine: seqItem.original_line
           });
+        } else {
+          console.warn(`Could not find role "${seqItem.role}" or line index ${seqItem.line_index} for that role`);
         }
       }
     } else {
@@ -100,12 +108,60 @@ export async function onRequestPost(context) {
     }
     
     // Log the reconstructed sequence for debugging
-    console.log(`Reconstructed dialog sequence (${dialogSequence.length} lines):`);
+    console.log(`Reconstructed dialog sequence (${dialogSequence.length} lines out of ${totalLines} total lines):`);
     dialogSequence.forEach((item, i) => {
       const roleName = item.role.name;
       const text = item.line.english || item.line.chinese || "[empty]";
       console.log(`  ${i+1}. ${roleName}: ${text.substring(0, 30)}${text.length > 30 ? '...' : ''}`);
     });
+    
+    // If we don't have all lines, try a more aggressive approach
+    if (dialogSequence.length < totalLines && requestData.original_sequence) {
+      console.warn("Not all lines were matched in sequence, trying direct mapping approach");
+      
+      // Clear the sequence and start over
+      dialogSequence.length = 0;
+      
+      // Create a mapping from role names to their dialog objects
+      const roleMap = {};
+      requestData.dialog.forEach(role => {
+        roleMap[role.name] = role;
+      });
+      
+      // Directly map sequence items to lines
+      for (const seqItem of requestData.original_sequence) {
+        const role = roleMap[seqItem.role];
+        if (role && role.lines[seqItem.line_index]) {
+          dialogSequence.push({
+            role: role,
+            line: role.lines[seqItem.line_index],
+            index: dialogSequence.length,
+            originalLine: seqItem.original_line
+          });
+        }
+      }
+      
+      console.log(`After direct mapping: ${dialogSequence.length} lines in sequence`);
+    }
+    
+    // Last resort - if we still don't have enough lines or sequence is empty
+    if (dialogSequence.length === 0 || dialogSequence.length < totalLines / 2) {
+      console.warn("Critical: Sequence reconstruction failed, using all lines in order");
+      dialogSequence.length = 0; // Clear any existing items
+      
+      // Just use all lines from all roles in the order they appear
+      for (const role of requestData.dialog) {
+        for (const line of role.lines) {
+          dialogSequence.push({
+            role: role,
+            line: line,
+            index: dialogSequence.length
+          });
+        }
+      }
+      
+      console.log(`Fallback to all lines: ${dialogSequence.length} lines in sequence`);
+    }
     
     // Process each line in the reconstructed sequence order
     for (let seqIndex = 0; seqIndex < dialogSequence.length; seqIndex++) {

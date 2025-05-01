@@ -788,6 +788,26 @@ ${dialogText}`
                                     });
                                 } else {
                                     console.warn(`-> No good match found for line: "${lineText}"`);
+                                    
+                                    // Fall back to a simple position-based match as last resort
+                                    // Try to find a line that hasn't been matched yet
+                                    const usedIndices = sequenceInfo
+                                        .filter(si => si.role === roleName)
+                                        .map(si => si.line_index);
+                                    
+                                    for (let i = 0; i < role.lines.length; i++) {
+                                        if (!usedIndices.includes(i)) {
+                                            console.log(`-> Falling back to position-based match at index ${i}`);
+                                            sequenceInfo.push({
+                                                role: roleName,
+                                                line_index: i,
+                                                sequence_position: sequenceInfo.length,
+                                                original_line: lineText,
+                                                is_fallback: true
+                                            });
+                                            break;
+                                        }
+                                    }
                                 }
                             } else {
                                 console.warn(`Role "${roleName}" not found in identified roles.`);
@@ -817,6 +837,66 @@ ${dialogText}`
                     
                     // Log the final sequence information
                     console.log(`Final dialog sequence (${sequenceInfo.length} lines):`, sequenceInfo);
+                    
+                    // Verify if all original lines are accounted for
+                    if (sequenceInfo.length < dialogLines.length) {
+                        console.warn(`Not all lines were matched! Original: ${dialogLines.length}, Matched: ${sequenceInfo.length}`);
+                        
+                        // To ensure all dialog lines are included, we'll create a mapping of which lines 
+                        // from the original text have been matched
+                        const matchedLines = new Set();
+                        sequenceInfo.forEach(seq => {
+                            // Create a key from the role and text to identify matched lines
+                            const key = `${seq.role}:${seq.original_line}`;
+                            matchedLines.add(key);
+                        });
+                        
+                        // Check original dialog lines again and add any that weren't matched
+                        dialogLines.forEach((line, lineIndex) => {
+                            const colonIndex = line.indexOf(':');
+                            if (colonIndex > 0) {
+                                const roleName = line.substring(0, colonIndex).trim();
+                                const lineText = line.substring(colonIndex + 1).trim();
+                                
+                                if (!lineText) return; // Skip empty lines
+                                
+                                const key = `${roleName}:${lineText}`;
+                                if (!matchedLines.has(key)) {
+                                    console.log(`Adding previously unmatched line: ${key}`);
+                                    
+                                    // Find the role
+                                    const roleIndex = identifiedRoles.findIndex(r => r.name === roleName);
+                                    if (roleIndex >= 0) {
+                                        // Add as a new entry with best-effort line matching
+                                        // Find the first unused line for this role
+                                        const role = identifiedRoles[roleIndex];
+                                        const usedIndices = sequenceInfo
+                                            .filter(si => si.role === roleName)
+                                            .map(si => si.line_index);
+                                        
+                                        // Find an unused line index or use 0 as fallback
+                                        let lineIndex = 0;
+                                        for (let i = 0; i < role.lines.length; i++) {
+                                            if (!usedIndices.includes(i)) {
+                                                lineIndex = i;
+                                                break;
+                                            }
+                                        }
+                                        
+                                        sequenceInfo.push({
+                                            role: roleName,
+                                            line_index: lineIndex,
+                                            sequence_position: sequenceInfo.length,
+                                            original_line: lineText,
+                                            is_emergency_fallback: true
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                        
+                        console.log(`After recovery: ${sequenceInfo.length} lines in sequence`);
+                    }
                     
                     // Get language preference
                     let selectedLanguage;
