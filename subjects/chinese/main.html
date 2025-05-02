@@ -842,34 +842,37 @@
             const audioElement = document.createElement('audio');
             const audioPath = `../../assets/audio/chinese_poem/${poemTitle}.mp3`;
             
-            audioElement.src = audioPath;
-            audioElement.type = 'audio/mpeg';
-            
-            // Handle errors
-            audioElement.onerror = function() {
-                alert(`无法播放音频: ${poemTitle}.mp3\n音频文件可能不存在。`);
-                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
-                playButton.classList.remove('playing');
-            };
-            
-            // Set up audio ended event
-            audioElement.onended = function() {
-                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
-                playButton.classList.remove('playing');
-                currentAudio = null;
-            };
-            
-            // Play audio
-            audioElement.play()
-                .then(() => {
-                    console.log(`正在播放: ${poemTitle}.mp3`);
-                    playButton.innerHTML = '<i class="fas fa-pause"></i> 暂停';
-                    playButton.classList.add('playing');
-                    currentAudio = audioElement;
+            // Check if audio file exists before playing
+            fetch(audioPath, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        // File exists, proceed with playing
+                        audioElement.src = audioPath;
+                        audioElement.type = 'audio/mpeg';
+                        
+                        // Set up audio ended event
+                        audioElement.onended = function() {
+                            playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                            playButton.classList.remove('playing');
+                            currentAudio = null;
+                        };
+                        
+                        // Play audio
+                        return audioElement.play()
+                            .then(() => {
+                                console.log(`正在播放: ${poemTitle}.mp3`);
+                                playButton.innerHTML = '<i class="fas fa-pause"></i> 暂停';
+                                playButton.classList.add('playing');
+                                currentAudio = audioElement;
+                            });
+                    } else {
+                        // File doesn't exist
+                        throw new Error(`音频文件不存在: ${poemTitle}.mp3`);
+                    }
                 })
                 .catch(error => {
                     console.error('播放错误:', error);
-                    alert(`播放错误: ${error.message}`);
+                    alert(`无法播放音频: ${poemTitle}.mp3\n${error.message.includes('音频文件不存在') ? '该诗词没有对应的音频文件。' : '播放时发生错误。'}`);
                     playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
                     playButton.classList.remove('playing');
                 });
