@@ -857,6 +857,15 @@
                             currentAudio = null;
                         };
                         
+                        // Handle any unexpected errors during playback
+                        audioElement.onerror = function(e) {
+                            console.log("Audio playback error:", e);
+                            // Reset UI safely
+                            playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                            playButton.classList.remove('playing');
+                            currentAudio = null;
+                        };
+                        
                         // Play audio
                         return audioElement.play()
                             .then(() => {
@@ -866,15 +875,22 @@
                                 currentAudio = audioElement;
                             });
                     } else {
-                        // File doesn't exist
-                        throw new Error(`音频文件不存在: ${poemTitle}.mp3`);
+                        // File doesn't exist - provide feedback without error
+                        console.log(`音频文件不存在: ${poemTitle}.mp3`);
+                        alert(`该诗词没有对应的音频文件。`);
+                        // No need to throw error, just return a resolved promise
+                        return Promise.resolve();
                     }
                 })
                 .catch(error => {
-                    console.error('播放错误:', error);
-                    alert(`无法播放音频: ${poemTitle}.mp3\n${error.message.includes('音频文件不存在') ? '该诗词没有对应的音频文件。' : '播放时发生错误。'}`);
+                    // Handle network errors or other exceptions gracefully
+                    console.log('播放准备过程中出错:', error);
+                    alert(`无法检查音频文件。请检查网络连接。`);
+                    // Reset UI safely
                     playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
                     playButton.classList.remove('playing');
+                    // Ensure currentAudio is null to prevent state issues
+                    currentAudio = null;
                 });
         });
         
