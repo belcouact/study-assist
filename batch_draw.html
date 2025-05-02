@@ -185,16 +185,23 @@
             width: 100%;
             border-collapse: collapse;
             background-color: white;
+            table-layout: fixed;
         }
         .results-table th, .results-table td {
             padding: 0.8rem 1rem;
             text-align: left;
             border-bottom: 1px solid #e0c3fc;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            position: relative;
+            min-width: 50px;
         }
         .results-table th {
             background-color: rgba(114,9,183,0.1);
             color: #4361ee;
             font-weight: 600;
+            user-select: none;
         }
         .results-table tr:last-child td {
             border-bottom: none;
@@ -202,8 +209,10 @@
         .results-table tr:hover {
             background-color: rgba(224,195,252,0.1);
         }
-        .image-cell {
+        .results-table .image-cell {
+            white-space: normal;
             width: 200px;
+            min-width: 200px;
             text-align: center;
         }
         .image-cell img {
@@ -322,6 +331,38 @@
                 max-width: 130px;
                 max-height: 130px;
             }
+        }
+        /* Column resize handle */
+        .column-resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .column-resize-handle::after {
+            content: "";
+            width: 1px;
+            height: 60%;
+            background-color: rgba(114,9,183,0.3);
+            transition: background-color 0.2s, width 0.2s;
+        }
+        .results-table th:hover .column-resize-handle::after {
+            width: 2px;
+            background-color: rgba(114,9,183,0.6);
+        }
+        .column-resizing {
+            cursor: col-resize !important;
+            user-select: none;
+        }
+        .column-resizing .column-resize-handle::after {
+            width: 3px !important;
+            background-color: rgba(114,9,183,0.8) !important;
         }
     </style>
 </head>
@@ -700,6 +741,9 @@
                 
                 // Show results container immediately after processing starts
                 resultsContainer.style.display = 'block';
+                
+                // Setup column resizing immediately
+                setTimeout(setupColumnResizing, 100);
             });
             
             // These functions are no longer needed since we're not optimizing the description
@@ -711,6 +755,102 @@
             function extractEnglishDescription(aiResponse) {
                 return aiResponse; // Just return the original response
             }
+            
+            // Table column resizing functionality
+            function setupColumnResizing() {
+                const table = document.getElementById('results-table');
+                const headers = table.querySelectorAll('th');
+                
+                // Add resize handles to each header except the last one (image column)
+                headers.forEach((header, index) => {
+                    if (index < headers.length - 1) {
+                        const resizeHandle = document.createElement('div');
+                        resizeHandle.className = 'column-resize-handle';
+                        header.appendChild(resizeHandle);
+                        
+                        // Set a default width for columns if not already set
+                        if (!header.style.width) {
+                            // Distribute available width evenly among non-image columns
+                            const tableWidth = table.offsetWidth;
+                            const imageColWidth = 200; // Width reserved for image column
+                            const availableWidth = tableWidth - imageColWidth;
+                            const colWidth = availableWidth / (headers.length - 1);
+                            header.style.width = Math.max(colWidth, 100) + 'px';
+                        }
+                        
+                        // Mouse events for desktop
+                        resizeHandle.addEventListener('mousedown', function(e) {
+                            startResize(e, header, e.clientX);
+                        });
+                        
+                        // Touch events for mobile
+                        resizeHandle.addEventListener('touchstart', function(e) {
+                            if (e.touches.length === 1) {
+                                startResize(e, header, e.touches[0].clientX);
+                            }
+                        });
+                    }
+                });
+            }
+            
+            // Function to start the resize process
+            function startResize(e, header, initialX) {
+                e.preventDefault();
+                
+                // Add resizing class to body
+                document.body.classList.add('column-resizing');
+                
+                // Get the header and its initial width
+                const headerWidth = header.offsetWidth;
+                
+                // Function to handle the mouse/touch move event
+                function handleMove(e) {
+                    // Calculate the new width
+                    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : initialX);
+                    const newWidth = headerWidth + (clientX - initialX);
+                    
+                    // Make sure the new width is reasonable
+                    if (newWidth > 50) {
+                        // Set the new width of the header
+                        header.style.width = newWidth + 'px';
+                    }
+                }
+                
+                // Function to handle the mouse/touch end event
+                function handleEnd() {
+                    // Remove the resizing class
+                    document.body.classList.remove('column-resizing');
+                    
+                    // Remove the event listeners
+                    document.removeEventListener('mousemove', handleMove);
+                    document.removeEventListener('mouseup', handleEnd);
+                    document.removeEventListener('touchmove', handleMove);
+                    document.removeEventListener('touchend', handleEnd);
+                    document.removeEventListener('touchcancel', handleEnd);
+                }
+                
+                // Add the event listeners for both mouse and touch
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', handleEnd);
+                document.addEventListener('touchmove', handleMove);
+                document.addEventListener('touchend', handleEnd);
+                document.addEventListener('touchcancel', handleEnd);
+            }
+            
+            // Set up the table column resizing when results are shown
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === 'attributes' && 
+                        mutation.attributeName === 'style' && 
+                        resultsContainer.style.display === 'block') {
+                        // Table just became visible, set up resizing
+                        setTimeout(setupColumnResizing, 100); // Small delay to ensure table is fully rendered
+                    }
+                });
+            });
+            
+            // Start observing the results container
+            observer.observe(resultsContainer, { attributes: true });
         });
     </script>
 </body>
