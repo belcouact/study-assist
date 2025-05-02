@@ -212,6 +212,45 @@
             border-radius: 0.5rem;
             box-shadow: 0 2px 8px rgba(76,201,240,0.15);
         }
+        .image-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            height: 150px;
+            background-color: rgba(224,195,252,0.1);
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 4px rgba(76,201,240,0.05);
+        }
+        .image-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(224,195,252,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #7209b7;
+            animation: spin 1s linear infinite;
+            margin-bottom: 0.6rem;
+        }
+        .image-loading-text {
+            font-size: 0.9rem;
+            color: #4361ee;
+        }
+        .image-error {
+            padding: 1rem;
+            height: 150px;
+            background-color: rgba(255, 235, 238, 0.5);
+            border-radius: 0.5rem;
+            border: 1px dashed #ff4081;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .image-error-text {
+            font-size: 0.9rem;
+            color: #e91e63;
+        }
         .loading-indicator {
             display: none;
             text-align: center;
@@ -225,6 +264,29 @@
             height: 40px;
             animation: spin 1s linear infinite;
             margin: 0 auto 1rem auto;
+        }
+        .progress-container {
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+        .progress-text {
+            font-size: 0.9rem;
+            color: #4361ee;
+            margin-bottom: 0.5rem;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: rgba(224,195,252,0.3);
+            border-radius: 10px;
+            height: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #7209b7, #4361ee);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+            width: 0%;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -333,6 +395,12 @@
                 <div class="loading-indicator" id="loading-indicator">
                     <div class="spinner"></div>
                     <p>正在处理数据，请稍候...</p>
+                    <div class="progress-container" id="progress-container">
+                        <div class="progress-text" id="progress-text">处理进度：0/0</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="results-container" id="results-container">
@@ -380,11 +448,32 @@
             const resultsTbody = document.getElementById('results-tbody');
             const loadingIndicator = document.getElementById('loading-indicator');
             const resolutionSelect = document.getElementById('resolution-select');
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
 
             // Variables to store data
             let excelData = null;
             let columns = [];
             let selectedColumn = '';
+            
+            // Variables for tracking progress
+            let totalItems = 0;
+            let completedItems = 0;
+            
+            // Function to update progress
+            function updateProgress(completed, total) {
+                const percentage = (completed / total) * 100;
+                progressText.textContent = `处理进度：${completed}/${total}`;
+                progressBar.style.width = `${percentage}%`;
+            }
+            
+            // Reset progress tracking
+            function resetProgress() {
+                totalItems = 0;
+                completedItems = 0;
+                progressBar.style.width = '0%';
+                progressText.textContent = '处理进度：0/0';
+            }
             
             // Handle file upload
             excelUpload.addEventListener('change', (event) => {
@@ -441,6 +530,19 @@
                     alert('请选择有效的列');
                     return;
                 }
+                
+                // Reset progress tracking
+                resetProgress();
+                
+                // Count total valid rows for progress tracking
+                totalItems = 0;
+                for (let i = 1; i < excelData.length; i++) {
+                    const row = excelData[i];
+                    if (row.length > selectedColumn && row[selectedColumn]) {
+                        totalItems++;
+                    }
+                }
+                updateProgress(0, totalItems);
                 
                 // Show loading indicator
                 loadingIndicator.style.display = 'block';
@@ -504,7 +606,66 @@
                         // Add image cell
                         const imageCell = document.createElement('td');
                         imageCell.className = 'image-cell';
-                        imageCell.innerHTML = `<img src="${imageUrl}" alt="Generated image" loading="lazy">`;
+                        
+                        // Create loading indicator
+                        const loadingDiv = document.createElement('div');
+                        loadingDiv.className = 'image-loading';
+                        loadingDiv.innerHTML = `
+                            <div class="image-spinner"></div>
+                            <div class="image-loading-text">正在生成图像...</div>
+                        `;
+                        imageCell.appendChild(loadingDiv);
+                        
+                        // Create image element
+                        const img = document.createElement('img');
+                        img.alt = "Generated image";
+                        img.style.display = 'none'; // Hide initially
+                        
+                        // Handle image load event
+                        img.onload = function() {
+                            loadingDiv.style.display = 'none';
+                            img.style.display = 'block';
+                            
+                            // Update progress
+                            completedItems++;
+                            updateProgress(completedItems, totalItems);
+                            
+                            // Check if all items are completed
+                            if (completedItems >= totalItems) {
+                                // Hide loading indicator after a small delay
+                                setTimeout(() => {
+                                    loadingIndicator.style.display = 'none';
+                                }, 500);
+                            }
+                        };
+                        
+                        // Handle image error
+                        img.onerror = function() {
+                            loadingDiv.className = 'image-error';
+                            loadingDiv.innerHTML = `
+                                <div class="image-error-text">
+                                    <i class="fas fa-exclamation-triangle" style="margin-right: 0.5rem;"></i>
+                                    图像加载失败
+                                </div>
+                            `;
+                            
+                            // Update progress even on error
+                            completedItems++;
+                            updateProgress(completedItems, totalItems);
+                            
+                            // Check if all items are completed
+                            if (completedItems >= totalItems) {
+                                // Hide loading indicator after a small delay
+                                setTimeout(() => {
+                                    loadingIndicator.style.display = 'none';
+                                }, 500);
+                            }
+                        };
+                        
+                        // Set the image source
+                        img.src = imageUrl;
+                        imageCell.appendChild(img);
+                        
                         tr.appendChild(imageCell);
                         
                         resultsTbody.appendChild(tr);
@@ -537,10 +698,7 @@
                     }
                 }
                 
-                // Hide loading indicator
-                loadingIndicator.style.display = 'none';
-                
-                // Show results container
+                // Show results container immediately after processing starts
                 resultsContainer.style.display = 'block';
             });
             
