@@ -792,6 +792,24 @@
                         img.alt = "Generated image";
                         img.style.display = 'none'; // Hide initially
                         
+                        // Set custom image name for right-click save in supported browsers
+                        img.setAttribute('data-filename', ''); // Placeholder
+                        
+                        // Check if file naming is available
+                        if (selectedFilenameColumn >= 0 && selectedFilenameColumn < row.length) {
+                            const filenameValue = row[selectedFilenameColumn];
+                            if (filenameValue) {
+                                // Sanitize filename - remove invalid characters
+                                const sanitizedFilename = String(filenameValue).replace(/[/\\?%*:|"<>]/g, '-');
+                                
+                                // Set the data-filename attribute for potential use
+                                img.setAttribute('data-filename', sanitizedFilename);
+                                
+                                // Try setting the download attribute for right-click save (supported in some browsers)
+                                img.setAttribute('download', sanitizedFilename + '.jpg');
+                            }
+                        }
+                        
                         // Handle image load event
                         img.onload = function() {
                             loadingDiv.style.display = 'none';
@@ -843,29 +861,33 @@
                         if (selectedFilenameColumn >= 0 && selectedFilenameColumn < row.length) {
                             const filenameValue = row[selectedFilenameColumn];
                             if (filenameValue) {
-                                // Sanitize filename - remove invalid characters
-                                const sanitizedFilename = String(filenameValue).replace(/[/\\?%*:|"<>]/g, '-');
+                                // Get the sanitized filename from the data attribute we set earlier
+                                const sanitizedFilename = img.getAttribute('data-filename');
                                 
                                 // Create download button
                                 const downloadBtn = document.createElement('button');
                                 downloadBtn.className = 'image-download-btn';
                                 downloadBtn.innerHTML = '<i class="fas fa-download"></i> 保存图片';
                                 
-                                // Create a hidden link for downloading with custom filename
-                                const downloadLink = document.createElement('a');
-                                downloadLink.href = img.src;
-                                downloadLink.download = sanitizedFilename + '.jpg';
-                                downloadLink.style.display = 'none';
-                                imageCell.appendChild(downloadLink);
-                                
                                 // Add download click functionality
-                                downloadBtn.addEventListener('click', function() {
-                                    // First open the image in a new tab
-                                    window.open(img.src, '_blank');
+                                downloadBtn.addEventListener('click', function(e) {
+                                    // Prevent default behavior
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     
-                                    // Then trigger download with custom filename
+                                    // Create a temporary link for downloading with custom filename
+                                    const tempLink = document.createElement('a');
+                                    tempLink.href = img.src;
+                                    tempLink.download = sanitizedFilename + '.jpg';
+                                    tempLink.style.display = 'none';
+                                    document.body.appendChild(tempLink);
+                                    
+                                    // Trigger download
+                                    tempLink.click();
+                                    
+                                    // Clean up
                                     setTimeout(() => {
-                                        downloadLink.click();
+                                        document.body.removeChild(tempLink);
                                     }, 100);
                                 });
                                 
