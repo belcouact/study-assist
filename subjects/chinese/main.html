@@ -436,6 +436,15 @@
         #play-poem:active {
             transform: translateY(0);
         }
+
+        /* Pause button styling */
+        #play-poem.playing {
+            background: linear-gradient(135deg, #f72585, #7209b7);
+        }
+
+        #play-poem.playing:hover {
+            background: linear-gradient(135deg, #7209b7, #f72585);
+        }
     </style>
 </head>
 <body>
@@ -803,6 +812,70 @@
             }
         });
         
+        // Play poem audio functionality
+        let currentAudio = null;
+
+        document.getElementById('play-poem').addEventListener('click', function() {
+            const poemTitle = document.getElementById('title-select').value;
+            const playButton = document.getElementById('play-poem');
+            
+            // If there's already an audio playing, stop it
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                
+                // If the button is in playing state and we clicked it, stop the audio and reset button
+                if (playButton.classList.contains('playing')) {
+                    playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                    playButton.classList.remove('playing');
+                    currentAudio = null;
+                    return;
+                }
+            }
+            
+            if (!poemTitle) {
+                alert('请先选择一首诗词');
+                return;
+            }
+            
+            // Create audio element
+            const audioElement = document.createElement('audio');
+            const audioPath = `../../assets/audio/chinese_poem/${poemTitle}.mp3`;
+            
+            audioElement.src = audioPath;
+            audioElement.type = 'audio/mpeg';
+            
+            // Handle errors
+            audioElement.onerror = function() {
+                alert(`无法播放音频: ${poemTitle}.mp3\n音频文件可能不存在。`);
+                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playButton.classList.remove('playing');
+            };
+            
+            // Set up audio ended event
+            audioElement.onended = function() {
+                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playButton.classList.remove('playing');
+                currentAudio = null;
+            };
+            
+            // Play audio
+            audioElement.play()
+                .then(() => {
+                    console.log(`正在播放: ${poemTitle}.mp3`);
+                    playButton.innerHTML = '<i class="fas fa-pause"></i> 暂停';
+                    playButton.classList.add('playing');
+                    currentAudio = audioElement;
+                })
+                .catch(error => {
+                    console.error('播放错误:', error);
+                    alert(`播放错误: ${error.message}`);
+                    playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                    playButton.classList.remove('playing');
+                });
+        });
+        
+        // Reset the play button when changing poems
         function displayCurrentPoem() {
             if (poemResults.length === 0) {
                 document.getElementById('poem-title').textContent = '未找到符合条件的诗词';
@@ -810,7 +883,31 @@
                 document.getElementById('poem-author').textContent = '';
                 document.getElementById('poem-text').textContent = '';
                 document.querySelector('.explanation-section').style.display = 'none';
+                
+                // Reset play button
+                const playButton = document.getElementById('play-poem');
+                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playButton.classList.remove('playing');
+                
+                // Stop any playing audio
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio.currentTime = 0;
+                    currentAudio = null;
+                }
                 return;
+            }
+            
+            // Stop any playing audio when changing poems
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+                
+                // Reset play button
+                const playButton = document.getElementById('play-poem');
+                playButton.innerHTML = '<i class="fas fa-play"></i> 播放';
+                playButton.classList.remove('playing');
             }
             
             const poem = poemResults[currentPoemIndex];
@@ -869,38 +966,6 @@
                 currentPoemIndex++;
                 displayCurrentPoem();
             }
-        });
-        
-        // Play poem audio functionality
-        document.getElementById('play-poem').addEventListener('click', function() {
-            const poemTitle = document.getElementById('title-select').value;
-            
-            if (!poemTitle) {
-                alert('请先选择一首诗词');
-                return;
-            }
-            
-            // Create audio element
-            const audioElement = document.createElement('audio');
-            const audioPath = `../../assets/audio/chinese_poem/${poemTitle}.mp3`;
-            
-            audioElement.src = audioPath;
-            audioElement.type = 'audio/mpeg';
-            
-            // Handle errors
-            audioElement.onerror = function() {
-                alert(`无法播放音频: ${poemTitle}.mp3\n音频文件可能不存在。`);
-            };
-            
-            // Play audio
-            audioElement.play()
-                .then(() => {
-                    console.log(`正在播放: ${poemTitle}.mp3`);
-                })
-                .catch(error => {
-                    console.error('播放错误:', error);
-                    alert(`播放错误: ${error.message}`);
-                });
         });
         
         // Poem explanation
