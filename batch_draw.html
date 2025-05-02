@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>批量AI绘画 - 学习助手</title>
+    <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0c3fc 100%);
+            background-attachment: fixed;
+            font-family: 'Poppins', 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 200px);
+        }
+        .section-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .section-header h1 {
+            font-size: 2.7rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(90deg, #7209b7, #4361ee, #4cc9f0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 2px;
+            font-weight: 700;
+            text-shadow: 0 2px 8px rgba(76,201,240,0.08);
+        }
+        .section-header p {
+            color: #666;
+            font-size: 1.15rem;
+            letter-spacing: 1px;
+        }
+        .assistant-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.85);
+            border-radius: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(76,201,240,0.12), 0 1.5px 8px 0 rgba(114,9,183,0.08);
+            backdrop-filter: blur(2px);
+        }
+        .upload-section {
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.95);
+            border-radius: 1.5rem;
+            box-shadow: 0 4px 16px rgba(76,201,240,0.10);
+            border: 1.5px solid #e0c3fc;
+        }
+        .file-input-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .file-input-wrapper {
+            display: inline-block;
+            position: relative;
+            overflow: hidden;
+        }
+        .file-input-button {
+            padding: 0.9rem 1.5rem;
+            background: linear-gradient(90deg, #7209b7, #4361ee 80%);
+            color: #fff;
+            border: none;
+            border-radius: 0.9rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px rgba(76,201,240,0.08);
+            transition: opacity 0.3s, background 0.2s;
+        }
+        .file-input-button:hover {
+            opacity: 0.92;
+            background: linear-gradient(90deg, #4361ee, #7209b7 80%);
+        }
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-name {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .column-selection {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(224, 195, 252, 0.2);
+            border-radius: 1rem;
+            border: 1px dashed #7209b7;
+        }
+        .column-selection h3 {
+            margin-top: 0;
+            color: #4361ee;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+        .column-select {
+            padding: 0.8rem;
+            border: 1.5px solid #e0c3fc;
+            border-radius: 0.8rem;
+            font-size: 1rem;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 1px 4px rgba(76,201,240,0.05);
+            transition: border 0.2s;
+            width: 100%;
+        }
+        .column-select:focus {
+            border: 1.5px solid #7209b7;
+            outline: none;
+        }
+        .process-button {
+            margin-top: 1rem;
+            padding: 0.9rem 1.5rem;
+            background: linear-gradient(90deg, #7209b7, #4361ee 80%);
+            color: #fff;
+            border: none;
+            border-radius: 0.9rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            width: 100%;
+            box-shadow: 0 2px 8px rgba(76,201,240,0.08);
+            transition: opacity 0.3s, background 0.2s;
+        }
+        .process-button:hover {
+            opacity: 0.92;
+            background: linear-gradient(90deg, #4361ee, #7209b7 80%);
+        }
+        .configuration-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .configuration-section select {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.9rem;
+            border: 1.5px solid #e0c3fc;
+            border-radius: 0.9rem;
+            font-size: 1rem;
+            background: rgba(255,255,255,0.95);
+            box-shadow: 0 1px 4px rgba(76,201,240,0.05);
+            transition: border 0.2s;
+        }
+        .configuration-section select:focus {
+            border: 1.5px solid #7209b7;
+            outline: none;
+        }
+        .results-container {
+            display: none;
+            margin-top: 2rem;
+        }
+        .results-table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            border-radius: 0.8rem;
+            box-shadow: 0 4px 16px rgba(76,201,240,0.10);
+            border: 1.5px solid #e0c3fc;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        .results-table th, .results-table td {
+            padding: 0.8rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e0c3fc;
+        }
+        .results-table th {
+            background-color: rgba(114,9,183,0.1);
+            color: #4361ee;
+            font-weight: 600;
+        }
+        .results-table tr:last-child td {
+            border-bottom: none;
+        }
+        .results-table tr:hover {
+            background-color: rgba(224,195,252,0.1);
+        }
+        .image-cell {
+            width: 200px;
+            text-align: center;
+        }
+        .image-cell img {
+            max-width: 180px;
+            max-height: 180px;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(76,201,240,0.15);
+        }
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            margin: 2rem 0;
+        }
+        .spinner {
+            border: 4px solid rgba(224,195,252,0.3);
+            border-radius: 50%;
+            border-top: 4px solid #7209b7;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @media screen and (max-width: 768px) {
+            .assistant-container {
+                padding: 1rem;
+                border-radius: 1.5rem;
+            }
+            .section-header h1 {
+                font-size: 2rem;
+            }
+            .section-header p {
+                font-size: 1rem;
+            }
+            .upload-section {
+                padding: 1rem;
+            }
+            .configuration-section {
+                flex-direction: column;
+            }
+            .configuration-section select {
+                width: 100%;
+            }
+            .column-selection h3 {
+                font-size: 1.1rem;
+            }
+            .image-cell {
+                width: 150px;
+            }
+            .image-cell img {
+                max-width: 130px;
+                max-height: 130px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span class="gradient-text">Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="index.html">首页</a></li>
+                        <li><a href="index.html#subjects">科目</a></li>
+                        <li><a href="tts.html">语音</a></li>
+                        <li><a href="draw.html">绘图</a></li>
+                        <li><a href="batch_draw.html" class="active">批量绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <div class="section-header">
+                <h1>批量AI绘画助手</h1>
+                <p>上传Excel表格，批量生成AI图像</p>
+            </div>
+            <div class="assistant-container">
+                <div class="upload-section">
+                    <div class="file-input-container">
+                        <div class="file-input-wrapper">
+                            <button class="file-input-button">
+                                <i class="fas fa-file-excel"></i> 选择Excel文件
+                            </button>
+                            <input type="file" id="excel-upload" class="file-input" accept=".xlsx, .xls">
+                        </div>
+                        <div class="file-name" id="file-name">未选择文件</div>
+                    </div>
+                    <div class="configuration-section">
+                        <select id="resolution-select" class="resolution-select">
+                            <option value="1920:1080">1920 × 1080 (16:9)</option>
+                            <option value="2560:1440">2560 × 1440 (16:9)</option>
+                            <option value="3840:2160">3840 × 2160 (16:9)</option>           
+                            <option value="800:800">800 × 800 (1:1)</option>
+                            <option value="1024:1024">1024 × 1024 (1:1)</option>
+                            <option value="1080:1920">1920 × 1080 (9:16)</option>
+                            <option value="1440:2560">2560 × 1440 (9:16)</option>
+                            <option value="2160:3840">3840 × 2160 (9:16)</option>
+                        </select>
+                        <select id="style-select" class="style-select">
+                            <optgroup label="中国水墨画">
+                                <option value="写意水墨">写意水墨：强调笔触和墨色的变化，追求意境的表现</option>
+                                <option value="工笔重彩">工笔重彩：以细致入微的描绘和丰富的色彩层次为特点</option>
+                                <option value="山水画">山水画：专注于自然景观，尤其是山川河流的表现</option>
+                                <option value="花鸟画">花鸟画：专门描绘花卉、鸟类等自然元素，展现生机与美丽</option>
+                                <option value="人物画">人物画：注重人物形象的刻画，传达情感和故事</option>
+                            </optgroup>
+                            <optgroup label="现实主义">
+                                <option value="超级写实主义">超级写实主义：图像逼真到几乎与照片无异</option>
+                                <option value="自然主义">自然主义：强调对自然景观和生活的直接观察</option>
+                            </optgroup>
+                            <optgroup label="超现实主义">
+                                <option value="梦幻超现实">梦幻超现实：营造出如梦似幻、不可思议的场景</option>
+                                <option value="象征性超现实">象征性超现实：利用符号和象征元素传达深层含义</option>
+                            </optgroup>
+                            <optgroup label="印象派">
+                                <option value="点彩派">点彩派：使用小点构成图像，以产生色彩混合的效果</option>
+                                <option value="光效印象派">光效印象派：特别注重光线在物体上的反射和阴影变化</option>
+                            </optgroup>
+                            <optgroup label="抽象艺术">
+                                <option value="几何抽象">几何抽象：主要使用几何形状来构建画面</option>
+                                <option value="抒情抽象">抒情抽象：通过自由流动的形式和颜色表达情感</option>
+                            </optgroup>
+                            <optgroup label="立体主义">
+                                <option value="分析立体主义">分析立体主义：分解对象并从多个角度展示</option>
+                                <option value="综合立体主义">综合立体主义：除了几何形状外，还引入了拼贴等技术</option>
+                            </optgroup>
+                            <optgroup label="古典油画">
+                                <option value="巴洛克风格">巴洛克风格：动态构图、强烈的光影对比</option>
+                                <option value="洛可可风格">洛可可风格：轻快、精致、装饰性强</option>
+                            </optgroup>
+                            <optgroup label="赛博朋克">
+                                <option value="霓虹赛博">霓虹赛博：充满霓虹色调的未来都市夜景</option>
+                                <option value="废土赛博">废土赛博：结合末日后的荒芜景象与高科技元素</option>
+                            </optgroup>
+                            <optgroup label="复古风格">
+                                <option value="50年代广告插画">50年代广告插画：复古色彩搭配，理想化的家庭生活场景</option>
+                                <option value="70年代波普艺术">70年代波普艺术：大胆的颜色运用，流行文化元素</option>
+                            </optgroup>
+                            <optgroup label="动漫风格">
+                                <option value="Ghibili">Ghibili风格</option>
+                                <option value="迪士尼">迪士尼风格</option>
+                                <option value="皮克斯">皮克斯风格</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="column-selection" id="column-selection">
+                        <h3>请选择要处理的列</h3>
+                        <select id="column-select" class="column-select"></select>
+                        <button id="process-button" class="process-button">开始批量处理</button>
+                    </div>
+                </div>
+
+                <div class="loading-indicator" id="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>正在处理数据，请稍候...</p>
+                </div>
+
+                <div class="results-container" id="results-container">
+                    <h3>处理结果</h3>
+                    <div class="results-table-container">
+                        <table class="results-table" id="results-table">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>原始数据</th>
+                                    <th>优化描述</th>
+                                    <th>生成图像</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-tbody">
+                                <!-- Results will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Include necessary scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/profile.js"></script>
+    <script src="js/education-level.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Elements
+            const excelUpload = document.getElementById('excel-upload');
+            const fileName = document.getElementById('file-name');
+            const columnSelection = document.getElementById('column-selection');
+            const columnSelect = document.getElementById('column-select');
+            const processButton = document.getElementById('process-button');
+            const resultsContainer = document.getElementById('results-container');
+            const resultsTable = document.getElementById('results-table');
+            const resultsTbody = document.getElementById('results-tbody');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resolutionSelect = document.getElementById('resolution-select');
+            const styleSelect = document.getElementById('style-select');
+
+            // Variables to store data
+            let excelData = null;
+            let columns = [];
+            let selectedColumn = '';
+            
+            // Handle file upload
+            excelUpload.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                fileName.textContent = file.name;
+                
+                // Read the Excel file
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    // Get the first worksheet
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    // Convert to JSON
+                    excelData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (excelData && excelData.length > 0) {
+                        // Get headers (first row)
+                        columns = excelData[0];
+                        
+                        // Populate column dropdown
+                        columnSelect.innerHTML = '';
+                        columns.forEach((column, index) => {
+                            const option = document.createElement('option');
+                            option.value = index;
+                            option.textContent = column;
+                            columnSelect.appendChild(option);
+                        });
+                        
+                        // Show column selection
+                        columnSelection.style.display = 'block';
+                        
+                        // Hide results container if it was shown
+                        resultsContainer.style.display = 'none';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            });
+            
+            // Process button click handler
+            processButton.addEventListener('click', async () => {
+                if (!excelData || excelData.length <= 1) {
+                    alert('请先上传有效的Excel文件');
+                    return;
+                }
+                
+                selectedColumn = parseInt(columnSelect.value);
+                if (isNaN(selectedColumn)) {
+                    alert('请选择有效的列');
+                    return;
+                }
+                
+                // Show loading indicator
+                loadingIndicator.style.display = 'block';
+                
+                // Clear previous results
+                resultsTbody.innerHTML = '';
+                
+                // Get resolution and style
+                const [width, height] = resolutionSelect.value.split(':');
+                const selectedStyle = styleSelect.value;
+                
+                // Process each row (skip header)
+                for (let i = 1; i < excelData.length; i++) {
+                    const row = excelData[i];
+                    if (row.length <= selectedColumn) continue;
+                    
+                    const cellContent = row[selectedColumn] || '';
+                    if (!cellContent) continue;
+                    
+                    try {
+                        // Call DeepSeek API to optimize the description
+                        const optimizedDescription = await getOptimizedDescription(cellContent, selectedStyle);
+                        
+                        // Extract English description and create image URL
+                        const englishDescription = extractEnglishDescription(optimizedDescription);
+                        const encodedDescription = encodeURIComponent(englishDescription);
+                        const imageUrl = `https://image.pollinations.ai/prompt/${encodedDescription}?width=${width}&height=${height}&model=flux&enhance=true&private=true&nologo=true&safe=true`;
+                        
+                        // Add to results table
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${i}</td>
+                            <td>${cellContent}</td>
+                            <td>${optimizedDescription}</td>
+                            <td class="image-cell">
+                                <img src="${imageUrl}" alt="Generated image" loading="lazy">
+                            </td>
+                        `;
+                        resultsTbody.appendChild(tr);
+                    } catch (error) {
+                        console.error(`Error processing row ${i}:`, error);
+                        
+                        // Add error row
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${i}</td>
+                            <td>${cellContent}</td>
+                            <td colspan="2">处理错误: ${error.message}</td>
+                        `;
+                        resultsTbody.appendChild(tr);
+                    }
+                }
+                
+                // Hide loading indicator
+                loadingIndicator.style.display = 'none';
+                
+                // Show results container
+                resultsContainer.style.display = 'block';
+            });
+            
+            // Function to call DeepSeek API
+            async function getOptimizedDescription(prompt, style) {
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    "role": "system",
+                                    "content": `你是一位专业摄影师和艺术指导，拥有丰富的图像构图和艺术创作经验。你的任务是帮助用户优化他们的图像生成提示，使其能够生成更加生动、专业和精美的图片。
+你会根据用户发送的关键词发挥你的想象力，并且：
+1. 增加关于视角、光线效果和色彩的细节
+2. 添加构图、景深和焦点的专业描述
+3. 应用用户选择的艺术风格：${style}
+4. 增强画面细节和元素间的关系
+
+请按照以下格式回复：
+1. 中文描述：[你对用户提示的完整优化描述，用中文]
+2. 英文描述：[将优化后的描述翻译为英文，用于生成图像]
+
+注意：请确保你的英文描述适合文生图模型使用，避免使用标点符号，使用空格分隔单词和短语。不要在回复中包含任何URL或图片markdown。`
+                                },
+                                {
+                                    "role": "user",
+                                    "content": prompt
+                                }
+                            ]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('无法连接到DeepSeek API');
+                    }
+
+                    const data = await response.json();
+                    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+                        throw new Error('API返回格式无效');
+                    }
+
+                    return data.choices[0].message.content;
+                } catch (error) {
+                    console.error('Error calling DeepSeek API:', error);
+                    throw error;
+                }
+            }
+            
+            // Function to extract English description from AI response
+            function extractEnglishDescription(aiResponse) {
+                // Try to extract the English description
+                const englishMatch = aiResponse.match(/英文描述：\s*\[([^\]]+)\]/);
+                if (englishMatch) {
+                    return englishMatch[1].trim();
+                }
+                
+                // Fallback: try to find any English text after "英文描述："
+                const fallbackMatch = aiResponse.match(/英文描述：\s*(.+?)(?:\n|$)/);
+                if (fallbackMatch) {
+                    return fallbackMatch[1].trim();
+                }
+                
+                throw new Error('无法从AI响应中提取英文描述');
+            }
+        });
+    </script>
+</body>
+</html> 
