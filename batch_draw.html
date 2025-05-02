@@ -193,15 +193,31 @@
             border-bottom: 1px solid #e0c3fc;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
             position: relative;
             min-width: 50px;
+            white-space: normal;
+            word-wrap: break-word;
+            word-break: break-word;
+            line-height: 1.4;
         }
         .results-table th {
             background-color: rgba(114,9,183,0.1);
             color: #4361ee;
             font-weight: 600;
             user-select: none;
+            white-space: nowrap;
+        }
+        .results-table tbody tr {
+            position: relative;
+            min-height: 60px;
+        }
+        .results-table td {
+            vertical-align: top;
+            height: auto;
+            box-sizing: border-box;
+            padding-bottom: 1.2rem;
+            overflow-y: auto;
+            max-height: 300px;
         }
         .results-table tr:last-child td {
             border-bottom: none;
@@ -214,6 +230,9 @@
             width: 200px;
             min-width: 200px;
             text-align: center;
+            padding-bottom: 0.8rem;
+            max-height: none;
+            overflow-y: visible;
         }
         .image-cell img {
             max-width: 180px;
@@ -331,6 +350,16 @@
                 max-width: 130px;
                 max-height: 130px;
             }
+            .column-resize-handle::after,
+            .row-resize-handle::after {
+                width: 2px;
+                height: 60%;
+                background-color: rgba(114,9,183,0.4);
+            }
+            .row-resize-handle::after {
+                width: 60%;
+                height: 2px;
+            }
         }
         /* Column resize handle */
         .column-resize-handle {
@@ -362,6 +391,38 @@
         }
         .column-resizing .column-resize-handle::after {
             width: 3px !important;
+            background-color: rgba(114,9,183,0.8) !important;
+        }
+        /* Row resize handle */
+        .row-resize-handle {
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            cursor: row-resize;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .row-resize-handle::after {
+            content: "";
+            height: 1px;
+            width: 60%;
+            background-color: rgba(114,9,183,0.3);
+            transition: background-color 0.2s, height 0.2s;
+        }
+        .results-table tr:hover .row-resize-handle::after {
+            height: 2px;
+            background-color: rgba(114,9,183,0.6);
+        }
+        .row-resizing {
+            cursor: row-resize !important;
+            user-select: none;
+        }
+        .row-resizing .row-resize-handle::after {
+            height: 3px !important;
             background-color: rgba(114,9,183,0.8) !important;
         }
     </style>
@@ -743,7 +804,7 @@
                 resultsContainer.style.display = 'block';
                 
                 // Setup column resizing immediately
-                setTimeout(setupColumnResizing, 100);
+                setTimeout(setupTableResizing, 100);
             });
             
             // These functions are no longer needed since we're not optimizing the description
@@ -780,21 +841,46 @@
                         
                         // Mouse events for desktop
                         resizeHandle.addEventListener('mousedown', function(e) {
-                            startResize(e, header, e.clientX);
+                            startColumnResize(e, header, e.clientX);
                         });
                         
                         // Touch events for mobile
                         resizeHandle.addEventListener('touchstart', function(e) {
                             if (e.touches.length === 1) {
-                                startResize(e, header, e.touches[0].clientX);
+                                startColumnResize(e, header, e.touches[0].clientX);
                             }
                         });
                     }
                 });
             }
             
-            // Function to start the resize process
-            function startResize(e, header, initialX) {
+            // Function to setup row resizing
+            function setupRowResizing() {
+                const table = document.getElementById('results-table');
+                const rows = table.querySelectorAll('tbody tr');
+                
+                // Add resize handles to each row
+                rows.forEach((row) => {
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'row-resize-handle';
+                    row.appendChild(resizeHandle);
+                    
+                    // Mouse events for desktop
+                    resizeHandle.addEventListener('mousedown', function(e) {
+                        startRowResize(e, row, e.clientY);
+                    });
+                    
+                    // Touch events for mobile
+                    resizeHandle.addEventListener('touchstart', function(e) {
+                        if (e.touches.length === 1) {
+                            startRowResize(e, row, e.touches[0].clientY);
+                        }
+                    });
+                });
+            }
+            
+            // Function to start the column resize process
+            function startColumnResize(e, header, initialX) {
                 e.preventDefault();
                 
                 // Add resizing class to body
@@ -837,14 +923,71 @@
                 document.addEventListener('touchcancel', handleEnd);
             }
             
-            // Set up the table column resizing when results are shown
+            // Function to start the row resize process
+            function startRowResize(e, row, initialY) {
+                e.preventDefault();
+                
+                // Add resizing class to body
+                document.body.classList.add('row-resizing');
+                
+                // Get the row and its initial height
+                const cells = row.querySelectorAll('td');
+                const initialHeight = row.offsetHeight;
+                
+                // Function to handle the mouse/touch move event
+                function handleMove(e) {
+                    // Calculate the new height
+                    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : initialY);
+                    const newHeight = initialHeight + (clientY - initialY);
+                    
+                    // Make sure the new height is reasonable
+                    if (newHeight > 40) {
+                        // Set the new height on the row directly
+                        row.style.height = newHeight + 'px';
+                        
+                        // Set min-height on cells to ensure they all have the same height
+                        cells.forEach(cell => {
+                            cell.style.minHeight = newHeight + 'px';
+                            cell.style.maxHeight = newHeight + 'px';
+                        });
+                    }
+                }
+                
+                // Function to handle the mouse/touch end event
+                function handleEnd() {
+                    // Remove the resizing class
+                    document.body.classList.remove('row-resizing');
+                    
+                    // Remove the event listeners
+                    document.removeEventListener('mousemove', handleMove);
+                    document.removeEventListener('mouseup', handleEnd);
+                    document.removeEventListener('touchmove', handleMove);
+                    document.removeEventListener('touchend', handleEnd);
+                    document.removeEventListener('touchcancel', handleEnd);
+                }
+                
+                // Add the event listeners for both mouse and touch
+                document.addEventListener('mousemove', handleMove);
+                document.addEventListener('mouseup', handleEnd);
+                document.addEventListener('touchmove', handleMove);
+                document.addEventListener('touchend', handleEnd);
+                document.addEventListener('touchcancel', handleEnd);
+            }
+            
+            // Function to set up both column and row resizing
+            function setupTableResizing() {
+                setupColumnResizing();
+                setupRowResizing();
+            }
+            
+            // Set up the table resizing when results are shown
             const observer = new MutationObserver((mutations) => {
                 mutations.forEach((mutation) => {
                     if (mutation.type === 'attributes' && 
                         mutation.attributeName === 'style' && 
                         resultsContainer.style.display === 'block') {
                         // Table just became visible, set up resizing
-                        setTimeout(setupColumnResizing, 100); // Small delay to ensure table is fully rendered
+                        setTimeout(setupTableResizing, 100); // Small delay to ensure table is fully rendered
                     }
                 });
             });
