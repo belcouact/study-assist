@@ -233,6 +233,84 @@
         .header-link:hover {
             text-decoration: underline;
         }
+        .query-conditions {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .query-conditions h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            color: #333;
+        }
+        .condition-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        .condition-field {
+            flex: 2;
+            min-width: 150px;
+        }
+        .condition-operator {
+            flex: 1;
+            min-width: 120px;
+        }
+        .condition-value {
+            flex: 2;
+            min-width: 150px;
+        }
+        .condition-actions {
+            display: flex;
+            align-items: center;
+        }
+        .btn-remove {
+            background: none;
+            border: none;
+            color: #e53e3e;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 0 10px;
+        }
+        .btn-remove:hover {
+            color: #c53030;
+        }
+        .conditions-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-outline {
+            background: none;
+            border: 1px solid #4361ee;
+            color: #4361ee;
+            border-radius: 6px;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-outline:hover {
+            background: rgba(67, 97, 238, 0.1);
+        }
+        @media (max-width: 768px) {
+            .condition-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .condition-field, .condition-operator, .condition-value {
+                width: 100%;
+            }
+            .condition-actions {
+                margin-top: 10px;
+                align-self: flex-end;
+            }
+        }
     </style>
 </head>
 <body>
@@ -269,6 +347,17 @@
                         <option value="50">50 条</option>
                         <option value="100">100 条</option>
                     </select>
+                </div>
+            </div>
+            
+            <div id="query-conditions" class="query-conditions" style="display: none;">
+                <h3>查询条件</h3>
+                <div class="conditions-container" id="conditions-container">
+                    <!-- Conditions will be added here dynamically -->
+                </div>
+                <div class="conditions-actions">
+                    <button id="add-condition" class="btn btn-outline">添加条件</button>
+                    <button id="clear-conditions" class="btn btn-outline">清除所有条件</button>
                 </div>
             </div>
             
@@ -317,6 +406,8 @@
         let totalRecords = 0;
         let recordsPerPage = 20;
         let currentData = [];
+        let availableColumns = [];
+        let originalData = [];
         
         // DOM elements
         const databaseSelect = document.getElementById('database-select');
@@ -333,6 +424,10 @@
         const paginationDiv = document.getElementById('pagination');
         const emptyMessage = document.getElementById('empty-message');
         const loadingMessage = document.getElementById('loading-message');
+        const queryConditions = document.getElementById('query-conditions');
+        const conditionsContainer = document.getElementById('conditions-container');
+        const addConditionButton = document.getElementById('add-condition');
+        const clearConditionsButton = document.getElementById('clear-conditions');
         
         // Initialize the page
         document.addEventListener('DOMContentLoaded', async () => {
@@ -360,10 +455,45 @@
             });
             
             // Enable preview button when a table is selected
-            tableSelect.addEventListener('change', () => {
-                previewButton.disabled = tableSelect.value === '';
+            tableSelect.addEventListener('change', async () => {
+                const selectedTable = tableSelect.value;
+                previewButton.disabled = selectedTable === '';
                 downloadButton.disabled = true;
                 hideDataPreview();
+                
+                if (selectedTable) {
+                    // Fetch a small sample to get column names
+                    try {
+                        showLoading('正在获取表结构...');
+                        const sampleData = await fetchTableData(selectedTable, 1);
+                        
+                        if (sampleData && sampleData.length > 0) {
+                            // Extract column names from first row
+                            availableColumns = Object.keys(sampleData[0]);
+                            
+                            // Show query conditions section
+                            queryConditions.style.display = 'block';
+                            
+                            // Add initial condition if container is empty
+                            if (conditionsContainer.children.length === 0) {
+                                addConditionRow();
+                            }
+                        } else {
+                            // Hide query conditions for empty tables
+                            queryConditions.style.display = 'none';
+                            availableColumns = [];
+                        }
+                        hideLoading();
+                    } catch (error) {
+                        showError('获取表结构失败: ' + error.message);
+                        queryConditions.style.display = 'none';
+                        availableColumns = [];
+                    }
+                } else {
+                    // Hide query conditions when no table is selected
+                    queryConditions.style.display = 'none';
+                    availableColumns = [];
+                }
             });
             
             // Update records per page when limit changes
@@ -373,6 +503,16 @@
                     currentPage = 1;
                     renderTable(currentData);
                 }
+            });
+            
+            // Add condition button click handler
+            addConditionButton.addEventListener('click', () => {
+                addConditionRow();
+            });
+            
+            // Clear all conditions button click handler
+            clearConditionsButton.addEventListener('click', () => {
+                clearAllConditions();
             });
             
             // Preview data button click handler
@@ -385,13 +525,24 @@
                     
                     // Fetch data from the selected table
                     const data = await fetchTableData(selectedTable);
-                    currentData = data;
+                    originalData = data; // Store the original data
                     
-                    if (data.length === 0) {
+                    // Apply filters based on query conditions
+                    const filteredData = applyQueryConditions(data);
+                    currentData = filteredData;
+                    
+                    if (filteredData.length === 0) {
                         showEmptyMessage();
+                        
+                        // Show different message if filters removed all results
+                        if (data.length > 0) {
+                            emptyMessage.textContent = '没有符合查询条件的数据';
+                        } else {
+                            emptyMessage.textContent = '没有找到数据';
+                        }
                     } else {
                         hideEmptyMessage();
-                        renderTable(data);
+                        renderTable(filteredData);
                         showDataPreview();
                         downloadButton.disabled = false;
                     }
@@ -458,10 +609,15 @@
             });
         }
         
-        // Fetch data from a table
-        async function fetchTableData(tableName) {
+        // Fetch data from a table with optional limit
+        async function fetchTableData(tableName, limit) {
             try {
-                const response = await fetch(`/api/db/query/${tableName}`);
+                let url = `/api/db/query/${tableName}`;
+                if (limit) {
+                    url += `?limit=${limit}`;
+                }
+                
+                const response = await fetch(url);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -688,6 +844,161 @@
             setTimeout(() => {
                 statusMessage.style.display = 'none';
             }, 3000);
+        }
+        
+        // Add a new condition row to the conditions container
+        function addConditionRow() {
+            const conditionRow = document.createElement('div');
+            conditionRow.className = 'condition-row';
+            
+            // Field select
+            const fieldSelect = document.createElement('select');
+            fieldSelect.className = 'form-control condition-field';
+            
+            // Default empty option
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '-- 选择字段 --';
+            fieldSelect.appendChild(defaultOption);
+            
+            // Add options for available columns
+            availableColumns.forEach(column => {
+                const option = document.createElement('option');
+                option.value = column;
+                option.textContent = column;
+                fieldSelect.appendChild(option);
+            });
+            
+            // Operator select
+            const operatorSelect = document.createElement('select');
+            operatorSelect.className = 'form-control condition-operator';
+            
+            const operators = [
+                { value: 'equals', text: '等于' },
+                { value: 'contains', text: '包含' },
+                { value: 'startsWith', text: '开头是' },
+                { value: 'endsWith', text: '结尾是' },
+                { value: 'greaterThan', text: '大于' },
+                { value: 'lessThan', text: '小于' }
+            ];
+            
+            operators.forEach(op => {
+                const option = document.createElement('option');
+                option.value = op.value;
+                option.textContent = op.text;
+                operatorSelect.appendChild(option);
+            });
+            
+            // Value input
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'form-control condition-value';
+            valueInput.placeholder = '输入值';
+            
+            // Remove button
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'btn-remove';
+            removeButton.innerHTML = '&times;';
+            removeButton.title = '删除此条件';
+            
+            removeButton.addEventListener('click', () => {
+                conditionsContainer.removeChild(conditionRow);
+                
+                // If no conditions left, hide the conditions section
+                if (conditionsContainer.children.length === 0) {
+                    clearAllConditions();
+                }
+            });
+            
+            // Add elements to condition row
+            conditionRow.appendChild(fieldSelect);
+            conditionRow.appendChild(operatorSelect);
+            conditionRow.appendChild(valueInput);
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'condition-actions';
+            actionsDiv.appendChild(removeButton);
+            conditionRow.appendChild(actionsDiv);
+            
+            // Add row to container
+            conditionsContainer.appendChild(conditionRow);
+        }
+        
+        // Clear all query conditions
+        function clearAllConditions() {
+            conditionsContainer.innerHTML = '';
+            
+            // Add one empty condition row
+            if (availableColumns.length > 0) {
+                addConditionRow();
+            }
+            
+            // If we have current data, reset to original data
+            if (originalData.length > 0 && currentData.length !== originalData.length) {
+                currentData = [...originalData];
+                renderTable(currentData);
+                hideEmptyMessage();
+            }
+        }
+        
+        // Apply query conditions to the data
+        function applyQueryConditions(data) {
+            const conditions = [];
+            
+            // Collect all valid conditions
+            const conditionRows = conditionsContainer.querySelectorAll('.condition-row');
+            conditionRows.forEach(row => {
+                const fieldSelect = row.querySelector('.condition-field');
+                const operatorSelect = row.querySelector('.condition-operator');
+                const valueInput = row.querySelector('.condition-value');
+                
+                const field = fieldSelect.value;
+                const operator = operatorSelect.value;
+                const value = valueInput.value.trim();
+                
+                if (field && value) {
+                    conditions.push({ field, operator, value });
+                }
+            });
+            
+            // If no valid conditions, return original data
+            if (conditions.length === 0) {
+                return data;
+            }
+            
+            // Filter data based on conditions
+            return data.filter(item => {
+                // Item passes if it meets ALL conditions (AND logic)
+                return conditions.every(condition => {
+                    const itemValue = item[condition.field];
+                    
+                    // Skip null/undefined values
+                    if (itemValue === null || itemValue === undefined) {
+                        return false;
+                    }
+                    
+                    const itemValueStr = String(itemValue).toLowerCase();
+                    const conditionValue = condition.value.toLowerCase();
+                    
+                    switch (condition.operator) {
+                        case 'equals':
+                            return itemValueStr === conditionValue;
+                        case 'contains':
+                            return itemValueStr.includes(conditionValue);
+                        case 'startsWith':
+                            return itemValueStr.startsWith(conditionValue);
+                        case 'endsWith':
+                            return itemValueStr.endsWith(conditionValue);
+                        case 'greaterThan':
+                            return Number(itemValue) > Number(conditionValue);
+                        case 'lessThan':
+                            return Number(itemValue) < Number(conditionValue);
+                        default:
+                            return true;
+                    }
+                });
+            });
         }
     </script>
 </body>
