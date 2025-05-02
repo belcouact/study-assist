@@ -626,18 +626,12 @@ Child: Just five more minutes, please!
                         if (dialogContent) {
                             dialogInput.value = dialogContent;
                             showStatus(`「${selectedType}」对话模板已加载`, 'success');
-                            
-                            // Reset dropdown after a short delay
-                            setTimeout(() => {
-                                dialogExamplesSelect.value = '';
-                            }, 1000);
                         } else {
                             showError(`无法获取「${selectedType}」对话模板内容`);
                         }
                     } catch (error) {
                         console.error('获取对话内容错误:', error);
                         showError('获取对话内容失败: ' + error.message);
-                        dialogExamplesSelect.value = '';
                     }
                 }
             });
@@ -824,18 +818,18 @@ Child: Just five more minutes, please!
                     const messages = [
                         {
                             role: "system",
-                            content: "你是一个专业的对话分析助手，擅长解析双语对话内容。请帮助从对话中提取所有说话者角色，并从英文部分分析每个角色可能的性别和年龄段。对于每一个角色，仅基于角色名判断其性别（男性/女性）和类型（成人/孩子/不确定）。此外，请检测对话中存在哪些语言（英文/中文）。"
+                            content: "你是一个专业的对话分析助手，擅长解析双语对话内容。请帮助从对话中提取所有说话者角色，并从英文部分分析每个角色可能的性别和年龄段。对于每一个角色，仅在角色名称明确指示性别时（如'爸爸'，'妈妈'，'父亲'，'母亲'，'男孩'，'女孩'等）才判断其性别，否则设为'unknown'。同样，仅在角色明确是孩子（如'孩子'，'男孩'，'女孩'等）时才将类型设为'child'，否则设为'unknown'。此外，请检测对话中存在哪些语言（英文/中文）。"
                         },
                         {
                             role: "user",
-                            content: `请分析以下对话文本，找出所有说话的角色，并仅基于英文部分和角色名称判断其可能的性别和类型。结果必须按以下严格的JSON格式返回：
+                            content: `请分析以下对话文本，找出所有说话的角色，并仅在名称明确指示性别和年龄时才判断其性别和类型。结果必须按以下严格的JSON格式返回：
                             
 {
   "roles": [
     {
       "name": "角色名称，保持原文中的拼写和大小写",
-      "gender": "male或female或unknown，根据角色名判断",
-      "type": "adult或child或unknown，根据角色名判断",
+      "gender": "仅当角色名明确指示性别时（如'爸爸'，'妈妈'等）才设为'male'或'female'，否则设为'unknown'",
+      "type": "仅当角色名明确是孩子时（如'孩子'，'男孩'，'女孩'等）才设为'child'，否则设为'unknown'",
       "lines": [
         {
           "english": "该角色的一段英文台词",
@@ -851,6 +845,13 @@ Child: Just five more minutes, please!
     "hasChinese": true/false, 根据是否有中文台词
   }
 }
+
+具体规则：
+1. 仅在以下情况才将gender设为'male'：角色名包含'爸爸'，'父亲'，'Dad'，'Father'，'男孩'，'男生'，'小哥'，'先生'，'男士'等明确指示男性的词语
+2. 仅在以下情况才将gender设为'female'：角色名包含'妈妈'，'母亲'，'Mom'，'Mother'，'女孩'，'女生'，'小姐'，'女士'等明确指示女性的词语
+3. 仅在以下情况才将type设为'child'：角色名包含'孩子'，'Child'，'小朋友'，'男孩'，'女孩'，'Boy'，'Girl'等明确指示孩子的词语
+4. 其他所有情况都应将gender和type设为'unknown'
+5. 不要根据对话内容或语气推断性别或年龄，仅看角色名称
 
 对话文本：
 
@@ -980,35 +981,86 @@ ${dialogText}`
                     roleDiv.className = 'role-item';
                     
                     // Determine voice category based on role name and type
-                    let voiceCategory = 'male'; // default
+                    let voiceCategory = 'male'; // default for unknown gender
+                    
                     if (role.gender === 'female' || isInCategory(role.name.toLowerCase(), roleCategories.female)) {
                         voiceCategory = 'female';
+                    } else if (role.gender === 'male' || isInCategory(role.name.toLowerCase(), roleCategories.male)) {
+                        voiceCategory = 'male';
                     }
+                    
                     if (role.type === 'child' || isInCategory(role.name.toLowerCase(), roleCategories.child)) {
                         voiceCategory = 'child';
                     }
                     
-                    // Create voice select dropdown
+                    // Create voice select dropdown that includes all voice options
                     const voiceSelect = document.createElement('select');
                     voiceSelect.className = 'role-voice-select';
                     voiceSelect.id = `voice-${index}`;
                     
-                    // Add voice options based on category
+                    // Add options group for recommended voices
+                    const recommendedGroup = document.createElement('optgroup');
+                    recommendedGroup.label = '推荐声音';
+                    
+                    // Add recommended voice options based on category
                     const voices = voiceOptions[voiceCategory] || voiceOptions.male;
                     voices.forEach(voice => {
                         const option = document.createElement('option');
                         option.value = voice.value;
                         option.textContent = voice.label;
                         
-                        // Pre-select a reliable female voice for Mom
-                        if (role.name === 'Mom' && (voice.value === "Chinese (Mandarin)_Young_Girl" || voice.value === "English_Graceful_Lady")) {
+                        // Pre-select voices for specific roles
+                        if ((role.name === 'Mom' || role.name === '妈妈') && 
+                            (voice.value === "Chinese (Mandarin)_Sweet_Lady" || voice.value === "female-tianmei")) {
+                            option.selected = true;
+                        } else if ((role.name === 'Dad' || role.name === '爸爸') && 
+                                   (voice.value === "Chinese (Mandarin)_Gentle_Youth" || voice.value === "male-qn-jingying")) {
                             option.selected = true;
                         }
                         
-                        voiceSelect.appendChild(option);
+                        recommendedGroup.appendChild(option);
                     });
                     
-                    // Create role element
+                    voiceSelect.appendChild(recommendedGroup);
+                    
+                    // Add the other voice categories if they're different from the recommended one
+                    if (voiceCategory !== 'male') {
+                        const maleGroup = document.createElement('optgroup');
+                        maleGroup.label = '男性声音';
+                        voiceOptions.male.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.value;
+                            option.textContent = voice.label;
+                            maleGroup.appendChild(option);
+                        });
+                        voiceSelect.appendChild(maleGroup);
+                    }
+                    
+                    if (voiceCategory !== 'female') {
+                        const femaleGroup = document.createElement('optgroup');
+                        femaleGroup.label = '女性声音';
+                        voiceOptions.female.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.value;
+                            option.textContent = voice.label;
+                            femaleGroup.appendChild(option);
+                        });
+                        voiceSelect.appendChild(femaleGroup);
+                    }
+                    
+                    if (voiceCategory !== 'child') {
+                        const childGroup = document.createElement('optgroup');
+                        childGroup.label = '儿童声音';
+                        voiceOptions.child.forEach(voice => {
+                            const option = document.createElement('option');
+                            option.value = voice.value;
+                            option.textContent = voice.label;
+                            childGroup.appendChild(option);
+                        });
+                        voiceSelect.appendChild(childGroup);
+                    }
+                    
+                    // Add voice name and role information
                     roleDiv.innerHTML = `
                         <div class="role-name">
                             ${role.name}
