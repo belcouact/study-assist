@@ -360,6 +360,13 @@
                 max-width: 100%;
                 max-height: 130px;
             }
+            .image-download-btn {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+                width: 90%;
+                margin-top: 6px;
+                margin-bottom: 6px;
+            }
             .column-resize-handle::after,
             .row-resize-handle::after {
                 width: 2px;
@@ -435,6 +442,29 @@
             height: 3px !important;
             background-color: rgba(114,9,183,0.8) !important;
         }
+        /* Download button for images */
+        .image-download-btn {
+            margin-top: 8px;
+            padding: 4px 10px;
+            background: linear-gradient(90deg, #7209b7, #4361ee);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+        .image-download-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .image-download-btn i {
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
@@ -500,6 +530,13 @@
                         <p class="helper-text" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
                             选定的列内容将直接用于AI图像生成
                         </p>
+                        
+                        <h3 style="margin-top: 1.5rem;">请选择用于图像名称的列</h3>
+                        <select id="filename-column-select" class="column-select"></select>
+                        <p class="helper-text" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">
+                            选定的列内容将用作保存图像时的文件名
+                        </p>
+                        
                         <button id="process-button" class="process-button">开始批量处理</button>
                     </div>
                 </div>
@@ -554,6 +591,7 @@
             const fileName = document.getElementById('file-name');
             const columnSelection = document.getElementById('column-selection');
             const columnSelect = document.getElementById('column-select');
+            const filenameColumnSelect = document.getElementById('filename-column-select');
             const processButton = document.getElementById('process-button');
             const resultsContainer = document.getElementById('results-container');
             const resultsTable = document.getElementById('results-table');
@@ -567,6 +605,7 @@
             let excelData = null;
             let columns = [];
             let selectedColumn = '';
+            let selectedFilenameColumn = '';
             
             // Variables for tracking progress
             let totalItems = 0;
@@ -613,11 +652,27 @@
                         
                         // Populate column dropdown
                         columnSelect.innerHTML = '';
+                        filenameColumnSelect.innerHTML = '';
+                        
+                        // Add a default option for the filename dropdown
+                        const defaultOption = document.createElement('option');
+                        defaultOption.value = '-1';
+                        defaultOption.textContent = '使用默认名称';
+                        filenameColumnSelect.appendChild(defaultOption);
+                        
+                        // Add all columns to both dropdowns
                         columns.forEach((column, index) => {
+                            // Add to content column dropdown
                             const option = document.createElement('option');
                             option.value = index;
                             option.textContent = column;
                             columnSelect.appendChild(option);
+                            
+                            // Add to filename column dropdown
+                            const filenameOption = document.createElement('option');
+                            filenameOption.value = index;
+                            filenameOption.textContent = column;
+                            filenameColumnSelect.appendChild(filenameOption);
                         });
                         
                         // Show column selection
@@ -642,6 +697,10 @@
                     alert('请选择有效的列');
                     return;
                 }
+                
+                // Get the selected filename column
+                selectedFilenameColumn = parseInt(filenameColumnSelect.value);
+                // -1 means use default naming
                 
                 // Reset progress tracking
                 resetProgress();
@@ -776,7 +835,43 @@
                         
                         // Set the image source
                         img.src = imageUrl;
+                        
+                        // Add the image to the cell
                         imageCell.appendChild(img);
+                        
+                        // Add custom filename attribute for download
+                        if (selectedFilenameColumn >= 0 && selectedFilenameColumn < row.length) {
+                            const filenameValue = row[selectedFilenameColumn];
+                            if (filenameValue) {
+                                // Sanitize filename - remove invalid characters
+                                const sanitizedFilename = String(filenameValue).replace(/[/\\?%*:|"<>]/g, '-');
+                                img.setAttribute('data-filename', sanitizedFilename + '.jpg');
+                                
+                                // Add custom title for hover tooltip showing the filename
+                                img.title = `文件名: ${sanitizedFilename}.jpg`;
+                                
+                                // Create download button
+                                const downloadBtn = document.createElement('button');
+                                downloadBtn.className = 'image-download-btn';
+                                downloadBtn.innerHTML = '<i class="fas fa-download"></i> 保存图片';
+                                downloadBtn.title = `下载: ${sanitizedFilename}.jpg`;
+                                
+                                // Add download functionality
+                                downloadBtn.addEventListener('click', function() {
+                                    // Create an off-screen anchor element
+                                    const link = document.createElement('a');
+                                    link.href = img.src;
+                                    link.download = sanitizedFilename + '.jpg';
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+                                });
+                                
+                                // Add the download button below the image
+                                imageCell.appendChild(document.createElement('br'));
+                                imageCell.appendChild(downloadBtn);
+                            }
+                        }
                         
                         tr.appendChild(imageCell);
                         
