@@ -14,24 +14,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Add click handler for quote card
     const quoteCard = document.querySelector('.quote-card');
-    let isFlipping = false;
+    let isAnimating = false;
 
     if (quoteCard) {
         quoteCard.addEventListener('click', function() {
-            if (isFlipping) return;
-            isFlipping = true;
+            if (isAnimating) return;
+            isAnimating = true;
 
-            this.classList.add('flipped');
+            // Apply fade-out animation
+            this.classList.add('fade-out');
             
             setTimeout(() => {
                 showRandomQuote();
-                this.classList.remove('flipped');
+                // Change to fade-in animation
+                this.classList.remove('fade-out');
+                this.classList.add('fade-in');
+                
                 setTimeout(() => {
-                    isFlipping = false;
+                    this.classList.remove('fade-in');
+                    isAnimating = false;
                 }, 800);
             }, 500);
         });
     }
+
+    // Add animation styles
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+        .quote-card.fade-out {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .quote-card.fade-in {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+    `;
+    document.head.appendChild(styleEl);
 });
 
 // Global variables
