@@ -464,6 +464,30 @@
                 font-size: 0.95em;
             }
         }
+
+        /* Add styles for the no-image placeholder */
+        .no-image-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            height: 100%;
+            color: #a0aec0;
+            font-size: 1rem;
+            background-color: #f7f9fc;
+            border-radius: 8px;
+        }
+        
+        .no-image-placeholder i {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.7;
+        }
+        
+        /* Make image containers not take up space when empty */
+        .event-image-container:empty {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -599,6 +623,38 @@
             });
         }
 
+        // Improved function to create image paths with better debugging
+        function createImagePath(title, dynasty) {
+            if (!title) return null;
+            
+            const sanitizedTitle = title
+                .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // Remove special characters, keep Chinese characters
+                .replace(/\s+/g, '_'); // Replace spaces with underscores
+            
+            // Check for empty sanitized title
+            if (!sanitizedTitle) return null;
+            
+            // Primary path for the specific event
+            const specificPath = `../../assets/images/history/chinese/${sanitizedTitle}.png`;
+            
+            // Also create a backup dynasty-based path for fallback
+            let dynastyPath = null;
+            if (dynasty) {
+                const sanitizedDynasty = dynasty.trim()
+                    .replace(/[^\w\s\u4e00-\u9fa5]/g, '')
+                    .replace(/\s+/g, '_');
+                if (sanitizedDynasty) {
+                    dynastyPath = `../../assets/images/history/chinese/dynasty_${sanitizedDynasty}.png`;
+                }
+            }
+            
+            return {
+                specific: specificPath,
+                dynasty: dynastyPath,
+                default: '../../assets/images/history/chinese/default_history.png'
+            };
+        }
+
         // Load events for a dynasty
         async function loadDynastyEvents(dynasty) {
             const eventsContainer = document.querySelector('.event-cards');
@@ -613,8 +669,6 @@
                 });
                 
                 const requestUrl = `/api/db/query/chinese_dynasty?${params}`;
-                // console.log('Querying dynasty:', dynasty);
-                // console.log('SQL Query:', sql);
 
                 const response = await fetch(requestUrl);
                 if (!response.ok) {
@@ -622,7 +676,6 @@
                 }
 
                 const data = await response.json();
-                // console.log('Raw API Response for', dynasty, ':', data);
 
                 // Handle different response formats
                 let events = [];
@@ -631,17 +684,10 @@
                 } else if (data && typeof data === 'object' && data.success) {
                     events = data.data || [];
                     
-                    // Debug: Log all unique Dynasty values found
-                    const uniqueDynasties = [...new Set(events.map(e => e.Dynasty))];
-                    // console.log('Unique dynasties found:', uniqueDynasties);
-                    
                     // Filter events to match the dynasty (more lenient matching)
                     events = events.filter(event => {
                         const eventDynasty = (event.Dynasty || '').trim();
                         const targetDynasty = dynasty.trim();
-                        
-                        // Debug: Log each comparison
-                        // console.log(`Comparing: "${eventDynasty}" with "${targetDynasty}"`);
                         
                         // Try different matching strategies
                         return eventDynasty === targetDynasty || 
@@ -664,55 +710,69 @@
                 events.forEach(event => {
                     const eventTitle = event.Title ? event.Title.trim() : '未知事件';
                     const eventDescription = event.Event ? event.Event.trim() : '暂无描述';
+                    const eventDynasty = event.Dynasty ? event.Dynasty.trim() : dynasty;
                     
-                    // Prepare the sanitized image filename based on the event title
-                    const sanitizedTitle = eventTitle
-                        .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // Remove special characters, keep Chinese characters
-                        .replace(/\s+/g, '_'); // Replace spaces with underscores
-                    
-                    // Path to the event image (same structure as events.html)
-                    const imagePath = `../../assets/images/history/chinese/${sanitizedTitle}.png`;
+                    // Get image paths using helper function
+                    const imagePaths = createImagePath(eventTitle, eventDynasty);
                     
                     // Create event card element
                     const eventCard = document.createElement('div');
                     eventCard.className = 'event-card';
                     
-                    eventCard.innerHTML = `
+                    // We'll always add an image container now, trying with the specific image first
+                    const imageHtml = `
                         <div class="event-image-container">
                             <div class="image-loading-placeholder">
                                 <i class="fas fa-spinner"></i> 加载图片中...
                             </div>
-                            <img src="${imagePath}" alt="${eventTitle}" class="event-image">
+                            <img src="${imagePaths.specific}" alt="${eventTitle}" class="event-image" data-dynasty-src="${imagePaths.dynasty}" data-default-src="${imagePaths.default}">
                         </div>
+                    `;
+                    
+                    eventCard.innerHTML = `
+                        ${imageHtml}
                         <h3 class="event-title">${eventTitle}</h3>
                         <p class="event-description">${eventDescription}</p>
                     `;
                     
                     eventsContainer.appendChild(eventCard);
                     
-                    // Handle image loading
+                    // Handle image loading with fallbacks
                     const image = eventCard.querySelector('.event-image');
                     const loadingPlaceholder = eventCard.querySelector('.image-loading-placeholder');
                     
-                    image.addEventListener('load', function() {
-                        this.classList.add('loaded');
-                        loadingPlaceholder.style.display = 'none';
-                    });
-                    
-                    image.addEventListener('error', function() {
-                        const imageContainer = this.parentElement;
-                        imageContainer.style.display = 'none';
-                    });
+                    if (image && loadingPlaceholder) {
+                        // Success handler - image loaded successfully
+                        image.addEventListener('load', function() {
+                            this.classList.add('loaded');
+                            loadingPlaceholder.style.display = 'none';
+                        });
+                        
+                        // Error handler with fallback chain
+                        image.addEventListener('error', function() {
+                            const dynastySrc = this.getAttribute('data-dynasty-src');
+                            const defaultSrc = this.getAttribute('data-default-src');
+                            
+                            // First try: if dynasty image exists, try that
+                            if (dynastySrc && this.src !== dynastySrc) {
+                                this.src = dynastySrc;
+                                return;
+                            }
+                            
+                            // Second try: use default history image
+                            if (defaultSrc && this.src !== defaultSrc) {
+                                this.src = defaultSrc;
+                                return;
+                            }
+                            
+                            // If all fails, show no-image placeholder
+                            createNoImagePlaceholder(loadingPlaceholder);
+                            // Hide only the broken image
+                            this.style.display = 'none';
+                        });
+                    }
                 });
-
-                // Debug log for events found
-                // console.log(`Found ${events.length} events for dynasty:`, dynasty);
-                if (events.length > 0) {
-                    // console.log('Sample event:', events[0]);
-                    // console.log('Sample Dynasty value:', `"${events[0].Dynasty}"`);
-                }
             } catch (error) {
-                // console.error('Error loading events:', error);
                 eventsContainer.innerHTML = `
                     <div class="error">
                         <p>加载历史事件时出错，请稍后重试</p>
@@ -725,11 +785,47 @@
         }
 
         // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Check for default images first
+            await ensureDefaultImages();
+            
+            // Initialize the timeline
             initTimeline();
+            
             // Load events for the first dynasty by default
             loadDynastyEvents(dynasties[0].name);
         });
+
+        // Function to check if an image exists without actually loading it
+        async function checkImageExists(url) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+            });
+        }
+
+        // Helper function to create a placeholder for missing images
+        function createNoImagePlaceholder(loadingPlaceholder) {
+            if (!loadingPlaceholder) return;
+            
+            loadingPlaceholder.classList.remove('image-loading-placeholder');
+            loadingPlaceholder.classList.add('no-image-placeholder');
+            loadingPlaceholder.innerHTML = `
+                <i class="fas fa-image"></i>
+                <span>暂无图片</span>
+            `;
+        }
+
+        // Create a default image for dynasty pages if it doesn't exist
+        async function ensureDefaultImages() {
+            const defaultImagePath = '../../assets/images/history/chinese/default_history.png';
+            const exists = await checkImageExists(defaultImagePath);
+            
+            // If the default image doesn't exist, we'll handle it in the error cases
+            console.log('Default image check:', exists ? 'Found' : 'Not found');
+        }
     </script>
 </body>
 </html>
