@@ -201,6 +201,12 @@
             overflow: hidden;
         }
         
+        .all-events-container {
+            display: flex;
+            transition: transform 0.5s ease;
+            width: 100%;
+        }
+        
         .event-card {
             background: #fff;
             border-radius: 15px;
@@ -416,8 +422,14 @@
             }
             
             .event-card {
-                margin: 0 5px;
-                width: calc(100% - 10px);
+                margin: 0;
+                width: 100%;
+                min-height: auto;
+            }
+            
+            .all-events-container {
+                display: flex;
+                width: 100%;
             }
             
             .event-content {
@@ -426,6 +438,9 @@
             
             .event-nav-buttons {
                 padding: 8px 15px;
+                position: sticky;
+                top: 80px;
+                z-index: 50;
             }
             
             .event-nav-btn {
@@ -438,15 +453,47 @@
                 font-size: 1rem;
                 min-width: 70px;
             }
+            
+            .timeline-controls {
+                display: none; /* Hide timeline controls on mobile */
+            }
+            
+            /* Full-screen card styling */
+            .events-carousel {
+                width: 100%;
+                overflow: hidden;
+            }
+            
+            .event-controls {
+                position: sticky;
+                top: 80px;
+                z-index: 50;
+                background-color: rgba(248, 249, 250, 0.9);
+                padding: 10px 0;
+                backdrop-filter: blur(5px);
+                margin-bottom: 15px;
+            }
+            
+            .event-nav-buttons {
+                position: relative;
+                top: auto;
+            }
+            
+            /* Full-width event cards on mobile */
+            .all-events-container {
+                flex-wrap: nowrap;
+            }
+            
+            .event-card {
+                flex: 0 0 100%;
+                max-width: 100%;
+                width: 100%;
+                margin: 0;
+            }
         }
         
         @media (max-width: 480px) {
             /* Additional adjustments for very small screens */
-            .event-card {
-                margin: 0;
-                width: 100%;
-            }
-            
             .event-content {
                 padding: 15px 12px;
             }
@@ -473,6 +520,12 @@
             .event-counter {
                 font-size: 0.9rem;
                 min-width: 60px;
+            }
+            
+            /* Full-width images on mobile */
+            .event-image-container {
+                width: 100%;
+                margin: 0 0 15px 0;
             }
         }
         
@@ -631,9 +684,16 @@
             }
         }
         
-        .all-events-container {
-            display: flex;
-            transition: transform 0.5s ease;
+        /* Add specific styles for horizontal scrolling on desktop */
+        @media (min-width: 769px) {
+            .all-events-container {
+                flex-wrap: nowrap;
+            }
+            
+            .event-card {
+                flex: 0 0 calc(100% - 20px);
+                max-width: calc(100% - 20px);
+            }
         }
     </style>
 </head>
@@ -1134,7 +1194,14 @@
         
         function updateEventDisplay() {
             const eventsContainer = document.getElementById('all-events-container');
-            const eventWidth = document.querySelector('.event-card').offsetWidth + 20; // card width + margins
+            
+            // Get the width of a single event card - account for mobile vs desktop
+            const isMobile = window.innerWidth <= 768;
+            const eventCard = document.querySelector('.event-card');
+            const eventWidth = isMobile ? 
+                eventCard.offsetWidth : // Full width on mobile
+                eventCard.offsetWidth + 20; // card width + margins on desktop
+            
             const translateValue = -currentEventIndex * eventWidth;
             
             eventsContainer.style.transform = `translateX(${translateValue}px)`;
@@ -1256,6 +1323,15 @@
                     card.style.opacity = 1;
                     card.classList.add('active');
                 }
+            });
+            
+            // Add resize handler to update the layout when screen size changes
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    updateEventDisplay();
+                }, 250);
             });
         }
         
