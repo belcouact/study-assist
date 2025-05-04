@@ -418,6 +418,22 @@
             height: 0;
             z-index: 1;
         }
+        
+        .event-description p, .event-impact p {
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        
+        .event-description p:last-child, .event-impact p:last-child {
+            margin-bottom: 0;
+        }
+        
+        /* Style for bullet points */
+        .event-description p:not(:first-child), .event-impact p:not(:first-child) {
+            padding-left: 10px;
+            border-left: 3px solid rgba(67, 97, 238, 0.2);
+            margin-left: 5px;
+        }
     </style>
 </head>
 <body>
@@ -722,7 +738,7 @@
                         console.log(`过滤后剩余${filteredEvents.length}条中国近代史事件`);
                         
                         if (filteredEvents.length === 0) {
-                            showError(`未找到与${subCategory === 'CONTEMPORARY_CHINESE_HISTORY' ? '中国现代史' : '中国近代史'}相关的历史事件数据。\n\n请检查数据库中是否包含这个时期的内容。\n\n您可以返回主页选择其他历史主题。`);
+                            showError(`未找到与中国近代史相关的历史事件数据`);
                             return;
                         }
                         
@@ -920,6 +936,33 @@
             const card = document.createElement('div');
             card.className = 'event-card';
             
+            // Function to format text by splitting on bullet points
+            const formatText = (text) => {
+                if (!text) return '';
+                
+                // Replace bullet points with paragraph breaks
+                let formattedText = text
+                    // Split on numbered points (e.g., "1. ", "2. ")
+                    .replace(/(\d+\.\s)/g, '</p><p>$1')
+                    // Split on bullet points with various symbols
+                    .replace(/([•·※◆★]|\*)\s/g, '</p><p>$1 ')
+                    // Split on Chinese bullet points and similar markers
+                    .replace(/(第[一二三四五六七八九十]+[、，：])/g, '</p><p>$1');
+                
+                // Wrap in paragraph tags if not already
+                if (!formattedText.startsWith('<p>')) {
+                    formattedText = '<p>' + formattedText;
+                }
+                if (!formattedText.endsWith('</p>')) {
+                    formattedText = formattedText + '</p>';
+                }
+                
+                // Fix any empty paragraphs
+                formattedText = formattedText.replace(/<p><\/p>/g, '');
+                
+                return formattedText;
+            };
+            
             const content = `
                 <div class="event-header">
                     <h3 class="event-title">${event.TITLE || '未命名事件'}</h3>
@@ -928,12 +971,12 @@
                 <div class="event-content">
                     <div class="event-main">
                         <div class="event-description">
-                            ${event.BACKGROUND ? `<p>${event.BACKGROUND}</p>` : ''}
-                            ${event.EVENT ? `<p>${event.EVENT}</p>` : ''}
+                            ${event.BACKGROUND ? formatText(event.BACKGROUND) : ''}
+                            ${event.EVENT ? formatText(event.EVENT) : ''}
                         </div>
                         <div class="event-impact">
                             <h4 class="impact-title">历史影响</h4>
-                            <p>${event.IMPACT || '暂无影响信息'}</p>
+                            ${formatText(event.IMPACT || '暂无影响信息')}
                         </div>
                         ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
                     </div>
@@ -1010,7 +1053,7 @@
             document.getElementById('loading').innerHTML = `
                 <div class="error-message">
                     <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #e53e3e; margin-bottom: 15px;"></i>
-                    <p style="font-size: 1.2rem; line-height: 1.6; margin-bottom: 15px; white-space: pre-line;">${message}</p>
+                    <p>${message}</p>
                     <button class="btn btn-primary mt-4" onclick="window.location.href='main.html'">返回主页</button>
                 </div>
             `;
