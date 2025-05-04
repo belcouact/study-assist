@@ -161,42 +161,14 @@
             flex: 1;
             position: relative;
             width: 100%;
-        }
-
-        .timeline-controls {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            gap: 10px;
-            z-index: 5;
-        }
-
-        .timeline-nav-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: white;
-            border: none;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: #4361ee;
-        }
-
-        .timeline-nav-btn:hover {
-            background: linear-gradient(90deg, #4361ee, #7209b7);
-            color: white;
-            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3);
+            padding: 0 15px;
+            box-sizing: border-box;
         }
 
         .event-display {
             position: relative;
             margin-top: 20px;
+            width: 100%;
         }
 
         .events-carousel {
@@ -256,11 +228,15 @@
         .event-cards-wrapper {
             position: relative;
             overflow: hidden;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .event-cards {
             display: flex;
             transition: transform 0.5s ease;
+            width: 100%;
         }
 
         .event-card {
@@ -275,7 +251,9 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            margin: 0 10px;
+            margin: 0;
+            box-sizing: border-box;
+            width: 100%;
         }
 
         .event-card.active {
@@ -345,10 +323,9 @@
         /* Mobile Responsive Styles */
         @media screen and (max-width: 768px) {
             .dynasty-container {
-                padding: 1rem;
-                gap: 1rem;
+                padding: 0.5rem;
             }
-
+            
             .timeline-container {
                 padding: 15px 10px;
                 overflow-x: auto;
@@ -390,9 +367,50 @@
                 display: none; /* Hide timeline controls on mobile */
             }
             
-            .event-card {
-                padding: 1.2rem;
+            .events-container {
+                padding: 0;
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+            }
+            
+            .event-display {
+                width: 100%;
+                max-width: 100%;
                 margin: 0;
+                padding: 0;
+            }
+            
+            .events-carousel {
+                width: 100%;
+                max-width: 100%;
+            }
+            
+            .event-cards-wrapper {
+                width: 100%;
+                max-width: 100%;
+                overflow: hidden;
+                padding: 0;
+                margin: 0;
+            }
+            
+            .event-cards {
+                width: 100%;
+                flex-wrap: nowrap;
+            }
+            
+            .event-card {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 15px;
+            }
+            
+            .event-image-container {
+                width: 100%;
+                max-width: 100%;
             }
             
             .event-title {
@@ -433,7 +451,7 @@
             }
             
             .event-card {
-                padding: 1rem;
+                padding: 10px;
             }
         }
 
@@ -844,16 +862,27 @@
         
         function updateEventDisplay() {
             const eventsContainer = document.querySelector('.event-cards');
-            const eventWidth = document.querySelector('.event-card')?.offsetWidth || 0;
+            const eventsWrapper = document.querySelector('.event-cards-wrapper');
             
-            // Handle case when no events are loaded yet
-            if (eventWidth === 0) return;
+            // Get the width of the wrapper
+            const wrapperWidth = eventsWrapper.offsetWidth;
+            const eventCards = document.querySelectorAll('.event-card');
             
-            const translateValue = -currentEventIndex * eventWidth;
+            if (eventCards.length === 0) return;
+            
+            // Set the width of each card to exactly match the wrapper width
+            eventCards.forEach(card => {
+                card.style.width = `${wrapperWidth}px`;
+                card.style.maxWidth = `${wrapperWidth}px`;
+                card.style.flexBasis = `${wrapperWidth}px`;
+            });
+            
+            // Move the container to show the current event
+            const translateValue = -currentEventIndex * wrapperWidth;
             eventsContainer.style.transform = `translateX(${translateValue}px)`;
             
             // Update active class
-            document.querySelectorAll('.event-card').forEach((card, index) => {
+            eventCards.forEach((card, index) => {
                 if (index === currentEventIndex) {
                     card.classList.add('active');
                 } else {
@@ -1001,7 +1030,6 @@
                 
                 // Render event cards with images
                 eventsContainer.innerHTML = '';
-                eventsContainer.style.width = `${events.length * 100}%`;
                 
                 events.forEach((event, index) => {
                     const eventTitle = event.Title ? event.Title.trim() : '未知事件';
@@ -1042,9 +1070,17 @@
                     handleImageLoad(image, loadingPlaceholder);
                 });
                 
-                // Update the event counter
-                updateEventCounter();
-                updateEventDisplay();
+                // After all events are added, set proper sizing and appearance
+                setTimeout(() => {
+                    // Update the event counter
+                    updateEventCounter();
+                    
+                    // Run updateEventDisplay to properly size all event cards
+                    updateEventDisplay();
+                    
+                    // Force a refresh of the layout
+                    window.dispatchEvent(new Event('resize'));
+                }, 10);
                 
             } catch (error) {
                 eventsContainer.innerHTML = `
