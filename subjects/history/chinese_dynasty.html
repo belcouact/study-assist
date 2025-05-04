@@ -153,6 +153,8 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .event-card::before {
@@ -179,15 +181,19 @@
 
         .event-title {
             font-size: 1.2em;
-            font-weight: 500;
-            margin-bottom: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.7rem;
             color: #333;
+            text-align: left;
+            line-height: 1.4;
         }
 
         .event-description {
-            color: #666;
+            color: #555;
             line-height: 1.6;
-            margin-bottom: 1rem;
+            font-size: 0.95em;
+            margin-bottom: 0;
+            text-align: justify;
         }
 
         .event-significance {
@@ -319,6 +325,143 @@
 
             .dynasty-poem p {
                 margin: 0.1rem 0;
+            }
+        }
+
+        /* Add styles for event images */
+        .event-image-container {
+            width: 100%;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            padding-top: 56.25%; /* 16:9 aspect ratio */
+            background-color: #f0f2f5;
+        }
+        
+        .event-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease, opacity 0.5s ease;
+            opacity: 0;
+        }
+        
+        .event-image.loaded {
+            opacity: 1;
+        }
+        
+        .event-image:hover {
+            transform: scale(1.05);
+        }
+        
+        .image-loading-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #718096;
+            font-size: 0.9rem;
+            z-index: 1;
+        }
+        
+        .image-loading-placeholder i {
+            margin-right: 8px;
+            animation: spin 1.5s linear infinite;
+        }
+        
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Enhanced event card layout */
+        .event-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        /* Responsive adjustments for different screen sizes */
+        @media (max-width: 1200px) {
+            .event-cards {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .dynasty-container {
+                flex-direction: column;
+                padding: 1rem;
+            }
+            
+            .timeline-container {
+                flex: 0 0 auto;
+                height: auto;
+                max-height: 300px;
+                width: 100%;
+                margin-bottom: 1.5rem;
+            }
+            
+            .vertical-timeline {
+                padding: 10px 0;
+            }
+            
+            .timeline-line {
+                left: 50px; /* Keep it aligned with the desktop view */
+            }
+            
+            .event-cards {
+                grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+                gap: 1rem;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .event-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .event-image-container {
+                padding-top: 52%; /* Slightly lower aspect ratio on mobile */
+            }
+            
+            .event-card {
+                padding: 1.2rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .dynasty-container {
+                padding: 0.8rem;
+            }
+            
+            .timeline-container {
+                padding: 15px;
+                max-height: 250px;
+            }
+            
+            .event-card {
+                padding: 1rem;
+            }
+            
+            .event-title {
+                font-size: 1.1em;
+            }
+            
+            .event-description {
+                font-size: 0.95em;
             }
         }
     </style>
@@ -515,12 +658,52 @@
                     return;
                 }
 
-                eventsContainer.innerHTML = events.map(event => `
-                    <div class="event-card">
-                        <h3 class="event-title">${event.Title ? event.Title.trim() : '未知事件'}</h3>
-                        <p class="event-description">${event.Event ? event.Event.trim() : '暂无描述'}</p>
-                    </div>
-                `).join('');
+                // Render event cards with images
+                eventsContainer.innerHTML = '';
+                
+                events.forEach(event => {
+                    const eventTitle = event.Title ? event.Title.trim() : '未知事件';
+                    const eventDescription = event.Event ? event.Event.trim() : '暂无描述';
+                    
+                    // Prepare the sanitized image filename based on the event title
+                    const sanitizedTitle = eventTitle
+                        .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // Remove special characters, keep Chinese characters
+                        .replace(/\s+/g, '_'); // Replace spaces with underscores
+                    
+                    // Path to the event image (same structure as events.html)
+                    const imagePath = `../../assets/images/history/chinese/${sanitizedTitle}.png`;
+                    
+                    // Create event card element
+                    const eventCard = document.createElement('div');
+                    eventCard.className = 'event-card';
+                    
+                    eventCard.innerHTML = `
+                        <div class="event-image-container">
+                            <div class="image-loading-placeholder">
+                                <i class="fas fa-spinner"></i> 加载图片中...
+                            </div>
+                            <img src="${imagePath}" alt="${eventTitle}" class="event-image">
+                        </div>
+                        <h3 class="event-title">${eventTitle}</h3>
+                        <p class="event-description">${eventDescription}</p>
+                    `;
+                    
+                    eventsContainer.appendChild(eventCard);
+                    
+                    // Handle image loading
+                    const image = eventCard.querySelector('.event-image');
+                    const loadingPlaceholder = eventCard.querySelector('.image-loading-placeholder');
+                    
+                    image.addEventListener('load', function() {
+                        this.classList.add('loaded');
+                        loadingPlaceholder.style.display = 'none';
+                    });
+                    
+                    image.addEventListener('error', function() {
+                        const imageContainer = this.parentElement;
+                        imageContainer.style.display = 'none';
+                    });
+                });
 
                 // Debug log for events found
                 // console.log(`Found ${events.length} events for dynasty:`, dynasty);
