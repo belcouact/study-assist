@@ -712,8 +712,21 @@ function initTimeline() {
     }
     
     loadButton.addEventListener('click', async () => {
-        // Show loading state
-        timelineContainer.innerHTML = '<div class="text-center"><p>正在加载时间线...</p></div>';
+        // Show loading state with skeleton UI
+        timelineContainer.innerHTML = `
+            <div class="timeline-skeleton">
+                <div class="skeleton-header"></div>
+                <div class="skeleton-subheader"></div>
+                <div class="skeleton-subheader" style="width: 30%"></div>
+                
+                <div class="timeline-content timeline-clearfix" style="margin-top: 40px;">
+                    <div class="skeleton-event left"></div>
+                    <div class="skeleton-event right"></div>
+                    <div class="skeleton-event left"></div>
+                    <div class="skeleton-event right"></div>
+                </div>
+            </div>
+        `;
         
         try {
             const period = periodSelect.value;
@@ -881,8 +894,19 @@ function initTimeline() {
                     <div class="text-center text-error">
                         <p>抱歉，生成时间线时出现错误。请再试一次。</p>
                         <p class="small">${jsonError.message}</p>
+                        <button id="retry-timeline" class="btn btn-outline btn-sm mt-3">
+                            <i class="fas fa-sync-alt"></i> 重试
+                        </button>
                     </div>
                 `;
+                
+                // Add retry button functionality
+                const retryButton = document.getElementById('retry-timeline');
+                if (retryButton) {
+                    retryButton.addEventListener('click', () => {
+                        loadButton.click();
+                    });
+                }
             }
         } catch (error) {
             console.error('生成时间线时出错:', error);
@@ -890,10 +914,32 @@ function initTimeline() {
                 <div class="text-center text-error">
                     <p>抱歉，生成时间线时出现错误。请再试一次。</p>
                     <p class="small">${error.message}</p>
+                    <button id="retry-timeline" class="btn btn-outline btn-sm mt-3">
+                        <i class="fas fa-sync-alt"></i> 重试
+                    </button>
                 </div>
             `;
+            
+            // Add retry button functionality
+            const retryButton = document.getElementById('retry-timeline');
+            if (retryButton) {
+                retryButton.addEventListener('click', () => {
+                    loadButton.click();
+                });
+            }
         }
     });
+    
+    // Add functionality to the retry button in the offline indicator
+    const retryButton = document.getElementById('retry-button');
+    if (retryButton) {
+        retryButton.addEventListener('click', () => {
+            if (navigator.onLine) {
+                loadButton.click();
+                document.getElementById('offline-indicator').style.display = 'none';
+            }
+        });
+    }
 }
 
 /**
@@ -938,12 +984,23 @@ function renderTimeline(timeline) {
             <p class="timeline-period">${timeline.period} - ${timeline.continent}</p>
             <p class="timeline-detail-level">详细程度：${detailLevelText} (${timeline.events.length}个事件)</p>
         </div>
-        <div class="timeline-content">
+        <div class="timeline-content timeline-clearfix">
     `;
     
+    // Sort events by year
+    timeline.events.sort((a, b) => {
+        // Extract numeric year for sorting
+        const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
+        const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
+        return yearA - yearB;
+    });
+    
+    // Add events to timeline
     timeline.events.forEach((event, index) => {
+        const eventClass = index % 2 === 0 ? 'world-event' : 'country-event';
+        
         html += `
-            <div class="timeline-event ${index % 2 === 0 ? 'left' : 'right'}">
+            <div class="timeline-event ${eventClass}">
                 <div class="event-year">${event.year}</div>
                 <div class="event-content">
                     <h4>${event.title}</h4>
@@ -994,40 +1051,47 @@ function renderComparisonTimeline(timeline) {
             <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
             <p>左侧展示全球重要历史事件，右侧展示${timeline.country}相关历史事件。通过观察两侧事件的时间关联，可以了解全球事件如何影响特定国家，以及特定国家如何参与和影响世界历史进程。</p>
         </div>
-        <div class="timeline-content">
-            <div class="timeline-column">
-                <div class="timeline-column-title">全球历史事件 (${timeline.worldEvents.length})</div>
+        <div class="timeline-clearfix">
+            <div class="timeline-column-header world-header">全球历史事件 (${timeline.worldEvents.length})</div>
+            <div class="timeline-column-header country-header">${timeline.country}历史事件 (${timeline.countryEvents.length})</div>
+        </div>
+        <div class="timeline-content timeline-clearfix">
     `;
+    
+    // Sort all events by year for chronological display
+    const allEvents = [];
     
     // Add world events
     timeline.worldEvents.forEach((event) => {
-        html += `
-            <div class="timeline-event">
-                <div class="event-year">${event.year}</div>
-                <div class="event-content">
-                    <h4>${event.title}</h4>
-                    <p class="event-description">${event.description}</p>
-                    <div class="event-significance">
-                        <strong>历史意义：</strong>
-                        <p>${event.significance}</p>
-                    </div>
-                </div>
-            </div>
-        `;
+        allEvents.push({
+            ...event,
+            type: 'world'
+        });
     });
-    
-    html += `
-            </div>
-            <div class="timeline-divider"></div>
-            <div class="timeline-column">
-                <div class="timeline-column-title">${timeline.country}历史事件 (${timeline.countryEvents.length})</div>
-    `;
     
     // Add country events
     if (timeline.countryEvents && timeline.countryEvents.length > 0) {
         timeline.countryEvents.forEach((event) => {
+            allEvents.push({
+                ...event,
+                type: 'country'
+            });
+        });
+    }
+    
+    // Sort events by year
+    allEvents.sort((a, b) => {
+        // Extract numeric year for sorting
+        const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
+        const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
+        return yearA - yearB;
+    });
+    
+    // Add events to timeline
+    allEvents.forEach((event) => {
+        if (event.type === 'world') {
             html += `
-                <div class="timeline-event">
+                <div class="timeline-event world-event">
                     <div class="event-year">${event.year}</div>
                     <div class="event-content">
                         <h4>${event.title}</h4>
@@ -1039,8 +1103,25 @@ function renderComparisonTimeline(timeline) {
                     </div>
                 </div>
             `;
-        });
-    } else {
+        } else {
+            html += `
+                <div class="timeline-event country-event">
+                    <div class="event-year">${event.year}</div>
+                    <div class="event-content">
+                        <h4>${event.title}</h4>
+                        <p class="event-description">${event.description}</p>
+                        <div class="event-significance">
+                            <strong>历史意义：</strong>
+                            <p>${event.significance}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+    
+    // If no country events
+    if (!timeline.countryEvents || timeline.countryEvents.length === 0) {
         html += `
             <div class="country-events-empty">
                 <p>该时期没有足够的${timeline.country}相关历史事件</p>
@@ -1049,7 +1130,6 @@ function renderComparisonTimeline(timeline) {
     }
     
     html += `
-            </div>
         </div>
         <div class="timeline-actions">
             <button class="btn btn-outline" id="print-timeline">打印时间线</button>
