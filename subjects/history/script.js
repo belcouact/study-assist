@@ -960,10 +960,7 @@ function renderComparisonTimeline(timeline) {
         <div class="timeline-content timeline-clearfix">
     `;
     
-    // 按时间年份合并和排序事件
-    const allEvents = [];
-    
-    // 分别准备世界事件和国家事件的数组
+    // 为世界事件和国家事件分别创建数组并添加类型标记
     const worldEvents = timeline.worldEvents.map(event => ({
         ...event,
         type: 'world'
@@ -974,7 +971,7 @@ function renderComparisonTimeline(timeline) {
         type: 'country'
     }));
     
-    // 按年份对两组事件分别排序
+    // 按年份对事件进行排序
     const sortEventsByYear = (events) => {
         return events.sort((a, b) => {
             // 尝试提取数字年份进行排序
@@ -989,51 +986,106 @@ function renderComparisonTimeline(timeline) {
         });
     };
     
+    // 对世界事件和国家事件进行排序
     const sortedWorldEvents = sortEventsByYear(worldEvents);
     const sortedCountryEvents = sortEventsByYear(countryEvents);
     
-    // 合并两组排序后的事件，保持世界事件在左，国家事件在右
-    // 将排序后的世界事件添加到时间线上
-    sortedWorldEvents.forEach((event) => {
-        html += `
-            <div class="timeline-event world-event">
-                <div class="event-year">${event.year}</div>
-                <div class="event-content">
-                    <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
-                    <h4>${event.title}</h4>
-                    <p class="event-description">${event.description}</p>
-                    <div class="event-significance">
-                        <strong>历史意义：</strong>
-                        <p>${event.significance}</p>
-                    </div>
-                </div>
-            </div>
-        `;
+    // 创建时间段分组
+    // 步骤1: 收集所有年份并进行排序
+    const allYears = new Set();
+    
+    // 添加所有事件的年份到集合中
+    sortedWorldEvents.forEach(event => allYears.add(event.year.toString()));
+    sortedCountryEvents.forEach(event => allYears.add(event.year.toString()));
+    
+    // 转换为数组并排序
+    const yearsArray = Array.from(allYears);
+    yearsArray.sort((a, b) => {
+        try {
+            const yearA = parseInt(a.toString().match(/-?\d+/)[0]);
+            const yearB = parseInt(b.toString().match(/-?\d+/)[0]);
+            return yearA - yearB;
+        } catch (e) {
+            return a.localeCompare(b);
+        }
     });
     
-    // 将排序后的国家事件添加到时间线上
-    sortedCountryEvents.forEach((event) => {
-        html += `
-            <div class="timeline-event country-event">
-                <div class="event-year">${event.year}</div>
-                <div class="event-content">
-                    <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
-                    <h4>${event.title}</h4>
-                    <p class="event-description">${event.description}</p>
-                    <div class="event-significance">
-                        <strong>历史意义：</strong>
-                        <p>${event.significance}</p>
-                    </div>
+    // 步骤2: 按年份创建时间段并显示对应的事件
+    yearsArray.forEach(year => {
+        // 查找该年份的世界事件
+        const worldEventsForYear = sortedWorldEvents.filter(event => event.year.toString() === year.toString());
+        
+        // 查找该年份的国家事件
+        const countryEventsForYear = sortedCountryEvents.filter(event => event.year.toString() === year.toString());
+        
+        // 仅当该年份至少有一个事件时才添加时间段
+        if (worldEventsForYear.length > 0 || countryEventsForYear.length > 0) {
+            html += `
+                <div class="timeline-year-marker">
+                    <div class="year-line"></div>
+                    <div class="year-label">${year}</div>
+                    <div class="year-line"></div>
                 </div>
-            </div>
-        `;
+                <div class="timeline-period-events timeline-clearfix">
+            `;
+            
+            // 为左侧添加世界事件
+            html += `<div class="timeline-world-events">`;
+            if (worldEventsForYear.length > 0) {
+                worldEventsForYear.forEach(event => {
+                    html += `
+                        <div class="timeline-event world-event">
+                            <div class="event-content">
+                                <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
+                                <h4>${event.title}</h4>
+                                <p class="event-description">${event.description}</p>
+                                <div class="event-significance">
+                                    <strong>历史意义：</strong>
+                                    <p>${event.significance}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                // 如果该年份没有世界事件，添加占位符
+                html += `<div class="timeline-event event-placeholder"></div>`;
+            }
+            html += `</div>`;
+            
+            // 为右侧添加国家事件
+            html += `<div class="timeline-country-events">`;
+            if (countryEventsForYear.length > 0) {
+                countryEventsForYear.forEach(event => {
+                    html += `
+                        <div class="timeline-event country-event">
+                            <div class="event-content">
+                                <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
+                                <h4>${event.title}</h4>
+                                <p class="event-description">${event.description}</p>
+                                <div class="event-significance">
+                                    <strong>历史意义：</strong>
+                                    <p>${event.significance}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                // 如果该年份没有国家事件，添加占位符
+                html += `<div class="timeline-event event-placeholder"></div>`;
+            }
+            html += `</div>`;
+            
+            html += `</div>`; // 关闭 timeline-period-events
+        }
     });
     
-    // 如果没有国家事件
-    if (!timeline.countryEvents || timeline.countryEvents.length === 0) {
+    // 如果没有事件
+    if (yearsArray.length === 0) {
         html += `
-            <div class="country-events-empty">
-                <p>该时期没有足够的${timeline.country}相关历史事件</p>
+            <div class="events-empty">
+                <p>未找到相关历史事件</p>
             </div>
         `;
     }
