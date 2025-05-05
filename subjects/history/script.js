@@ -696,6 +696,7 @@ function initTimeline() {
     const periodSelect = document.getElementById('timeline-period');
     const continentSelect = document.getElementById('timeline-continent');
     const countrySelect = document.getElementById('timeline-country');
+    const detailLevelSelect = document.getElementById('timeline-detail');
     const timelineContainer = document.getElementById('timeline-container');
     
     if (!loadButton || !periodSelect || !continentSelect || !timelineContainer) return;
@@ -718,9 +719,13 @@ function initTimeline() {
             const period = periodSelect.value;
             const continent = continentSelect.value;
             const country = countrySelect ? countrySelect.value : 'none';
+            const detailLevel = detailLevelSelect ? detailLevelSelect.value : 'medium';
             const periodName = getTopicName(period);
             const continentName = getContinentName(continent);
             const countryName = getCountryName(country);
+            
+            // Get event count based on detail level
+            const eventCounts = getEventCountsByDetailLevel(detailLevel);
 
             // Define the mapping between periods and research purposes
             const periodToResearch = {
@@ -759,66 +764,64 @@ function initTimeline() {
             let systemMessage;
             if (country === 'none') {
                 // Build system message for regular timeline generation
-                systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期${continentName}的重要历史事件时间线，研究目的：${research_purpose}。
-                
-                请提供以下内容：
-                1. 该时期最重要的10-15个历史事件
-                2. 每个事件应包括：
-                   - 具体年份或时间段
-                   - 事件名称
-                   - 简要描述（适合${levelName}学生理解）
-                   - 历史意义和影响
-                
-                请以JSON格式回复，格式如下:
-                {
-                  "title": "时间线标题",
-                  "period": "历史时期",
-                  "continent": "地区",
-                  "events": [
-                    {
-                      "year": "年份或时间段",
-                      "title": "事件名称",
-                      "description": "事件描述",
-                      "significance": "历史意义"
-                    }
-                  ]
-                }`;
+                systemMessage = '你是一个专业的历史教育助手，现在需要为' + levelName + '学生生成一个关于' + periodName + '时期' + continentName + '的重要历史事件时间线，研究目的：' + research_purpose + '。\n\n' +
+                '请提供以下内容：\n' +
+                '1. 该时期最重要的' + eventCounts.regularEvents + '个历史事件\n' +
+                '2. 每个事件应包括：\n' +
+                '   - 具体年份或时间段\n' +
+                '   - 事件名称\n' +
+                '   - 简要描述（适合' + levelName + '学生理解）\n' +
+                '   - 历史意义和影响\n\n' +
+                '请以JSON格式回复，格式如下:\n' +
+                '{\n' +
+                '  "title": "时间线标题",\n' +
+                '  "period": "历史时期",\n' +
+                '  "continent": "地区",\n' +
+                '  "detailLevel": "' + detailLevel + '",\n' +
+                '  "events": [\n' +
+                '    {\n' +
+                '      "year": "年份或时间段",\n' +
+                '      "title": "事件名称",\n' +
+                '      "description": "事件描述",\n' +
+                '      "significance": "历史意义"\n' +
+                '    }\n' +
+                '  ]\n' +
+                '}';
             } else {
                 // Build system message for country-specific timeline generation
-                systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，研究目的：${research_purpose}。
-                
-                请提供以下内容：
-                1. 全球部分：该时期全球范围内最重要的8-10个历史事件（不包括${countryName}国内事件）
-                2. ${countryName}部分：同一时期与${countryName}相关的8-10个重要历史事件，展示该国如何被全球事件影响以及如何影响全球
-                3. 每个事件应包括：
-                   - 具体年份或时间段
-                   - 事件名称
-                   - 简要描述（适合${levelName}学生理解）
-                   - 历史意义和影响
-                
-                请以JSON格式回复，格式如下:
-                {
-                  "title": "时间线标题",
-                  "period": "历史时期",
-                  "continent": "地区",
-                  "country": "${countryName}",
-                  "worldEvents": [
-                    {
-                      "year": "年份或时间段",
-                      "title": "事件名称",
-                      "description": "事件描述",
-                      "significance": "历史意义"
-                    }
-                  ],
-                  "countryEvents": [
-                    {
-                      "year": "年份或时间段",
-                      "title": "事件名称",
-                      "description": "事件描述",
-                      "significance": "历史意义"
-                    }
-                  ]
-                }`;
+                systemMessage = '你是一个专业的历史教育助手，现在需要为' + levelName + '学生生成一个关于' + periodName + '时期的世界历史事件与' + countryName + '相关历史事件的对比时间线，研究目的：' + research_purpose + '。\n\n' +
+                '请提供以下内容：\n' +
+                '1. 全球部分：该时期全球范围内最重要的' + eventCounts.worldEvents + '个历史事件（不包括' + countryName + '国内事件）\n' +
+                '2. ' + countryName + '部分：同一时期与' + countryName + '相关的' + eventCounts.countryEvents + '个重要历史事件，展示该国如何被全球事件影响以及如何影响全球\n' +
+                '3. 每个事件应包括：\n' +
+                '   - 具体年份或时间段\n' +
+                '   - 事件名称\n' +
+                '   - 简要描述（适合' + levelName + '学生理解）\n' +
+                '   - 历史意义和影响\n\n' +
+                '请以JSON格式回复，格式如下:\n' +
+                '{\n' +
+                '  "title": "时间线标题",\n' +
+                '  "period": "历史时期",\n' +
+                '  "continent": "地区",\n' +
+                '  "country": "' + countryName + '",\n' +
+                '  "detailLevel": "' + detailLevel + '",\n' +
+                '  "worldEvents": [\n' +
+                '    {\n' +
+                '      "year": "年份或时间段",\n' +
+                '      "title": "事件名称",\n' +
+                '      "description": "事件描述",\n' +
+                '      "significance": "历史意义"\n' +
+                '    }\n' +
+                '  ],\n' +
+                '  "countryEvents": [\n' +
+                '    {\n' +
+                '      "year": "年份或时间段",\n' +
+                '      "title": "事件名称",\n' +
+                '      "description": "事件描述",\n' +
+                '      "significance": "历史意义"\n' +
+                '    }\n' +
+                '  ]\n' +
+                '}';
             }
             
             // Call DeepSeek API
@@ -836,8 +839,8 @@ function initTimeline() {
                         {
                             "role": "user",
                             "content": country === 'none' ? 
-                                `请生成一个关于${periodName}时期${continentName}的重要历史事件时间线，适合${levelName}学生的水平。` :
-                                `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，适合${levelName}学生的水平。`
+                                `请生成一个关于${periodName}时期${continentName}的重要历史事件时间线，包含${eventCounts.regularEvents}个事件，适合${levelName}学生的水平。` :
+                                `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，分别包含${eventCounts.worldEvents}个世界事件和${eventCounts.countryEvents}个${countryName}事件，适合${levelName}学生的水平。`
                         }
                     ]
                 })
@@ -894,16 +897,46 @@ function initTimeline() {
 }
 
 /**
+ * Get event counts based on detail level
+ */
+function getEventCountsByDetailLevel(detailLevel) {
+    switch(detailLevel) {
+        case 'brief':
+            return {
+                regularEvents: 10,
+                worldEvents: 10,
+                countryEvents: 10
+            };
+        case 'detailed':
+            return {
+                regularEvents: 30,
+                worldEvents: 30,
+                countryEvents: 30
+            };
+        case 'medium':
+        default:
+            return {
+                regularEvents: 20,
+                worldEvents: 20,
+                countryEvents: 20
+            };
+    }
+}
+
+/**
  * Render the regular timeline
  */
 function renderTimeline(timeline) {
     const timelineContainer = document.getElementById('timeline-container');
     if (!timelineContainer) return;
     
+    const detailLevelText = getDetailLevelText(timeline.detailLevel || 'medium');
+    
     let html = `
         <div class="timeline-header">
             <h3>${timeline.title}</h3>
             <p class="timeline-period">${timeline.period} - ${timeline.continent}</p>
+            <p class="timeline-detail-level">详细程度：${detailLevelText} (${timeline.events.length}个事件)</p>
         </div>
         <div class="timeline-content">
     `;
@@ -949,10 +982,13 @@ function renderComparisonTimeline(timeline) {
     const timelineContainer = document.getElementById('timeline-container');
     if (!timelineContainer) return;
     
+    const detailLevelText = getDetailLevelText(timeline.detailLevel || 'medium');
+    
     let html = `
         <div class="timeline-header">
             <h3>${timeline.title}</h3>
             <p class="timeline-period">${timeline.period} - ${timeline.continent} - ${timeline.country}</p>
+            <p class="timeline-detail-level">详细程度：${detailLevelText}</p>
         </div>
         <div class="country-info">
             <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
@@ -960,7 +996,7 @@ function renderComparisonTimeline(timeline) {
         </div>
         <div class="timeline-content">
             <div class="timeline-column">
-                <div class="timeline-column-title">全球历史事件</div>
+                <div class="timeline-column-title">全球历史事件 (${timeline.worldEvents.length})</div>
     `;
     
     // Add world events
@@ -984,7 +1020,7 @@ function renderComparisonTimeline(timeline) {
             </div>
             <div class="timeline-divider"></div>
             <div class="timeline-column">
-                <div class="timeline-column-title">${timeline.country}历史事件</div>
+                <div class="timeline-column-title">${timeline.country}历史事件 (${timeline.countryEvents.length})</div>
     `;
     
     // Add country events
@@ -1028,6 +1064,21 @@ function renderComparisonTimeline(timeline) {
         printButton.addEventListener('click', () => {
             window.print();
         });
+    }
+}
+
+/**
+ * Get descriptive text for detail level
+ */
+function getDetailLevelText(detailLevel) {
+    switch(detailLevel) {
+        case 'brief':
+            return '简略 (各10个事件)';
+        case 'detailed':
+            return '详尽 (各30个事件)';
+        case 'medium':
+        default:
+            return '中等 (各20个事件)';
     }
 }
 
