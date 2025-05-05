@@ -1010,1072 +1010,6 @@
     <script src="../../js/education-level.js"></script>
     
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Parse URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const topic = urlParams.get('topic');
-            const category = urlParams.get('category');
-            const subCategory = urlParams.get('sub_category');
-            const subCategory1 = urlParams.get('sub_category_1');
-            const subCategory2 = urlParams.get('sub_category_2');
-            
-            // If we have category, sub_category_1, and sub_category_2 params, handle specific dynasty events
-            if (category && subCategory1 && subCategory2) {
-                if (subCategory1 === 'ANCIENT_CHINESE_HISTORY') {
-                    // Special case for a specific Chinese dynasty
-                    loadDynastyEvents(category, subCategory1, subCategory2);
-                }
-            }
-            // If we have category and sub_category_1 params, handle those first (for Chinese dynasties)
-            else if (category && subCategory1) {
-                // Special case for Chinese dynasty timeline
-                if (subCategory1 === 'ANCIENT_CHINESE_HISTORY') {
-                    const chineseDynastyInfo = {
-                        name: '中国历朝历代',
-                        description: '从夏商周到秦汉，从隋唐到宋元明清，探索中华文明的发展历程',
-                        timeRange: '约前2070年 - 1911年',
-                    };
-                    
-                    // Update page header with dynasty information
-                    document.getElementById('topic-title').textContent = chineseDynastyInfo.name;
-                    document.getElementById('topic-description').textContent = chineseDynastyInfo.description;
-                    document.getElementById('topic-time-range').textContent = chineseDynastyInfo.timeRange;
-                    
-                    // Load Chinese dynasty timeline
-                    loadChineseDynastyTimeline();
-                }
-                // Handle other Chinese historical periods
-                else if (subCategory1 === 'CHINA_MODERN_HISTORY') {
-                    // Modern Chinese history (1840-1949)
-                    const modernChinaInfo = {
-                        name: '中国近代史',
-                        description: '从鸦片战争到新中国成立前夕，中国近代历史的重要事件',
-                        timeRange: '1840年 - 1949年',
-                    };
-                    
-                    document.getElementById('topic-title').textContent = modernChinaInfo.name;
-                    document.getElementById('topic-description').textContent = modernChinaInfo.description;
-                    document.getElementById('topic-time-range').textContent = modernChinaInfo.timeRange;
-                    
-                    // Load modern Chinese history events
-                    loadHistoricalPeriodEvents('CHINA_HISTORY', 'CHINA_MODERN_HISTORY');
-                }
-                else if (subCategory1 === 'CONTEMPORARY_CHINESE_HISTORY') {
-                    // Contemporary Chinese history (1949-present)
-                    const contemporaryChinaInfo = {
-                        name: '中国当代史',
-                        description: '从新中国成立到现在，中国当代历史的重要事件',
-                        timeRange: '1949年 - 至今',
-                    };
-                    
-                    document.getElementById('topic-title').textContent = contemporaryChinaInfo.name;
-                    document.getElementById('topic-description').textContent = contemporaryChinaInfo.description;
-                    document.getElementById('topic-time-range').textContent = contemporaryChinaInfo.timeRange;
-                    
-                    // Load contemporary Chinese history events
-                    loadHistoricalPeriodEvents('CHINA_HISTORY', 'CONTEMPORARY_CHINESE_HISTORY');
-                }
-            }
-            // Otherwise, check for topic parameter
-            else if (topic) {
-                loadTopicEvents(topic);
-            } else {
-                // Default view - load recent events
-                loadRecentEvents();
-            }
-            
-            // Initialize event handlers for navigation
-            initializeEventHandlers();
-        });
-        
-        function loadHistoricalEvents(category) {
-            try {
-                // Ensure the category is properly sanitized for SQL
-                // Escape single quotes to prevent SQL injection
-                const sanitizedCategory = category.replace(/'/g, "''");
-                
-                // Fix for encoding issue - don't double encode the category
-                const sql = `SELECT * FROM world_history WHERE SUB_CATEGORY_1 = '${sanitizedCategory}'`;
-                
-                // Only encode the full SQL query in the URL parameters
-                const params = new URLSearchParams({
-                    sql: sql
-                });
-                
-                // Use the proper API request format with SQL query
-                fetch(`/api/db/query/world_history?${params}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`API响应错误: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (!data.success || !data.data) {
-                            throw new Error(data.error || "获取数据失败");
-                        }
-                        
-                        const events = data.data || [];
-                        
-                        if (events.length === 0) {
-                            showError(`未找到与"${category}"相关的历史事件数据`);
-                            return;
-                        }
-                        
-                        console.log(`已加载${events.length}条"${category}"相关的历史事件`);
-                        
-                        // Store events globally for later use
-                        window.allHistoricalEvents = events;
-                        
-                        // Filter only the events that match our category
-                        const filteredEvents = events.filter(event => 
-                            event.SUB_CATEGORY_1 === sanitizedCategory);
-                            
-                        // Use filtered events if available, otherwise fall back to all events
-                        const eventsToRender = filteredEvents.length > 0 ? filteredEvents : events;
-                        
-                        // Sort events chronologically (if needed)
-                        sortEventsChronologically(eventsToRender);
-                        
-                        // Render all events in a timeline
-                        renderAllEvents(eventsToRender);
-                        
-                    })
-                    .catch(error => {
-                        console.error("加载历史事件数据时出错:", error);
-                        showError(`加载数据失败: ${error.message}`);
-                    });
-                
-            } catch (error) {
-                console.error("加载历史事件数据时出错:", error);
-                showError(`加载数据失败: ${error.message}`);
-            }
-        }
-        
-        function loadChineseHistoricalEvents(category, subCategory) {
-            try {
-                // Log the input parameters for debugging
-                console.log(`Loading Chinese history with category="${category}", subCategory="${subCategory}"`);
-                
-                // Get all history events and filter client-side for more reliable filtering
-                const sql = `SELECT * FROM world_history`;
-                
-                // Only encode the full SQL query in the URL parameters
-                const params = new URLSearchParams({
-                    sql: sql
-                });
-                
-                // Use the proper API request format with SQL query
-                fetch(`/api/db/query/world_history?${params}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`API响应错误: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (!data.success || !data.data) {
-                            throw new Error(data.error || "获取数据失败");
-                        }
-                        
-                        const allEvents = data.data || [];
-                        
-                        if (allEvents.length === 0) {
-                            showError("未找到任何历史事件数据");
-                            return;
-                        }
-                        
-                        console.log(`已加载${allEvents.length}条历史事件数据`);
-                        
-                        // Filter for Chinese modern history events
-                        const filteredEvents = allEvents.filter(event => {
-                            // Case-insensitive comparison for more reliable filtering
-                            const eventCategory = (event.CATEGORY || '').toUpperCase();
-                            const eventSubCategory = (event.SUB_CATEGORY_1 || '').toUpperCase();
-                            const targetCategory = category.toUpperCase();
-                            const targetSubCategory = subCategory.toUpperCase();
-                            
-                            return (
-                                eventCategory.includes(targetCategory) && 
-                                eventSubCategory.includes(targetSubCategory)
-                            );
-                        });
-                        
-                        console.log(`过滤后剩余${filteredEvents.length}条中国近代史事件`);
-                        
-                        if (filteredEvents.length === 0) {
-                            showError(`未找到与中国近代史相关的历史事件数据`);
-                            return;
-                        }
-                        
-                        // Store filtered events globally for later use
-                        window.allHistoricalEvents = filteredEvents;
-                        
-                        // Sort events chronologically
-                        sortEventsChronologically(filteredEvents);
-                        
-                        // Render events in timeline
-                        renderAllEvents(filteredEvents);
-                    })
-                    .catch(error => {
-                        console.error("加载历史事件数据时出错:", error);
-                        showError(`加载数据失败: ${error.message}`);
-                    });
-                
-            } catch (error) {
-                console.error("加载历史事件数据时出错:", error);
-                showError(`加载数据失败: ${error.message}`);
-            }
-        }
-        
-        function sortEventsChronologically(events) {
-            // Sort events by period/date
-            events.sort((a, b) => {
-                // Extract numbers for comparison
-                const getYear = (str) => {
-                    const match = str.match(/(\d+)/);
-                    return match ? parseInt(match[0], 10) : 0;
-                };
-                
-                const aPeriod = a.PERIOD || '';
-                const bPeriod = b.PERIOD || '';
-                
-                // Handle BC dates (前XX年)
-                const aHasBC = aPeriod.includes('前');
-                const bHasBC = bPeriod.includes('前');
-                
-                if (aHasBC && !bHasBC) return -1; // BC comes before AD
-                if (!aHasBC && bHasBC) return 1;  // AD comes after BC
-                
-                const aYear = getYear(aPeriod);
-                const bYear = getYear(bPeriod);
-                
-                // For both BC or both AD
-                if (aHasBC && bHasBC) {
-                    return bYear - aYear; // Higher BC year is earlier
-                } else {
-                    return aYear - bYear; // Lower AD year is earlier
-                }
-            });
-        }
-        
-        // Render all events in the horizontal timeline
-        function renderAllEvents(events) {
-            const allEventsContainer = document.getElementById('all-events-container');
-            if (!allEventsContainer) return;
-            
-            allEventsContainer.innerHTML = '';
-            
-            // No events case
-            if (!events || events.length === 0) {
-                allEventsContainer.innerHTML = '<div class="no-events">暂无历史事件数据</div>';
-                
-                // Hide event controls since there are no events to navigate
-                const eventControls = document.querySelector('.event-controls');
-                if (eventControls) {
-                    eventControls.style.display = 'none';
-                }
-                
-                return;
-            }
-            
-            // Set global variables for navigation
-            currentEventIndex = 0;
-            totalEvents = events.length;
-            
-            // Create event cards
-            events.forEach((event, index) => {
-                const card = createEventCard(event, index);
-                if (card) {
-                    allEventsContainer.appendChild(card);
-                }
-            });
-            
-            // Make sure we update counter
-            updateEventCounter();
-            
-            // Initialize animations only if we have cards
-            if (document.querySelectorAll('.event-card').length > 0) {
-                initAnimations();
-            }
-            
-            // Show event controls for navigation
-            const eventControls = document.querySelector('.event-controls');
-            if (eventControls) {
-                eventControls.style.display = 'flex';
-            }
-            
-            // Show the timeline container
-            const eventsCarousel = document.querySelector('.events-carousel');
-            if (eventsCarousel) {
-                eventsCarousel.style.display = 'block';
-            }
-        }
-        
-        // Global variables for navigation
-        let currentEventIndex = 0;
-        let totalEvents = 0;
-        
-        function showPreviousEvent() {
-            if (currentEventIndex > 0) {
-                currentEventIndex--;
-                updateEventDisplay();
-            }
-        }
-        
-        function showNextEvent() {
-            if (currentEventIndex < totalEvents - 1) {
-                currentEventIndex++;
-                updateEventDisplay();
-            }
-        }
-        
-        function updateEventDisplay() {
-            const eventsContainer = document.getElementById('all-events-container');
-            if (!eventsContainer) return;
-            
-            // Get the width of a single event card - account for mobile vs desktop
-            const isMobile = window.innerWidth <= 768;
-            const eventCard = document.querySelector('.event-card');
-            
-            // Check if event cards exist
-            if (!eventCard) {
-                // No event cards found, skip the transform logic
-                updateEventCounter();
-                return;
-            }
-            
-            const eventWidth = isMobile ? 
-                eventCard.offsetWidth : // Full width on mobile
-                eventCard.offsetWidth + 20; // card width + margins on desktop
-            
-            const translateValue = -currentEventIndex * eventWidth;
-            
-            eventsContainer.style.transform = `translateX(${translateValue}px)`;
-            
-            // Update active class
-            document.querySelectorAll('.event-card').forEach((card, index) => {
-                if (index === currentEventIndex) {
-                    card.classList.add('active');
-                    
-                    // Update active period in timeline
-                    const period = card.dataset.period;
-                    document.querySelectorAll('.timeline-period').forEach(p => {
-                        if (p.dataset.period === period) {
-                            p.classList.add('active');
-                            
-                            // Scroll period into view in timeline
-                            const timeline = document.getElementById('period-timeline');
-                            if (timeline) {
-                                const scrollLeft = p.offsetLeft - timeline.offsetWidth / 2 + p.offsetWidth / 2;
-                                timeline.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-                            }
-                        } else {
-                            p.classList.remove('active');
-                        }
-                    });
-                    
-                    // Ensure any impact content is visible
-                    const impactContent = card.querySelector('.impact-content');
-                    if (impactContent) {
-                        impactContent.style.height = 'auto';
-                        impactContent.style.overflow = 'visible';
-                    }
-                } else {
-                    card.classList.remove('active');
-                }
-            });
-            
-            updateEventCounter();
-        }
-        
-        function updateEventCounter() {
-            const counter = document.getElementById('event-counter');
-            if (counter) {
-                counter.textContent = `${currentEventIndex + 1} / ${totalEvents}`;
-            }
-        }
-        
-        function createEventCard(event, index) {
-            const card = document.createElement('div');
-            card.className = 'event-card';
-            
-            // Check if this is a Chinese dynasty card
-            const isDynasty = event.SUB_CATEGORY_1 === 'ANCIENT_CHINESE_HISTORY' && event.SUB_CATEGORY_2;
-            
-            // Prepare the sanitized image filename based on the event title
-            const eventTitle = event.TITLE || '未命名事件';
-            const sanitizedTitle = eventTitle
-                .replace(/[^\w\s\u4e00-\u9fa5]/g, '') // Remove special characters, keep Chinese characters
-                .replace(/\s+/g, '_'); // Replace spaces with underscores
-            
-            // Path to the event image
-            let imagePath;
-            if (isDynasty) {
-                // For dynasty, use a more specific path
-                imagePath = `../../assets/images/history/dynasties/${sanitizedTitle}.jpg`;
-            } else {
-                // Regular path for other events
-                imagePath = `../../assets/images/history/chinese/${sanitizedTitle}.jpg`;
-            }
-            
-            // Convert newlines to <br> tags to preserve paragraphs
-            const formatParagraphs = (text) => {
-                if (!text) return '';
-                
-                // First normalize different types of newlines
-                let normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-                
-                // Handle multiple consecutive newlines as paragraph breaks
-                normalized = normalized.replace(/\n\s*\n/g, '</p><p>');
-                
-                // Handle single newlines as line breaks
-                normalized = normalized.replace(/\n/g, '<br>');
-                
-                return normalized;
-            };
-            
-            const background = event.BACKGROUND ? `<p>${formatParagraphs(event.BACKGROUND)}</p>` : '';
-            const eventText = event.EVENT ? `<p>${formatParagraphs(event.EVENT)}</p>` : '';
-            const impact = event.IMPACT ? `<p>${formatParagraphs(event.IMPACT)}</p>` : '暂无影响信息';
-            
-            // Additional information for dynasties
-            let dynastyInfo = '';
-            if (isDynasty) {
-                const dynastyClass = sanitizedTitle.toLowerCase();
-                dynastyInfo = `
-                    <div class="dynasty-info ${dynastyClass}">
-                        <span class="dynasty-badge">${eventTitle}</span>
-                        <span class="dynasty-period">${event.PERIOD}</span>
-                    </div>
-                `;
-            }
-            
-            const content = `
-                <div class="event-header">
-                    <h3 class="event-title">${eventTitle}</h3>
-                    <span class="event-period">${event.PERIOD || '未知时期'}</span>
-                    ${dynastyInfo}
-                </div>
-                <div class="event-content">
-                    <div class="event-content-wrapper">
-                        <div class="event-image-container">
-                            <div class="image-loading-placeholder">
-                                <i class="fas fa-spinner"></i> 加载图片中...
-                            </div>
-                            <img src="${imagePath}" alt="${eventTitle}" class="event-image" onload="this.style.opacity = 1; this.previousElementSibling.style.display = 'none';" onerror="handleImageError(this)">
-                        </div>
-                        <div class="event-content-text">
-                        <div class="event-description">
-                                ${background}
-                                ${eventText}
-                        </div>
-                        <div class="event-impact">
-                            <h4 class="impact-title">历史影响</h4>
-                                <div class="impact-content">
-                                    ${impact}
-                                </div>
-                        </div>
-                        ${event.REGION ? `<div class="region-tag"><i class="fas fa-map-marker-alt"></i> ${event.REGION}</div>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            card.innerHTML = content;
-            return card;
-        }
-        
-        // Handle image load errors
-        function handleImageError(img) {
-            // Try with .png extension if .jpg fails
-            const src = img.src;
-            if (src.endsWith('.jpg')) {
-                const newSrc = src.replace('.jpg', '.png');
-                img.src = newSrc;
-                
-                // Add a second error handler for when both extensions fail
-                img.onerror = function() {
-                    const container = img.closest('.event-image-container');
-                    const placeholder = container.querySelector('.image-loading-placeholder');
-                    placeholder.innerHTML = '<i class="fas fa-image"></i> 暂无图片';
-                    placeholder.style.display = 'flex';
-                };
-            } else {
-                const container = img.closest('.event-image-container');
-                const placeholder = container.querySelector('.image-loading-placeholder');
-                placeholder.innerHTML = '<i class="fas fa-image"></i> 暂无图片';
-                placeholder.style.display = 'flex';
-            }
-        }
-        
-        function initAnimations() {
-            // Use simpler animations for the horizontal timeline
-                document.querySelectorAll('.event-card').forEach((card, index) => {
-                if (index === 0) {
-                    card.style.opacity = 1;
-                    card.classList.add('active');
-                }
-            });
-            
-            // Add resize handler to update the layout when screen size changes
-            let resizeTimer;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
-                    updateEventDisplay();
-                }, 250);
-            });
-        }
-        
-        function initScrollToTop() {
-            const scrollTopBtn = document.getElementById('scroll-top');
-            
-            // Show/hide the button based on scroll position
-            window.addEventListener('scroll', () => {
-                if (window.pageYOffset > 300) {
-                    scrollTopBtn.classList.add('visible');
-                } else {
-                    scrollTopBtn.classList.remove('visible');
-                }
-            }, { passive: true });
-            
-            // Scroll to top when clicked
-            scrollTopBtn.addEventListener('click', () => {
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            });
-        }
-        
-        function showError(message) {
-            document.getElementById('loading').innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #e53e3e; margin-bottom: 15px;"></i>
-                    <p>${message}</p>
-                    <button class="btn btn-primary mt-4" onclick="window.location.href='main.html'">返回主页</button>
-                </div>
-            `;
-        }
-        
-        /**
-         * Load Chinese Dynasty Timeline data and display it
-         */
-        function loadChineseDynastyTimeline() {
-            // Chinese dynasty data - Maintain the specified order
-            const chineseDynasties = [
-                { name: '夏朝', period: '前2070-前1600', description: '中国第一个王朝，由禹建立，史料记载较少。', significance: '开创了中国历史上的家天下世袭制度，确立了王位世袭制。' },
-                { name: '商朝', period: '前1600-前1046', description: '中国历史上第一个有直接文字记载的王朝，甲骨文的出现。', significance: '形成了成熟的青铜器文明，甲骨文的使用标志着中国文字的正式形成。' },
-                { name: '西周', period: '前1046-前771', description: '周武王灭商建立，实行分封制。', significance: '创立了"天命""礼制"等重要的政治思想，奠定了中国传统文化的基础。' },
-                { name: '东周', period: '前770-前256', description: '周平王东迁洛邑后的周朝，包括春秋战国时期。', significance: '政治上诸侯割据，文化上百家争鸣，是中国历史上思想文化最活跃的时期之一。' },
-                { name: '春秋', period: '前770-前476', description: '周天子权威衰落，诸侯争霸的时期。', significance: '出现了以孔子为代表的诸子百家，儒家思想开始形成。' },
-                { name: '战国', period: '前475-前221', description: '七雄并立，变法图强，兼并战争频繁的时期。', significance: '军事、政治、经济、文化等各方面都发生了深刻变革，为秦统一奠定了基础。' },
-                { name: '秦朝', period: '前221-前207', description: '秦始皇统一六国，建立中国历史上第一个统一的中央集权制国家。', significance: '推行郡县制、统一文字、货币、度量衡，奠定了中国两千多年政治制度的基础。' },
-                { name: '西汉', period: '前202-8', description: '刘邦建立，"文景之治"、"汉武盛世"是其鼎盛时期。', significance: '确立了儒家思想的正统地位，开辟丝绸之路，国力强盛，与罗马帝国并称为当时世界两大强国。' },
-                { name: '新莽', period: '9-23', description: '王莽篡汉建立的朝代，进行了一系列改革。', significance: '虽然昙花一现，但其改革措施反映了当时社会的深刻矛盾。' },
-                { name: '东汉', period: '25-220', description: '光武帝刘秀重建汉朝，定都洛阳。', significance: '"光武中兴"后国力恢复，出现了"明章之治"，科技和艺术有重要发展。' },
-                { name: '三国', period: '220-280', description: '魏、蜀、吴三国鼎立的局面。', significance: '政治上的分裂与军事上的对抗并存，同时出现了科技创新和文学艺术的发展。' },
-                { name: '西晋', period: '265-317', description: '司马炎建立，短暂统一了三国。', significance: '结束了三国分裂局面，但很快因八王之乱和五胡乱华而衰亡。' },
-                { name: '东晋', period: '317-420', description: '晋室南渡，定都建康（今南京）。', significance: '北方游牧民族建立政权，汉族政权南迁，中国开始进入南北分裂时期。' },
-                { name: '南北朝', period: '420-589', description: '南朝宋、齐、梁、陈和北朝北魏、东西魏、北齐、北周并立。', significance: '民族融合加速，佛教文化繁荣，为隋唐统一和繁荣奠定了基础。' },
-                { name: '隋朝', period: '581-618', description: '杨坚建立，结束了长期分裂局面。', significance: '开凿大运河，创立科举制度，为唐朝的繁荣奠定了基础。' },
-                { name: '唐朝', period: '618-907', description: '李渊建立，"贞观之治"、"开元盛世"是其鼎盛时期。', significance: '是中国历史上最强盛的朝代之一，文化、经济、外交都达到了顶峰。' },
-                { name: '五代十国', period: '907-960', description: '后梁、后唐、后晋、后汉、后周五个朝代更迭，同时南方存在多个政权。', significance: '政局动荡，但经济和文化依然有所发展，为宋朝的建立创造了条件。' },
-                { name: '北宋', period: '960-1127', description: '赵匡胤建立，定都开封。', significance: '中国历史上经济、文化、科技最为发达的时期之一，商品经济和城市文明高度发展。' },
-                { name: '南宋', period: '1127-1279', description: '靖康之变后，宋高宗赵构南迁建立，定都临安（今杭州）。', significance: '科技和商业继续发展，但在军事上处于守势，最终被元朝灭亡。' },
-                { name: '辽西夏金', period: '907-1234', description: '分别由契丹族、党项族和女真族建立的政权，与宋朝并存。', significance: '加速了中国北方多民族融合，对宋朝政局产生重大影响。' },
-                { name: '元朝', period: '1271-1368', description: '蒙古族忽必烈建立，首次实现对中国的全境统治。', significance: '加强了中国与世界的联系，促进了民族融合和文化交流。' },
-                { name: '明朝', period: '1368-1644', description: '朱元璋推翻元朝统治建立，后迁都北京。', significance: '恢复和发展了汉族文化传统，经济重心南移，资本主义萌芽出现。' },
-                { name: '清朝', period: '1644-1911', description: '满族建立的最后一个封建王朝，"康乾盛世"是其鼎盛时期。', significance: '统一多民族国家的疆域基本奠定，后期遭遇西方列强入侵，最终被辛亥革命推翻。' }
-            ];
-
-            // Maintain the specified order - don't sort chronologically
-            // The dynasties are already in the correct historical order
-            
-            // Create event objects from dynasty data and make them clickable
-            const events = chineseDynasties.map(dynasty => {
-                return {
-                    TITLE: dynasty.name,
-                    PERIOD: dynasty.period,
-                    EVENT: dynasty.description,
-                    IMPACT: dynasty.significance,
-                    CATEGORY: 'CHINA_HISTORY',
-                    SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                    SUB_CATEGORY_2: dynasty.name
-                };
-            });
-            
-            // Enhanced dynasty card styles
-            const dynastyStyles = `
-            <style>
-                .dynasty-info {
-                    margin-top: 10px;
-                    padding: 15px;
-                    border-radius: 8px;
-                    display: flex;
-                    flex-wrap: wrap;
-                    justify-content: space-between;
-                    align-items: center;
-                    background-color: rgba(67, 97, 238, 0.1);
-                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-                    cursor: pointer;
-                    transition: all 0.3s ease;
-                }
-                
-                .dynasty-info:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-                }
-                
-                .dynasty-badge {
-                    display: inline-block;
-                    padding: 6px 14px;
-                    border-radius: 20px;
-                    font-weight: 600;
-                    color: white;
-                    background: linear-gradient(135deg, #4361ee, #7209b7);
-                    margin-right: 10px;
-                    box-shadow: 0 3px 8px rgba(67, 97, 238, 0.2);
-                }
-                
-                .dynasty-period {
-                    font-weight: 500;
-                    color: #4a5568;
-                    flex-grow: 1;
-                    text-align: right;
-                    font-size: 1.1rem;
-                }
-                
-                /* Dynasty-specific color schemes */
-                .dynasty-info.夏朝 { background-color: rgba(72, 202, 228, 0.2); }
-                .dynasty-info.商朝 { background-color: rgba(155, 89, 182, 0.2); }
-                .dynasty-info.西周 { background-color: rgba(241, 196, 15, 0.2); }
-                .dynasty-info.东周 { background-color: rgba(230, 126, 34, 0.2); }
-                .dynasty-info.春秋 { background-color: rgba(46, 204, 113, 0.2); }
-                .dynasty-info.战国 { background-color: rgba(231, 76, 60, 0.2); }
-                .dynasty-info.秦朝 { background-color: rgba(52, 152, 219, 0.2); }
-                .dynasty-info.西汉 { background-color: rgba(155, 89, 182, 0.2); }
-                .dynasty-info.新莽 { background-color: rgba(52, 73, 94, 0.2); }
-                .dynasty-info.东汉 { background-color: rgba(241, 196, 15, 0.2); }
-                .dynasty-info.三国 { background-color: rgba(231, 76, 60, 0.2); }
-                .dynasty-info.西晋 { background-color: rgba(46, 204, 113, 0.2); }
-                .dynasty-info.东晋 { background-color: rgba(52, 152, 219, 0.2); }
-                .dynasty-info.南北朝 { background-color: rgba(155, 89, 182, 0.2); }
-                .dynasty-info.隋朝 { background-color: rgba(241, 196, 15, 0.2); }
-                .dynasty-info.唐朝 { background-color: rgba(231, 76, 60, 0.2); }
-                .dynasty-info.五代十国 { background-color: rgba(46, 204, 113, 0.2); }
-                .dynasty-info.北宋 { background-color: rgba(52, 152, 219, 0.2); }
-                .dynasty-info.南宋 { background-color: rgba(155, 89, 182, 0.2); }
-                .dynasty-info.辽西夏金 { background-color: rgba(241, 196, 15, 0.2); }
-                .dynasty-info.元朝 { background-color: rgba(231, 76, 60, 0.2); }
-                .dynasty-info.明朝 { background-color: rgba(46, 204, 113, 0.2); }
-                .dynasty-info.清朝 { background-color: rgba(52, 152, 219, 0.2); }
-                
-                /* Dynasty timeline responsiveness */
-                .event-content .event-description {
-                    font-size: 1.05rem;
-                    line-height: 1.7;
-                }
-                
-                .event-content .event-significance {
-                    margin-top: 1.2rem;
-                    padding: 15px;
-                    background-color: rgba(255, 255, 255, 0.5);
-                    border-radius: 8px;
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                }
-                
-                @media (max-width: 768px) {
-                    .dynasty-info {
-                        flex-direction: column;
-                        text-align: center;
-                        padding: 12px;
-                    }
-                    
-                    .dynasty-badge {
-                        margin: 0 0 8px 0;
-                        width: fit-content;
-                    }
-                    
-                    .dynasty-period {
-                        text-align: center;
-                        font-size: 1rem;
-                    }
-                    
-                    .event-content .event-description {
-                        font-size: 1rem;
-                        line-height: 1.6;
-                    }
-                }
-            </style>`;
-            
-            // Add custom dynasty styles to page
-            document.head.insertAdjacentHTML('beforeend', dynastyStyles);
-            
-            // Create a custom UI for dynasties timeline
-            const container = document.querySelector('.all-events-container');
-            
-            if (container) {
-                // Create a special container for the dynasties timeline
-                container.innerHTML = '';
-                
-                // Add heading
-                const heading = document.createElement('div');
-                heading.classList.add('section-header', 'text-center', 'mb-4');
-                heading.innerHTML = `<h3>中国历朝历代年表</h3>
-                                    <p class="text-muted">点击任意朝代查看详细历史事件</p>`;
-                container.appendChild(heading);
-                
-                // Create dynasty timeline container
-                const dynastyTimeline = document.createElement('div');
-                dynastyTimeline.classList.add('dynasty-timeline-container');
-                dynastyTimeline.style.display = 'flex';
-                dynastyTimeline.style.flexDirection = 'column';
-                dynastyTimeline.style.gap = '15px';
-                dynastyTimeline.style.padding = '20px';
-                
-                // Add each dynasty
-                events.forEach((event, index) => {
-                    const dynastyCard = document.createElement('div');
-                    dynastyCard.classList.add('dynasty-info', event.TITLE);
-                    dynastyCard.innerHTML = `
-                        <div class="dynasty-badge">${event.TITLE}</div>
-                        <div class="dynasty-period">${event.PERIOD}</div>
-                        <div class="event-description" style="width: 100%; margin-top: 10px;">${event.EVENT}</div>
-                        <div class="event-significance" style="width: 100%; margin-top: 10px;">
-                            <strong>历史意义：</strong> ${event.IMPACT}
-                        </div>
-                    `;
-                    // Add click event to navigate to dynasty details
-                    dynastyCard.addEventListener('click', () => {
-                        // Navigate to the specific dynasty events
-                        const category = encodeURIComponent('CHINA_HISTORY');
-                        const subCategory1 = encodeURIComponent('ANCIENT_CHINESE_HISTORY');
-                        const subCategory2 = encodeURIComponent(event.TITLE);
-                        window.location.href = `events.html?category=${category}&sub_category_1=${subCategory1}&sub_category_2=${subCategory2}`;
-                    });
-                    
-                    dynastyTimeline.appendChild(dynastyCard);
-                });
-                
-                container.appendChild(dynastyTimeline);
-                
-                // Hide the original event navigation controls and timeline elements that might cause errors
-                const elementsToHide = [
-                    '.event-controls',
-                    '#event-counter',
-                    '.timeline-progress'
-                ];
-                
-                elementsToHide.forEach(selector => {
-                    const element = document.querySelector(selector);
-                    if (element) {
-                        element.style.display = 'none';
-                    }
-                });
-                
-                // Reset the global variables for navigation to prevent errors
-                window.currentEventIndex = 0;
-                window.totalEvents = 0;
-                
-                // Update the loading state
-                const loadingElement = document.getElementById('loading');
-                if (loadingElement) {
-                    loadingElement.style.display = 'none';
-                }
-                
-                // Show the events container
-                const eventsContainer = document.querySelector('.events-carousel');
-                if (eventsContainer) {
-                    eventsContainer.style.display = 'block';
-                }
-                
-                // Custom style for dynasty timeline view
-                const timelineContainer = document.getElementById('timeline-container');
-                if (timelineContainer) {
-                    timelineContainer.style.display = 'flex';
-                }
-                
-                // Ensure there are no event cards that might cause reference errors
-                document.querySelectorAll('.event-card').forEach(card => {
-                    card.remove();
-                });
-            }
-        }
-        
-        // Helper function to get dynasty period
-        function getDynastyPeriod(dynastyName) {
-            const dynastyPeriods = {
-                '夏朝': '前2070-前1600年',
-                '商朝': '前1600-前1046年',
-                '西周': '前1046-前771年',
-                '东周': '前770-前256年',
-                '春秋': '前770-前476年',
-                '战国': '前475-前221年',
-                '秦朝': '前221-前207年',
-                '西汉': '前202-8年',
-                '新莽': '9-23年',
-                '东汉': '25-220年',
-                '三国': '220-280年',
-                '西晋': '265-317年',
-                '东晋': '317-420年',
-                '南北朝': '420-589年',
-                '隋朝': '581-618年',
-                '唐朝': '618-907年',
-                '五代十国': '907-960年',
-                '北宋': '960-1127年',
-                '南宋': '1127-1279年',
-                '辽西夏金': '907-1234年',
-                '元朝': '1271-1368年',
-                '明朝': '1368-1644年',
-                '清朝': '1644-1911年'
-            };
-            
-            return dynastyPeriods[dynastyName] || '未知时期';
-        }
-        
-        // Function to load events for a specific dynasty
-        function loadDynastyEvents(category, subCategory1, dynastyName) {
-            try {
-                // Ensure the parameters are properly sanitized for SQL
-                const sanitizedCategory = category.replace(/'/g, "''");
-                const sanitizedSubCategory1 = subCategory1.replace(/'/g, "''");
-                const sanitizedDynastyName = dynastyName.replace(/'/g, "''");
-                
-                // Use API to fetch dynasty-specific events
-                // Note: Since the actual API might not support this, we will create sample data for demonstration
-                
-                // Simulate loading state
-                document.getElementById('loading').innerHTML = `
-                    <div class="spinner">
-                        <div class="bounce1"></div>
-                        <div class="bounce2"></div>
-                        <div class="bounce3"></div>
-                    </div>
-                    <p>加载${dynastyName}历史事件...</p>
-                `;
-                
-                // Create sample events for the dynasty
-                const events = createSampleDynastyEvents(dynastyName);
-                
-                // Render the events
-                setTimeout(() => {
-                    // Make sure we clear any existing event cards before rendering new ones
-                    const eventsContainer = document.getElementById('all-events-container');
-                    if (eventsContainer) {
-                        eventsContainer.innerHTML = '';
-                    }
-                    
-                    // Show the timeline controls since we'll have standard event cards
-                    const eventControls = document.querySelector('.event-controls');
-                    if (eventControls) {
-                        eventControls.style.display = 'flex';
-                    }
-                    
-                    // Reset event counter display
-                    const eventCounter = document.getElementById('event-counter');
-                    if (eventCounter) {
-                        eventCounter.style.display = 'inline-block';
-                    }
-                    
-                    // Render events and update navigation
-                    renderAllEvents(events);
-                    
-                    // Update the period timeline if it exists
-                    const periodTimeline = document.querySelector('.period-timeline');
-                    if (periodTimeline) {
-                        periodTimeline.innerHTML = `
-                            <div class="timeline-period active">
-                                <span>${dynastyName}</span>
-                            </div>
-                            <div class="timeline-period" onclick="window.location.href='events.html?category=${encodeURIComponent(category)}&sub_category_1=${encodeURIComponent(subCategory1)}'">
-                                <span>返回所有朝代</span>
-                            </div>
-                        `;
-                    }
-                    
-                    // Show timeline container
-                    const timelineContainer = document.getElementById('timeline-container');
-                    if (timelineContainer) {
-                        timelineContainer.style.display = 'flex';
-                    }
-                    
-                    // Hide loading indicator
-                    const loadingElement = document.getElementById('loading');
-                    if (loadingElement) {
-                        loadingElement.style.display = 'none';
-                    }
-                }, 800); // Simulate loading delay
-                
-            } catch (error) {
-                console.error('加载朝代事件时出错:', error);
-                showError(`加载${dynastyName}历史事件时出错: ${error.message || '未知错误'}`);
-            }
-        }
-        
-        /**
-         * Creates sample events for a specific dynasty
-         * @param {string} dynastyName - Name of the dynasty to create events for
-         * @returns {Array} - Array of event objects
-         */
-        function createSampleDynastyEvents(dynastyName) {
-            // Map of dynasty events (simplified for demonstration)
-            const dynastyEvents = {
-                '夏朝': [
-                    {
-                        TITLE: '禹建立夏朝',
-                        PERIOD: '约前2070年',
-                        EVENT: '禹治水成功后，接替舜成为部落联盟首领，建立中国历史上第一个朝代——夏朝。',
-                        IMPACT: '标志着中国进入了从原始社会向阶级社会过渡的新阶段，是中国古代文明的起点。',
-                        REGION: '黄河流域',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '夏朝'
-                    },
-                    {
-                        TITLE: '启继位',
-                        PERIOD: '约前2044年',
-                        EVENT: '禹死后，其子启继位，开创了中国历史上的世袭制度。',
-                        IMPACT: '确立了中国历史上持续数千年的世袭制度，改变了以往的禅让制。',
-                        REGION: '黄河流域',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '夏朝'
-                    }
-                ],
-                '商朝': [
-                    {
-                        TITLE: '汤灭夏建商',
-                        PERIOD: '约前1600年',
-                        EVENT: '商部落首领汤率军攻打夏朝最后一个君主桀，灭夏建立商朝。',
-                        IMPACT: '结束了夏朝的统治，开启了中国商代文明。',
-                        REGION: '黄河流域',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '商朝'
-                    },
-                    {
-                        TITLE: '甲骨文的使用',
-                        PERIOD: '约前1200年',
-                        EVENT: '商朝时期，统治者用龟甲和兽骨来占卜，并将占卜内容刻在甲骨上，形成了甲骨文。',
-                        IMPACT: '甲骨文是目前所知最早的成熟中国文字系统，为研究中国古代历史提供了重要史料。',
-                        REGION: '殷墟（今河南安阳）',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '商朝'
-                    }
-                ],
-                '西周': [
-                    {
-                        TITLE: '武王伐纣',
-                        PERIOD: '前1046年',
-                        EVENT: '周武王率军在牧野之战中打败商纣王，建立周朝。',
-                        IMPACT: '结束了商朝的统治，建立了统治中国近800年的周朝。',
-                        REGION: '黄河流域',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '西周'
-                    },
-                    {
-                        TITLE: '周公制礼作乐',
-                        PERIOD: '约前1040年',
-                        EVENT: '周公旦辅佐周成王统治，制定了一整套礼乐制度，形成了中国古代礼仪文化的基础。',
-                        IMPACT: '奠定了中国古代社会的伦理道德基础，对中国传统文化产生了深远影响。',
-                        REGION: '宗周（今陕西西安）',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '西周'
-                    }
-                ],
-                // 添加其他朝代的样例事件...
-                '清朝': [
-                    {
-                        TITLE: '满清入关',
-                        PERIOD: '1644年',
-                        EVENT: '清军攻占北京，崇祯皇帝自缢于煤山，明朝灭亡。清朝建立全国性政权。',
-                        IMPACT: '结束了汉族统治的明朝，建立了中国历史上最后一个封建王朝。',
-                        REGION: '北京',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '清朝'
-                    },
-                    {
-                        TITLE: '康熙统一台湾',
-                        PERIOD: '1683年',
-                        EVENT: '清军击败郑成功的孙子郑克塽，收复台湾，台湾正式纳入清朝版图。',
-                        IMPACT: '台湾地区第一次正式归入中国中央政府管辖，成为中国版图的一部分。',
-                        REGION: '台湾',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY', 
-                        SUB_CATEGORY_2: '清朝'
-                    },
-                    {
-                        TITLE: '鸦片战争',
-                        PERIOD: '1840-1842年',
-                        EVENT: '英国对清朝发动侵略战争，清朝战败，签订了中国近代史上第一个不平等条约《南京条约》。',
-                        IMPACT: '标志着中国开始沦为半殖民地半封建社会，是中国近代史的开端。',
-                        REGION: '广东、江苏等沿海地区',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '清朝'
-                    },
-                    {
-                        TITLE: '辛亥革命',
-                        PERIOD: '1911年',
-                        EVENT: '以孙中山为首的革命党人发动武装起义，推翻清朝统治，建立中华民国。',
-                        IMPACT: '结束了中国延续两千多年的封建君主专制制度，是中国历史上的重大转折点。',
-                        REGION: '武汉',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: '清朝'
-                    }
-                ]
-            };
-            
-            // Return the specific dynasty events if available, otherwise return default sample
-            if (dynastyEvents[dynastyName]) {
-                return dynastyEvents[dynastyName];
-            } else {
-                // Default sample for dynasties without specific events
-                return [
-                    {
-                        TITLE: `${dynastyName}建立`,
-                        PERIOD: '未知',
-                        EVENT: `${dynastyName}的建立过程暂无详细记录。`,
-                        IMPACT: '敬请期待更多历史事件数据。',
-                        REGION: '中国',
-                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
-                        SUB_CATEGORY_2: dynastyName
-                    }
-                ];
-            }
-        }
-        
-        /**
-         * Initialize event handlers for navigation
-         */
-        function initializeEventHandlers() {
-            // Previous and next event buttons
-            const prevButton = document.getElementById('prev-event');
-            const nextButton = document.getElementById('next-event');
-            
-            if (prevButton && nextButton) {
-                prevButton.addEventListener('click', showPreviousEvent);
-                nextButton.addEventListener('click', showNextEvent);
-            }
-            
-            // Return to all dynasties button for specific dynasty view
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('sub_category_2')) {
-                // We're viewing a specific dynasty, add a back button
-                const timelineHeader = document.querySelector('.timeline-header');
-                if (timelineHeader) {
-                    const backButton = document.createElement('button');
-                    backButton.className = 'back-button';
-                    backButton.innerHTML = '<i class="fas fa-arrow-left"></i> 返回所有朝代';
-                    backButton.addEventListener('click', () => {
-                        // Navigate back to the dynasties overview
-                        const category = params.get('category');
-                        const subCategory1 = params.get('sub_category_1');
-                        window.location.href = `events.html?category=${category}&sub_category_1=${subCategory1}`;
-                    });
-                    
-                    timelineHeader.prepend(backButton);
-                }
-            }
-        }
-        
         /**
          * Load historical period events (placeholder for actual implementation)
          */
@@ -2111,7 +1045,119 @@
                 container.innerHTML = `<div class="loading">Loading recent events...</div>`;
             }
         }
-    });
-</script>
+
+        /**
+         * Initialize event handlers for navigation
+         */
+        function initializeEventHandlers() {
+            // Previous and next event buttons
+            const prevButton = document.getElementById('prev-event');
+            const nextButton = document.getElementById('next-event');
+            
+            if (prevButton && nextButton) {
+                prevButton.addEventListener('click', showPreviousEvent);
+                nextButton.addEventListener('click', showNextEvent);
+            }
+            
+            // Return to all dynasties button for specific dynasty view
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('sub_category_2')) {
+                // We're viewing a specific dynasty, add a back button
+                const timelineHeader = document.querySelector('.timeline-header');
+                if (timelineHeader) {
+                    const backButton = document.createElement('button');
+                    backButton.className = 'back-button';
+                    backButton.innerHTML = '<i class="fas fa-arrow-left"></i> 返回所有朝代';
+                    backButton.addEventListener('click', () => {
+                        // Navigate back to the dynasties overview
+                        const category = params.get('category');
+                        const subCategory1 = params.get('sub_category_1');
+                        window.location.href = `events.html?category=${category}&sub_category_1=${subCategory1}`;
+                    });
+                    
+                    timelineHeader.prepend(backButton);
+                }
+            }
+        }
+        
+        // When the DOM is fully loaded, initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Parse URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const topic = urlParams.get('topic');
+            const category = urlParams.get('category');
+            const subCategory = urlParams.get('sub_category');
+            const subCategory1 = urlParams.get('sub_category_1');
+            const subCategory2 = urlParams.get('sub_category_2');
+            
+            // If we have category, sub_category_1, and sub_category_2 params, handle specific dynasty events
+            if (category && subCategory1 && subCategory2) {
+                if (subCategory1 === 'ANCIENT_CHINESE_HISTORY') {
+                    // Special case for a specific Chinese dynasty
+                    loadDynastyEvents(category, subCategory1, subCategory2);
+                }
+            }
+            // If we have category and sub_category_1 params, handle those first (for Chinese dynasties)
+            else if (category && subCategory1) {
+                // Special case for Chinese dynasty timeline
+                if (subCategory1 === 'ANCIENT_CHINESE_HISTORY') {
+                    const chineseDynastyInfo = {
+                        name: '中国历朝历代',
+                        description: '从夏商周到秦汉，从隋唐到宋元明清，探索中华文明的发展历程',
+                        timeRange: '约前2070年 - 1911年',
+                    };
+                    
+                    // Update page header with dynasty information
+                    document.getElementById('topic-title').textContent = chineseDynastyInfo.name;
+                    document.getElementById('topic-description').textContent = chineseDynastyInfo.description;
+                    document.getElementById('time-range').textContent = chineseDynastyInfo.timeRange;
+                    
+                    // Load Chinese dynasty timeline
+                    loadChineseDynastyTimeline();
+                }
+                // Handle other Chinese historical periods
+                else if (subCategory1 === 'CHINA_MODERN_HISTORY') {
+                    // Modern Chinese history (1840-1949)
+                    const modernChinaInfo = {
+                        name: '中国近代史',
+                        description: '从鸦片战争到新中国成立前夕，中国近代历史的重要事件',
+                        timeRange: '1840年 - 1949年',
+                    };
+                    
+                    document.getElementById('topic-title').textContent = modernChinaInfo.name;
+                    document.getElementById('topic-description').textContent = modernChinaInfo.description;
+                    document.getElementById('time-range').textContent = modernChinaInfo.timeRange;
+                    
+                    // Load modern Chinese history events
+                    loadHistoricalPeriodEvents('CHINA_HISTORY', 'CHINA_MODERN_HISTORY');
+                }
+                else if (subCategory1 === 'CONTEMPORARY_CHINESE_HISTORY') {
+                    // Contemporary Chinese history (1949-present)
+                    const contemporaryChinaInfo = {
+                        name: '中国当代史',
+                        description: '从新中国成立到现在，中国当代历史的重要事件',
+                        timeRange: '1949年 - 至今',
+                    };
+                    
+                    document.getElementById('topic-title').textContent = contemporaryChinaInfo.name;
+                    document.getElementById('topic-description').textContent = contemporaryChinaInfo.description;
+                    document.getElementById('time-range').textContent = contemporaryChinaInfo.timeRange;
+                    
+                    // Load contemporary Chinese history events
+                    loadHistoricalPeriodEvents('CHINA_HISTORY', 'CONTEMPORARY_CHINESE_HISTORY');
+                }
+            }
+            // Otherwise, check for topic parameter
+            else if (topic) {
+                loadTopicEvents(topic);
+            } else {
+                // Default view - load recent events
+                loadRecentEvents();
+            }
+            
+            // Initialize event handlers for navigation
+            initializeEventHandlers();
+        });
+    </script>
 </body>
 </html> 
