@@ -1017,6 +1017,32 @@
             const category = urlParams.get('category');
             const subCategory = urlParams.get('sub_category');
             const subCategory1 = urlParams.get('sub_category_1');
+            const subCategory2 = urlParams.get('sub_category_2');
+            
+            // If we have category, sub_category_1, and sub_category_2 params, handle specific dynasty events
+            if (category && subCategory1 && subCategory2) {
+                if (subCategory1 === 'ANCIENT_CHINESE_HISTORY') {
+                    // Special case for a specific Chinese dynasty
+                    const dynastyInfo = {
+                        name: decodeURIComponent(subCategory2),
+                        description: `了解${decodeURIComponent(subCategory2)}时期的重要历史事件、人物和文化发展`,
+                        timeRange: getDynastyPeriod(decodeURIComponent(subCategory2)),
+                    };
+                    
+                    // Update page header with dynasty information
+                    document.getElementById('topic-title').textContent = dynastyInfo.name;
+                    document.getElementById('topic-description').textContent = dynastyInfo.description;
+                    document.getElementById('time-range').textContent = dynastyInfo.timeRange;
+                    document.title = `${dynastyInfo.name} - 历史学习 - 学习助手`;
+                    
+                    // Load specific dynasty events
+                    loadDynastyEvents(category, subCategory1, decodeURIComponent(subCategory2));
+                    
+                    // Initialize scroll to top button
+                    initScrollToTop();
+                    return;
+                }
+            }
             
             // If we have category and sub_category_1 params, handle those first (for Chinese dynasties)
             if (category && subCategory1) {
@@ -1657,7 +1683,7 @@
          * Load Chinese Dynasty Timeline data and display it
          */
         function loadChineseDynastyTimeline() {
-            // Chinese dynasty data
+            // Chinese dynasty data - Maintain the specified order
             const chineseDynasties = [
                 { name: '夏朝', period: '前2070-前1600', description: '中国第一个王朝，由禹建立，史料记载较少。', significance: '开创了中国历史上的家天下世袭制度，确立了王位世袭制。' },
                 { name: '商朝', period: '前1600-前1046', description: '中国历史上第一个有直接文字记载的王朝，甲骨文的出现。', significance: '形成了成熟的青铜器文明，甲骨文的使用标志着中国文字的正式形成。' },
@@ -1684,25 +1710,10 @@
                 { name: '清朝', period: '1644-1911', description: '满族建立的最后一个封建王朝，"康乾盛世"是其鼎盛时期。', significance: '统一多民族国家的疆域基本奠定，后期遭遇西方列强入侵，最终被辛亥革命推翻。' }
             ];
 
-            // Sort dynasties chronologically
-            chineseDynasties.sort((a, b) => {
-                // Extract start years for comparison
-                const getStartYear = (periodStr) => {
-                    const match = periodStr.match(/前(\d+)/); // Match BC years
-                    if (match) {
-                        return -parseInt(match[1], 10); // Negative for BC years
-                    }
-                    const adMatch = periodStr.match(/^(\d+)/); // Match AD years
-                    if (adMatch) {
-                        return parseInt(adMatch[1], 10);
-                    }
-                    return 0;
-                };
-                
-                return getStartYear(a.period) - getStartYear(b.period);
-            });
+            // Maintain the specified order - don't sort chronologically
+            // The dynasties are already in the correct historical order
             
-            // Create event objects from dynasty data
+            // Create event objects from dynasty data and make them clickable
             const events = chineseDynasties.map(dynasty => {
                 return {
                     TITLE: dynasty.name,
@@ -1728,6 +1739,13 @@
                     align-items: center;
                     background-color: rgba(67, 97, 238, 0.1);
                     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+                
+                .dynasty-info:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
                 }
                 
                 .dynasty-badge {
@@ -1815,8 +1833,334 @@
             // Add custom dynasty styles to page
             document.head.insertAdjacentHTML('beforeend', dynastyStyles);
             
-            // Render the events
-            renderAllEvents(events);
+            // Create a custom UI for dynasties timeline
+            const container = document.querySelector('.all-events-container');
+            
+            if (container) {
+                // Create a special container for the dynasties timeline
+                container.innerHTML = '';
+                
+                // Add heading
+                const heading = document.createElement('div');
+                heading.classList.add('section-header', 'text-center', 'mb-4');
+                heading.innerHTML = `<h3>中国历朝历代年表</h3>
+                                    <p class="text-muted">点击任意朝代查看详细历史事件</p>`;
+                container.appendChild(heading);
+                
+                // Create dynasty timeline container
+                const dynastyTimeline = document.createElement('div');
+                dynastyTimeline.classList.add('dynasty-timeline-container');
+                dynastyTimeline.style.display = 'flex';
+                dynastyTimeline.style.flexDirection = 'column';
+                dynastyTimeline.style.gap = '15px';
+                dynastyTimeline.style.padding = '20px';
+                
+                // Add each dynasty
+                events.forEach((event, index) => {
+                    const dynastyCard = document.createElement('div');
+                    dynastyCard.classList.add('dynasty-info', event.TITLE);
+                    dynastyCard.innerHTML = `
+                        <div class="dynasty-badge">${event.TITLE}</div>
+                        <div class="dynasty-period">${event.PERIOD}</div>
+                        <div class="event-description" style="width: 100%; margin-top: 10px;">${event.EVENT}</div>
+                        <div class="event-significance" style="width: 100%; margin-top: 10px;">
+                            <strong>历史意义：</strong> ${event.IMPACT}
+                        </div>
+                    `;
+                    // Add click event to navigate to dynasty details
+                    dynastyCard.addEventListener('click', () => {
+                        // Navigate to the specific dynasty events
+                        const category = encodeURIComponent('CHINA_HISTORY');
+                        const subCategory1 = encodeURIComponent('ANCIENT_CHINESE_HISTORY');
+                        const subCategory2 = encodeURIComponent(event.TITLE);
+                        window.location.href = `events.html?category=${category}&sub_category_1=${subCategory1}&sub_category_2=${subCategory2}`;
+                    });
+                    
+                    dynastyTimeline.appendChild(dynastyCard);
+                });
+                
+                container.appendChild(dynastyTimeline);
+                
+                // Hide the original event navigation controls
+                const eventControls = document.querySelector('.event-controls');
+                if (eventControls) {
+                    eventControls.style.display = 'none';
+                }
+                
+                // Update the loading state
+                const loadingElement = document.getElementById('loading');
+                if (loadingElement) {
+                    loadingElement.style.display = 'none';
+                }
+                
+                // Show the events container
+                const eventsContainer = document.querySelector('.events-carousel');
+                if (eventsContainer) {
+                    eventsContainer.style.display = 'block';
+                }
+                
+                // Initialize animations
+                initAnimations();
+            }
+        }
+        
+        // Helper function to get dynasty period
+        function getDynastyPeriod(dynastyName) {
+            const dynastyPeriods = {
+                '夏朝': '前2070-前1600年',
+                '商朝': '前1600-前1046年',
+                '西周': '前1046-前771年',
+                '东周': '前770-前256年',
+                '春秋': '前770-前476年',
+                '战国': '前475-前221年',
+                '秦朝': '前221-前207年',
+                '西汉': '前202-8年',
+                '新莽': '9-23年',
+                '东汉': '25-220年',
+                '三国': '220-280年',
+                '西晋': '265-317年',
+                '东晋': '317-420年',
+                '南北朝': '420-589年',
+                '隋朝': '581-618年',
+                '唐朝': '618-907年',
+                '五代十国': '907-960年',
+                '北宋': '960-1127年',
+                '南宋': '1127-1279年',
+                '辽西夏金': '907-1234年',
+                '元朝': '1271-1368年',
+                '明朝': '1368-1644年',
+                '清朝': '1644-1911年'
+            };
+            
+            return dynastyPeriods[dynastyName] || '未知时期';
+        }
+        
+        // Function to load events for a specific dynasty
+        function loadDynastyEvents(category, subCategory1, dynastyName) {
+            try {
+                // Ensure the parameters are properly sanitized for SQL
+                const sanitizedCategory = category.replace(/'/g, "''");
+                const sanitizedSubCategory1 = subCategory1.replace(/'/g, "''");
+                const sanitizedDynastyName = dynastyName.replace(/'/g, "''");
+                
+                // Use API to fetch dynasty-specific events
+                // Note: Since the actual API might not support this, we will create sample data for demonstration
+                
+                // Simulate loading state
+                document.getElementById('loading').innerHTML = `
+                    <div class="spinner">
+                        <div class="bounce1"></div>
+                        <div class="bounce2"></div>
+                        <div class="bounce3"></div>
+                    </div>
+                    <p>加载${dynastyName}历史事件...</p>
+                `;
+                
+                // Create sample events for the dynasty
+                const events = createSampleDynastyEvents(dynastyName);
+                
+                // Render the events
+                setTimeout(() => {
+                    renderAllEvents(events);
+                    
+                    // Update the period timeline if it exists
+                    const periodTimeline = document.querySelector('.period-timeline');
+                    if (periodTimeline) {
+                        periodTimeline.innerHTML = `
+                            <div class="timeline-period active">
+                                <span>${dynastyName}</span>
+                            </div>
+                            <div class="timeline-period" onclick="window.location.href='events.html?category=${encodeURIComponent(category)}&sub_category_1=${encodeURIComponent(subCategory1)}'">
+                                <span>返回所有朝代</span>
+                            </div>
+                        `;
+                    }
+                }, 800); // Simulate loading delay
+                
+            } catch (error) {
+                console.error('加载朝代事件时出错:', error);
+                showError(`加载${dynastyName}历史事件时出错: ${error.message || '未知错误'}`);
+            }
+        }
+        
+        // Function to create sample events for a dynasty (in a real app, this would be replaced by API call)
+        function createSampleDynastyEvents(dynastyName) {
+            const commonEvents = [
+                {
+                    TITLE: `${dynastyName}建立`,
+                    PERIOD: getDynastyPeriod(dynastyName).split('-')[0],
+                    EVENT: `${dynastyName}由其开国君主建立，结束了先前的分裂或混乱局面。`,
+                    IMPACT: `${dynastyName}的建立标志着中国历史的重要转折点，开启了新的历史篇章。`,
+                    CATEGORY: 'CHINA_HISTORY',
+                    SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                    SUB_CATEGORY_2: dynastyName
+                },
+                {
+                    TITLE: `${dynastyName}鼎盛时期`,
+                    PERIOD: getMiddlePeriod(getDynastyPeriod(dynastyName)),
+                    EVENT: `${dynastyName}在此时期达到鼎盛，国力强盛，经济繁荣，文化发展。`,
+                    IMPACT: `这一时期的繁荣为中国历史留下了宝贵的文化遗产和制度传统。`,
+                    CATEGORY: 'CHINA_HISTORY',
+                    SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                    SUB_CATEGORY_2: dynastyName
+                },
+                {
+                    TITLE: `${dynastyName}灭亡`,
+                    PERIOD: getDynastyPeriod(dynastyName).split('-')[1],
+                    EVENT: `由于内部矛盾和外部压力，${dynastyName}最终走向灭亡。`,
+                    IMPACT: `${dynastyName}的灭亡标志着中国历史进入下一个阶段，其历史经验对后世有重要启示。`,
+                    CATEGORY: 'CHINA_HISTORY',
+                    SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                    SUB_CATEGORY_2: dynastyName
+                }
+            ];
+            
+            // Add dynasty-specific events
+            const specificEvents = getDynastySpecificEvents(dynastyName);
+            
+            return [...commonEvents, ...specificEvents];
+        }
+        
+        // Helper function to get middle period of a dynasty
+        function getMiddlePeriod(periodStr) {
+            const parts = periodStr.split('-');
+            if (parts.length !== 2) return periodStr;
+            
+            let start, end;
+            
+            // Handle BC years (前xx年)
+            if (parts[0].includes('前')) {
+                start = -parseInt(parts[0].replace(/[^0-9]/g, ''), 10);
+            } else {
+                start = parseInt(parts[0].replace(/[^0-9]/g, ''), 10);
+            }
+            
+            if (parts[1].includes('前')) {
+                end = -parseInt(parts[1].replace(/[^0-9]/g, ''), 10);
+            } else {
+                end = parseInt(parts[1].replace(/[^0-9]/g, ''), 10);
+            }
+            
+            const middle = Math.floor((start + end) / 2);
+            
+            if (middle < 0) {
+                return `前${Math.abs(middle)}年`;
+            } else {
+                return `${middle}年`;
+            }
+        }
+        
+        // Function to get dynasty-specific events
+        function getDynastySpecificEvents(dynastyName) {
+            const specificEvents = {
+                '夏朝': [
+                    {
+                        TITLE: '大禹治水',
+                        PERIOD: '约前2100年',
+                        EVENT: '禹采用疏导法成功治理洪水，被尧舜禅让为天子，建立夏朝。',
+                        IMPACT: '开创了中国历史上的第一个王朝，奠定了中国早期国家的基础。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '夏朝'
+                    }
+                ],
+                '商朝': [
+                    {
+                        TITLE: '甲骨文的使用',
+                        PERIOD: '约前1300年',
+                        EVENT: '商朝时期大量使用甲骨文进行占卜和记事，是中国最早的成熟文字系统。',
+                        IMPACT: '为中国文字的发展奠定了基础，也为研究商朝历史提供了珍贵的一手资料。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '商朝'
+                    }
+                ],
+                '秦朝': [
+                    {
+                        TITLE: '秦始皇统一六国',
+                        PERIOD: '前221年',
+                        EVENT: '秦王嬴政击败六国，建立中国历史上第一个统一的多民族中央集权制国家。',
+                        IMPACT: '结束了战国时期的分裂局面，统一文字、货币、度量衡，奠定了中国两千多年政治制度的基础。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '秦朝'
+                    },
+                    {
+                        TITLE: '焚书坑儒',
+                        PERIOD: '前213年',
+                        EVENT: '秦始皇下令焚烧诸子百家书籍，坑杀反对的儒生。',
+                        IMPACT: '对中国思想文化的发展产生了深远影响，被后世视为文化专制的象征。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '秦朝'
+                    }
+                ],
+                '唐朝': [
+                    {
+                        TITLE: '贞观之治',
+                        PERIOD: '627-649年',
+                        EVENT: '唐太宗李世民在位期间，推行一系列改革措施，使社会政治安定、经济繁荣。',
+                        IMPACT: '被后世视为中国封建社会的"黄金时代"之一，其统治思想和政策影响了后世历代统治者。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '唐朝'
+                    },
+                    {
+                        TITLE: '安史之乱',
+                        PERIOD: '755-763年',
+                        EVENT: '唐朝将领安禄山和史思明发动叛乱，历时八年，唐朝国力从此衰弱。',
+                        IMPACT: '标志着唐朝由盛转衰，均田制崩溃，藩镇割据局面形成，社会经济结构发生重大变化。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '唐朝'
+                    }
+                ],
+                '宋朝': [
+                    {
+                        TITLE: '王安石变法',
+                        PERIOD: '1069-1076年',
+                        EVENT: '北宋神宗时期，宰相王安石推行新法，包括青苗法、募役法、保甲法等。',
+                        IMPACT: '这次改革尝试解决北宋面临的财政和军事危机，但由于触及既得利益集团而遭到强烈反对。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '宋朝'
+                    }
+                ],
+                '明朝': [
+                    {
+                        TITLE: '郑和下西洋',
+                        PERIOD: '1405-1433年',
+                        EVENT: '明成祖时期，郑和率领庞大船队七次远航西太平洋和印度洋，访问了亚非30多个国家和地区。',
+                        IMPACT: '展示了明朝前期的国力和先进的航海技术，促进了中国与海外的文化交流和贸易往来。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '明朝'
+                    }
+                ],
+                '清朝': [
+                    {
+                        TITLE: '康乾盛世',
+                        PERIOD: '1661-1796年',
+                        EVENT: '康熙、雍正、乾隆三朝，推行一系列有效的统治政策，社会经济繁荣，文化发展。',
+                        IMPACT: '是中国封建社会的最后一个鼎盛时期，也是多民族国家格局最终确立的时期。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '清朝'
+                    },
+                    {
+                        TITLE: '鸦片战争',
+                        PERIOD: '1840-1842年',
+                        EVENT: '英国为了打开中国市场和解决贸易逆差，以反对清政府禁烟为借口发动侵华战争。',
+                        IMPACT: '中国开始沦为半殖民地半封建社会，是中国近代史的开端。',
+                        CATEGORY: 'CHINA_HISTORY',
+                        SUB_CATEGORY_1: 'ANCIENT_CHINESE_HISTORY',
+                        SUB_CATEGORY_2: '清朝'
+                    }
+                ]
+            };
+            
+            // Return dynasty-specific events, or empty array if none exist
+            return specificEvents[dynastyName] || [];
         }
     </script>
 </body>
