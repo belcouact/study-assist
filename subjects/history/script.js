@@ -808,7 +808,8 @@ function initTimeline() {
             '      "significance": "历史意义"\n' +
             '    }\n' +
             '  ]\n' +
-            '}';
+            '}' + 
+            '\n\n请确保JSON格式正确，不要有控制字符、换行符或其他可能导致解析错误的特殊字符。';
             
             // Call DeepSeek API
             const response = await fetch('/api/chat', {
@@ -824,7 +825,7 @@ function initTimeline() {
                         },
                         {
                             "role": "user",
-                            "content": `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，分别包含${eventCounts.worldEvents}个世界事件和${eventCounts.countryEvents}个${countryName}事件，适合${levelName}学生的水平。`
+                            "content": `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，分别包含${eventCounts.worldEvents}个世界事件和${eventCounts.countryEvents}个${countryName}事件，适合${levelName}学生的水平。请确保返回的JSON格式正确无误。`
                         }
                     ]
                 })
@@ -837,39 +838,70 @@ function initTimeline() {
             const data = await response.json();
             const aiResponse = data.choices[0].message.content;
             
-            // Parse JSON response
+            // Parse JSON response with improved error handling
             let timeline;
             try {
+                // First try to extract JSON using regex
                 const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+                let jsonText = '';
+                
                 if (jsonMatch) {
-                    timeline = JSON.parse(jsonMatch[0]);
+                    jsonText = jsonMatch[0];
                 } else {
                     throw new Error('无法从响应中提取JSON');
+                }
+                
+                // Clean the JSON string to remove potential control characters
+                jsonText = jsonText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
+                
+                // Try to parse the cleaned JSON
+                try {
+                    timeline = JSON.parse(jsonText);
+                } catch (innerError) {
+                    console.error('第一次解析JSON失败，尝试手动修复格式...', innerError);
+                    
+                    // Try to fix common JSON issues
+                    const fixedJson = jsonText
+                        .replace(/,\s*}/g, '}')  // Remove trailing commas
+                        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+                        .replace(/\\(?!["\\/bfnrtu])/g, '\\\\');  // Escape backslashes
+                        
+                    timeline = JSON.parse(fixedJson);
                 }
                 
                 if (!timeline.title || !timeline.worldEvents || !timeline.countryEvents || 
                     !Array.isArray(timeline.worldEvents) || !Array.isArray(timeline.countryEvents)) {
                     throw new Error('解析的JSON格式不正确');
                 }
+                
                 renderComparisonTimeline(timeline);
             } catch (jsonError) {
                 console.error('解析AI响应时出错:', jsonError);
-                timelineContainer.innerHTML = `
-                    <div class="text-center text-error">
-                        <p>抱歉，生成时间线时出现错误。请再试一次。</p>
-                        <p class="small">${jsonError.message}</p>
-                        <button id="retry-timeline" class="btn btn-outline btn-sm mt-3">
-                            <i class="fas fa-sync-alt"></i> 重试
-                        </button>
-                    </div>
-                `;
+                console.log('原始响应:', aiResponse);
                 
-                // Add retry button functionality
-                const retryButton = document.getElementById('retry-timeline');
-                if (retryButton) {
-                    retryButton.addEventListener('click', () => {
-                        loadButton.click();
-                    });
+                // Fallback: try to create a manual timeline from the response text
+                const fallbackTimeline = createFallbackTimeline(aiResponse, periodName, countryName, detailLevel);
+                
+                if (fallbackTimeline) {
+                    renderComparisonTimeline(fallbackTimeline);
+                } else {
+                    timelineContainer.innerHTML = `
+                        <div class="text-center text-error">
+                            <p>抱歉，生成时间线时出现错误。请再试一次。</p>
+                            <p class="small">${jsonError.message}</p>
+                            <button id="retry-timeline" class="btn btn-outline btn-sm mt-3">
+                                <i class="fas fa-sync-alt"></i> 重试
+                            </button>
+                        </div>
+                    `;
+                    
+                    // Add retry button functionality
+                    const retryButton = document.getElementById('retry-timeline');
+                    if (retryButton) {
+                        retryButton.addEventListener('click', () => {
+                            loadButton.click();
+                        });
+                    }
                 }
             }
         } catch (error) {
@@ -903,6 +935,85 @@ function initTimeline() {
                 document.getElementById('offline-indicator').style.display = 'none';
             }
         });
+    }
+}
+
+/**
+ * Create a fallback timeline when JSON parsing fails
+ */
+function createFallbackTimeline(responseText, periodName, countryName, detailLevel) {
+    try {
+        // Extract world events
+        const worldEventsMatch = responseText.match(/全球历史事件|世界历史事件|全球事件[\s\S]*?(?=国家历史事件|国家事件|相关历史事件|结束)/i);
+        const countryEventsMatch = responseText.match(/国家历史事件|国家事件|相关历史事件[\s\S]*$/i);
+        
+        if (!worldEventsMatch && !countryEventsMatch) {
+            return null;
+        }
+        
+        const worldEvents = [];
+        const countryEvents = [];
+        
+        // Process world events
+        if (worldEventsMatch) {
+            const worldEventsText = worldEventsMatch[0];
+            const eventMatches = worldEventsText.match(/(\d+[\.\)、]|\*|\-)\s*(.+?)[:：](.+?)(?=\d+[\.\)、]|\*|\-|$)/g) || [];
+            
+            eventMatches.forEach(match => {
+                const yearMatch = match.match(/(\d+年|\d+\s*[-—]\s*\d+年|公元前\d+年|前\d+年)/);
+                const year = yearMatch ? yearMatch[0] : "未知年份";
+                
+                const titleMatch = match.match(/(\d+[\.\)、]|\*|\-)\s*(.+?)[:：]/);
+                const title = titleMatch ? titleMatch[2].trim() : "未知事件";
+                
+                const descriptionMatch = match.match(/[:：](.+)/);
+                const description = descriptionMatch ? descriptionMatch[1].trim() : "";
+                
+                worldEvents.push({
+                    year: year,
+                    title: title,
+                    description: description,
+                    significance: "重要历史事件"
+                });
+            });
+        }
+        
+        // Process country events
+        if (countryEventsMatch) {
+            const countryEventsText = countryEventsMatch[0];
+            const eventMatches = countryEventsText.match(/(\d+[\.\)、]|\*|\-)\s*(.+?)[:：](.+?)(?=\d+[\.\)、]|\*|\-|$)/g) || [];
+            
+            eventMatches.forEach(match => {
+                const yearMatch = match.match(/(\d+年|\d+\s*[-—]\s*\d+年|公元前\d+年|前\d+年)/);
+                const year = yearMatch ? yearMatch[0] : "未知年份";
+                
+                const titleMatch = match.match(/(\d+[\.\)、]|\*|\-)\s*(.+?)[:：]/);
+                const title = titleMatch ? titleMatch[2].trim() : "未知事件";
+                
+                const descriptionMatch = match.match(/[:：](.+)/);
+                const description = descriptionMatch ? descriptionMatch[1].trim() : "";
+                
+                countryEvents.push({
+                    year: year,
+                    title: title,
+                    description: description,
+                    significance: "重要历史事件"
+                });
+            });
+        }
+        
+        // Create a fallback timeline object
+        return {
+            title: `${periodName}时期全球与${countryName}历史事件对比时间线`,
+            period: periodName,
+            country: countryName,
+            detailLevel: detailLevel,
+            worldEvents: worldEvents.length > 0 ? worldEvents : [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }],
+            countryEvents: countryEvents.length > 0 ? countryEvents : [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }]
+        };
+    } catch (e) {
+        console.error('创建备用时间线时出错:', e);
+        return null;
     }
 }
 
