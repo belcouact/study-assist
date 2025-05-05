@@ -1010,75 +1010,151 @@ function renderComparisonTimeline(timeline) {
         }
     });
     
-    // 步骤2: 按年份创建时间段并显示对应的事件
-    yearsArray.forEach(year => {
-        // 查找该年份的世界事件
-        const worldEventsForYear = sortedWorldEvents.filter(event => event.year.toString() === year.toString());
+    // 步骤2: 尝试将年份分组为时间段
+    const groupYearsByTimeSpan = (years) => {
+        if (years.length <= 0) return [];
         
-        // 查找该年份的国家事件
-        const countryEventsForYear = sortedCountryEvents.filter(event => event.year.toString() === year.toString());
+        const timeSpans = [];
+        let currentSpan = {
+            startYear: years[0],
+            endYear: years[0],
+            years: [years[0]]
+        };
         
-        // 仅当该年份至少有一个事件时才添加时间段
-        if (worldEventsForYear.length > 0 || countryEventsForYear.length > 0) {
-            html += `
-                <div class="timeline-year-marker">
-                    <div class="year-line"></div>
-                    <div class="year-label">${year}</div>
-                    <div class="year-line"></div>
-                </div>
-                <div class="timeline-period-events timeline-clearfix">
-            `;
+        for (let i = 1; i < years.length; i++) {
+            const currentYear = years[i];
+            const prevYear = years[i-1];
             
-            // 为左侧添加世界事件
-            html += `<div class="timeline-world-events">`;
-            if (worldEventsForYear.length > 0) {
-                worldEventsForYear.forEach(event => {
-                    html += `
-                        <div class="timeline-event world-event">
-                            <div class="event-content">
-                                <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
-                                <h4>${event.title}</h4>
-                                <p class="event-description">${event.description}</p>
-                                <div class="event-significance">
-                                    <strong>历史意义：</strong>
-                                    <p>${event.significance}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                // 如果该年份没有世界事件，添加占位符
-                html += `<div class="timeline-event event-placeholder"></div>`;
+            // 尝试提取数值年份
+            let currentYearNum, prevYearNum;
+            try {
+                currentYearNum = parseInt(currentYear.toString().match(/-?\d+/)[0]);
+                prevYearNum = parseInt(prevYear.toString().match(/-?\d+/)[0]);
+            } catch (e) {
+                // 如果无法解析为数字，则创建新的时间段
+                timeSpans.push(currentSpan);
+                currentSpan = {
+                    startYear: currentYear,
+                    endYear: currentYear,
+                    years: [currentYear]
+                };
+                continue;
             }
-            html += `</div>`;
             
-            // 为右侧添加国家事件
-            html += `<div class="timeline-country-events">`;
-            if (countryEventsForYear.length > 0) {
-                countryEventsForYear.forEach(event => {
-                    html += `
-                        <div class="timeline-event country-event">
-                            <div class="event-content">
-                                <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
-                                <h4>${event.title}</h4>
-                                <p class="event-description">${event.description}</p>
-                                <div class="event-significance">
-                                    <strong>历史意义：</strong>
-                                    <p>${event.significance}</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
+            // 根据年份差距确定是否属于同一时间段
+            // 如果年份间隔较小（这里设为30年），则归为同一时间段
+            const yearGap = Math.abs(currentYearNum - prevYearNum);
+            if (yearGap <= 30) {
+                currentSpan.endYear = currentYear;
+                currentSpan.years.push(currentYear);
             } else {
-                // 如果该年份没有国家事件，添加占位符
-                html += `<div class="timeline-event event-placeholder"></div>`;
+                timeSpans.push(currentSpan);
+                currentSpan = {
+                    startYear: currentYear,
+                    endYear: currentYear,
+                    years: [currentYear]
+                };
             }
-            html += `</div>`;
-            
-            html += `</div>`; // 关闭 timeline-period-events
         }
+        
+        // 添加最后一个时间段
+        timeSpans.push(currentSpan);
+        return timeSpans;
+    };
+    
+    const timeSpans = groupYearsByTimeSpan(yearsArray);
+    
+    // 步骤3: 按时间段渲染事件
+    timeSpans.forEach((timeSpan, spanIndex) => {
+        // 创建时间段标题
+        let spanTitle;
+        if (timeSpan.startYear === timeSpan.endYear) {
+            spanTitle = `${timeSpan.startYear}`;
+        } else {
+            spanTitle = `${timeSpan.startYear} - ${timeSpan.endYear}`;
+        }
+        
+        html += `
+            <div class="timeline-span-marker ${spanIndex % 2 === 0 ? 'even-span' : 'odd-span'}">
+                <div class="span-line"></div>
+                <div class="span-label">${spanTitle}</div>
+                <div class="span-line"></div>
+            </div>
+            <div class="timeline-span-container ${spanIndex % 2 === 0 ? 'even-span-container' : 'odd-span-container'}">
+        `;
+        
+        // 为每个时间段中的每一年添加事件
+        timeSpan.years.forEach(year => {
+            // 查找该年份的世界事件
+            const worldEventsForYear = sortedWorldEvents.filter(event => event.year.toString() === year.toString());
+            
+            // 查找该年份的国家事件
+            const countryEventsForYear = sortedCountryEvents.filter(event => event.year.toString() === year.toString());
+            
+            // 仅当该年份至少有一个事件时才添加时间标记和事件
+            if (worldEventsForYear.length > 0 || countryEventsForYear.length > 0) {
+                html += `
+                    <div class="timeline-year-marker">
+                        <div class="year-line"></div>
+                        <div class="year-label">${year}</div>
+                        <div class="year-line"></div>
+                    </div>
+                    <div class="timeline-period-events timeline-clearfix">
+                `;
+                
+                // 为左侧添加世界事件
+                html += `<div class="timeline-world-events">`;
+                if (worldEventsForYear.length > 0) {
+                    worldEventsForYear.forEach(event => {
+                        html += `
+                            <div class="timeline-event world-event">
+                                <div class="event-content">
+                                    <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
+                                    <h4>${event.title}</h4>
+                                    <p class="event-description">${event.description}</p>
+                                    <div class="event-significance">
+                                        <strong>历史意义：</strong>
+                                        <p>${event.significance}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // 如果该年份没有世界事件，添加占位符
+                    html += `<div class="timeline-event event-placeholder"></div>`;
+                }
+                html += `</div>`;
+                
+                // 为右侧添加国家事件
+                html += `<div class="timeline-country-events">`;
+                if (countryEventsForYear.length > 0) {
+                    countryEventsForYear.forEach(event => {
+                        html += `
+                            <div class="timeline-event country-event">
+                                <div class="event-content">
+                                    <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
+                                    <h4>${event.title}</h4>
+                                    <p class="event-description">${event.description}</p>
+                                    <div class="event-significance">
+                                        <strong>历史意义：</strong>
+                                        <p>${event.significance}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    // 如果该年份没有国家事件，添加占位符
+                    html += `<div class="timeline-event event-placeholder"></div>`;
+                }
+                html += `</div>`;
+                
+                html += `</div>`; // 关闭 timeline-period-events
+            }
+        });
+        
+        html += `</div>`; // 关闭 timeline-span-container
     });
     
     // 如果没有事件
