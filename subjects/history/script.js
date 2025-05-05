@@ -776,40 +776,48 @@ function initTimeline() {
                 return;
             }
             
-            // Build system message for country-specific timeline generation
+            // Build enhanced system message that explicitly requests time periods 
             systemMessage = '你是一个专业的历史教育助手，现在需要为' + levelName + '学生生成一个关于' + periodName + '时期的世界历史事件与' + countryName + '相关历史事件的对比时间线，研究目的：' + research_purpose + '。\n\n' +
             '请提供以下内容：\n' +
-            '1. 全球部分：该时期全球范围内最重要的' + eventCounts.worldEvents + '个历史事件（不包括' + countryName + '国内事件）\n' +
-            '2. ' + countryName + '部分：同一时期与' + countryName + '相关的' + eventCounts.countryEvents + '个重要历史事件，展示该国如何被全球事件影响以及如何影响全球\n' +
-            '3. 每个事件应包括：\n' +
+            '1. 时间段划分：必须将' + periodName + '划分为3-5个明确的关键时间段，每个时间段包含明确的起止年份，并以简短的名称概括该时间段的特点\n' +
+            '2. 全球部分：在每个时间段内，展示该时段内全球范围内最重要的历史事件（不包括' + countryName + '国内事件）\n' +
+            '3. ' + countryName + '部分：在每个时间段内，展示该时段内与' + countryName + '相关的重要历史事件，以便对比该国与全球历史的联系\n' +
+            '4. 所有事件应包括：\n' +
             '   - 具体年份或时间段\n' +
             '   - 事件名称\n' +
             '   - 简要描述（适合' + levelName + '学生理解）\n' +
             '   - 历史意义和影响\n\n' +
-            '请以JSON格式回复，格式如下:\n' +
+            '请以JSON格式回复，必须按照以下精确格式提供数据:\n' +
             '{\n' +
             '  "title": "时间线标题",\n' +
             '  "period": "历史时期",\n' +
             '  "country": "' + countryName + '",\n' +
             '  "detailLevel": "' + detailLevel + '",\n' +
-            '  "worldEvents": [\n' +
+            '  "timePeriods": [\n' +
             '    {\n' +
-            '      "year": "年份或时间段",\n' +
-            '      "title": "事件名称",\n' +
-            '      "description": "事件描述",\n' +
-            '      "significance": "历史意义"\n' +
-            '    }\n' +
-            '  ],\n' +
-            '  "countryEvents": [\n' +
-            '    {\n' +
-            '      "year": "年份或时间段",\n' +
-            '      "title": "事件名称",\n' +
-            '      "description": "事件描述",\n' +
-            '      "significance": "历史意义"\n' +
+            '      "name": "时间段名称",\n' +
+            '      "startYear": "开始年份",\n' +
+            '      "endYear": "结束年份",\n' +
+            '      "worldEvents": [\n' +
+            '        {\n' +
+            '          "year": "年份",\n' +
+            '          "title": "事件名称",\n' +
+            '          "description": "事件描述",\n' +
+            '          "significance": "历史意义"\n' +
+            '        }\n' +
+            '      ],\n' +
+            '      "countryEvents": [\n' +
+            '        {\n' +
+            '          "year": "年份",\n' +
+            '          "title": "事件名称",\n' +
+            '          "description": "事件描述",\n' +
+            '          "significance": "历史意义"\n' +
+            '        }\n' +
+            '      ]\n' +
             '    }\n' +
             '  ]\n' +
             '}' + 
-            '\n\n请确保JSON格式正确，不要有控制字符、换行符或其他可能导致解析错误的特殊字符。';
+            '\n\n请确保JSON格式正确，不要有控制字符、换行符或其他可能导致解析错误的特殊字符。确保timePeriods数组存在并包含3-5个时间段，每个时间段至少应包含2-3个全球事件和2-3个' + countryName + '事件。';
             
             // Call DeepSeek API
             const response = await fetch('/api/chat', {
@@ -825,7 +833,7 @@ function initTimeline() {
                         },
                         {
                             "role": "user",
-                            "content": `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，分别包含${eventCounts.worldEvents}个世界事件和${eventCounts.countryEvents}个${countryName}事件，适合${levelName}学生的水平。请确保返回的JSON格式正确无误。`
+                            "content": `请为${levelName}学生生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线。请将${periodName}明确划分为3-5个关键时间段，并在每个时间段内展示该时段的全球事件和${countryName}事件。请确保返回的JSON格式正确无误，包含timePeriods数组，每个时间段都有明确的名称、起止年份、世界事件和国家事件。`
                         }
                     ]
                 })
@@ -854,24 +862,54 @@ function initTimeline() {
                 // Clean the JSON string to remove potential control characters
                 jsonText = jsonText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
                 
-                // Try to parse the cleaned JSON
+                // Enhanced JSON parsing with multiple fallback strategies
                 try {
+                    // First attempt: direct parsing
                     timeline = JSON.parse(jsonText);
-                } catch (innerError) {
-                    console.error('第一次解析JSON失败，尝试手动修复格式...', innerError);
+                } catch (parseError) {
+                    console.error('第一次解析JSON失败，尝试修复格式...', parseError);
+                    console.log('原始JSON:', jsonText);
                     
-                    // Try to fix common JSON issues
-                    const fixedJson = jsonText
-                        .replace(/,\s*}/g, '}')  // Remove trailing commas
-                        .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
-                        .replace(/\\(?!["\\/bfnrtu])/g, '\\\\');  // Escape backslashes
+                    // Second attempt: fix common JSON issues
+                    try {
+                        const fixedJson = jsonText
+                            .replace(/,\s*}/g, '}')  // Remove trailing commas
+                            .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+                            .replace(/\\(?!["\\/bfnrtu])/g, '\\\\')  // Escape backslashes
+                            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')  // Quote unquoted keys
+                            .replace(/:\s*'([^']*?)'/g, ':"$1"')  // Replace single quotes with double quotes
+                            .replace(/:\s*`([^`]*?)`/g, ':"$1"');  // Replace backticks with double quotes
+                            
+                        timeline = JSON.parse(fixedJson);
+                    } catch (fixError) {
+                        console.error('修复JSON后仍然无法解析:', fixError);
                         
-                    timeline = JSON.parse(fixedJson);
+                        // Third attempt: Try a more aggressive approach with a JSON5 like parser
+                        try {
+                            // Simple approach to handle more JSON issues
+                            const sanitized = jsonText
+                                .replace(/[\n\r\t]/g, ' ')
+                                .replace(/\s+/g, ' ')
+                                .replace(/'/g, '"')
+                                .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3')
+                                .replace(/:\s*([-+]?\d+\.?\d*)\s*(,|}|])/g, ':"$1"$2');
+                                
+                            timeline = JSON.parse(sanitized);
+                        } catch (sanitizeError) {
+                            console.error('进一步修复JSON后仍然无法解析:', sanitizeError);
+                            throw new Error('无法解析JSON数据，将尝试手动提取信息');
+                        }
+                    }
                 }
                 
-                if (!timeline.title || !timeline.worldEvents || !timeline.countryEvents || 
-                    !Array.isArray(timeline.worldEvents) || !Array.isArray(timeline.countryEvents)) {
-                    throw new Error('解析的JSON格式不正确');
+                if (!timeline.title || !timeline.timePeriods || !Array.isArray(timeline.timePeriods) || timeline.timePeriods.length === 0) {
+                    // If the API returned the old format, convert it to the new format
+                    if (timeline.worldEvents && timeline.countryEvents) {
+                        console.log('API返回的是旧格式，转换为新格式');
+                        timeline = convertToTimePeriodFormat(timeline, periodName);
+                    } else {
+                        throw new Error('解析的JSON格式不正确或缺少必要字段');
+                    }
                 }
                 
                 renderComparisonTimeline(timeline);
@@ -883,6 +921,7 @@ function initTimeline() {
                 const fallbackTimeline = createFallbackTimeline(aiResponse, periodName, countryName, detailLevel);
                 
                 if (fallbackTimeline) {
+                    console.log('成功创建备用时间线');
                     renderComparisonTimeline(fallbackTimeline);
                 } else {
                     timelineContainer.innerHTML = `
@@ -943,16 +982,44 @@ function initTimeline() {
  */
 function createFallbackTimeline(responseText, periodName, countryName, detailLevel) {
     try {
-        // Extract world events
-        const worldEventsMatch = responseText.match(/全球历史事件|世界历史事件|全球事件[\s\S]*?(?=国家历史事件|国家事件|相关历史事件|结束)/i);
-        const countryEventsMatch = responseText.match(/国家历史事件|国家事件|相关历史事件[\s\S]*$/i);
+        // Try to identify time periods in the text
+        const periodMatches = responseText.match(/时间段|时期|阶段[\s\S]*?([\d年\-—～]+)/g) || [];
+        const periods = [];
         
-        if (!worldEventsMatch && !countryEventsMatch) {
-            return null;
+        if (periodMatches.length > 0) {
+            // Extract time periods
+            periodMatches.forEach(match => {
+                const nameMatch = match.match(/(\d+[\.\)、]|\*|\-)\s*(.+?)[:：]/);
+                const name = nameMatch ? nameMatch[2].trim() : "未知时期";
+                
+                const yearMatch = match.match(/([\d前公元]+年)\s*[-—～]\s*([\d前公元]+年)/);
+                const startYear = yearMatch ? yearMatch[1] : "未知开始年份";
+                const endYear = yearMatch ? yearMatch[2] : "未知结束年份";
+                
+                periods.push({
+                    name: name,
+                    startYear: startYear,
+                    endYear: endYear,
+                    worldEvents: [],
+                    countryEvents: []
+                });
+            });
         }
         
-        const worldEvents = [];
-        const countryEvents = [];
+        // If no periods found, create a default one
+        if (periods.length === 0) {
+            periods.push({
+                name: periodName,
+                startYear: "未知开始年份",
+                endYear: "未知结束年份",
+                worldEvents: [],
+                countryEvents: []
+            });
+        }
+        
+        // Extract events
+        const worldEventsMatch = responseText.match(/全球历史事件|世界历史事件|全球事件[\s\S]*?(?=国家历史事件|国家事件|相关历史事件|结束)/i);
+        const countryEventsMatch = responseText.match(/国家历史事件|国家事件|相关历史事件[\s\S]*$/i);
         
         // Process world events
         if (worldEventsMatch) {
@@ -969,12 +1036,36 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
                 const descriptionMatch = match.match(/[:：](.+)/);
                 const description = descriptionMatch ? descriptionMatch[1].trim() : "";
                 
-                worldEvents.push({
+                const event = {
                     year: year,
                     title: title,
                     description: description,
                     significance: "重要历史事件"
-                });
+                };
+                
+                // Assign to appropriate period
+                const yearValue = extractYearValue(year);
+                let assigned = false;
+                
+                if (yearValue) {
+                    for (const period of periods) {
+                        const startYearValue = extractYearValue(period.startYear);
+                        const endYearValue = extractYearValue(period.endYear);
+                        
+                        if (startYearValue && endYearValue && 
+                            yearValue >= startYearValue && 
+                            yearValue <= endYearValue) {
+                            period.worldEvents.push(event);
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // If not assigned to any period, put in the first one
+                if (!assigned && periods.length > 0) {
+                    periods[0].worldEvents.push(event);
+                }
             });
         }
         
@@ -993,12 +1084,36 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
                 const descriptionMatch = match.match(/[:：](.+)/);
                 const description = descriptionMatch ? descriptionMatch[1].trim() : "";
                 
-                countryEvents.push({
+                const event = {
                     year: year,
                     title: title,
                     description: description,
                     significance: "重要历史事件"
-                });
+                };
+                
+                // Assign to appropriate period
+                const yearValue = extractYearValue(year);
+                let assigned = false;
+                
+                if (yearValue) {
+                    for (const period of periods) {
+                        const startYearValue = extractYearValue(period.startYear);
+                        const endYearValue = extractYearValue(period.endYear);
+                        
+                        if (startYearValue && endYearValue && 
+                            yearValue >= startYearValue && 
+                            yearValue <= endYearValue) {
+                            period.countryEvents.push(event);
+                            assigned = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // If not assigned to any period, put in the first one
+                if (!assigned && periods.length > 0) {
+                    periods[0].countryEvents.push(event);
+                }
             });
         }
         
@@ -1008,8 +1123,13 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
             period: periodName,
             country: countryName,
             detailLevel: detailLevel,
-            worldEvents: worldEvents.length > 0 ? worldEvents : [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }],
-            countryEvents: countryEvents.length > 0 ? countryEvents : [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }]
+            timePeriods: periods.length > 0 ? periods : [{
+                name: periodName,
+                startYear: "未知开始年份",
+                endYear: "未知结束年份",
+                worldEvents: [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }],
+                countryEvents: [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }]
+            }]
         };
     } catch (e) {
         console.error('创建备用时间线时出错:', e);
@@ -1061,131 +1181,23 @@ function renderComparisonTimeline(timeline) {
         </div>
         <div class="country-info">
             <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
-            <p>下方时间线将按时间段组织，每个时间段下将并排展示全球事件和${timeline.country}事件。这种方式帮助理解全球历史与${timeline.country}历史的联系与影响。</p>
-            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，事件将垂直排列，但保持时间段的组织方式。</p>
+            <p>下方时间线按关键时间段组织，每个时间段内并排展示全球事件和${timeline.country}事件，帮助理解全球历史与${timeline.country}历史的关联与影响。</p>
+            <p>圆形时间标记显示了历史时期的划分，帮助您理解历史发展的阶段性。</p>
+            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，事件将垂直排列，但保持时间段的组织方式。点击事件可以高亮相同年份的事件。</p>
         </div>
         <div class="timeline">
+            <div class="timeline-periods">
     `;
     
-    // 为世界事件和国家事件分别创建数组并添加类型标记
-    const worldEvents = timeline.worldEvents.map(event => ({
-        ...event,
-        type: 'world'
-    }));
-    
-    const countryEvents = timeline.countryEvents.map(event => ({
-        ...event,
-        type: 'country'
-    }));
-    
-    // 按年份对事件进行排序
-    const sortEventsByYear = (events) => {
-        return events.sort((a, b) => {
-            // 尝试提取数字年份进行排序
-            try {
-                const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
-                const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
-                return yearA - yearB;
-            } catch (e) {
-                // 如果提取失败，则按原始字符串排序
-                return a.year.localeCompare(b.year);
-            }
-        });
-    };
-    
-    // 对世界事件和国家事件进行排序
-    const sortedWorldEvents = sortEventsByYear(worldEvents);
-    const sortedCountryEvents = sortEventsByYear(countryEvents);
-    
-    // 步骤1: 将事件按时间段分组
-    // 创建时间段对象，格式为 { period: string, worldEvents: [], countryEvents: [] }
-    const periods = [];
-    
-    // 辅助函数：提取年份数值用于比较
-    const extractYear = (yearStr) => {
-        try {
-            return parseInt(yearStr.toString().match(/-?\d+/)[0]);
-        } catch (e) {
-            return 0;
-        }
-    };
-    
-    // 辅助函数：将年份分配到时间段（每50年或重要历史时期）
-    const assignToPeriod = (yearStr) => {
-        const year = extractYear(yearStr);
-        
-        // 预定义的历史时期分段，可以根据不同的历史主题进行调整
-        const historicalPeriods = [
-            { start: -5000, end: -3000, name: "史前时期 (前5000-前3000年)" },
-            { start: -3000, end: -1000, name: "古代早期 (前3000-前1000年)" },
-            { start: -1000, end: -500, name: "古典时期早期 (前1000-前500年)" },
-            { start: -500, end: -1, name: "古典时期 (前500-公元元年)" },
-            { start: 1, end: 500, name: "后古典早期 (1-500年)" },
-            { start: 500, end: 1000, name: "中世纪早期 (500-1000年)" },
-            { start: 1000, end: 1500, name: "中世纪晚期 (1000-1500年)" },
-            { start: 1500, end: 1650, name: "文艺复兴与大航海 (1500-1650年)" },
-            { start: 1650, end: 1789, name: "启蒙时代 (1650-1789年)" },
-            { start: 1789, end: 1848, name: "革命时代 (1789-1848年)" },
-            { start: 1848, end: 1914, name: "工业化时代 (1848-1914年)" },
-            { start: 1914, end: 1945, name: "世界大战时期 (1914-1945年)" },
-            { start: 1945, end: 1991, name: "冷战时期 (1945-1991年)" },
-            { start: 1991, end: 2025, name: "当代全球化 (1991年至今)" }
-        ];
-        
-        // 尝试匹配预定义的历史时期
-        for (const period of historicalPeriods) {
-            if (year >= period.start && year <= period.end) {
-                return period.name;
-            }
-        }
-        
-        // 如果没有匹配的预定义时期，则按50年为一个时段
-        const periodStart = Math.floor(year / 50) * 50;
-        const periodEnd = periodStart + 49;
-        return `${periodStart}-${periodEnd}年`;
-    };
-    
-    // 为每个事件分配时间段
-    const worldEventsByPeriod = {};
-    const countryEventsByPeriod = {};
-    
-    sortedWorldEvents.forEach(event => {
-        const period = assignToPeriod(event.year);
-        if (!worldEventsByPeriod[period]) {
-            worldEventsByPeriod[period] = [];
-        }
-        worldEventsByPeriod[period].push(event);
-    });
-    
-    sortedCountryEvents.forEach(event => {
-        const period = assignToPeriod(event.year);
-        if (!countryEventsByPeriod[period]) {
-            countryEventsByPeriod[period] = [];
-        }
-        countryEventsByPeriod[period].push(event);
-    });
-    
-    // 合并所有时间段并排序
-    const allPeriods = new Set([...Object.keys(worldEventsByPeriod), ...Object.keys(countryEventsByPeriod)]);
-    const sortedPeriods = Array.from(allPeriods).sort((a, b) => {
-        const yearA = extractYear(a);
-        const yearB = extractYear(b);
-        return yearA - yearB;
-    });
-    
-    // 步骤2: 渲染时间段和事件
-    html += `<div class="timeline-periods">`;
-    
-    sortedPeriods.forEach((period, index) => {
-        const worldEventsInPeriod = worldEventsByPeriod[period] || [];
-        const countryEventsInPeriod = countryEventsByPeriod[period] || [];
-        
+    // Render each time period with its events
+    timeline.timePeriods.forEach((period, index) => {
         html += `
             <div class="timeline-period ${index % 2 === 0 ? 'even-period' : 'odd-period'}">
-                <div class="period-header">
-                    <div class="period-line"></div>
-                    <div class="period-label">${period}</div>
-                    <div class="period-line"></div>
+                <div class="period-marker">
+                    <div class="period-circle">
+                        <span class="period-years">${period.startYear} - ${period.endYear}</span>
+                    </div>
+                    <h3 class="period-name">${period.name}</h3>
                 </div>
                 <div class="period-content">
                     <div class="world-events-column">
@@ -1194,12 +1206,13 @@ function renderComparisonTimeline(timeline) {
                         </div>
         `;
         
-        if (worldEventsInPeriod.length > 0) {
-            worldEventsInPeriod.forEach(event => {
+        if (period.worldEvents && period.worldEvents.length > 0) {
+            period.worldEvents.forEach(event => {
                 html += `
                     <div class="event-item world-event" data-year="${event.year}">
                         <div class="event-year">${event.year}</div>
                         <div class="event-content">
+                            <div class="event-type-badge">全球事件</div>
                             <h4>${event.title}</h4>
                             <p class="event-description">${event.description}</p>
                             <div class="event-significance">
@@ -1222,12 +1235,13 @@ function renderComparisonTimeline(timeline) {
                         </div>
         `;
         
-        if (countryEventsInPeriod.length > 0) {
-            countryEventsInPeriod.forEach(event => {
+        if (period.countryEvents && period.countryEvents.length > 0) {
+            period.countryEvents.forEach(event => {
                 html += `
                     <div class="event-item country-event" data-year="${event.year}">
                         <div class="event-year">${event.year}</div>
                         <div class="event-content">
+                            <div class="event-type-badge">${timeline.country}事件</div>
                             <h4>${event.title}</h4>
                             <p class="event-description">${event.description}</p>
                             <div class="event-significance">
@@ -1249,18 +1263,8 @@ function renderComparisonTimeline(timeline) {
         `;
     });
     
-    html += `</div>`;
-    
-    // 如果没有事件
-    if (sortedPeriods.length === 0) {
-        html += `
-            <div class="events-empty">
-                <p>未找到相关历史事件</p>
-            </div>
-        `;
-    }
-    
     html += `
+            </div>
         </div>
         <div class="timeline-actions">
             <button class="btn btn-outline" id="print-timeline">打印时间线</button>
@@ -1270,7 +1274,7 @@ function renderComparisonTimeline(timeline) {
     
     timelineContainer.innerHTML = html;
     
-    // 添加事件监听器
+    // Add event listeners for print and download
     const printButton = document.getElementById('print-timeline');
     if (printButton) {
         printButton.addEventListener('click', () => {
@@ -1285,23 +1289,81 @@ function renderComparisonTimeline(timeline) {
         });
     }
     
-    // 添加滚动到事件的功能
+    // Add highlight functionality for events with the same year
     const eventItems = document.querySelectorAll('.event-item');
     eventItems.forEach(item => {
         item.addEventListener('click', () => {
             const year = item.getAttribute('data-year');
             const sameYearEvents = document.querySelectorAll(`.event-item[data-year="${year}"]`);
-            sameYearEvents.forEach(event => {
-                event.classList.toggle('highlighted');
-            });
             
-            setTimeout(() => {
+            // If we already highlighted this event, unhighlight it
+            if (item.classList.contains('highlighted')) {
                 sameYearEvents.forEach(event => {
                     event.classList.remove('highlighted');
                 });
-            }, 3000);
+                return;
+            }
+            
+            // First, remove highlight from any previously highlighted events
+            document.querySelectorAll('.event-item.highlighted').forEach(el => {
+                el.classList.remove('highlighted');
+            });
+            
+            // Then highlight the current set of events
+            sameYearEvents.forEach(event => {
+                event.classList.add('highlighted');
+            });
+            
+            // On mobile, scroll the first highlighted event into view
+            if (window.innerWidth <= 768 && sameYearEvents.length > 0) {
+                setTimeout(() => {
+                    sameYearEvents[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 100);
+            }
+            
+            // Auto remove highlight after some time, but only on desktop
+            if (window.innerWidth > 768) {
+                setTimeout(() => {
+                    sameYearEvents.forEach(event => {
+                        event.classList.remove('highlighted');
+                    });
+                }, 3000);
+            }
         });
     });
+    
+    // Add swiping functionality for mobile to navigate between periods
+    if ('ontouchstart' in window) {
+        const periods = document.querySelectorAll('.timeline-period');
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        periods.forEach((period, index) => {
+            period.addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            
+            period.addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe(index, periods);
+            }, { passive: true });
+        });
+        
+        function handleSwipe(currentIndex, periods) {
+            const swipeThreshold = 50;
+            if (touchEndX < touchStartX - swipeThreshold) {
+                // Swipe left - go to next period if available
+                if (currentIndex < periods.length - 1) {
+                    periods[currentIndex + 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } else if (touchEndX > touchStartX + swipeThreshold) {
+                // Swipe right - go to previous period if available
+                if (currentIndex > 0) {
+                    periods[currentIndex - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -1377,4 +1439,129 @@ function getContinentName(continent) {
         'middle-east': '中东'
     };
     return continentNames[continent] || '全球';
+}
+
+// Add this function to convert old format to new timePeriods format if needed
+function convertToTimePeriodFormat(oldTimeline, periodName) {
+    // Create a default time period based on the period name
+    const periodRanges = {
+        'ancient': { start: '-3500', end: '-500' },
+        'postclassical': { start: '500', end: '1450' },
+        'earlymodern': { start: '1450', end: '1750' },
+        'revolutionary': { start: '1750', end: '1914' },
+        'worldwars': { start: '1914', end: '1991' },
+        'contemporary': { start: '1991', end: '2023' }
+    };
+    
+    const defaultRange = periodRanges[periodName] || { start: '1000', end: '2000' };
+    
+    // Group events by year to attempt to create meaningful time periods
+    const allYears = [];
+    oldTimeline.worldEvents.forEach(event => {
+        const year = extractYearValue(event.year);
+        if (year && !allYears.includes(year)) {
+            allYears.push(year);
+        }
+    });
+    
+    oldTimeline.countryEvents.forEach(event => {
+        const year = extractYearValue(event.year);
+        if (year && !allYears.includes(year)) {
+            allYears.push(year);
+        }
+    });
+    
+    // Sort years
+    allYears.sort((a, b) => a - b);
+    
+    // If we have less than 2 years, just create one time period
+    if (allYears.length < 2) {
+        return {
+            title: oldTimeline.title,
+            period: oldTimeline.period,
+            country: oldTimeline.country,
+            detailLevel: oldTimeline.detailLevel,
+            timePeriods: [
+                {
+                    name: oldTimeline.period,
+                    startYear: defaultRange.start,
+                    endYear: defaultRange.end,
+                    worldEvents: oldTimeline.worldEvents,
+                    countryEvents: oldTimeline.countryEvents
+                }
+            ]
+        };
+    }
+    
+    // Create 3-5 time periods based on the range of years
+    const numberOfPeriods = Math.min(Math.max(3, Math.ceil(allYears.length / 4)), 5);
+    const minYear = allYears[0];
+    const maxYear = allYears[allYears.length - 1];
+    const yearRange = maxYear - minYear;
+    const periodLength = Math.ceil(yearRange / numberOfPeriods);
+    
+    const timePeriods = [];
+    
+    for (let i = 0; i < numberOfPeriods; i++) {
+        const startYear = minYear + (i * periodLength);
+        const endYear = i === numberOfPeriods - 1 ? maxYear : minYear + ((i + 1) * periodLength - 1);
+        
+        // Filter events that belong to this time period
+        const worldEvents = oldTimeline.worldEvents.filter(event => {
+            const year = extractYearValue(event.year);
+            return year >= startYear && year <= endYear;
+        });
+        
+        const countryEvents = oldTimeline.countryEvents.filter(event => {
+            const year = extractYearValue(event.year);
+            return year >= startYear && year <= endYear;
+        });
+        
+        // Only add period if it has events
+        if (worldEvents.length > 0 || countryEvents.length > 0) {
+            timePeriods.push({
+                name: `${startYear}年 - ${endYear}年`,
+                startYear: startYear.toString(),
+                endYear: endYear.toString(),
+                worldEvents: worldEvents,
+                countryEvents: countryEvents
+            });
+        }
+    }
+    
+    // If we couldn't create any valid time periods, just use one period
+    if (timePeriods.length === 0) {
+        timePeriods.push({
+            name: oldTimeline.period,
+            startYear: defaultRange.start,
+            endYear: defaultRange.end,
+            worldEvents: oldTimeline.worldEvents,
+            countryEvents: oldTimeline.countryEvents
+        });
+    }
+    
+    return {
+        title: oldTimeline.title,
+        period: oldTimeline.period,
+        country: oldTimeline.country,
+        detailLevel: oldTimeline.detailLevel,
+        timePeriods: timePeriods
+    };
+}
+
+// Helper function to extract a numeric year from strings like "1500年", "公元前500年", "前500年", etc.
+function extractYearValue(yearStr) {
+    if (!yearStr) return null;
+    
+    const bcMatch = yearStr.match(/(?:公元前|前)(\d+)年?/);
+    if (bcMatch) {
+        return -parseInt(bcMatch[1]);
+    }
+    
+    const adMatch = yearStr.match(/(\d+)年?/);
+    if (adMatch) {
+        return parseInt(adMatch[1]);
+    }
+    
+    return null;
 } 
