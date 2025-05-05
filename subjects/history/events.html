@@ -2070,7 +2070,7 @@
             let visibleCount = 0;
             let firstVisibleIndex = -1;
             
-            // Track the search results
+            // Reset search results
             searchResultIndices = [];
             
             // Hide all cards first
@@ -2100,11 +2100,14 @@
             const eventCounter = document.getElementById('event-counter');
             if (eventCounter) {
                 if (searchTerm && visibleCount > 0) {
-                    // Show "1/X" for search results
+                    // Show "1/X" for search results (1-based counter)
                     eventCounter.textContent = `1 / ${visibleCount}`;
                     
                     // Set the current event index to the first visible card
                     currentEventIndex = firstVisibleIndex;
+                    
+                    // Update the navigation buttons for search mode
+                    updateNavigationButtonsForSearch(visibleCount);
                     
                     // Update the visual display of event cards
                     updateEventDisplayForSearch(firstVisibleIndex);
@@ -2114,10 +2117,16 @@
                 } else if (visibleCount === 0 && searchTerm) {
                     eventCounter.textContent = `0 / 0`;
                     isInSearchMode = false;
+                    
+                    // Reset the navigation
+                    resetNavigationButtons();
                 } else {
                     // Reset to normal navigation
                     eventCounter.textContent = `${currentEventIndex + 1} / ${totalEvents}`;
                     isInSearchMode = false;
+                    
+                    // Reset the navigation
+                    resetNavigationButtons();
                 }
             }
             
@@ -2142,92 +2151,32 @@
             return visibleCount;
         }
         
-        // New function to update event display for search results
-        function updateEventDisplayForSearch(firstVisibleIndex) {
-            // Get all event cards
-            const eventCards = document.querySelectorAll('.event-card');
-            const eventsContainer = document.getElementById('all-events-container');
-            
-            // Remove active class from all cards
-            eventCards.forEach(card => {
-                card.classList.remove('active');
-            });
-            
-            // Add active class to the first visible card
-            if (eventCards[firstVisibleIndex]) {
-                const activeCard = eventCards[firstVisibleIndex];
-                activeCard.classList.add('active');
-                
-                // Calculate position for smooth scrolling to the active card
-                const isMobile = window.innerWidth <= 768;
-                const cardWidth = isMobile ? activeCard.offsetWidth : activeCard.offsetWidth + 20;
-                const translateValue = -firstVisibleIndex * cardWidth;
-                
-                // Apply smooth transition to show the active card
-                if (eventsContainer) {
-                    eventsContainer.style.transition = 'transform 0.5s ease';
-                    eventsContainer.style.transform = `translateX(${translateValue}px)`;
-                }
-                
-                // Update any period highlights if needed
-                const period = activeCard.dataset.period;
-                document.querySelectorAll('.timeline-period').forEach(p => {
-                    if (p.dataset.period === period) {
-                        p.classList.add('active');
-                        
-                        // Scroll period into view in timeline
-                        const timeline = document.getElementById('period-timeline');
-                        if (timeline) {
-                            const scrollLeft = p.offsetLeft - timeline.offsetWidth / 2 + p.offsetWidth / 2;
-                            timeline.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-                        }
-                    } else {
-                        p.classList.remove('active');
-                    }
-                });
-            }
-        }
-        
-        // Add new functions for search navigation
-        let isInSearchMode = false;
-        let searchResultIndices = [];
-
-        function updateNavigationButtonsForSearch(resultsCount) {
-            if (resultsCount > 0) {
-                isInSearchMode = true;
-                
-                // Collect indices of all visible cards
-                searchResultIndices = [];
-                const eventCards = document.querySelectorAll('.event-card');
-                eventCards.forEach((card, index) => {
-                    if (card.style.display !== 'none') {
-                        searchResultIndices.push(index);
-                    }
-                });
-                
-                // Update next/prev buttons to work with search results
-                const prevButton = document.getElementById('prev-event');
-                const nextButton = document.getElementById('next-event');
-                
-                if (prevButton && nextButton) {
-                    prevButton.onclick = navigatePreviousSearchResult;
-                    nextButton.onclick = navigateNextSearchResult;
-                }
-            }
-        }
-
-        function resetEventDisplayAfterSearch() {
-            isInSearchMode = false;
-            searchResultIndices = [];
-            
+        function resetNavigationButtons() {
             // Reset navigation buttons to original behavior
             const prevButton = document.getElementById('prev-event');
             const nextButton = document.getElementById('next-event');
             
             if (prevButton && nextButton) {
-                prevButton.onclick = showPreviousEvent;
-                nextButton.onclick = showNextEvent;
+                // Remove any previous event listeners
+                prevButton.replaceWith(prevButton.cloneNode(true));
+                nextButton.replaceWith(nextButton.cloneNode(true));
+                
+                // Get the fresh references
+                const newPrevButton = document.getElementById('prev-event');
+                const newNextButton = document.getElementById('next-event');
+                
+                // Add original event listeners
+                newPrevButton.addEventListener('click', showPreviousEvent);
+                newNextButton.addEventListener('click', showNextEvent);
             }
+        }
+        
+        function resetEventDisplayAfterSearch() {
+            isInSearchMode = false;
+            searchResultIndices = [];
+            
+            // Reset navigation buttons
+            resetNavigationButtons();
             
             // Show all cards
             const eventCards = document.querySelectorAll('.event-card');
@@ -2247,6 +2196,95 @@
             // Update display including counter
             updateEventDisplay();
         }
+        
+        // New function to update event display for search results
+        function updateEventDisplayForSearch(cardIndex) {
+            // Get all event cards
+            const eventCards = document.querySelectorAll('.event-card');
+            const eventsContainer = document.getElementById('all-events-container');
+            
+            // Skip if index is invalid
+            if (cardIndex < 0 || cardIndex >= eventCards.length) return;
+
+            // Remove active class from all cards
+            eventCards.forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Add active class to the selected card
+            const activeCard = eventCards[cardIndex];
+            activeCard.classList.add('active');
+            
+            // Calculate position for smooth scrolling to the active card
+            const isMobile = window.innerWidth <= 768;
+            const cardWidth = isMobile ? 
+                activeCard.offsetWidth : // Full width on mobile
+                activeCard.offsetWidth + 20; // Account for margin on desktop
+            
+            const translateValue = -cardIndex * cardWidth;
+            
+            // Apply smooth transition to show the active card
+            if (eventsContainer) {
+                eventsContainer.style.transition = 'transform 0.5s ease';
+                eventsContainer.style.transform = `translateX(${translateValue}px)`;
+            }
+            
+            // Update any period highlights if needed
+            const period = activeCard.dataset.period;
+            document.querySelectorAll('.timeline-period').forEach(p => {
+                if (p.dataset.period === period) {
+                    p.classList.add('active');
+                    
+                    // Scroll period into view in timeline
+                    const timeline = document.getElementById('period-timeline');
+                    if (timeline) {
+                        const scrollLeft = p.offsetLeft - timeline.offsetWidth / 2 + p.offsetWidth / 2;
+                        timeline.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+                    }
+                } else {
+                    p.classList.remove('active');
+                }
+            });
+        }
+        
+        // Add new functions for search navigation
+        let isInSearchMode = false;
+        let searchResultIndices = [];
+
+        function updateNavigationButtonsForSearch(resultsCount) {
+            if (resultsCount > 0) {
+                isInSearchMode = true;
+                
+                // Collect indices of all visible cards
+                searchResultIndices = [];
+                const eventCards = document.querySelectorAll('.event-card');
+                eventCards.forEach((card, index) => {
+                    if (card.style.display !== 'none') {
+                        searchResultIndices.push(index);
+                    }
+                });
+                
+                console.log("Search results:", searchResultIndices);
+                
+                // Update next/prev buttons to work with search results
+                const prevButton = document.getElementById('prev-event');
+                const nextButton = document.getElementById('next-event');
+                
+                if (prevButton && nextButton) {
+                    // Remove any previous event listeners
+                    prevButton.replaceWith(prevButton.cloneNode(true));
+                    nextButton.replaceWith(nextButton.cloneNode(true));
+                    
+                    // Get the fresh references
+                    const newPrevButton = document.getElementById('prev-event');
+                    const newNextButton = document.getElementById('next-event');
+                    
+                    // Add new event listeners
+                    newPrevButton.addEventListener('click', navigatePreviousSearchResult);
+                    newNextButton.addEventListener('click', navigateNextSearchResult);
+                }
+            }
+        }
 
         function navigatePreviousSearchResult() {
             if (!isInSearchMode || searchResultIndices.length === 0) return;
@@ -2259,12 +2297,13 @@
                 const newIndex = searchResultIndices[currentPosition - 1];
                 currentEventIndex = newIndex;
                 
-                // Update counter and display
+                // Update counter and display (1-based position)
                 const eventCounter = document.getElementById('event-counter');
                 if (eventCounter) {
                     eventCounter.textContent = `${currentPosition} / ${searchResultIndices.length}`;
                 }
                 
+                // Update display to show the correct card
                 updateEventDisplayForSearch(newIndex);
             }
         }
@@ -2280,12 +2319,13 @@
                 const newIndex = searchResultIndices[currentPosition + 1];
                 currentEventIndex = newIndex;
                 
-                // Update counter and display
+                // Update counter and display (1-based position)
                 const eventCounter = document.getElementById('event-counter');
                 if (eventCounter) {
                     eventCounter.textContent = `${currentPosition + 2} / ${searchResultIndices.length}`;
                 }
                 
+                // Update display to show the correct card
                 updateEventDisplayForSearch(newIndex);
             }
         }
