@@ -197,6 +197,7 @@
         .event-display {
             position: relative;
             margin-top: 20px;
+            width: 100%;
         }
 
         .events-carousel {
@@ -208,6 +209,8 @@
             display: flex;
             justify-content: center;
             margin-bottom: 20px;
+            position: relative;
+            z-index: 10;
         }
 
         .event-nav-buttons {
@@ -220,6 +223,7 @@
             padding: 10px 20px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             z-index: 10;
+            position: relative;
         }
 
         .event-nav-btn {
@@ -258,6 +262,8 @@
             overflow: hidden;
             width: 100%;
             box-sizing: border-box;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
         }
 
         .event-cards {
@@ -347,16 +353,17 @@
             width: 100%;
         }
 
-        /* Mobile Responsive Styles */
+        /* Mobile Responsive Styles - Updated to match events.html layout */
         @media screen and (max-width: 768px) {
             .dynasty-container {
-                padding: 1rem 0;
+                padding: 1rem 0.5rem;
                 gap: 1rem;
             }
             
             .timeline-container {
                 padding: 15px 10px;
                 overflow-x: auto;
+                margin-bottom: 20px;
             }
             
             .vertical-timeline {
@@ -376,8 +383,18 @@
                 font-size: 0.75rem;
             }
             
+            .event-controls {
+                position: relative;
+                z-index: 10;
+                margin-bottom: 15px;
+            }
+            
             .event-nav-buttons {
                 padding: 8px 15px;
+                position: relative;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 30px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             }
             
             .event-nav-btn {
@@ -398,15 +415,15 @@
             .event-cards-wrapper {
                 overflow: hidden;
                 width: 100%;
-                max-width: 100vw;
                 padding: 0;
                 box-sizing: border-box;
+                border-radius: 12px;
             }
             
             .event-cards {
                 width: 100% !important;
                 display: flex !important;
-                grid-template-columns: unset !important;
+                transition: transform 0.5s ease;
             }
             
             .event-card {
@@ -415,6 +432,8 @@
                 flex: 0 0 100% !important;
                 margin: 0;
                 box-sizing: border-box;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             }
             
             .event-image-container {
@@ -427,6 +446,7 @@
                 width: 100%;
                 overflow-wrap: break-word;
                 word-wrap: break-word;
+                hyphens: auto;
             }
             
             .events-carousel {
@@ -466,6 +486,17 @@
             
             .event-card {
                 padding: 1rem;
+                border-radius: 10px;
+            }
+            
+            .event-title {
+                font-size: 1.1rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .event-description {
+                font-size: 0.9rem;
+                line-height: 1.5;
             }
         }
 
@@ -529,6 +560,7 @@
             position: relative;
             padding-top: 56.25%; /* 16:9 aspect ratio */
             background-color: #f0f2f5;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
         }
         
         .event-image {
@@ -544,6 +576,7 @@
         
         .event-image.loaded {
             opacity: 1;
+            transform: scale(1);
         }
         
         .event-image:hover {
@@ -562,6 +595,7 @@
             color: #718096;
             font-size: 0.9rem;
             z-index: 1;
+            background-color: #f7f8fa;
         }
         
         .image-loading-placeholder i {
@@ -871,15 +905,37 @@
         // Event navigation functions
         function showPreviousEvent() {
             if (currentEventIndex > 0) {
+                // Add transition class
+                document.querySelector('.event-cards').classList.add('transitioning');
+                
+                // Update index
                 currentEventIndex--;
+                
+                // Update display
                 updateEventDisplay();
+                
+                // Remove transition class after animation completes
+                setTimeout(() => {
+                    document.querySelector('.event-cards').classList.remove('transitioning');
+                }, 500);
             }
         }
         
         function showNextEvent() {
             if (currentEventIndex < totalEvents - 1) {
+                // Add transition class
+                document.querySelector('.event-cards').classList.add('transitioning');
+                
+                // Update index
                 currentEventIndex++;
+                
+                // Update display
                 updateEventDisplay();
+                
+                // Remove transition class after animation completes
+                setTimeout(() => {
+                    document.querySelector('.event-cards').classList.remove('transitioning');
+                }, 500);
             }
         }
         
@@ -904,6 +960,14 @@
             
             // Update event counter
             updateEventCounter();
+            
+            // Scroll to top of events container on mobile
+            if (window.innerWidth <= 768) {
+                const eventsWrapper = document.querySelector('.events-carousel');
+                if (eventsWrapper) {
+                    eventsWrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
         }
         
         function updateEventCounter() {
@@ -947,10 +1011,20 @@
         function handleImageLoad(image, loadingPlaceholder) {
             if (!image || !loadingPlaceholder) return;
             
+            // Show loading placeholder
+            loadingPlaceholder.innerHTML = `
+                <i class="fas fa-spinner fa-spin"></i>
+                <span style="margin-left: 8px;">加载图片中...</span>
+            `;
+            
             // Success handler - image loaded successfully
             image.addEventListener('load', function() {
                 this.classList.add('loaded');
                 loadingPlaceholder.style.display = 'none';
+                // Small delay for smoother transition
+                setTimeout(() => {
+                    image.style.opacity = '1';
+                }, 50);
             });
             
             // Error handler with fallback chain
@@ -1109,6 +1183,9 @@
 
         // Initialize when DOM is loaded
         document.addEventListener('DOMContentLoaded', async () => {
+            // Add style rule for transitions
+            addStyleRule();
+            
             // Check for default images first
             await ensureDefaultImages();
             
@@ -1121,6 +1198,15 @@
             // Add event listeners for navigation buttons
             document.getElementById('prev-event').addEventListener('click', showPreviousEvent);
             document.getElementById('next-event').addEventListener('click', showNextEvent);
+            
+            // Add keyboard navigation
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'ArrowLeft') {
+                    showPreviousEvent();
+                } else if (e.key === 'ArrowRight') {
+                    showNextEvent();
+                }
+            });
             
             // Add resize handler
             let resizeTimer;
@@ -1171,6 +1257,17 @@
             
             // If the default image doesn't exist, we'll handle it in the error cases
             console.log('Default image check:', exists ? 'Found' : 'Not found');
+        }
+
+        // Add CSS rule for transitioning class
+        function addStyleRule() {
+            const style = document.createElement('style');
+            style.textContent = `
+                .event-cards.transitioning {
+                    transition: transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+                }
+            `;
+            document.head.appendChild(style);
         }
     </script>
 </body>
