@@ -698,7 +698,10 @@ function initTimeline() {
     const detailLevelSelect = document.getElementById('timeline-detail');
     const timelineContainer = document.getElementById('timeline-container');
     
-    if (!loadButton || !periodSelect || !countrySelect || !timelineContainer) return;
+    if (!loadButton || !periodSelect || !countrySelect || !timelineContainer) {
+        console.error('Timeline initialization failed: Missing required elements');
+        return;
+    }
     
     loadButton.addEventListener('click', async () => {
         // Show loading state with skeleton UI
@@ -732,14 +735,14 @@ function initTimeline() {
                 ancient: "研究古代文明的兴起、发展与互动",
                 postclassical: "研究中世纪、封建制度和早期现代社会的发展",
                 earlymodern: "发现连接大陆的航海旅程和随后的全球交流",
-            revolutionary: "分析塑造现代世界的政治、工业和社会革命",
-            worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
+                revolutionary: "分析塑造现代世界的政治、工业和社会革命",
+                worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
                 contemporary: "研究战后发展、冷战、非殖民化和当代全球问题",
-            "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
-            imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
-            "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
-            modern: "从五四运动到新中国成立，中国现代史的重要转折",
-            contemporary: "新中国成立后的社会主义建设与改革开放",
+                "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
+                imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
+                "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
+                modern: "从五四运动到新中国成立，中国现代史的重要转折",
+                contemporary: "新中国成立后的社会主义建设与改革开放",
             };
     
             // Directly link 'research_purpose' to 'period'
@@ -959,58 +962,62 @@ function renderComparisonTimeline(timeline) {
     
     // 按时间年份合并和排序事件
     const allEvents = [];
-    let worldEventIndex = 0;
-    let countryEventIndex = 0;
     
-    // 组织数据，确保世界事件和国家事件交替显示，同时保持时间顺序
-    while (worldEventIndex < timeline.worldEvents.length || countryEventIndex < timeline.countryEvents.length) {
-        // 添加世界事件
-        if (worldEventIndex < timeline.worldEvents.length) {
-            const event = timeline.worldEvents[worldEventIndex];
-            allEvents.push({
-                ...event,
-                type: 'world',
-                side: 'left'
-            });
-            worldEventIndex++;
-        }
-        
-        // 添加国家事件
-        if (countryEventIndex < timeline.countryEvents.length) {
-            const event = timeline.countryEvents[countryEventIndex];
-            allEvents.push({
-                ...event,
-                type: 'country',
-                side: 'right'
-            });
-            countryEventIndex++;
-        }
-    }
+    // 分别准备世界事件和国家事件的数组
+    const worldEvents = timeline.worldEvents.map(event => ({
+        ...event,
+        type: 'world'
+    }));
     
-    // 按年份排序所有事件
-    allEvents.sort((a, b) => {
-        // 尝试提取数字年份进行排序
-        try {
-            const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
-            const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
-            return yearA - yearB;
-        } catch (e) {
-            // 如果提取失败，则按原始字符串排序
-            return a.year.localeCompare(b.year);
-        }
-    });
+    const countryEvents = timeline.countryEvents.map(event => ({
+        ...event,
+        type: 'country'
+    }));
     
-    // 将排序后的事件添加到时间线上
-    allEvents.forEach((event) => {
-        const eventClass = event.type === 'world' ? 'world-event' : 'country-event';
-        const eventIcon = event.type === 'world' ? '<i class="fas fa-globe"></i>' : `<i class="fas fa-flag"></i>`;
-        const eventType = event.type === 'world' ? '全球事件' : `${timeline.country}事件`;
-        
+    // 按年份对两组事件分别排序
+    const sortEventsByYear = (events) => {
+        return events.sort((a, b) => {
+            // 尝试提取数字年份进行排序
+            try {
+                const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
+                const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
+                return yearA - yearB;
+            } catch (e) {
+                // 如果提取失败，则按原始字符串排序
+                return a.year.localeCompare(b.year);
+            }
+        });
+    };
+    
+    const sortedWorldEvents = sortEventsByYear(worldEvents);
+    const sortedCountryEvents = sortEventsByYear(countryEvents);
+    
+    // 合并两组排序后的事件，保持世界事件在左，国家事件在右
+    // 将排序后的世界事件添加到时间线上
+    sortedWorldEvents.forEach((event) => {
         html += `
-            <div class="timeline-event ${eventClass}">
+            <div class="timeline-event world-event">
                 <div class="event-year">${event.year}</div>
                 <div class="event-content">
-                    <div class="event-type-badge">${eventIcon} ${eventType}</div>
+                    <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
+                    <h4>${event.title}</h4>
+                    <p class="event-description">${event.description}</p>
+                    <div class="event-significance">
+                        <strong>历史意义：</strong>
+                        <p>${event.significance}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    // 将排序后的国家事件添加到时间线上
+    sortedCountryEvents.forEach((event) => {
+        html += `
+            <div class="timeline-event country-event">
+                <div class="event-year">${event.year}</div>
+                <div class="event-content">
+                    <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
                     <h4>${event.title}</h4>
                     <p class="event-description">${event.description}</p>
                     <div class="event-significance">
