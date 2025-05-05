@@ -954,9 +954,13 @@
             const topic = urlParams.get('topic');
             const category = urlParams.get('category');
             const subCategory = urlParams.get('sub_category');
+            const subCategory1 = urlParams.get('sub_category_1');
             
-            // If we have category and sub_category params, handle them directly (for Chinese history)
-            if (category && subCategory) {
+            // Use subCategory1 if available, otherwise fall back to subCategory
+            const effectiveSubCategory = subCategory1 || subCategory;
+            
+            // If we have category and effective sub_category params, handle them directly (for Chinese history)
+            if (category && effectiveSubCategory) {
                 // Special case for Chinese history topics
                 const chineseTopicInfo = {
                     'CHINA_MODERN_HISTORY': {
@@ -968,10 +972,15 @@
                         name: '中国现代史',
                         description: '共和国成立至今，中国共产党领导下的社会主义革命、建设、改革和发展时期',
                         timeRange: '1949年至2000年',
+                    },
+                    'ANCIENT_CHINESE_HISTORY': {
+                        name: '中国历朝历代',
+                        description: '从夏商周到秦汉，从隋唐到宋元明清，探索中华文明的发展历程',
+                        timeRange: '约前2070年 到 清朝',
                     }
                 };
                 
-                const topicInfo = chineseTopicInfo[subCategory];
+                const topicInfo = chineseTopicInfo[effectiveSubCategory];
                 
                 if (!topicInfo) {
                     showError("无效的历史主题");
@@ -985,7 +994,7 @@
                 document.title = `${topicInfo.name} - 历史学习 - 学习助手`;
                 
                 // Load event data with category and subcategory
-                loadChineseHistoricalEvents(category, subCategory);
+                loadChineseHistoricalEvents(category, effectiveSubCategory);
                 
                 // Initialize scroll to top button
                 initScrollToTop();
@@ -1157,24 +1166,33 @@
                         
                         console.log(`已加载${allEvents.length}条历史事件数据`);
                         
-                        // Filter for Chinese modern history events
+                        // Prepare category and subcategory for case-insensitive comparison
+                        const targetCategory = (category || '').toUpperCase();
+                        const targetSubCategory = (subCategory || '').toUpperCase();
+                        
+                        // Filter for Chinese history events with case-insensitive matching
                         const filteredEvents = allEvents.filter(event => {
-                            // Case-insensitive comparison for more reliable filtering
+                            // Prepare event data for case-insensitive comparison
                             const eventCategory = (event.CATEGORY || '').toUpperCase();
-                            const eventSubCategory = (event.SUB_CATEGORY_1 || '').toUpperCase();
-                            const targetCategory = category.toUpperCase();
-                            const targetSubCategory = subCategory.toUpperCase();
+                            const eventSubCategory1 = (event.SUB_CATEGORY_1 || '').toUpperCase();
+                            const eventSubCategory2 = (event.SUB_CATEGORY_2 || '').toUpperCase();
                             
+                            // Match by CATEGORY and any of the SUB_CATEGORY fields
                             return (
                                 eventCategory.includes(targetCategory) && 
-                                eventSubCategory.includes(targetSubCategory)
+                                (eventSubCategory1.includes(targetSubCategory) || 
+                                 eventSubCategory2.includes(targetSubCategory))
                             );
                         });
                         
-                        console.log(`过滤后剩余${filteredEvents.length}条中国近代史事件`);
+                        const subCategoryName = subCategory === 'ANCIENT_CHINESE_HISTORY' ? '中国历朝历代' : 
+                                               (subCategory === 'CHINA_MODERN_HISTORY' ? '中国近代史' : 
+                                               (subCategory === 'CONTEMPORARY_CHINESE_HISTORY' ? '中国现代史' : subCategory));
+                        
+                        console.log(`过滤后剩余${filteredEvents.length}条${subCategoryName}相关事件`);
                         
                         if (filteredEvents.length === 0) {
-                            showError(`未找到与中国近代史相关的历史事件数据`);
+                            showError(`未找到与${subCategoryName}相关的历史事件数据`);
                             return;
                         }
                         
