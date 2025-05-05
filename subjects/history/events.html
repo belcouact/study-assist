@@ -1063,6 +1063,7 @@
             cursor: pointer;
             padding: 5px;
             display: none; /* Hidden by default, shown when input has text */
+            z-index: 5; /* Ensure it's above other elements */
         }
         
         .search-box .clear-btn:hover {
@@ -1481,36 +1482,59 @@
             const searchButton = document.getElementById('search-button');
             const clearButton = document.getElementById('clear-search');
             
+            // Check if elements exist
+            if (!searchInput || !searchButton || !clearButton) {
+                console.error("Search elements not found!");
+                return;
+            }
+            
+            console.log("Setting up search functionality");
+            
             // Show/hide clear button based on input content
             searchInput.addEventListener('input', function() {
-                clearButton.style.display = this.value ? 'block' : 'none';
+                if (this.value) {
+                    clearButton.style.display = 'block';
+                } else {
+                    clearButton.style.display = 'none';
+                }
             });
             
             // Clear search functionality
-            clearButton.addEventListener('click', function() {
+            clearButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                console.log("Clear button clicked");
                 searchInput.value = '';
                 this.style.display = 'none';
                 
                 if (searchActive) {
                     searchActive = false;
-                    
+                    console.log("Restoring original events");
                     // Restore original events and display them
                     restoreOriginalEvents();
                 }
             });
             
             // Submit search on Enter key
-            searchInput.addEventListener('keyup', function(event) {
+            searchInput.addEventListener('keypress', function(event) {
                 if (event.key === "Enter" && this.value.trim()) {
-                    executeSearch(this.value.trim());
+                    event.preventDefault(); // Prevent form submission
+                    const searchTerm = this.value.trim();
+                    console.log("Executing search from Enter key:", searchTerm);
+                    executeSearch(searchTerm);
                 }
             });
             
             // Search button click handler
-            searchButton.addEventListener('click', function() {
+            searchButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                console.log("Search button clicked");
                 const searchTerm = searchInput.value.trim();
                 if (searchTerm) {
+                    console.log("Executing search from button click:", searchTerm);
                     executeSearch(searchTerm);
+                } else {
+                    console.log("Search term is empty, not executing search");
+                    alert("请输入搜索关键词");
                 }
             });
         }
@@ -1525,21 +1549,20 @@
             const category = urlParams.get('category');
             const subCategory = urlParams.get('sub_category_1') || urlParams.get('sub_category');
             
-            // Prepare SQL query to search by title
-            const sql = `SELECT * FROM world_history WHERE TITLE LIKE '%${searchTerm}%'`;
-            
-            if (!searchActive) {
-                // If this is the first search, save the original events
-                originalEvents = window.allHistoricalEvents ? [...window.allHistoricalEvents] : [];
+            // Optimization: If we have all events already loaded (either from original load or previous search),
+            // use that data instead of fetching it again
+            if (!searchActive && window.allHistoricalEvents && window.allHistoricalEvents.length > 0) {
+                // Save original events for restoration later
+                originalEvents = [...window.allHistoricalEvents];
+                performClientSideSearch(searchTerm, category, subCategory);
+                return;
             }
             
             // Set search as active
             searchActive = true;
             
-            // Execute the database query
-            const params = new URLSearchParams({ sql: sql });
-            
-            fetch(`/api/db/query/world_history?${params}`)
+            // Fetch all events and filter client-side
+            fetch('/api/db/query/world_history?sql=' + encodeURIComponent('SELECT * FROM world_history'))
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`API响应错误: ${response.status}`);
@@ -1551,61 +1574,115 @@
                         throw new Error(data.error || "获取数据失败");
                     }
                     
-                    const searchResults = data.data || [];
+                    const allEvents = data.data || [];
                     
-                    if (searchResults.length === 0) {
-                        showSearchError(`未找到标题包含"${searchTerm}"的历史事件`);
-                        return;
+                    // If first search, save all events as original
+                    if (!originalEvents.length) {
+                        originalEvents = [...allEvents];
                     }
                     
-                    console.log(`搜索"${searchTerm}"找到${searchResults.length}条结果`);
-                    
-                    // Filter results by category and subcategory if we're in a specific section
-                    let contextFilteredResults = searchResults;
-                    
-                    if (category) {
-                        const targetCategory = (category || '').toUpperCase();
-                        const targetSubCategory = (subCategory || '').toUpperCase();
-                        
-                        contextFilteredResults = searchResults.filter(event => {
-                            const eventCategory = (event.CATEGORY || '').toUpperCase();
-                            const eventSubCategory1 = (event.SUB_CATEGORY_1 || '').toUpperCase();
-                            const eventSubCategory2 = (event.SUB_CATEGORY_2 || '').toUpperCase();
-                            
-                            return (
-                                eventCategory.includes(targetCategory) && 
-                                (subCategory ? (
-                                    eventSubCategory1.includes(targetSubCategory) || 
-                                    eventSubCategory2.includes(targetSubCategory)
-                                ) : true)
-                            );
-                        });
-                    }
-                    
-                    // Store filtered results for potential restoration
-                    window.allHistoricalEvents = contextFilteredResults;
-                    filteredEvents = contextFilteredResults;
-                    
-                    // Sort events chronologically
-                    sortEventsChronologically(contextFilteredResults);
-                    
-                    // Render results
-                    renderAllEvents(contextFilteredResults);
-                    
-                    // Update search status message
-                    const eventCounter = document.getElementById('event-counter');
-                    if (eventCounter) {
-                        eventCounter.textContent = `找到 ${contextFilteredResults.length} 个结果`;
-                    }
-                    
-                    // Hide loading indicator and show timeline
-                    document.getElementById('loading').style.display = 'none';
-                    document.getElementById('timeline-container').style.display = 'flex';
+                    // Now perform the actual search on the data
+                    performClientSideSearch(searchTerm, category, subCategory, allEvents);
                 })
                 .catch(error => {
                     console.error("搜索时出错:", error);
                     showSearchError(`搜索失败: ${error.message}`);
                 });
+        }
+        
+        function performClientSideSearch(searchTerm, category, subCategory, eventsData) {
+            // Use provided events data or fall back to original events if available
+            const allEvents = eventsData || originalEvents;
+            
+            console.log(`执行搜索: "${searchTerm}" (共${allEvents.length}条数据)`);
+            
+            // Log some sample data to verify the filtering will work
+            if (allEvents.length > 0) {
+                console.log("Sample event data:", allEvents[0]);
+                console.log("Sample event title:", allEvents[0].TITLE);
+            }
+            
+            // Filter events that contain the search term in their title (case insensitive)
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            
+            const searchResults = allEvents.filter(event => {
+                if (!event || !event.TITLE) {
+                    console.log("Warning: Event or event title is undefined");
+                    return false;
+                }
+                
+                const title = (event.TITLE || '').toLowerCase();
+                const matches = title.includes(lowerSearchTerm);
+                
+                // Debug first few matches
+                if (matches && searchResults.length < 3) {
+                    console.log(`Match found: "${title}" contains "${lowerSearchTerm}"`);
+                }
+                
+                return matches;
+            });
+            
+            console.log(`搜索"${searchTerm}"找到${searchResults.length}条结果`);
+            
+            // Output some found results for debugging
+            if (searchResults.length > 0) {
+                console.log("First few search results:");
+                searchResults.slice(0, 3).forEach((result, i) => {
+                    console.log(`- Result ${i+1}: ${result.TITLE}`);
+                });
+            }
+            
+            if (searchResults.length === 0) {
+                showSearchError(`未找到标题包含"${searchTerm}"的历史事件`);
+                return;
+            }
+            
+            // Filter results by category and subcategory if in a specific section
+            let contextFilteredResults = searchResults;
+            
+            if (category) {
+                const targetCategory = (category || '').toUpperCase();
+                const targetSubCategory = (subCategory || '').toUpperCase();
+                
+                contextFilteredResults = searchResults.filter(event => {
+                    const eventCategory = (event.CATEGORY || '').toUpperCase();
+                    const eventSubCategory1 = (event.SUB_CATEGORY_1 || '').toUpperCase();
+                    const eventSubCategory2 = (event.SUB_CATEGORY_2 || '').toUpperCase();
+                    
+                    return (
+                        eventCategory.includes(targetCategory) && 
+                        (subCategory ? (
+                            eventSubCategory1.includes(targetSubCategory) || 
+                            eventSubCategory2.includes(targetSubCategory)
+                        ) : true)
+                    );
+                });
+                
+                console.log(`按类别过滤后剩余${contextFilteredResults.length}条结果`);
+            }
+            
+            // Set search as active if not already
+            searchActive = true;
+            
+            // Store filtered results for user interaction
+            window.allHistoricalEvents = contextFilteredResults;
+            filteredEvents = contextFilteredResults;
+            
+            // Sort events chronologically
+            sortEventsChronologically(contextFilteredResults);
+            
+            // Render results
+            renderAllEvents(contextFilteredResults);
+            
+            // Update search status message
+            const eventCounter = document.getElementById('event-counter');
+            if (eventCounter) {
+                eventCounter.textContent = `找到 ${contextFilteredResults.length} 个结果`;
+            }
+            
+            // Hide loading indicator and show timeline
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('timeline-container').style.display = 'flex';
         }
         
         function restoreOriginalEvents() {
