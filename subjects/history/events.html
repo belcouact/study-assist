@@ -317,6 +317,22 @@
             text-align: center;
         }
         
+        .event-counter.search-results-count {
+            color: #4361ee;
+            font-weight: 600;
+            background: rgba(67, 97, 238, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            min-width: 120px;
+            animation: pulse 1s ease-in-out 1;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
         /* Responsive Styles */
         @media (max-width: 992px) {
             .timeline-wrapper {
@@ -1166,6 +1182,22 @@
                 padding: 0 5px;
             }
         }
+
+        @media (max-width: 768px) {
+            .event-counter.search-results-count {
+                font-size: 0.9rem;
+                padding: 3px 10px;
+                min-width: 100px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .event-counter.search-results-count {
+                font-size: 0.85rem;
+                padding: 3px 8px;
+                min-width: 90px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1310,17 +1342,37 @@
             const clearButton = document.getElementById('clear-button');
             
             if (searchBox && searchButton && clearButton) {
+                // Search function wrapper to avoid code duplication
+                const performSearch = () => {
+                    const searchTerm = searchBox.value.trim();
+                    if (searchTerm) {
+                        // Show loading state
+                        const eventCounter = document.getElementById('event-counter');
+                        if (eventCounter) {
+                            eventCounter.textContent = "搜索中...";
+                            eventCounter.classList.add('search-results-count');
+                        }
+                        
+                        // Add small delay to show loading state
+                        setTimeout(() => {
+                            filterEvents(searchTerm);
+                        }, 100);
+                    } else {
+                        filterEvents('');
+                    }
+                };
+                
                 // Search on Enter key press
                 searchBox.addEventListener('keypress', function(e) {
                     if (e.key === 'Enter') {
                         e.preventDefault();
-                        filterEvents(this.value.trim());
+                        performSearch();
                     }
                 });
                 
                 // Search on button click
                 searchButton.addEventListener('click', function() {
-                    filterEvents(searchBox.value.trim());
+                    performSearch();
                 });
                 
                 // Clear search input and reset event display when clear button is clicked
@@ -1334,6 +1386,23 @@
                 searchBox.addEventListener('input', function() {
                     if (this.value.trim() === '') {
                         filterEvents('');
+                    }
+                });
+                
+                // Accessibility enhancement - add keyboard support
+                searchButton.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        performSearch();
+                    }
+                });
+                
+                clearButton.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        searchBox.value = '';
+                        filterEvents('');
+                        searchBox.focus();
                     }
                 });
             }
@@ -2086,9 +2155,21 @@
             const eventCounter = document.getElementById('event-counter');
             if (eventCounter) {
                 if (searchTerm) {
-                    eventCounter.textContent = `显示 ${visibleCount} / ${totalEvents} 个事件`;
+                    // Show count of search results
+                    eventCounter.textContent = `找到 ${visibleCount} / ${totalEvents} 个结果`;
+                    eventCounter.classList.add('search-results-count');
                 } else {
+                    // Reset to normal counter
                     eventCounter.textContent = `${currentEventIndex + 1} / ${totalEvents}`;
+                    eventCounter.classList.remove('search-results-count');
+                    
+                    // Reset visibility of all cards when search is cleared
+                    eventCards.forEach((card, index) => {
+                        card.style.display = '';
+                    });
+                    
+                    // Update display to show correct current card
+                    updateEventDisplay();
                 }
             }
             
