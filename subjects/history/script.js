@@ -732,14 +732,14 @@ function initTimeline() {
                 ancient: "研究古代文明的兴起、发展与互动",
                 postclassical: "研究中世纪、封建制度和早期现代社会的发展",
                 earlymodern: "发现连接大陆的航海旅程和随后的全球交流",
-                revolutionary: "分析塑造现代世界的政治、工业和社会革命",
-                worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
+            revolutionary: "分析塑造现代世界的政治、工业和社会革命",
+            worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
                 contemporary: "研究战后发展、冷战、非殖民化和当代全球问题",
-                "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
-                imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
-                "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
-                modern: "从五四运动到新中国成立，中国现代史的重要转折",
-                contemporary: "新中国成立后的社会主义建设与改革开放",
+            "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
+            imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
+            "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
+            modern: "从五四运动到新中国成立，中国现代史的重要转折",
+            contemporary: "新中国成立后的社会主义建设与改革开放",
             };
     
             // Directly link 'research_purpose' to 'period'
