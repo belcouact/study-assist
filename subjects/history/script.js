@@ -761,20 +761,18 @@ function initTimeline() {
             
             const levelName = getEducationLevelName(educationLevel);
             
-            let systemMessage;
-            
             if (country === 'none') {
                 // If no country is selected, show a message asking to select a country
                 timelineContainer.innerHTML = `
                     <div class="text-center">
-                        <p><i class="fas fa-info-circle"></i> 请选择一个国家以生成对比时间线</p>
+                        <p><i class="fas fa-info-circle"></i> 请选择一个国家以生成世界与国家对比时间线</p>
                     </div>
                 `;
                 return;
             }
             
             // Build system message for country-specific timeline generation
-            systemMessage = '你是一个专业的历史教育助手，现在需要为' + levelName + '学生生成一个关于' + periodName + '时期的世界历史事件与' + countryName + '相关历史事件的对比时间线，研究目的：' + research_purpose + '。\n\n' +
+            const systemMessage = '你是一个专业的历史教育助手，现在需要为' + levelName + '学生生成一个关于' + periodName + '时期的世界历史事件与' + countryName + '相关历史事件的对比时间线，研究目的：' + research_purpose + '。\n\n' +
             '请提供以下内容：\n' +
             '1. 全球部分：该时期全球范围内最重要的' + eventCounts.worldEvents + '个历史事件（不包括' + countryName + '国内事件）\n' +
             '2. ' + countryName + '部分：同一时期与' + countryName + '相关的' + eventCounts.countryEvents + '个重要历史事件，展示该国如何被全球事件影响以及如何影响全球\n' +
@@ -783,6 +781,7 @@ function initTimeline() {
             '   - 事件名称\n' +
             '   - 简要描述（适合' + levelName + '学生理解）\n' +
             '   - 历史意义和影响\n\n' +
+            '4. 请确保两部分事件能够形成清晰的对比，突出世界历史进程与' + countryName + '历史发展的关联与差异\n\n' +
             '请以JSON格式回复，格式如下:\n' +
             '{\n' +
             '  "title": "时间线标题",\n' +
@@ -946,9 +945,9 @@ function renderComparisonTimeline(timeline) {
             <p class="timeline-detail-level">详细程度：${detailLevelText}</p>
         </div>
         <div class="country-info">
-            <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
-            <p>左侧展示全球重要历史事件，右侧展示${timeline.country}相关历史事件。通过观察两侧事件的时间关联，可以了解全球事件如何影响特定国家，以及特定国家如何参与和影响世界历史进程。</p>
-            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，全球事件和${timeline.country}事件将按时间顺序垂直排列，通过颜色区分。</p>
+            <h3><i class="fas fa-info-circle"></i> 世界与${timeline.country}历史对比</h3>
+            <p>左侧展示全球重要历史事件，右侧展示${timeline.country}相关历史事件。通过对比观察两侧事件的时间关联，了解全球事件如何影响特定国家发展，以及该国如何参与和影响世界历史进程。</p>
+            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，事件按时间顺序垂直排列，通过颜色区分世界事件和${timeline.country}事件。</p>
         </div>
         <div class="timeline-clearfix">
             <div class="timeline-column-header world-header"><i class="fas fa-globe"></i> 全球历史事件 (${timeline.worldEvents.length})</div>
@@ -957,42 +956,48 @@ function renderComparisonTimeline(timeline) {
         <div class="timeline-content timeline-clearfix">
     `;
     
-    // 按时间年份合并和排序事件
+    // 按时间年份排序所有事件
     const allEvents = [];
-    let worldEventIndex = 0;
-    let countryEventIndex = 0;
     
-    // 组织数据，确保世界事件和国家事件交替显示，同时保持时间顺序
-    while (worldEventIndex < timeline.worldEvents.length || countryEventIndex < timeline.countryEvents.length) {
-        // 添加世界事件
-        if (worldEventIndex < timeline.worldEvents.length) {
-            const event = timeline.worldEvents[worldEventIndex];
-            allEvents.push({
-                ...event,
-                type: 'world',
-                side: 'left'
-            });
-            worldEventIndex++;
-        }
-        
-        // 添加国家事件
-        if (countryEventIndex < timeline.countryEvents.length) {
-            const event = timeline.countryEvents[countryEventIndex];
-            allEvents.push({
-                ...event,
-                type: 'country',
-                side: 'right'
-            });
-            countryEventIndex++;
-        }
-    }
+    // 添加世界事件
+    timeline.worldEvents.forEach(event => {
+        allEvents.push({
+            ...event,
+            type: 'world',
+            side: 'left'
+        });
+    });
+    
+    // 添加国家事件
+    timeline.countryEvents.forEach(event => {
+        allEvents.push({
+            ...event,
+            type: 'country',
+            side: 'right'
+        });
+    });
     
     // 按年份排序所有事件
     allEvents.sort((a, b) => {
         // 尝试提取数字年份进行排序
         try {
-            const yearA = parseInt(a.year.toString().match(/-?\d+/)[0]);
-            const yearB = parseInt(b.year.toString().match(/-?\d+/)[0]);
+            // 处理BC年份（前xx年）
+            const getYearValue = (yearStr) => {
+                if (typeof yearStr !== 'string') {
+                    yearStr = String(yearStr);
+                }
+                
+                const bcMatch = yearStr.match(/前(\d+)/);
+                if (bcMatch) {
+                    return -parseInt(bcMatch[1], 10); // BC年份用负数表示
+                }
+                
+                const yearMatch = yearStr.match(/-?\d+/);
+                return yearMatch ? parseInt(yearMatch[0], 10) : 0;
+            };
+            
+            const yearA = getYearValue(a.year);
+            const yearB = getYearValue(b.year);
             return yearA - yearB;
         } catch (e) {
             // 如果提取失败，则按原始字符串排序
@@ -1000,27 +1005,61 @@ function renderComparisonTimeline(timeline) {
         }
     });
     
-    // 将排序后的事件添加到时间线上
-    allEvents.forEach((event) => {
-        const eventClass = event.type === 'world' ? 'world-event' : 'country-event';
-        const eventIcon = event.type === 'world' ? '<i class="fas fa-globe"></i>' : `<i class="fas fa-flag"></i>`;
-        const eventType = event.type === 'world' ? '全球事件' : `${timeline.country}事件`;
-        
-        html += `
-            <div class="timeline-event ${eventClass}">
-                <div class="event-year">${event.year}</div>
-                <div class="event-content">
-                    <div class="event-type-badge">${eventIcon} ${eventType}</div>
-                    <h4>${event.title}</h4>
-                    <p class="event-description">${event.description}</p>
-                    <div class="event-significance">
-                        <strong>历史意义：</strong>
-                        <p>${event.significance}</p>
+    // 创建时间线事件
+    const worldEvents = allEvents.filter(event => event.type === 'world');
+    const countryEvents = allEvents.filter(event => event.type === 'country');
+    
+    // 按年代顺序依次添加世界事件和国家事件
+    let worldIndex = 0;
+    let countryIndex = 0;
+    
+    while (worldIndex < worldEvents.length || countryIndex < countryEvents.length) {
+        // 添加左侧世界事件
+        if (worldIndex < worldEvents.length) {
+            const event = worldEvents[worldIndex];
+            html += `
+                <div class="timeline-event world-event">
+                    <div class="event-year">${event.year}</div>
+                    <div class="event-content">
+                        <div class="event-type-badge"><i class="fas fa-globe"></i> 全球事件</div>
+                        <h4>${event.title}</h4>
+                        <p class="event-description">${event.description}</p>
+                        <div class="event-significance">
+                            <strong>历史意义：</strong>
+                            <p>${event.significance}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-    });
+            `;
+            worldIndex++;
+        } else {
+            // 如果世界事件已经用完，添加空白占位
+            html += `<div class="timeline-event world-event empty"></div>`;
+        }
+        
+        // 添加右侧国家事件
+        if (countryIndex < countryEvents.length) {
+            const event = countryEvents[countryIndex];
+            html += `
+                <div class="timeline-event country-event">
+                    <div class="event-year">${event.year}</div>
+                    <div class="event-content">
+                        <div class="event-type-badge"><i class="fas fa-flag"></i> ${timeline.country}事件</div>
+                        <h4>${event.title}</h4>
+                        <p class="event-description">${event.description}</p>
+                        <div class="event-significance">
+                            <strong>历史意义：</strong>
+                            <p>${event.significance}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            countryIndex++;
+        } else {
+            // 如果国家事件已经用完，添加空白占位
+            html += `<div class="timeline-event country-event empty"></div>`;
+        }
+    }
     
     // 如果没有国家事件
     if (!timeline.countryEvents || timeline.countryEvents.length === 0) {
@@ -1041,6 +1080,13 @@ function renderComparisonTimeline(timeline) {
     
     timelineContainer.innerHTML = html;
     
+    // 添加移动端特定样式
+    if (window.innerWidth <= 768) {
+        document.querySelectorAll('.timeline-event').forEach(event => {
+            event.classList.add('mobile-view');
+        });
+    }
+    
     // 添加事件监听器
     const printButton = document.getElementById('print-timeline');
     if (printButton) {
@@ -1055,6 +1101,19 @@ function renderComparisonTimeline(timeline) {
             alert('PDF下载功能即将推出');
         });
     }
+    
+    // 添加窗口大小调整监听器
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 768) {
+            document.querySelectorAll('.timeline-event').forEach(event => {
+                event.classList.add('mobile-view');
+            });
+        } else {
+            document.querySelectorAll('.timeline-event').forEach(event => {
+                event.classList.remove('mobile-view');
+            });
+        }
+    });
 }
 
 /**
