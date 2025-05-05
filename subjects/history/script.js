@@ -695,9 +695,20 @@ function initTimeline() {
     const loadButton = document.getElementById('load-timeline');
     const periodSelect = document.getElementById('timeline-period');
     const continentSelect = document.getElementById('timeline-continent');
+    const countrySelect = document.getElementById('timeline-country');
     const timelineContainer = document.getElementById('timeline-container');
     
     if (!loadButton || !periodSelect || !continentSelect || !timelineContainer) return;
+    
+    // Populate country dropdown based on selected continent
+    if (continentSelect && countrySelect) {
+        continentSelect.addEventListener('change', () => {
+            updateCountryOptions(continentSelect.value, countrySelect);
+        });
+        
+        // Initialize country options
+        updateCountryOptions(continentSelect.value, countrySelect);
+    }
     
     loadButton.addEventListener('click', async () => {
         // Show loading state
@@ -706,25 +717,28 @@ function initTimeline() {
         try {
             const period = periodSelect.value;
             const continent = continentSelect.value;
+            const country = countrySelect ? countrySelect.value : 'none';
             const periodName = getTopicName(period);
             const continentName = getContinentName(continent);
+            const countryName = getCountryName(country);
 
             // Define the mapping between periods and research purposes
             const periodToResearch = {
-            medieval: "研究中世纪、封建制度和早期现代社会的发展",
-            exploration: "发现连接大陆的航海旅程和随后的全球交流",
-            revolutionary: "分析塑造现代世界的政治、工业和社会革命",
-            worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
-            modern: "研究战后发展、冷战、非殖民化和当代全球问题",
-            "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
-            imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
-            "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
-            modern: "从五四运动到新中国成立，中国现代史的重要转折",
-            contemporary: "新中国成立后的社会主义建设与改革开放",
+                ancient: "研究古代文明的兴起、发展与互动",
+                postclassical: "研究中世纪、封建制度和早期现代社会的发展",
+                earlymodern: "发现连接大陆的航海旅程和随后的全球交流",
+                revolutionary: "分析塑造现代世界的政治、工业和社会革命",
+                worldwars: "了解20世纪主要全球冲突的原因、事件和影响",
+                contemporary: "研究战后发展、冷战、非殖民化和当代全球问题",
+                "pre-qin": "从夏商周到春秋战国，中华文明的起源与早期发展",
+                imperial: "从秦朝到清朝，中国封建社会的兴衰与演变",
+                "modern-early": "鸦片战争到五四运动前，中国近代化的艰难历程",
+                modern: "从五四运动到新中国成立，中国现代史的重要转折",
+                contemporary: "新中国成立后的社会主义建设与改革开放",
             };
     
             // Directly link 'research_purpose' to 'period'
-            const research_purpose = periodToResearch[period];
+            const research_purpose = periodToResearch[period] || "研究该时期的重要历史事件";
             
             // Get education level from header profile display
             const profileDisplay = document.querySelector('.profile-display');
@@ -742,31 +756,70 @@ function initTimeline() {
             
             const levelName = getEducationLevelName(educationLevel);
             
-            // Build system message for timeline generation
-            const systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期${continentName}的重要历史事件时间线，研究目的：${research_purpose}。
-            
-            请提供以下内容：
-            1. 该时期最重要的10-15个历史事件
-            2. 每个事件应包括：
-               - 具体年份或时间段
-               - 事件名称
-               - 简要描述（适合${levelName}学生理解）
-               - 历史意义和影响
-            
-            请以JSON格式回复，格式如下:
-            {
-              "title": "时间线标题",
-              "period": "历史时期",
-              "continent": "地区",
-              "events": [
+            let systemMessage;
+            if (country === 'none') {
+                // Build system message for regular timeline generation
+                systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期${continentName}的重要历史事件时间线，研究目的：${research_purpose}。
+                
+                请提供以下内容：
+                1. 该时期最重要的10-15个历史事件
+                2. 每个事件应包括：
+                   - 具体年份或时间段
+                   - 事件名称
+                   - 简要描述（适合${levelName}学生理解）
+                   - 历史意义和影响
+                
+                请以JSON格式回复，格式如下:
                 {
-                  "year": "年份或时间段",
-                  "title": "事件名称",
-                  "description": "事件描述",
-                  "significance": "历史意义"
-                }
-              ]
-            }`;
+                  "title": "时间线标题",
+                  "period": "历史时期",
+                  "continent": "地区",
+                  "events": [
+                    {
+                      "year": "年份或时间段",
+                      "title": "事件名称",
+                      "description": "事件描述",
+                      "significance": "历史意义"
+                    }
+                  ]
+                }`;
+            } else {
+                // Build system message for country-specific timeline generation
+                systemMessage = `你是一个专业的历史教育助手，现在需要为${levelName}学生生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，研究目的：${research_purpose}。
+                
+                请提供以下内容：
+                1. 全球部分：该时期全球范围内最重要的8-10个历史事件（不包括${countryName}国内事件）
+                2. ${countryName}部分：同一时期与${countryName}相关的8-10个重要历史事件，展示该国如何被全球事件影响以及如何影响全球
+                3. 每个事件应包括：
+                   - 具体年份或时间段
+                   - 事件名称
+                   - 简要描述（适合${levelName}学生理解）
+                   - 历史意义和影响
+                
+                请以JSON格式回复，格式如下:
+                {
+                  "title": "时间线标题",
+                  "period": "历史时期",
+                  "continent": "地区",
+                  "country": "${countryName}",
+                  "worldEvents": [
+                    {
+                      "year": "年份或时间段",
+                      "title": "事件名称",
+                      "description": "事件描述",
+                      "significance": "历史意义"
+                    }
+                  ],
+                  "countryEvents": [
+                    {
+                      "year": "年份或时间段",
+                      "title": "事件名称",
+                      "description": "事件描述",
+                      "significance": "历史意义"
+                    }
+                  ]
+                }`;
+            }
             
             // Call DeepSeek API
             const response = await fetch('/api/chat', {
@@ -782,7 +835,9 @@ function initTimeline() {
                         },
                         {
                             "role": "user",
-                            "content": `请生成一个关于${periodName}的重要历史事件时间线，适合${levelName}学生的水平。`
+                            "content": country === 'none' ? 
+                                `请生成一个关于${periodName}时期${continentName}的重要历史事件时间线，适合${levelName}学生的水平。` :
+                                `请生成一个关于${periodName}时期的世界历史事件与${countryName}相关历史事件的对比时间线，适合${levelName}学生的水平。`
                         }
                     ]
                 })
@@ -805,11 +860,18 @@ function initTimeline() {
                     throw new Error('无法从响应中提取JSON');
                 }
                 
-                if (!timeline.title || !timeline.events || !Array.isArray(timeline.events)) {
-                    throw new Error('解析的JSON格式不正确');
+                if (country === 'none') {
+                    if (!timeline.title || !timeline.events || !Array.isArray(timeline.events)) {
+                        throw new Error('解析的JSON格式不正确');
+                    }
+                    renderTimeline(timeline);
+                } else {
+                    if (!timeline.title || !timeline.worldEvents || !timeline.countryEvents || 
+                        !Array.isArray(timeline.worldEvents) || !Array.isArray(timeline.countryEvents)) {
+                        throw new Error('解析的JSON格式不正确');
+                    }
+                    renderComparisonTimeline(timeline);
                 }
-                
-                renderTimeline(timeline);
             } catch (jsonError) {
                 console.error('解析AI响应时出错:', jsonError);
                 timelineContainer.innerHTML = `
@@ -832,7 +894,7 @@ function initTimeline() {
 }
 
 /**
- * Render the timeline
+ * Render the regular timeline
  */
 function renderTimeline(timeline) {
     const timelineContainer = document.getElementById('timeline-container');
@@ -878,6 +940,230 @@ function renderTimeline(timeline) {
             window.print();
         });
     }
+}
+
+/**
+ * Render the comparison timeline with world events and country events
+ */
+function renderComparisonTimeline(timeline) {
+    const timelineContainer = document.getElementById('timeline-container');
+    if (!timelineContainer) return;
+    
+    let html = `
+        <div class="timeline-header">
+            <h3>${timeline.title}</h3>
+            <p class="timeline-period">${timeline.period} - ${timeline.continent} - ${timeline.country}</p>
+        </div>
+        <div class="country-info">
+            <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
+            <p>左侧展示全球重要历史事件，右侧展示${timeline.country}相关历史事件。通过观察两侧事件的时间关联，可以了解全球事件如何影响特定国家，以及特定国家如何参与和影响世界历史进程。</p>
+        </div>
+        <div class="timeline-content">
+            <div class="timeline-column">
+                <div class="timeline-column-title">全球历史事件</div>
+    `;
+    
+    // Add world events
+    timeline.worldEvents.forEach((event) => {
+        html += `
+            <div class="timeline-event">
+                <div class="event-year">${event.year}</div>
+                <div class="event-content">
+                    <h4>${event.title}</h4>
+                    <p class="event-description">${event.description}</p>
+                    <div class="event-significance">
+                        <strong>历史意义：</strong>
+                        <p>${event.significance}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += `
+            </div>
+            <div class="timeline-divider"></div>
+            <div class="timeline-column">
+                <div class="timeline-column-title">${timeline.country}历史事件</div>
+    `;
+    
+    // Add country events
+    if (timeline.countryEvents && timeline.countryEvents.length > 0) {
+        timeline.countryEvents.forEach((event) => {
+            html += `
+                <div class="timeline-event">
+                    <div class="event-year">${event.year}</div>
+                    <div class="event-content">
+                        <h4>${event.title}</h4>
+                        <p class="event-description">${event.description}</p>
+                        <div class="event-significance">
+                            <strong>历史意义：</strong>
+                            <p>${event.significance}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        html += `
+            <div class="country-events-empty">
+                <p>该时期没有足够的${timeline.country}相关历史事件</p>
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+        </div>
+        <div class="timeline-actions">
+            <button class="btn btn-outline" id="print-timeline">打印时间线</button>
+        </div>
+    `;
+    
+    timelineContainer.innerHTML = html;
+    
+    // Add event listener for print button
+    const printButton = document.getElementById('print-timeline');
+    if (printButton) {
+        printButton.addEventListener('click', () => {
+            window.print();
+        });
+    }
+}
+
+/**
+ * Update country dropdown options based on selected continent
+ */
+function updateCountryOptions(continent, countrySelect) {
+    // Store the current value
+    const currentValue = countrySelect.value;
+    
+    // Define country mappings by continent
+    const countryOptions = {
+        'global': [
+            { value: 'china', label: '中国' },
+            { value: 'usa', label: '美国' },
+            { value: 'uk', label: '英国' },
+            { value: 'france', label: '法国' },
+            { value: 'germany', label: '德国' },
+            { value: 'russia', label: '俄罗斯/苏联' },
+            { value: 'japan', label: '日本' },
+            { value: 'india', label: '印度' },
+            { value: 'brazil', label: '巴西' },
+            { value: 'egypt', label: '埃及' }
+        ],
+        'asia': [
+            { value: 'china', label: '中国' },
+            { value: 'japan', label: '日本' },
+            { value: 'india', label: '印度' },
+            { value: 'korea', label: '韩国' },
+            { value: 'vietnam', label: '越南' },
+            { value: 'thailand', label: '泰国' },
+            { value: 'mongolia', label: '蒙古' },
+            { value: 'indonesia', label: '印度尼西亚' }
+        ],
+        'europe': [
+            { value: 'uk', label: '英国' },
+            { value: 'france', label: '法国' },
+            { value: 'germany', label: '德国' },
+            { value: 'russia', label: '俄罗斯' },
+            { value: 'italy', label: '意大利' },
+            { value: 'spain', label: '西班牙' },
+            { value: 'greece', label: '希腊' },
+            { value: 'poland', label: '波兰' }
+        ],
+        'africa': [
+            { value: 'egypt', label: '埃及' },
+            { value: 'ethiopia', label: '埃塞俄比亚' },
+            { value: 'south-africa', label: '南非' },
+            { value: 'morocco', label: '摩洛哥' },
+            { value: 'kenya', label: '肯尼亚' },
+            { value: 'ghana', label: '加纳' }
+        ],
+        'north-america': [
+            { value: 'usa', label: '美国' },
+            { value: 'canada', label: '加拿大' },
+            { value: 'mexico', label: '墨西哥' },
+            { value: 'cuba', label: '古巴' }
+        ],
+        'south-america': [
+            { value: 'brazil', label: '巴西' },
+            { value: 'argentina', label: '阿根廷' },
+            { value: 'peru', label: '秘鲁' },
+            { value: 'colombia', label: '哥伦比亚' },
+            { value: 'chile', label: '智利' }
+        ],
+        'oceania': [
+            { value: 'australia', label: '澳大利亚' },
+            { value: 'new-zealand', label: '新西兰' },
+            { value: 'fiji', label: '斐济' },
+            { value: 'papua-new-guinea', label: '巴布亚新几内亚' }
+        ]
+    };
+    
+    // Clear current options
+    countrySelect.innerHTML = '<option value="none">-- 选择国家 --</option>';
+    
+    // Add new options based on continent
+    const options = countryOptions[continent] || countryOptions['global'];
+    options.forEach(option => {
+        const optionElement = document.createElement('option');
+        optionElement.value = option.value;
+        optionElement.textContent = option.label;
+        countrySelect.appendChild(optionElement);
+    });
+    
+    // Try to restore the previous value if it exists in new options
+    const optionExists = Array.from(countrySelect.options).some(option => option.value === currentValue);
+    if (optionExists) {
+        countrySelect.value = currentValue;
+    }
+}
+
+/**
+ * Get country name from country code
+ */
+function getCountryName(country) {
+    const countryNames = {
+        'none': '',
+        'china': '中国',
+        'usa': '美国',
+        'uk': '英国',
+        'france': '法国',
+        'germany': '德国',
+        'russia': '俄罗斯/苏联',
+        'japan': '日本',
+        'india': '印度',
+        'brazil': '巴西',
+        'egypt': '埃及',
+        'korea': '韩国',
+        'vietnam': '越南',
+        'thailand': '泰国',
+        'mongolia': '蒙古',
+        'indonesia': '印度尼西亚',
+        'italy': '意大利',
+        'spain': '西班牙',
+        'greece': '希腊',
+        'poland': '波兰',
+        'ethiopia': '埃塞俄比亚',
+        'south-africa': '南非',
+        'morocco': '摩洛哥',
+        'kenya': '肯尼亚',
+        'ghana': '加纳',
+        'canada': '加拿大',
+        'mexico': '墨西哥',
+        'cuba': '古巴',
+        'argentina': '阿根廷',
+        'peru': '秘鲁',
+        'colombia': '哥伦比亚',
+        'chile': '智利',
+        'australia': '澳大利亚',
+        'new-zealand': '新西兰',
+        'fiji': '斐济',
+        'papua-new-guinea': '巴布亚新几内亚'
+    };
+    
+    return countryNames[country] || country;
 }
 
 function getContinentName(continent) {
