@@ -2064,7 +2064,81 @@
             `;
         }
         
+        // Completely revised event display function for search results
+        function updateEventDisplayForSearch(cardIndex) {
+            console.log("Updating display to show card at index:", cardIndex);
+            
+            // Get all event cards and container
+            const eventCards = document.querySelectorAll('.event-card');
+            const eventsContainer = document.getElementById('all-events-container');
+            
+            // Skip if index is invalid
+            if (cardIndex < 0 || cardIndex >= eventCards.length) {
+                console.error("Invalid card index:", cardIndex);
+                return;
+            }
+
+            // First make all cards visible temporarily
+            eventCards.forEach(card => {
+                const originalDisplay = card.dataset.originalDisplay || '';
+                card.style.display = originalDisplay;
+            });
+
+            // Remove active class from all cards
+            eventCards.forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Add active class to the selected card
+            const activeCard = eventCards[cardIndex];
+            activeCard.classList.add('active');
+            
+            // Calculate position for scrolling to the active card
+            const isMobile = window.innerWidth <= 768;
+            const cardWidth = isMobile ? 
+                activeCard.offsetWidth : // Full width on mobile
+                activeCard.offsetWidth + 20; // Account for margin on desktop
+            
+            const translateValue = -cardIndex * cardWidth;
+            console.log("Setting transform to:", translateValue);
+            
+            // Apply transform to show the active card
+            if (eventsContainer) {
+                eventsContainer.style.transition = 'transform 0.5s ease';
+                eventsContainer.style.transform = `translateX(${translateValue}px)`;
+            }
+            
+            // Update any period highlights if needed
+            const period = activeCard.dataset.period;
+            document.querySelectorAll('.timeline-period').forEach(p => {
+                if (p.dataset.period === period) {
+                    p.classList.add('active');
+                    
+                    // Scroll period into view in timeline
+                    const timeline = document.getElementById('period-timeline');
+                    if (timeline) {
+                        const scrollLeft = p.offsetLeft - timeline.offsetWidth / 2 + p.offsetWidth / 2;
+                        timeline.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+                    }
+                } else {
+                    p.classList.remove('active');
+                }
+            });
+            
+            // Re-hide cards that don't match the search
+            if (isInSearchMode) {
+                eventCards.forEach((card, idx) => {
+                    if (searchResultIndices.indexOf(idx) === -1) {
+                        card.style.display = 'none';
+                    }
+                });
+            }
+        }
+
+        // Improved filter function that stores original display state
         function filterEvents(searchTerm) {
+            console.log("Filtering events for term:", searchTerm);
+            
             const searchTermLower = searchTerm.toLowerCase();
             const eventCards = document.querySelectorAll('.event-card');
             let visibleCount = 0;
@@ -2073,13 +2147,18 @@
             // Reset search results
             searchResultIndices = [];
             
-            // Hide all cards first
+            // First store original display state and then process cards
             eventCards.forEach((card, index) => {
+                // Store original display value the first time
+                if (!card.dataset.originalDisplay) {
+                    card.dataset.originalDisplay = card.style.display || '';
+                }
+                
                 const eventTitle = card.querySelector('.event-title').textContent.toLowerCase();
                 
                 // Only check if the search term appears in the title
                 if (searchTerm === '' || eventTitle.includes(searchTermLower)) {
-                    card.style.display = '';
+                    card.style.display = card.dataset.originalDisplay;
                     visibleCount++;
                     
                     // Store the index of first visible card
@@ -2095,6 +2174,10 @@
                     card.style.display = 'none';
                 }
             });
+            
+            console.log("Search results indices:", searchResultIndices);
+            console.log("First visible index:", firstVisibleIndex);
+            console.log("Visible count:", visibleCount);
             
             // Update the event counter
             const eventCounter = document.getElementById('event-counter');
@@ -2122,11 +2205,11 @@
                     resetNavigationButtons();
                 } else {
                     // Reset to normal navigation
-                    eventCounter.textContent = `${currentEventIndex + 1} / ${totalEvents}`;
                     isInSearchMode = false;
-                    
-                    // Reset the navigation
                     resetNavigationButtons();
+                    
+                    // Reset normal view and counter
+                    resetToNormalView();
                 }
             }
             
@@ -2150,6 +2233,119 @@
             
             return visibleCount;
         }
+
+        // Enhanced function to reset to normal view
+        function resetToNormalView() {
+            console.log("Resetting to normal view");
+            
+            // Reset current index to the first card
+            currentEventIndex = 0;
+            
+            // Hide any no-results message
+            const noResultsMessage = document.getElementById('no-results-message');
+            if (noResultsMessage) {
+                noResultsMessage.style.display = 'none';
+            }
+            
+            // Restore original display values for all cards
+            const eventCards = document.querySelectorAll('.event-card');
+            eventCards.forEach(card => {
+                card.style.display = card.dataset.originalDisplay || '';
+                card.classList.remove('active');
+            });
+            
+            // Set active class on first card
+            if (eventCards.length > 0) {
+                eventCards[0].classList.add('active');
+            }
+            
+            // Reset counter
+            const eventCounter = document.getElementById('event-counter');
+            if (eventCounter) {
+                eventCounter.textContent = `1 / ${totalEvents}`;
+            }
+            
+            // Reset transform for container to show first card
+            const eventsContainer = document.getElementById('all-events-container');
+            if (eventsContainer) {
+                eventsContainer.style.transition = 'transform 0.5s ease';
+                eventsContainer.style.transform = 'translateX(0)';
+            }
+            
+            // Reset period timeline active state
+            const firstCard = eventCards[0];
+            if (firstCard) {
+                const period = firstCard.dataset.period;
+                document.querySelectorAll('.timeline-period').forEach(p => {
+                    if (p.dataset.period === period) {
+                        p.classList.add('active');
+                    } else {
+                        p.classList.remove('active');
+                    }
+                });
+            }
+        }
+
+        // Revised navigation functions for search results
+        function navigatePreviousSearchResult() {
+            if (!isInSearchMode || searchResultIndices.length === 0) {
+                console.log("Not in search mode or no results");
+                return;
+            }
+            
+            // Find current position in search results
+            const currentPosition = searchResultIndices.indexOf(currentEventIndex);
+            console.log("Current position in search results:", currentPosition);
+            
+            if (currentPosition > 0) {
+                // Move to previous search result
+                const newIndex = searchResultIndices[currentPosition - 1];
+                console.log("Moving to previous result at index:", newIndex);
+                
+                currentEventIndex = newIndex;
+                
+                // Update counter (1-based position)
+                const eventCounter = document.getElementById('event-counter');
+                if (eventCounter) {
+                    eventCounter.textContent = `${currentPosition} / ${searchResultIndices.length}`;
+                }
+                
+                // Update display to show the correct card
+                updateEventDisplayForSearch(newIndex);
+            } else {
+                console.log("Already at first search result");
+            }
+        }
+
+        function navigateNextSearchResult() {
+            if (!isInSearchMode || searchResultIndices.length === 0) {
+                console.log("Not in search mode or no results");
+                return;
+            }
+            
+            // Find current position in search results
+            const currentPosition = searchResultIndices.indexOf(currentEventIndex);
+            console.log("Current position in search results:", currentPosition);
+            
+            if (currentPosition < searchResultIndices.length - 1) {
+                // Move to next search result
+                const newIndex = searchResultIndices[currentPosition + 1];
+                console.log("Moving to next result at index:", newIndex);
+                
+                currentEventIndex = newIndex;
+                
+                // Update counter (1-based position)
+                const eventCounter = document.getElementById('event-counter');
+                if (eventCounter) {
+                    eventCounter.textContent = `${currentPosition + 2} / ${searchResultIndices.length}`;
+                }
+                
+                // Update display to show the correct card
+                updateEventDisplayForSearch(newIndex);
+            } else {
+                console.log("Already at last search result");
+            }
+        }
         
         function resetNavigationButtons() {
             // Reset navigation buttons to original behavior
@@ -2172,79 +2368,16 @@
         }
         
         function resetEventDisplayAfterSearch() {
+            console.log("Resetting display after search");
+            
             isInSearchMode = false;
             searchResultIndices = [];
             
             // Reset navigation buttons
             resetNavigationButtons();
             
-            // Show all cards
-            const eventCards = document.querySelectorAll('.event-card');
-            eventCards.forEach(card => {
-                card.style.display = '';
-            });
-            
-            // Reset to original display
-            currentEventIndex = 0;
-            
-            // Reset any search-related styling
-            const noResultsMessage = document.getElementById('no-results-message');
-            if (noResultsMessage) {
-                noResultsMessage.style.display = 'none';
-            }
-            
-            // Update display including counter
-            updateEventDisplay();
-        }
-        
-        // New function to update event display for search results
-        function updateEventDisplayForSearch(cardIndex) {
-            // Get all event cards
-            const eventCards = document.querySelectorAll('.event-card');
-            const eventsContainer = document.getElementById('all-events-container');
-            
-            // Skip if index is invalid
-            if (cardIndex < 0 || cardIndex >= eventCards.length) return;
-
-            // Remove active class from all cards
-            eventCards.forEach(card => {
-                card.classList.remove('active');
-            });
-            
-            // Add active class to the selected card
-            const activeCard = eventCards[cardIndex];
-            activeCard.classList.add('active');
-            
-            // Calculate position for smooth scrolling to the active card
-            const isMobile = window.innerWidth <= 768;
-            const cardWidth = isMobile ? 
-                activeCard.offsetWidth : // Full width on mobile
-                activeCard.offsetWidth + 20; // Account for margin on desktop
-            
-            const translateValue = -cardIndex * cardWidth;
-            
-            // Apply smooth transition to show the active card
-            if (eventsContainer) {
-                eventsContainer.style.transition = 'transform 0.5s ease';
-                eventsContainer.style.transform = `translateX(${translateValue}px)`;
-            }
-            
-            // Update any period highlights if needed
-            const period = activeCard.dataset.period;
-            document.querySelectorAll('.timeline-period').forEach(p => {
-                if (p.dataset.period === period) {
-                    p.classList.add('active');
-                    
-                    // Scroll period into view in timeline
-                    const timeline = document.getElementById('period-timeline');
-                    if (timeline) {
-                        const scrollLeft = p.offsetLeft - timeline.offsetWidth / 2 + p.offsetWidth / 2;
-                        timeline.scrollTo({ left: scrollLeft, behavior: 'smooth' });
-                    }
-                } else {
-                    p.classList.remove('active');
-                }
-            });
+            // Reset to normal view
+            resetToNormalView();
         }
         
         // Add new functions for search navigation
@@ -2283,50 +2416,6 @@
                     newPrevButton.addEventListener('click', navigatePreviousSearchResult);
                     newNextButton.addEventListener('click', navigateNextSearchResult);
                 }
-            }
-        }
-
-        function navigatePreviousSearchResult() {
-            if (!isInSearchMode || searchResultIndices.length === 0) return;
-            
-            // Find current position in search results
-            const currentPosition = searchResultIndices.indexOf(currentEventIndex);
-            
-            if (currentPosition > 0) {
-                // Move to previous search result
-                const newIndex = searchResultIndices[currentPosition - 1];
-                currentEventIndex = newIndex;
-                
-                // Update counter and display (1-based position)
-                const eventCounter = document.getElementById('event-counter');
-                if (eventCounter) {
-                    eventCounter.textContent = `${currentPosition} / ${searchResultIndices.length}`;
-                }
-                
-                // Update display to show the correct card
-                updateEventDisplayForSearch(newIndex);
-            }
-        }
-
-        function navigateNextSearchResult() {
-            if (!isInSearchMode || searchResultIndices.length === 0) return;
-            
-            // Find current position in search results
-            const currentPosition = searchResultIndices.indexOf(currentEventIndex);
-            
-            if (currentPosition < searchResultIndices.length - 1) {
-                // Move to next search result
-                const newIndex = searchResultIndices[currentPosition + 1];
-                currentEventIndex = newIndex;
-                
-                // Update counter and display (1-based position)
-                const eventCounter = document.getElementById('event-counter');
-                if (eventCounter) {
-                    eventCounter.textContent = `${currentPosition + 2} / ${searchResultIndices.length}`;
-                }
-                
-                // Update display to show the correct card
-                updateEventDisplayForSearch(newIndex);
             }
         }
     </script>
