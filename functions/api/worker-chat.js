@@ -9,15 +9,19 @@ async function workerChatOutput(prompt, env) {
         }
 
         // Get API key from environment
-        const DS_KEY = env?.DEEPSEEK_API_KEY;
+        if (!env) {
+            throw new Error('Environment variables not available');
+        }
+
+        const DS_KEY = env.DEEPSEEK_API_KEY;
         console.log('Environment check:', {
             hasEnv: !!env,
             hasKey: !!DS_KEY,
-            keyPrefix: DS_KEY ? DS_KEY.substring(0, 4) : 'none'
+            envKeys: Object.keys(env)
         });
 
         if (!DS_KEY) {
-            throw new Error('API key not configured in environment variables');
+            throw new Error('DEEPSEEK_API_KEY not found in environment variables. Please configure it in Cloudflare Pages dashboard.');
         }
 
         // Log the request details
@@ -47,7 +51,11 @@ async function workerChatOutput(prompt, env) {
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error('API Error Response:', errorData);
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            throw new Error(
+                errorData.message || 
+                `API request failed with status ${response.status}. ` +
+                'Please check your API key and try again.'
+            );
         }
 
         const result = await response.json();
@@ -59,8 +67,9 @@ async function workerChatOutput(prompt, env) {
         if (result.choices && result.choices[0]?.message?.content) {
             return result.choices[0].message.content;
         } else if (result.message) {
-            // Return the message content if it's in the expected format
             return result.message;
+        } else if (typeof result === 'string') {
+            return result;
         }
         return JSON.stringify(result, null, 2);
     } catch (error) {
@@ -69,6 +78,10 @@ async function workerChatOutput(prompt, env) {
             stack: error.stack,
             name: error.name
         });
+        // Enhance error message for common issues
+        if (error.message.includes('API key')) {
+            throw new Error('API key error: Please check if DEEPSEEK_API_KEY is correctly configured in Cloudflare Pages dashboard');
+        }
         throw error;
     }
 }
