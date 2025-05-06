@@ -1,12 +1,17 @@
 // Text Generation Functions
 const DS_URL = "https://chat-api.study-llm.me";
-const DS_KEY = context.env.DEEPSEEK_API_KEY; // Use environment variable or default key
 
-async function workerChatOutput(prompt) {
+async function workerChatOutput(prompt, env) {
     try {
         // Validate input
         if (!prompt || prompt.trim() === '') {
             throw new Error('Please enter a valid prompt');
+        }
+
+        // Get API key from environment
+        const DS_KEY = env.DEEPSEEK_API_KEY;
+        if (!DS_KEY) {
+            throw new Error('API key not configured');
         }
 
         // Log the request details

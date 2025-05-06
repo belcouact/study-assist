@@ -4,7 +4,7 @@ const { workerChatOutput } = require('./worker-chat.js');
 // Handle chat requests to DeepSeek API
 export async function onRequestPost(context) {
   try {
-    const { request } = context;
+    const { request, env } = context;
     
     // Get request body
     let body;
@@ -38,8 +38,8 @@ export async function onRequestPost(context) {
     }
     
     try {
-      // Call the workerChatOutput function with the prompt
-      const output = await workerChatOutput(body.prompt);
+      // Call the workerChatOutput function with the prompt and env
+      const output = await workerChatOutput(body.prompt, env);
       
       // Return the response
       return new Response(JSON.stringify({
