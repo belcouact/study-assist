@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant</title>
+    <style>
+        /* Basic responsive styles */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .section {
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            margin-bottom: 15px;
+            color: #444;
+        }
+        
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 16px;
+        }
+        
+        .button-group {
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #3e8e41;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: red;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 5px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            width: 80%;
+            max-width: 700px;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .close-button {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close-button:hover {
+            color: black;
+        }
+        
+        .modal-body {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            textarea {
+                min-height: 100px;
+            }
+            
+            button {
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+            
+            .modal-content {
+                width: 90%;
+                margin: 15% auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Assistant</h1>
+        
+        <!-- Text Generation Section -->
+        <div class="section">
+            <h2>Text Generation</h2>
+            <div class="input-section">
+                <textarea id="promptInput" placeholder="Enter your prompt here..."></textarea>
+                <div class="button-group">
+                    <button id="submitBtn" onclick="handleSubmit()">Generate Text</button>
+                </div>
+            </div>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating response...</p>
+            </div>
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="responseContainer" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; display: none;">
+                <h3>Response:</h3>
+                <div id="responseContent" style="margin-top: 10px; white-space: pre-wrap;"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Popup Modal -->
+    <div id="popupModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Response</h2>
+                <span class="close-button" onclick="closeModal()">&times;</span>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Import the worker function
+        async function handleSubmit() {
+            const promptInput = document.getElementById('promptInput');
+            const loadingElement = document.getElementById('loading');
+            const errorElement = document.getElementById('error');
+            const responseContainer = document.getElementById('responseContainer');
+            const responseContent = document.getElementById('responseContent');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Get the prompt text
+            const prompt = promptInput.value.trim();
+            
+            if (!prompt) {
+                errorElement.textContent = 'Please enter a prompt first.';
+                errorElement.style.display = 'block';
+                return;
+            }
+            
+            // Clear previous errors and show loading
+            errorElement.style.display = 'none';
+            loadingElement.style.display = 'flex';
+            submitBtn.disabled = true;
+            responseContainer.style.display = 'none';
+            
+            try {
+                // Make the API request
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                // Display the response
+                responseContent.textContent = result.output || 'No response received.';
+                responseContainer.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error during API call:', error);
+                errorElement.textContent = error.message || 'An error occurred while generating the response.';
+                errorElement.style.display = 'block';
+            } finally {
+                // Hide loading and re-enable button
+                loadingElement.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('popupModal').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside the modal content
+        window.onclick = function(event) {
+            const modal = document.getElementById('popupModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html> 
