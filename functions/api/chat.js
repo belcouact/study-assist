@@ -6,14 +6,22 @@ export async function onRequestPost(context) {
   try {
     const { request, env } = context;
     
+    // Log environment state
+    console.log('Environment state:', {
+      hasEnv: !!env,
+      availableKeys: env ? Object.keys(env) : []
+    });
+    
     // Get request body
     let body;
     try {
       body = await request.json();
     } catch (e) {
+      console.error('JSON parse error:', e);
       return new Response(JSON.stringify({ 
         error: "Invalid JSON in request body",
-        message: e.message
+        message: e.message,
+        details: "Make sure you're sending a valid JSON object with a 'prompt' field"
       }), {
         status: 400,
         headers: { 
@@ -27,7 +35,8 @@ export async function onRequestPost(context) {
     
     if (!body.prompt) {
       return new Response(JSON.stringify({ 
-        error: "Missing prompt in request body"
+        error: "Missing prompt in request body",
+        details: "The request body must include a 'prompt' field"
       }), {
         status: 400,
         headers: { 
@@ -39,6 +48,7 @@ export async function onRequestPost(context) {
     
     try {
       // Call the workerChatOutput function with the prompt and env
+      console.log('Calling workerChatOutput with prompt:', body.prompt.substring(0, 50) + '...');
       const output = await workerChatOutput(body.prompt, env);
       
       // Return the response
@@ -53,9 +63,17 @@ export async function onRequestPost(context) {
         }
       });
     } catch (error) {
+      console.error('Worker error:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
+      
       return new Response(JSON.stringify({ 
         error: "Error generating response",
-        message: error.message
+        message: error.message,
+        type: error.name,
+        details: "An error occurred while processing your request with the AI service"
       }), {
         status: 500,
         headers: { 
@@ -65,9 +83,17 @@ export async function onRequestPost(context) {
       });
     }
   } catch (error) {
+    console.error('Server error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     return new Response(JSON.stringify({ 
       error: "Server error",
-      message: error.message
+      message: error.message,
+      type: error.name,
+      details: "An unexpected error occurred while processing your request"
     }), {
       status: 500,
       headers: { 

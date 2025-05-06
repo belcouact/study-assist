@@ -9,9 +9,15 @@ async function workerChatOutput(prompt, env) {
         }
 
         // Get API key from environment
-        const DS_KEY = env.DEEPSEEK_API_KEY;
+        const DS_KEY = env?.DEEPSEEK_API_KEY;
+        console.log('Environment check:', {
+            hasEnv: !!env,
+            hasKey: !!DS_KEY,
+            keyPrefix: DS_KEY ? DS_KEY.substring(0, 4) : 'none'
+        });
+
         if (!DS_KEY) {
-            throw new Error('API key not configured');
+            throw new Error('API key not configured in environment variables');
         }
 
         // Log the request details
@@ -34,11 +40,13 @@ async function workerChatOutput(prompt, env) {
             })
         });
 
-        // Log the response status
+        // Log the response status and headers
         console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+            console.error('API Error Response:', errorData);
             throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
@@ -56,7 +64,11 @@ async function workerChatOutput(prompt, env) {
         }
         return JSON.stringify(result, null, 2);
     } catch (error) {
-        console.error('Worker call error:', error);
+        console.error('Worker call error:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         throw error;
     }
 }
