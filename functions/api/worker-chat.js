@@ -9,19 +9,9 @@ async function workerChatOutput(prompt, env) {
         }
 
         // Get API key from environment
-        if (!env) {
-            throw new Error('Environment variables not available');
-        }
-
         const DS_KEY = env.DEEPSEEK_API_KEY;
-        console.log('Environment check:', {
-            hasEnv: !!env,
-            hasKey: !!DS_KEY,
-            envKeys: Object.keys(env)
-        });
-
         if (!DS_KEY) {
-            throw new Error('DEEPSEEK_API_KEY not found in environment variables. Please configure it in Cloudflare Pages dashboard.');
+            throw new Error('API key not configured');
         }
 
         // Log the request details
@@ -44,18 +34,12 @@ async function workerChatOutput(prompt, env) {
             })
         });
 
-        // Log the response status and headers
+        // Log the response status
         console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error('API Error Response:', errorData);
-            throw new Error(
-                errorData.message || 
-                `API request failed with status ${response.status}. ` +
-                'Please check your API key and try again.'
-            );
+            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
         const result = await response.json();
@@ -67,21 +51,12 @@ async function workerChatOutput(prompt, env) {
         if (result.choices && result.choices[0]?.message?.content) {
             return result.choices[0].message.content;
         } else if (result.message) {
+            // Return the message content if it's in the expected format
             return result.message;
-        } else if (typeof result === 'string') {
-            return result;
         }
         return JSON.stringify(result, null, 2);
     } catch (error) {
-        console.error('Worker call error:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
-        // Enhance error message for common issues
-        if (error.message.includes('API key')) {
-            throw new Error('API key error: Please check if DEEPSEEK_API_KEY is correctly configured in Cloudflare Pages dashboard');
-        }
+        console.error('Worker call error:', error);
         throw error;
     }
 }
