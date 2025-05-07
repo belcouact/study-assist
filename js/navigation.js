@@ -109,9 +109,6 @@ function setActiveNavLink(navLinks, activeLink) {
 function initScrollBehavior() {
     // Add sticky header behavior
     initStickyHeader();
-    
-    // Add scroll to top button
-    initScrollToTopButton();
 }
 
 /**
@@ -129,75 +126,6 @@ function initStickyHeader() {
             header.classList.remove('sticky-header');
         }
     }, 100));
-}
-
-/**
- * Initialize scroll to top button
- */
-function initScrollToTopButton() {
-    // Create the scroll to top button if it doesn't exist
-    let scrollTopBtn = document.querySelector('.scroll-top-btn');
-    
-    if (!scrollTopBtn) {
-        scrollTopBtn = document.createElement('button');
-        scrollTopBtn.className = 'scroll-top-btn';
-        scrollTopBtn.setAttribute('aria-label', 'Scroll to top');
-        scrollTopBtn.innerHTML = '<i class="arrow-up"></i>';
-        document.body.appendChild(scrollTopBtn);
-        
-        // Style the button with CSS
-        scrollTopBtn.style.position = 'fixed';
-        scrollTopBtn.style.bottom = '20px';
-        scrollTopBtn.style.right = '20px';
-        scrollTopBtn.style.width = '40px';
-        scrollTopBtn.style.height = '40px';
-        scrollTopBtn.style.borderRadius = '50%';
-        scrollTopBtn.style.backgroundColor = 'var(--primary-color)';
-        scrollTopBtn.style.color = 'white';
-        scrollTopBtn.style.border = 'none';
-        scrollTopBtn.style.boxShadow = 'var(--shadow-md)';
-        scrollTopBtn.style.cursor = 'pointer';
-        scrollTopBtn.style.opacity = '0';
-        scrollTopBtn.style.visibility = 'hidden';
-        scrollTopBtn.style.transition = 'opacity 0.3s, visibility 0.3s';
-        scrollTopBtn.style.zIndex = '999';
-        scrollTopBtn.style.display = 'flex';
-        scrollTopBtn.style.alignItems = 'center';
-        scrollTopBtn.style.justifyContent = 'center';
-        
-        // Create arrow icon
-        const arrowStyle = document.createElement('style');
-        arrowStyle.textContent = `
-            .arrow-up {
-                width: 0;
-                height: 0;
-                border-left: 8px solid transparent;
-                border-right: 8px solid transparent;
-                border-bottom: 12px solid white;
-                display: block;
-            }
-        `;
-        document.head.appendChild(arrowStyle);
-    }
-    
-    // Show/hide the button based on scroll position
-    window.addEventListener('scroll', throttle(() => {
-        if (window.scrollY > 300) {
-            scrollTopBtn.style.opacity = '1';
-            scrollTopBtn.style.visibility = 'visible';
-        } else {
-            scrollTopBtn.style.opacity = '0';
-            scrollTopBtn.style.visibility = 'hidden';
-        }
-    }, 100));
-    
-    // Scroll to top when clicked
-    scrollTopBtn.addEventListener('click', () => {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    });
 }
 
 /**
@@ -249,37 +177,46 @@ function navigateToSection(sectionId) {
         
         // Update URL hash without jumping
         history.pushState(null, null, `#${sectionId}`);
-        
-        // Update active nav link
-        const navLinks = document.querySelectorAll('.main-nav a');
-        const targetLink = document.querySelector(`.main-nav a[href="#${sectionId}"]`);
-        
-        if (targetLink) {
-            setActiveNavLink(navLinks, targetLink);
-        }
     }
 }
 
-// Initialize first-time visit profile prompt
+// Throttle function to limit execution frequency
+function throttle(func, delay) {
+    let lastCall = 0;
+    
+    return function(...args) {
+        const now = new Date().getTime();
+        
+        if (now - lastCall < delay) {
+            return;
+        }
+        
+        lastCall = now;
+        return func(...args);
+    };
+}
+
+/**
+ * Initialize the first visit prompt
+ */
 function initFirstVisitPrompt() {
-    // Check if this is the first visit
+    // Check if it's the first visit
     const hasVisited = localStorage.getItem('hasVisitedBefore');
     
-    if (!hasVisited) {
-        // Set the flag for future visits
+    if (!hasVisited && window.location.pathname.endsWith('index.html')) {
+        // Set the flag in localStorage
         localStorage.setItem('hasVisitedBefore', 'true');
         
-        // Check if profile is already set
-        const profile = localStorage.getItem('educationalProfile');
+        // Show profile selector if not set
+        const selectedProfile = localStorage.getItem('selectedProfile');
         
-        // If profile is not set, show the modal after a short delay
-        if (!profile) {
+        if (!selectedProfile) {
             setTimeout(() => {
-                // Check if the profile modal function exists and call it
-                if (typeof showProfileModal === 'function') {
-                    showProfileModal();
+                const profileBtn = document.getElementById('profile-button');
+                if (profileBtn) {
+                    profileBtn.click();
                 }
-            }, 1500); // Short delay to allow page to load completely
+            }, 1000);
         }
     }
 } 
