@@ -1890,100 +1890,154 @@
         }
     </style>
 
-    <!-- Floating Q&A Button -->
-    <button id="qaBtn" class="qa-float-btn" title="AI问答">问答</button>
+    <!-- Q&A Bubble Icon -->
+    <div id="qa-bubble" title="问答助手">
+        <img src="assets/icons/qa-icon.svg" alt="问答" style="width:48px;height:48px;">
+    </div>
 
-    <!-- Q&A Modal Popup -->
-    <div id="qaModal" class="qa-modal">
-      <div class="qa-modal-content">
-        <div class="qa-modal-header">
-          <span class="qa-modal-title">AI 问答</span>
-          <span class="qa-close-btn" id="qaCloseBtn">&times;</span>
+    <!-- Q&A Popup Modal -->
+    <div id="qa-popup" class="qa-modal">
+        <div class="qa-modal-content">
+            <div class="qa-modal-header">
+                <span>AI 问答助手</span>
+                <span class="qa-close" id="qa-close-btn">&times;</span>
+            </div>
+            <div class="qa-modal-body">
+                <textarea id="qa-prompt" placeholder="请输入你的问题..." rows="4"></textarea>
+                <button id="qa-submit">发送</button>
+                <div id="qa-loading" class="qa-loading" style="display:none;">
+                    <div class="qa-spinner"></div>
+                    <span>生成中...</span>
+                </div>
+                <div id="qa-error" class="qa-error" style="display:none;"></div>
+                <div id="qa-response-container" style="display:none;">
+                    <h4>AI答复：</h4>
+                    <div id="qa-response" style="white-space:pre-wrap;"></div>
+                </div>
+            </div>
         </div>
-        <div class="qa-modal-body">
-          <textarea id="qaInput" class="qa-input" placeholder="请输入你的问题..." rows="4"></textarea>
-          <div class="qa-modal-actions">
-            <button id="qaSubmitBtn" class="qa-submit-btn">提交</button>
-          </div>
-          <div id="qaLoading" class="qa-loading" style="display:none;">
-            <div class="qa-spinner"></div>
-            <span>AI 正在思考...</span>
-          </div>
-          <div id="qaError" class="qa-error" style="display:none;"></div>
-          <div id="qaResponseContainer" class="qa-response-container" style="display:none;">
-            <div class="qa-response-label">AI答复：</div>
-            <div id="qaResponseContent" class="qa-response-content"></div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <script>
-    // Q&A Modal Logic
-    const qaBtn = document.getElementById('qaBtn');
-    const qaModal = document.getElementById('qaModal');
-    const qaCloseBtn = document.getElementById('qaCloseBtn');
-    const qaInput = document.getElementById('qaInput');
-    const qaSubmitBtn = document.getElementById('qaSubmitBtn');
-    const qaLoading = document.getElementById('qaLoading');
-    const qaError = document.getElementById('qaError');
-    const qaResponseContainer = document.getElementById('qaResponseContainer');
-    const qaResponseContent = document.getElementById('qaResponseContent');
+    // Q&A Bubble Drag & Popup Logic
+    (function() {
+        const bubble = document.getElementById('qa-bubble');
+        const popup = document.getElementById('qa-popup');
+        const closeBtn = document.getElementById('qa-close-btn');
+        const submitBtn = document.getElementById('qa-submit');
+        const promptInput = document.getElementById('qa-prompt');
+        const loading = document.getElementById('qa-loading');
+        const error = document.getElementById('qa-error');
+        const responseContainer = document.getElementById('qa-response-container');
+        const responseContent = document.getElementById('qa-response');
 
-    // Open modal
-    qaBtn.onclick = () => {
-      qaModal.classList.add('show');
-      qaInput.value = '';
-      qaError.style.display = 'none';
-      qaResponseContainer.style.display = 'none';
-      qaLoading.style.display = 'none';
-      qaSubmitBtn.disabled = false;
-      setTimeout(() => { qaInput.focus(); }, 200);
-    };
-    // Close modal
-    qaCloseBtn.onclick = () => qaModal.classList.remove('show');
-    window.addEventListener('keydown', e => {
-      if (e.key === 'Escape') qaModal.classList.remove('show');
-    });
-    qaModal.onclick = e => {
-      if (e.target === qaModal) qaModal.classList.remove('show');
-    };
-    // Submit Q&A
-    qaSubmitBtn.onclick = async () => {
-      const prompt = qaInput.value.trim();
-      if (!prompt) {
-        qaError.textContent = '请输入你的问题';
-        qaError.style.display = 'block';
-        return;
-      }
-      qaError.style.display = 'none';
-      qaLoading.style.display = 'flex';
-      qaSubmitBtn.disabled = true;
-      qaResponseContainer.style.display = 'none';
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt })
+        // Drag logic
+        let offsetX, offsetY, dragging = false;
+        bubble.addEventListener('mousedown', function(e) {
+            dragging = true;
+            offsetX = e.clientX - bubble.getBoundingClientRect().left;
+            offsetY = e.clientY - bubble.getBoundingClientRect().top;
+            document.body.style.userSelect = 'none';
         });
-        if (!response.ok) throw new Error('网络错误，请稍后再试');
-        const result = await response.json();
-        qaResponseContent.textContent = result.output || 'AI没有返回内容';
-        qaResponseContainer.style.display = 'block';
-      } catch (err) {
-        qaError.textContent = err.message || '请求失败';
-        qaError.style.display = 'block';
-      } finally {
-        qaLoading.style.display = 'none';
-        qaSubmitBtn.disabled = false;
-      }
-    };
-    // 支持回车提交
-    qaInput.addEventListener('keydown', function(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        qaSubmitBtn.click();
-      }
-    });
+        document.addEventListener('mousemove', function(e) {
+            if (dragging) {
+                let x = e.clientX - offsetX;
+                let y = e.clientY - offsetY;
+                // Keep within viewport
+                x = Math.max(0, Math.min(window.innerWidth - bubble.offsetWidth, x));
+                y = Math.max(0, Math.min(window.innerHeight - bubble.offsetHeight, y));
+                bubble.style.left = x + 'px';
+                bubble.style.top = y + 'px';
+                bubble.style.right = 'unset';
+                bubble.style.bottom = 'unset';
+                bubble.style.transform = 'none';
+            }
+        });
+        document.addEventListener('mouseup', function() {
+            dragging = false;
+            document.body.style.userSelect = '';
+        });
+        // Touch drag
+        bubble.addEventListener('touchstart', function(e) {
+            dragging = true;
+            const touch = e.touches[0];
+            offsetX = touch.clientX - bubble.getBoundingClientRect().left;
+            offsetY = touch.clientY - bubble.getBoundingClientRect().top;
+        });
+        document.addEventListener('touchmove', function(e) {
+            if (dragging) {
+                const touch = e.touches[0];
+                let x = touch.clientX - offsetX;
+                let y = touch.clientY - offsetY;
+                x = Math.max(0, Math.min(window.innerWidth - bubble.offsetWidth, x));
+                y = Math.max(0, Math.min(window.innerHeight - bubble.offsetHeight, y));
+                bubble.style.left = x + 'px';
+                bubble.style.top = y + 'px';
+                bubble.style.right = 'unset';
+                bubble.style.bottom = 'unset';
+                bubble.style.transform = 'none';
+            }
+        });
+        document.addEventListener('touchend', function() {
+            dragging = false;
+        });
+
+        // Show popup
+        bubble.addEventListener('click', function(e) {
+            if (!dragging) {
+                popup.style.display = 'flex';
+                setTimeout(() => promptInput.focus(), 200);
+            }
+        });
+        // Hide popup
+        closeBtn.addEventListener('click', function() {
+            popup.style.display = 'none';
+            promptInput.value = '';
+            error.style.display = 'none';
+            responseContainer.style.display = 'none';
+        });
+        // Submit Q&A
+        submitBtn.addEventListener('click', async function() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                error.textContent = '请输入问题';
+                error.style.display = 'block';
+                return;
+            }
+            error.style.display = 'none';
+            loading.style.display = 'flex';
+            responseContainer.style.display = 'none';
+            submitBtn.disabled = true;
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+                if (!res.ok) throw new Error('API错误: ' + res.status);
+                const data = await res.json();
+                responseContent.textContent = data.output || '无返回内容';
+                responseContainer.style.display = 'block';
+            } catch (err) {
+                error.textContent = err.message || '请求失败';
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+        // Enter to submit
+        promptInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitBtn.click();
+            }
+        });
+        // Close popup on outside click
+        popup.addEventListener('mousedown', function(e) {
+            if (e.target === popup) popup.style.display = 'none';
+        });
+    })();
     </script>
 </body>
 </html> 
