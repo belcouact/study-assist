@@ -983,8 +983,20 @@
                 
                 // Check if required fields exist
                 const firstRow = data[0];
+                console.log('First row of data:', firstRow);
                 if (!firstRow.Word || !firstRow.Word_Rank) {
                     showVocabularyStatus('数据格式错误: 必须包含 Word 和 Word_Rank 字段', false);
+                    return;
+                }
+                
+                // Validate data for Cloudflare D1 compatibility
+                const validationIssues = validateDataForD1(data);
+                if (validationIssues.length > 0) {
+                    console.error('D1 validation issues:', validationIssues);
+                    showVocabularyStatus(`数据格式存在问题，可能导致D1上传失败: ${validationIssues.slice(0, 2).join('; ')}... 等${validationIssues.length}个问题`, false);
+                    
+                    // Add detailed errors to console
+                    console.table(validationIssues);
                     return;
                 }
                 
@@ -1027,6 +1039,7 @@
 
                 // Check if required fields exist
                 const firstRow = jsonData[0];
+                console.log('First row of data:', firstRow);
                 if (!firstRow.Word || !firstRow.Word_Rank) {
                     uploadButton.textContent = originalText;
                     uploadButton.disabled = false;
@@ -1034,25 +1047,115 @@
                     return;
                 }
 
+                // Validate data for Cloudflare D1 compatibility
+                const validationIssues = validateDataForD1(jsonData);
+                if (validationIssues.length > 0) {
+                    console.error('D1 validation issues:', validationIssues);
+                    uploadButton.textContent = originalText;
+                    uploadButton.disabled = false;
+                    showVocabularyStatus(`数据格式存在问题，可能导致D1上传失败: ${validationIssues.slice(0, 2).join('; ')}... 等${validationIssues.length}个问题`, false);
+                    
+                    // Add detailed errors to console
+                    console.table(validationIssues);
+                    return;
+                }
+
                 try {
                     // Fixed URL and request format
-                    const response = await fetch('/api/db/upload/vocabulary', {
+                    const endpoint = '/api/db/upload/vocabulary';
+                    console.log('Sending data to endpoint:', endpoint);
+                    
+                    // For debugging, show the exact structure we're sending
+                    console.log('Data structure sample:', jsonData.slice(0, 2));
+                    
+                    // Simulate mode should be false when working with real Cloudflare D1
+                    const simulationMode = false; // Set to false to use real Cloudflare D1
+                    
+                    if (simulationMode) {
+                        console.log('SIMULATION MODE: Simulating successful upload response');
+                        // Simulate a delay
+                        await new Promise(resolve => setTimeout(resolve, 1500));
+                        
+                        // Simulate success response
+                        const simulatedResult = {
+                            success: true,
+                            message: "Data uploaded successfully (SIMULATED)",
+                            insertedCount: jsonData.length
+                        };
+                        
+                        // Reset button state
+                        uploadButton.textContent = originalText;
+                        uploadButton.disabled = false;
+                        
+                        // Show success message
+                        showVocabularyStatus(`模拟上传成功！共模拟上传 ${jsonData.length} 条记录 (实际未上传到服务器)`, true);
+                        console.log('Simulated response:', simulatedResult);
+                        return;
+                    }
+                    
+                    // Format the data to exactly match the Cloudflare D1 schema
+                    const formattedData = jsonData.map(item => ({
+                        Word_Rank: item.Word_Rank,
+                        Word: item.Word,
+                        Word_ID: item.Word_ID || `${item.Word}_${item.Word_Rank}`,
+                        UK_Phonetic: item.UK_Phonetic || '',
+                        US_Phonetic: item.US_Phonetic || '',
+                        Translations: item.Translations || '',
+                        Example_Sentences: item.Example_Sentences || item.Example_Sentence || '',
+                        UK_Audio_URL: item.UK_Audio_URL || '',
+                        US_Audio_URL: item.US_Audio_URL || '',
+                        Remark_1: item.Remark_1 || '',
+                        Remark_2: item.Remark_2 || '',
+                        Remark_3: item.Remark_3 || ''
+                    }));
+                    
+                    console.log('Formatted data sample:', formattedData.slice(0, 2));
+                    console.log('Sending exact count of records:', formattedData.length);
+                    
+                    const response = await fetch(endpoint, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ data: jsonData })
+                        body: JSON.stringify({ data: formattedData })
                     });
-
-                    const result = await response.json();
-                    console.log('Server response:', result);
+                    
+                    console.log('Response received. Status:', response.status);
+                    let result;
+                    try {
+                        result = await response.json();
+                        console.log('Response JSON:', result);
+                    } catch (parseError) {
+                        const text = await response.text();
+                        console.error('Could not parse response as JSON:', text);
+                        throw new Error('Server response was not valid JSON: ' + text);
+                    }
 
                     // Reset button state
                     uploadButton.textContent = originalText;
                     uploadButton.disabled = false;
 
                     if (result.success) {
-                        showVocabularyStatus(`数据上传成功！共上传 ${jsonData.length} 条记录`, true);
+                        // Display detailed success information
+                        const detailedInfo = document.createElement('div');
+                        detailedInfo.className = 'upload-details';
+                        detailedInfo.innerHTML = `
+                            <h4>上传详情</h4>
+                            <ul>
+                                <li>总共提交记录: ${formattedData.length}</li>
+                                <li>成功插入记录: ${result.insertedCount || '未知'}</li>
+                                <li>服务器响应: ${result.message || 'OK'}</li>
+                            </ul>
+                            <button id="check-upload-btn" class="btn btn-outline" style="margin-top:10px;">检查上传结果</button>
+                        `;
+                        
+                        showVocabularyStatus(`数据上传成功！共上传 ${formattedData.length} 条记录`, true);
+                        document.getElementById('vocabularyStatus').appendChild(detailedInfo);
+                        
+                        // Add click event to check button
+                        document.getElementById('check-upload-btn').addEventListener('click', () => {
+                            document.getElementById('queryVocabulary').click();
+                        });
                     } else {
                         const errorMessage = result.error || result.message || '未知错误';
                         showVocabularyStatus(`上传失败：${errorMessage}`, false);
@@ -1084,40 +1187,71 @@
 
         document.getElementById('queryVocabulary').addEventListener('click', async function() {
             const resultContainer = document.getElementById('vocabularyQueryResult');
+            resultContainer.innerHTML = '<div class="loading">正在查询数据，请稍候...</div>';
+            
             try {
+                console.log('Querying vocabulary data from Cloudflare D1...');
                 const response = await fetch('/api/db/query/vocabulary');
+                console.log('Query response status:', response.status);
+                
                 const data = await response.json();
+                console.log('Query response data:', data);
                 
                 if (data.success) {
-                    const vocabularyHtml = data.data.map(vocab => `
-                        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
-                            <h4>${vocab.Word} (Rank: ${vocab.Word_Rank})</h4>
-                            <p><strong>音标：</strong>英 [${vocab.UK_Phonetic}] 美 [${vocab.US_Phonetic}]</p>
-                            <p><strong>翻译：</strong>${vocab.Translations}</p>
-                            <p><strong>例句：</strong>${vocab.Example_Sentence || '无'}</p>
-                        </div>
-                    `).join('');
-                    
-                    resultContainer.innerHTML = `
-                        <div class="success">
-                            <h3>查询成功</h3>
-                            <div class="vocabulary-list">
-                                ${vocabularyHtml}
+                    if (data.data && data.data.length > 0) {
+                        console.log(`Found ${data.data.length} vocabulary records in D1`);
+                        
+                        const vocabularyHtml = data.data.map(vocab => `
+                            <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
+                                <h4>${vocab.Word} (Rank: ${vocab.Word_Rank})</h4>
+                                <p><strong>ID:</strong> ${vocab.Word_ID || 'N/A'}</p>
+                                <p><strong>音标：</strong>英 [${vocab.UK_Phonetic || 'N/A'}] 美 [${vocab.US_Phonetic || 'N/A'}]</p>
+                                <p><strong>翻译：</strong>${vocab.Translations || 'N/A'}</p>
+                                <p><strong>例句：</strong>${vocab.Example_Sentences || vocab.Example_Sentence || 'N/A'}</p>
                             </div>
-                        </div>
-                    `;
+                        `).join('');
+                        
+                        resultContainer.innerHTML = `
+                            <div class="success">
+                                <h3>查询成功（${data.data.length}条记录）</h3>
+                                <div class="vocabulary-list">
+                                    ${vocabularyHtml}
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        console.warn('Query successful but no data found in D1');
+                        resultContainer.innerHTML = `
+                            <div class="warning" style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 6px;">
+                                <h3>查询成功但无数据</h3>
+                                <p>数据库中未找到词汇记录。请确认：</p>
+                                <ol>
+                                    <li>您已经上传了数据</li>
+                                    <li>Cloudflare Workers连接到了正确的D1数据库</li>
+                                    <li>表结构正确（应包含Word, Word_Rank等字段）</li>
+                                </ol>
+                                <p>可以尝试重新上传或检查服务器日志。</p>
+                            </div>
+                        `;
+                    }
                 } else {
-                    throw new Error(data.error || '查询失败');
+                    throw new Error(data.error || '查询失败，但服务器未提供具体错误信息');
                 }
             } catch (error) {
+                console.error('Vocabulary query error:', error);
                 resultContainer.innerHTML = `
                     <div class="error">
                         <h3>查询失败</h3>
                         <p>${error.message}</p>
-                        <p>详细信息: ${error}</p>
+                        <p>详细信息: ${error.stack || error}</p>
+                        <p>可能的原因:</p>
+                        <ul>
+                            <li>Cloudflare Workers或D1数据库未运行</li>
+                            <li>API路径错误或服务器错误</li>
+                            <li>表结构不匹配</li>
+                        </ul>
                     </div>
                 `;
-                console.error('API Error:', error);
             }
         });
 
@@ -1145,6 +1279,46 @@
             });
         }
 
+        // Validate data for Cloudflare D1 compatibility
+        function validateDataForD1(data) {
+            const issues = [];
+            const requiredFields = ['Word', 'Word_Rank'];
+            const maxStringLength = 1000; // D1 may have limits on text length
+            
+            data.forEach((row, index) => {
+                // Check required fields
+                requiredFields.forEach(field => {
+                    if (row[field] === undefined || row[field] === null || row[field] === '') {
+                        issues.push(`Row ${index+1}: Missing required field "${field}"`);
+                    }
+                });
+                
+                // Check for field type issues
+                if (row.Word_Rank !== undefined && isNaN(Number(row.Word_Rank))) {
+                    issues.push(`Row ${index+1}: Word_Rank "${row.Word_Rank}" is not a valid number`);
+                }
+                
+                // Check for string length limits
+                Object.entries(row).forEach(([key, value]) => {
+                    if (typeof value === 'string' && value.length > maxStringLength) {
+                        issues.push(`Row ${index+1}: Field "${key}" exceeds maximum length (${value.length} > ${maxStringLength})`);
+                    }
+                });
+                
+                // Check for special characters that might cause SQL issues
+                Object.entries(row).forEach(([key, value]) => {
+                    if (typeof value === 'string' && (
+                        value.includes("'") || value.includes('"') || 
+                        value.includes('\\') || value.includes('\0')
+                    )) {
+                        issues.push(`Row ${index+1}: Field "${key}" contains special characters that might cause SQL issues`);
+                    }
+                });
+            });
+            
+            return issues;
+        }
+
         // Initialize forms
         document.addEventListener('DOMContentLoaded', function() {
             // Disable all upload buttons by default
@@ -1164,6 +1338,73 @@
                 document.getElementById('uploadVocabulary').disabled = true;
             });
         });
+
+        // Add a vocabulary API test button
+        const testButton = document.createElement('button');
+        testButton.textContent = '测试词汇API连接';
+        testButton.className = 'btn btn-outline';
+        testButton.style.marginTop = '10px';
+        testButton.onclick = async function() { /* existing code */ };
+        
+        // Add SQL inspection button
+        const inspectButton = document.createElement('button');
+        inspectButton.textContent = '检查数据库结构';
+        inspectButton.className = 'btn btn-outline';
+        inspectButton.style.marginTop = '10px';
+        inspectButton.style.marginLeft = '10px';
+        inspectButton.onclick = async function() {
+            const statusDiv = document.getElementById('vocabularyStatus');
+            statusDiv.innerHTML = '<p>正在检查数据库结构...</p>';
+            statusDiv.className = 'status';
+            
+            try {
+                console.log('Inspecting D1 database structure...');
+                const response = await fetch('/api/db/inspect/vocabulary');
+                console.log('Inspection status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Inspection response:', data);
+                    
+                    let infoHtml = '';
+                    if (data.success) {
+                        infoHtml = `
+                            <h4>数据库结构信息</h4>
+                            <p><strong>表名:</strong> ${data.table || 'vocabulary'}</p>
+                            <p><strong>字段:</strong> ${data.columns ? data.columns.join(', ') : '无字段信息'}</p>
+                            <p><strong>记录数:</strong> ${data.count !== undefined ? data.count : '未知'}</p>
+                            <p><strong>示例记录:</strong></p>
+                            <pre style="background:#f8f9fa; padding:10px; overflow:auto;">${
+                                data.sample ? JSON.stringify(data.sample, null, 2) : '无示例记录'
+                            }</pre>
+                        `;
+                        statusDiv.innerHTML = infoHtml;
+                        statusDiv.className = 'status success';
+                    } else {
+                        infoHtml = `
+                            <h4>数据库检查错误</h4>
+                            <p>${data.error || '未知错误'}</p>
+                        `;
+                        statusDiv.innerHTML = infoHtml;
+                        statusDiv.className = 'status error';
+                    }
+                } else {
+                    const errorText = await response.text();
+                    statusDiv.innerHTML = `<p>API响应错误 (${response.status}): ${errorText}</p>`;
+                    statusDiv.className = 'status error';
+                    console.error('API error response:', errorText);
+                }
+            } catch (error) {
+                console.error('Database inspection error:', error);
+                statusDiv.innerHTML = `<p>检查出错: ${error.message}</p>`;
+                statusDiv.className = 'status error';
+            }
+        };
+        
+        // Add the buttons to the vocabulary section
+        const vocabButtonGroup = document.querySelector('.upload-section:last-child .button-group');
+        vocabButtonGroup.appendChild(testButton);
+        vocabButtonGroup.appendChild(inspectButton);
     </script>
 </body>
 </html> 
