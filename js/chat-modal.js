@@ -14,6 +14,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Create and insert the chat modal into the document
 function createChatModal() {
+    // Load Prism.js for syntax highlighting if not already loaded
+    if (!document.getElementById('prism-css') && !document.getElementById('prism-js')) {
+        // Add Prism CSS
+        const prismCSS = document.createElement('link');
+        prismCSS.id = 'prism-css';
+        prismCSS.rel = 'stylesheet';
+        prismCSS.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/themes/prism.min.css';
+        document.head.appendChild(prismCSS);
+        
+        // Add Prism JS
+        const prismJS = document.createElement('script');
+        prismJS.id = 'prism-js';
+        prismJS.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/prism.min.js';
+        document.head.appendChild(prismJS);
+        
+        // Add common language components
+        const prismComponents = document.createElement('script');
+        prismComponents.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-javascript.min.js';
+        document.head.appendChild(prismComponents);
+        
+        const prismHTML = document.createElement('script');
+        prismHTML.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-markup.min.js';
+        document.head.appendChild(prismHTML);
+        
+        const prismCSS2 = document.createElement('script');
+        prismCSS2.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-css.min.js';
+        document.head.appendChild(prismCSS2);
+        
+        const prismPython = document.createElement('script');
+        prismPython.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-python.min.js';
+        document.head.appendChild(prismPython);
+    }
+
     const modalHTML = `
     <div id="aiChatModal" class="ai-chat-modal">
         <div class="ai-chat-modal-content">
@@ -209,26 +242,104 @@ function createChatModal() {
             }
             
             /* Style for code blocks in chat */
-            .ai-chat-bubble pre, .ai-chat-bubble code {
-                background-color: rgba(0, 0, 0, 0.05);
+            .ai-chat-bubble pre {
+                background-color: #f5f7fa;
                 border-radius: 4px;
-                font-family: monospace;
-                padding: 0.2em 0.4em;
-                margin: 0;
-                font-size: 14px;
-                display: block;
-                padding: 10px;
+                font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+                padding: 12px;
                 margin: 10px 0;
                 overflow-x: auto;
                 border-left: 3px solid #4361ee;
+                font-size: 14px;
+                line-height: 1.5;
+                max-height: 300px;
+                position: relative;
+            }
+            
+            .ai-chat-bubble pre code {
+                background-color: transparent;
+                padding: 0;
+                margin: 0;
+                border: none;
+                display: block;
+                color: #333;
+                font-size: 14px;
+                tab-size: 2;
+            }
+            
+            /* Add language indicator */
+            .ai-chat-bubble pre:before {
+                content: attr(class);
+                position: absolute;
+                top: 0;
+                right: 0;
+                color: #888;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 4px 8px;
+                background: #f0f0f0;
+                border-bottom-left-radius: 4px;
+                border-top-right-radius: 4px;
+                text-transform: uppercase;
+            }
+            
+            .ai-chat-bubble pre:before {
+                content: '';
+            }
+            
+            .ai-chat-bubble pre[class*="language-"]:before {
+                content: attr(class);
+                content: attr(class);
+                content: attr(class);
+                text-transform: uppercase;
+                display: block;
+                text-align: right;
+                font-size: 10px;
+                background: rgba(0, 0, 0, 0.1);
+                padding: 2px 8px;
+                border-radius: 0 4px 0 4px;
+                position: absolute;
+                top: 0;
+                right: 0;
+                color: #666;
+            }
+            
+            .ai-chat-bubble pre.language-javascript:before {
+                content: 'JavaScript';
+            }
+            
+            .ai-chat-bubble pre.language-js:before {
+                content: 'JS';
+            }
+            
+            .ai-chat-bubble pre.language-html:before {
+                content: 'HTML';
+            }
+            
+            .ai-chat-bubble pre.language-css:before {
+                content: 'CSS';
+            }
+            
+            .ai-chat-bubble pre.language-python:before {
+                content: 'Python';
+            }
+            
+            .ai-chat-bubble pre.language-json:before {
+                content: 'JSON';
             }
             
             /* Style for inline code in chat */
             .ai-chat-bubble code {
                 display: inline;
-                padding: 2px 4px;
+                padding: 2px 5px;
                 margin: 0 2px;
                 border-left: none;
+                background-color: rgba(0, 0, 0, 0.05);
+                border-radius: 3px;
+                font-family: 'Consolas', 'Monaco', 'Andale Mono', 'Ubuntu Mono', monospace;
+                font-size: 0.9em;
+                color: #c92c2c;
+                word-break: break-word;
             }
             
             /* Style for lists in chat */
@@ -549,6 +660,22 @@ function addChatMessage(message, isUser = false) {
     
     // Only format AI messages (not user messages)
     if (!isUser) {
+        // Process code blocks first to avoid conflicts with other formatting
+        const codeBlocks = [];
+        formattedMessage = formattedMessage.replace(/```([\s\S]*?)```/g, function(match, code) {
+            const id = `code-${codeBlocks.length}`;
+            codeBlocks.push({ id, code: code.trim() });
+            return `<code-block id="${id}"></code-block>`;
+        });
+        
+        // Process inline code
+        const inlineCodes = [];
+        formattedMessage = formattedMessage.replace(/`([^`]+)`/g, function(match, code) {
+            const id = `inline-${inlineCodes.length}`;
+            inlineCodes.push({ id, code });
+            return `<inline-code id="${id}"></inline-code>`;
+        });
+
         // Convert markdown-style links [text](url) to HTML links
         formattedMessage = formattedMessage.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
         
@@ -557,42 +684,161 @@ function addChatMessage(message, isUser = false) {
         formattedMessage = formattedMessage.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');  // Bold
         formattedMessage = formattedMessage.replace(/\*([^*]+)\*/g, '<em>$1</em>');  // Italic
         
-        // Convert backticks for code
-        formattedMessage = formattedMessage.replace(/```([^`]+)```/g, '<pre>$1</pre>');  // Code blocks
-        formattedMessage = formattedMessage.replace(/`([^`]+)`/g, '<code>$1</code>');  // Inline code
+        // Handle tables
+        if (formattedMessage.includes('|')) {
+            const lines = formattedMessage.split('\n');
+            let inTable = false;
+            let tableHTML = '<table>';
+            let processedLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('|') && line.endsWith('|')) {
+                    if (!inTable) {
+                        inTable = true;
+                        tableHTML = '<table>';
+                    }
+                    
+                    const cells = line.split('|').filter(cell => cell !== '');
+                    
+                    // Check if this is a header separator line (e.g., |---|---|)
+                    const isSeparator = cells.every(cell => /^[-:\s]+$/.test(cell.trim()));
+                    
+                    if (!isSeparator) {
+                        const isHeader = i > 0 && i < lines.length - 1 && 
+                                        lines[i+1].trim().startsWith('|') && 
+                                        lines[i+1].trim().endsWith('|') &&
+                                        /^\|[\s\-:]+\|/.test(lines[i+1].trim());
+                        
+                        tableHTML += '<tr>';
+                        cells.forEach(cell => {
+                            if (isHeader) {
+                                tableHTML += `<th>${cell.trim()}</th>`;
+                            } else {
+                                tableHTML += `<td>${cell.trim()}</td>`;
+                            }
+                        });
+                        tableHTML += '</tr>';
+                    }
+                } else if (inTable) {
+                    inTable = false;
+                    tableHTML += '</table>';
+                    processedLines.push(tableHTML);
+                } else {
+                    processedLines.push(line);
+                }
+            }
+            
+            if (inTable) {
+                tableHTML += '</table>';
+                processedLines.push(tableHTML);
+            }
+            
+            formattedMessage = processedLines.join('\n');
+        }
         
-        // Convert dashes at beginning of line to bullet points
-        formattedMessage = formattedMessage.replace(/^- (.+)$/gm, '<li>$1</li>');
-        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>\s*<li>/g, '<li>$1</li><li>');
-        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>/g, '<ul><li>$1</li></ul>');
-        formattedMessage = formattedMessage.replace(/<\/ul>\s*<ul>/g, '');
+        // Process blockquotes
+        formattedMessage = formattedMessage.replace(/^>\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+        formattedMessage = formattedMessage.replace(/<\/blockquote>\n<blockquote>/g, '<br>');
         
-        // Convert numbered lists
-        formattedMessage = formattedMessage.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>\s*<li>/g, '<li>$1</li><li>');
-        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>/g, '<ol><li>$1</li></ol>');
-        formattedMessage = formattedMessage.replace(/<\/ol>\s*<ol>/g, '');
-        
-        // Convert headers
+        // Convert headers - must be at start of line
         formattedMessage = formattedMessage.replace(/^### (.+)$/gm, '<h3>$1</h3>');
         formattedMessage = formattedMessage.replace(/^## (.+)$/gm, '<h2>$1</h2>');
         formattedMessage = formattedMessage.replace(/^# (.+)$/gm, '<h1>$1</h1>');
         
+        // Handle unordered lists
+        let listMatch;
+        const listRegex = /^[\s-]*[-*•] (.+)$/gm;
+        const listItems = [];
+        
+        while ((listMatch = listRegex.exec(formattedMessage)) !== null) {
+            listItems.push(listMatch[0]);
+        }
+        
+        if (listItems.length > 0) {
+            let listHTML = '<ul>';
+            listItems.forEach(item => {
+                const content = item.replace(/^[\s-]*[-*•] (.+)$/, '$1');
+                listHTML += `<li>${content}</li>`;
+            });
+            listHTML += '</ul>';
+            
+            listItems.forEach(item => {
+                formattedMessage = formattedMessage.replace(item, '');
+            });
+            
+            formattedMessage += listHTML;
+        }
+        
+        // Handle ordered lists
+        const orderedListRegex = /^[\s-]*(\d+)\. (.+)$/gm;
+        const orderedListItems = [];
+        
+        while ((listMatch = orderedListRegex.exec(formattedMessage)) !== null) {
+            orderedListItems.push({
+                number: parseInt(listMatch[1]),
+                content: listMatch[2],
+                fullMatch: listMatch[0]
+            });
+        }
+        
+        if (orderedListItems.length > 0) {
+            orderedListItems.sort((a, b) => a.number - b.number);
+            
+            let listHTML = '<ol>';
+            orderedListItems.forEach(item => {
+                listHTML += `<li>${item.content}</li>`;
+            });
+            listHTML += '</ol>';
+            
+            orderedListItems.forEach(item => {
+                formattedMessage = formattedMessage.replace(item.fullMatch, '');
+            });
+            
+            formattedMessage += listHTML;
+        }
+        
         // Convert horizontal rules
-        formattedMessage = formattedMessage.replace(/^\s*---\s*$/gm, '<hr>');
+        formattedMessage = formattedMessage.replace(/^\s*---+\s*$/gm, '<hr>');
         
         // Convert newlines to breaks but preserve paragraphs
-        formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
+        formattedMessage = formattedMessage.replace(/\n\n+/g, '</p><p>');
         formattedMessage = formattedMessage.replace(/\n/g, '<br>');
-        formattedMessage = `<p>${formattedMessage}</p>`;
-        formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+        
+        // Wrap in paragraph if not already done
+        if (!formattedMessage.startsWith('<p>')) {
+            formattedMessage = `<p>${formattedMessage}</p>`;
+        }
         
         // Fix any incorrect nesting due to our replacements
-        formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
-        formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
-        formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
-        formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
-        formattedMessage = formattedMessage.replace(/<p>(<hr>)<\/p>/g, '$1');
+        formattedMessage = formattedMessage.replace(/<p><(h[1-6]|ul|ol|blockquote|hr|table)>/g, '<$1>');
+        formattedMessage = formattedMessage.replace(/<\/(h[1-6]|ul|ol|blockquote|hr|table)><\/p>/g, '</$1>');
+        formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+        
+        // Restore code blocks and inline code
+        codeBlocks.forEach(({ id, code }) => {
+            let language = '';
+            // Try to detect language from first line
+            const firstLine = code.split('\n')[0].trim();
+            if (firstLine && !firstLine.includes(' ')) {
+                language = firstLine;
+                code = code.substring(firstLine.length).trim();
+            }
+            
+            const highlightClass = language ? ` class="language-${language}"` : '';
+            formattedMessage = formattedMessage.replace(
+                `<code-block id="${id}"></code-block>`,
+                `<pre${highlightClass}><code${highlightClass}>${escapeHTML(code)}</code></pre>`
+            );
+        });
+        
+        inlineCodes.forEach(({ id, code }) => {
+            formattedMessage = formattedMessage.replace(
+                `<inline-code id="${id}"></inline-code>`,
+                `<code>${escapeHTML(code)}</code>`
+            );
+        });
     }
     
     messageElement.innerHTML = `
@@ -604,6 +850,23 @@ function addChatMessage(message, isUser = false) {
     
     messagesContainer.appendChild(messageElement);
     messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
+    
+    // Apply syntax highlighting
+    if (typeof Prism !== 'undefined') {
+        setTimeout(() => {
+            Prism.highlightAllUnder(messageElement);
+        }, 100);
+    }
+}
+
+// Helper function to escape HTML in code blocks
+function escapeHTML(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }
 
 // Send a message to the API
