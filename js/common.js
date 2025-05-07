@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSliders();
     initAnimations();
     initFirstVisitPrompt();
+    initChat();
 });
 
 /**
@@ -155,25 +156,25 @@ function initTestimonialsSlider() {
  * Initialize On-Scroll Animations
  */
 function initAnimations() {
-    // Only initialize if IntersectionObserver is supported
-    if ('IntersectionObserver' in window) {
-        const animatedElements = document.querySelectorAll('.animate-on-scroll');
-        
-        const animationObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animated');
-                    // Optionally stop observing after animation is triggered
-                    // animationObserver.unobserve(entry.target);
+    const animatedElements = document.querySelectorAll('.animate-on-scroll');
+    
+    if (animatedElements.length) {
+        const checkVisibility = function() {
+            animatedElements.forEach(element => {
+                const position = element.getBoundingClientRect();
+                
+                // If element is in viewport
+                if (position.top < window.innerHeight && position.bottom >= 0) {
+                    element.classList.add('visible');
                 }
             });
-        }, {
-            threshold: 0.1 // Trigger when at least 10% of the element is visible
-        });
+        };
         
-        animatedElements.forEach(element => {
-            animationObserver.observe(element);
-        });
+        // Initial check
+        checkVisibility();
+        
+        // Check on scroll
+        window.addEventListener('scroll', checkVisibility);
     }
 }
 
@@ -288,24 +289,66 @@ function deleteCookie(name) {
 
 // Initialize first-time visit profile prompt
 function initFirstVisitPrompt() {
-    // Check if this is the first visit
-    const hasVisited = localStorage.getItem('hasVisitedBefore');
-    
-    if (!hasVisited) {
-        // Set the flag for future visits
-        localStorage.setItem('hasVisitedBefore', 'true');
+    if (!localStorage.getItem('visited')) {
+        const promptElement = document.querySelector('.first-visit-prompt');
         
-        // Check if profile is already set
-        const profile = localStorage.getItem('educationalProfile');
-        
-        // If profile is not set, show the modal after a short delay
-        if (!profile) {
-            setTimeout(() => {
-                // Check if the profile modal function exists and call it
-                if (typeof showProfileModal === 'function') {
-                    showProfileModal();
-                }
-            }, 1500); // Short delay to allow page to load completely
+        if (promptElement) {
+            promptElement.classList.add('show');
+            
+            const closeButton = promptElement.querySelector('.close-prompt');
+            
+            if (closeButton) {
+                closeButton.addEventListener('click', function() {
+                    promptElement.classList.remove('show');
+                    localStorage.setItem('visited', 'true');
+                });
+            }
         }
+        
+        localStorage.setItem('visited', 'true');
+    }
+}
+
+// Common script for all pages
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if the chat modal script is already loaded
+    if (typeof initializeChatWithFloatingButton === 'undefined') {
+        // Load the chat-modal.js script dynamically
+        const script = document.createElement('script');
+        script.src = '/js/chat-modal.js';
+        script.onload = function() {
+            // Initialize chat once the script is loaded
+            if (typeof initializeChatWithFloatingButton === 'function') {
+                initializeChatWithFloatingButton();
+            }
+        };
+        document.head.appendChild(script);
+    } else {
+        // If already loaded, just initialize the chat
+        initializeChatWithFloatingButton();
+    }
+    
+    // Add event listeners to all chat buttons
+    document.querySelectorAll('.chat-ai-btn').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof openChatModal === 'function') {
+                openChatModal();
+            }
+        });
+    });
+});
+
+// Function to get the base URL for relative paths
+function getBaseUrl() {
+    // Get the base URL from the current path
+    const pathSegments = window.location.pathname.split('/');
+    const depth = pathSegments.length - 1;
+    
+    // If we're at root, return empty string, otherwise build relative path to root
+    if (depth <= 1) {
+        return '';
+    } else {
+        return Array(depth).join('../');
     }
 } 
