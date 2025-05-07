@@ -649,4 +649,33 @@ document.addEventListener('DOMContentLoaded', function() {
             speechSynthesis.getVoices();
         };
     }
-}); 
+});
+
+// Add this code to the end of the file
+// This function will be used to link from main.html to vocabulary.html
+function setupMainPageRedirect() {
+    // Check if we're in the main page context
+    if (window.location.pathname.includes('main.html')) {
+        // Find the vocabulary card button
+        const vocabButton = document.querySelector('.english-card[data-category="vocabulary"] .card-btn');
+        
+        if (vocabButton) {
+            console.log('Found vocabulary button in main.html, setting up redirect');
+            // Override the default panel behavior
+            vocabButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Navigate to vocabulary.html
+                window.location.href = 'vocabulary.html?autoload=true';
+            });
+        }
+    }
+}
+
+// If the DOM is already loaded, run setup immediately
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupMainPageRedirect();
+} else {
+    // Otherwise wait for DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', setupMainPageRedirect);
+} 
