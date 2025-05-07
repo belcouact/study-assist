@@ -83,7 +83,7 @@ function createChatModal() {
                 box-shadow: 0 5px 25px rgba(0,0,0,0.2);
                 width: 90%;
                 max-width: 800px;
-                max-height: 80vh;
+                max-height: 85vh;
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
@@ -104,6 +104,7 @@ function createChatModal() {
                 color: white;
                 border-top-left-radius: 15px;
                 border-top-right-radius: 15px;
+                z-index: 2;
             }
             
             .ai-chat-modal-header h2 {
@@ -131,7 +132,7 @@ function createChatModal() {
                 display: flex;
                 flex-direction: column;
                 height: 100%;
-                max-height: calc(80vh - 60px);
+                max-height: calc(85vh - 60px);
                 overflow: hidden;
             }
             
@@ -139,13 +140,40 @@ function createChatModal() {
                 padding: 20px;
                 overflow-y: auto;
                 flex-grow: 1;
-                max-height: calc(80vh - 160px);
+                max-height: calc(85vh - 160px);
+                scroll-behavior: smooth;
+                scrollbar-width: thin;
+                scrollbar-color: rgba(67, 97, 238, 0.3) transparent;
+            }
+            
+            /* Custom scrollbar for Webkit browsers */
+            .ai-chat-messages::-webkit-scrollbar {
+                width: 6px;
+            }
+            
+            .ai-chat-messages::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            
+            .ai-chat-messages::-webkit-scrollbar-thumb {
+                background-color: rgba(67, 97, 238, 0.3);
+                border-radius: 3px;
+            }
+            
+            .ai-chat-messages::-webkit-scrollbar-thumb:hover {
+                background-color: rgba(67, 97, 238, 0.5);
             }
             
             .ai-chat-message {
                 display: flex;
-                margin-bottom: 15px;
+                margin-bottom: 20px;
                 align-items: flex-start;
+                animation: fadeIn 0.3s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
             }
             
             .ai-chat-avatar {
@@ -170,10 +198,128 @@ function createChatModal() {
                 padding: 12px 16px;
                 border-radius: 18px;
                 max-width: 80%;
-                line-height: 1.5;
+                line-height: 1.6;
                 color: #333;
                 border-top-left-radius: 4px;
                 box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+                font-size: 15px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+            }
+            
+            /* Style for code blocks in chat */
+            .ai-chat-bubble pre, .ai-chat-bubble code {
+                background-color: rgba(0, 0, 0, 0.05);
+                border-radius: 4px;
+                font-family: monospace;
+                padding: 0.2em 0.4em;
+                margin: 0;
+                font-size: 14px;
+                display: block;
+                padding: 10px;
+                margin: 10px 0;
+                overflow-x: auto;
+                border-left: 3px solid #4361ee;
+            }
+            
+            /* Style for inline code in chat */
+            .ai-chat-bubble code {
+                display: inline;
+                padding: 2px 4px;
+                margin: 0 2px;
+                border-left: none;
+            }
+            
+            /* Style for lists in chat */
+            .ai-chat-bubble ul, .ai-chat-bubble ol {
+                padding-left: 20px;
+                margin: 8px 0;
+            }
+            
+            .ai-chat-bubble li {
+                margin-bottom: 4px;
+            }
+            
+            /* Style for headings in chat */
+            .ai-chat-bubble h1, .ai-chat-bubble h2, .ai-chat-bubble h3, 
+            .ai-chat-bubble h4, .ai-chat-bubble h5, .ai-chat-bubble h6 {
+                margin-top: 16px;
+                margin-bottom: 8px;
+                font-weight: 600;
+                line-height: 1.3;
+            }
+            
+            .ai-chat-bubble h1 { font-size: 1.5em; }
+            .ai-chat-bubble h2 { font-size: 1.3em; }
+            .ai-chat-bubble h3 { font-size: 1.15em; }
+            
+            /* Style for links in chat */
+            .ai-chat-bubble a {
+                color: #4361ee;
+                text-decoration: none;
+                border-bottom: 1px dotted #4361ee;
+                transition: border-bottom 0.2s;
+            }
+            
+            .ai-chat-bubble a:hover {
+                border-bottom: 1px solid #4361ee;
+            }
+            
+            /* Style for blockquotes in chat */
+            .ai-chat-bubble blockquote {
+                border-left: 4px solid #ccc;
+                margin-left: 0;
+                margin-right: 0;
+                padding-left: 16px;
+                color: #666;
+                font-style: italic;
+            }
+            
+            /* Style for horizontal rule in chat */
+            .ai-chat-bubble hr {
+                border: 0;
+                height: 1px;
+                background: #eee;
+                margin: 16px 0;
+            }
+            
+            /* Style for tables in chat */
+            .ai-chat-bubble table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 12px 0;
+                font-size: 14px;
+            }
+            
+            .ai-chat-bubble th, .ai-chat-bubble td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: left;
+            }
+            
+            .ai-chat-bubble th {
+                background-color: rgba(67, 97, 238, 0.1);
+                font-weight: 600;
+            }
+            
+            /* Highlighting of important points */
+            .ai-chat-bubble strong, .ai-chat-bubble b {
+                font-weight: 600;
+                color: #111;
+            }
+            
+            .ai-chat-bubble em, .ai-chat-bubble i {
+                color: #555;
+            }
+            
+            /* Paragraphs spacing in chat */
+            .ai-chat-bubble p {
+                margin: 0 0 12px 0;
+            }
+            
+            .ai-chat-bubble p:last-child {
+                margin-bottom: 0;
             }
             
             .user-message {
@@ -190,6 +336,28 @@ function createChatModal() {
                 color: white;
                 border-top-right-radius: 4px;
                 border-top-left-radius: 18px;
+            }
+            
+            /* Adjust styles for dark background in user messages */
+            .user-message .ai-chat-bubble code, 
+            .user-message .ai-chat-bubble pre {
+                background-color: rgba(255, 255, 255, 0.2);
+                border-left-color: rgba(255, 255, 255, 0.5);
+            }
+            
+            .user-message .ai-chat-bubble a {
+                color: #fff;
+                border-bottom: 1px dotted rgba(255, 255, 255, 0.7);
+            }
+            
+            .user-message .ai-chat-bubble blockquote {
+                border-left-color: rgba(255, 255, 255, 0.5);
+                color: rgba(255, 255, 255, 0.8);
+            }
+            
+            .user-message .ai-chat-bubble strong, 
+            .user-message .ai-chat-bubble b {
+                color: #fff;
             }
             
             .ai-chat-input-container {
@@ -376,11 +544,62 @@ function addChatMessage(message, isUser = false) {
     const messageElement = document.createElement('div');
     messageElement.className = `ai-chat-message ${isUser ? 'user-message' : 'ai-message'}`;
     
+    // Format message content for better readability
+    let formattedMessage = message;
+    
+    // Only format AI messages (not user messages)
+    if (!isUser) {
+        // Convert markdown-style links [text](url) to HTML links
+        formattedMessage = formattedMessage.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+        
+        // Convert asterisks to bold and italic
+        formattedMessage = formattedMessage.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');  // Bold + italic
+        formattedMessage = formattedMessage.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');  // Bold
+        formattedMessage = formattedMessage.replace(/\*([^*]+)\*/g, '<em>$1</em>');  // Italic
+        
+        // Convert backticks for code
+        formattedMessage = formattedMessage.replace(/```([^`]+)```/g, '<pre>$1</pre>');  // Code blocks
+        formattedMessage = formattedMessage.replace(/`([^`]+)`/g, '<code>$1</code>');  // Inline code
+        
+        // Convert dashes at beginning of line to bullet points
+        formattedMessage = formattedMessage.replace(/^- (.+)$/gm, '<li>$1</li>');
+        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>\s*<li>/g, '<li>$1</li><li>');
+        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>/g, '<ul><li>$1</li></ul>');
+        formattedMessage = formattedMessage.replace(/<\/ul>\s*<ul>/g, '');
+        
+        // Convert numbered lists
+        formattedMessage = formattedMessage.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>\s*<li>/g, '<li>$1</li><li>');
+        formattedMessage = formattedMessage.replace(/<li>(.+)<\/li>/g, '<ol><li>$1</li></ol>');
+        formattedMessage = formattedMessage.replace(/<\/ol>\s*<ol>/g, '');
+        
+        // Convert headers
+        formattedMessage = formattedMessage.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        formattedMessage = formattedMessage.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        formattedMessage = formattedMessage.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+        
+        // Convert horizontal rules
+        formattedMessage = formattedMessage.replace(/^\s*---\s*$/gm, '<hr>');
+        
+        // Convert newlines to breaks but preserve paragraphs
+        formattedMessage = formattedMessage.replace(/\n\n/g, '</p><p>');
+        formattedMessage = formattedMessage.replace(/\n/g, '<br>');
+        formattedMessage = `<p>${formattedMessage}</p>`;
+        formattedMessage = formattedMessage.replace(/<p><\/p>/g, '');
+        
+        // Fix any incorrect nesting due to our replacements
+        formattedMessage = formattedMessage.replace(/<p>(<h[1-6]>)/g, '$1');
+        formattedMessage = formattedMessage.replace(/(<\/h[1-6]>)<\/p>/g, '$1');
+        formattedMessage = formattedMessage.replace(/<p>(<ul>|<ol>)/g, '$1');
+        formattedMessage = formattedMessage.replace(/(<\/ul>|<\/ol>)<\/p>/g, '$1');
+        formattedMessage = formattedMessage.replace(/<p>(<hr>)<\/p>/g, '$1');
+    }
+    
     messageElement.innerHTML = `
         <div class="ai-chat-avatar">
             <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
         </div>
-        <div class="ai-chat-bubble">${message}</div>
+        <div class="ai-chat-bubble">${formattedMessage}</div>
     `;
     
     messagesContainer.appendChild(messageElement);
