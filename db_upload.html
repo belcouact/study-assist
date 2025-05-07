@@ -105,6 +105,42 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+        
+        /* Responsive styles for mobile devices */
+        @media (max-width: 768px) {
+            .test-container {
+                padding: 10px;
+                margin: 20px auto;
+            }
+            
+            .upload-section {
+                padding: 1rem;
+                margin: 1rem auto;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .preview-table {
+                font-size: 14px;
+            }
+            
+            .preview-table th, .preview-table td {
+                padding: 4px;
+            }
+            
+            /* Horizontal scrolling for tables on mobile */
+            .preview-container {
+                overflow-x: auto;
+            }
+            
+            .vocabulary-list div {
+                padding: 8px;
+                margin-bottom: 8px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -256,6 +292,40 @@
             </div>
             <div id="worldHistoryStatus" class="status"></div>
             <div id="worldHistoryQueryResult" class="result-container">
+                <p>查询结果将显示在这里...</p>
+            </div>
+        </section>
+
+        <!-- Vocabulary Data Upload Section -->
+        <section class="upload-section">
+            <h2>导入词汇表数据</h2>
+            <input type="file" id="vocabularyFile" class="file-input" accept=".xlsx, .xls">
+            <div class="preview-container">
+                <table id="vocabularyPreview" class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Word_Rank</th>
+                            <th>Word</th>
+                            <th>Word_ID</th>
+                            <th>UK_Phonetic</th>
+                            <th>US_Phonetic</th>
+                            <th>Translations</th>
+                            <th>Example_Sentence</th>
+                            <th>Remark_1</th>
+                            <th>Remark_2</th>
+                            <th>Remark_3</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="button-group">
+                <button id="previewVocabulary" class="btn btn-secondary">预览数据</button>
+                <button id="uploadVocabulary" class="btn btn-primary">上传数据</button>
+                <button id="queryVocabulary" class="btn btn-outline">查询前10条数据</button>
+            </div>
+            <div id="vocabularyStatus" class="status"></div>
+            <div id="vocabularyQueryResult" class="result-container">
                 <p>查询结果将显示在这里...</p>
             </div>
         </section>
@@ -858,6 +928,196 @@
             }
         });
 
+        // Vocabulary Data Upload Section
+        document.getElementById('vocabularyFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleExcelFile(file, previewVocabularyData);
+            }
+        });
+
+        function previewVocabularyData(data) {
+            const tbody = document.getElementById('vocabularyPreview').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            data.slice(0, 10).forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${row.Word_Rank || ''}</td>
+                    <td>${row.Word || ''}</td>
+                    <td>${row.Word_ID || ''}</td>
+                    <td>${row.UK_Phonetic || ''}</td>
+                    <td>${row.US_Phonetic || ''}</td>
+                    <td>${row.Translations || ''}</td>
+                    <td>${row.Example_Sentence || ''}</td>
+                    <td>${row.Remark_1 || ''}</td>
+                    <td>${row.Remark_2 || ''}</td>
+                    <td>${row.Remark_3 || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        document.getElementById('previewVocabulary').addEventListener('click', function() {
+            const file = document.getElementById('vocabularyFile').files[0];
+            if (!file) {
+                showVocabularyStatus('请先选择文件', false);
+                return;
+            }
+            
+            // Show loading state
+            const previewButton = document.getElementById('previewVocabulary');
+            const originalText = previewButton.textContent;
+            previewButton.textContent = '预览中...';
+            previewButton.disabled = true;
+            showVocabularyStatus('正在处理数据，请稍候...', true);
+            
+            handleExcelFile(file, function(data) {
+                previewButton.textContent = originalText;
+                previewButton.disabled = false;
+                
+                if (data.length === 0) {
+                    showVocabularyStatus('Excel文件中没有数据', false);
+                    return;
+                }
+                
+                // Check if required fields exist
+                const firstRow = data[0];
+                if (!firstRow.Word || !firstRow.Word_Rank) {
+                    showVocabularyStatus('数据格式错误: 必须包含 Word 和 Word_Rank 字段', false);
+                    return;
+                }
+                
+                previewVocabularyData(data);
+                showVocabularyStatus(`成功读取 ${data.length} 条记录，显示前10条`, true);
+                
+                // Enable upload button after successful preview
+                document.getElementById('uploadVocabulary').disabled = false;
+            });
+        });
+
+        document.getElementById('uploadVocabulary').addEventListener('click', async function() {
+            const file = document.getElementById('vocabularyFile').files[0];
+            if (!file) {
+                showVocabularyStatus('请先选择文件', false);
+                return;
+            }
+
+            // Show loading state
+            const uploadButton = document.getElementById('uploadVocabulary');
+            const originalText = uploadButton.textContent;
+            uploadButton.textContent = '上传中...';
+            uploadButton.disabled = true;
+            showVocabularyStatus('正在处理数据，请稍候...', true);
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                // Validate data format
+                if (jsonData.length === 0) {
+                    uploadButton.textContent = originalText;
+                    uploadButton.disabled = false;
+                    showVocabularyStatus('Excel文件中没有数据', false);
+                    return;
+                }
+
+                // Check if required fields exist
+                const firstRow = jsonData[0];
+                if (!firstRow.Word || !firstRow.Word_Rank) {
+                    uploadButton.textContent = originalText;
+                    uploadButton.disabled = false;
+                    showVocabularyStatus('数据格式错误: 必须包含 Word 和 Word_Rank 字段', false);
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/db/upload/vocabulary', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ data: jsonData })
+                    });
+
+                    const result = await response.json();
+                    console.log('Server response:', result);
+
+                    uploadButton.textContent = originalText;
+                    uploadButton.disabled = false;
+
+                    if (result.success) {
+                        showVocabularyStatus(`数据上传成功！共上传 ${jsonData.length} 条记录`, true);
+                    } else {
+                        const errorMessage = result.error || result.message || '未知错误';
+                        showVocabularyStatus(`上传失败：${errorMessage}`, false);
+                        console.error('Upload error details:', result);
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    uploadButton.textContent = originalText;
+                    uploadButton.disabled = false;
+                    showVocabularyStatus(`上传出错：${error.message || '服务器连接失败'}`, false);
+                }
+            };
+
+            reader.onerror = function() {
+                uploadButton.textContent = originalText;
+                uploadButton.disabled = false;
+                showVocabularyStatus('文件读取失败', false);
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        function showVocabularyStatus(message, isSuccess) {
+            const status = document.getElementById('vocabularyStatus');
+            status.innerHTML = `<p>${message}</p>`;
+            status.className = 'status ' + (isSuccess ? 'success' : 'error');
+        }
+
+        document.getElementById('queryVocabulary').addEventListener('click', async function() {
+            const resultContainer = document.getElementById('vocabularyQueryResult');
+            try {
+                const response = await fetch('/api/db/query/vocabulary');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const vocabularyHtml = data.data.map(vocab => `
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
+                            <h4>${vocab.Word} (Rank: ${vocab.Word_Rank})</h4>
+                            <p><strong>音标：</strong>英 [${vocab.UK_Phonetic}] 美 [${vocab.US_Phonetic}]</p>
+                            <p><strong>翻译：</strong>${vocab.Translations}</p>
+                            <p><strong>例句：</strong>${vocab.Example_Sentence || '无'}</p>
+                        </div>
+                    `).join('');
+                    
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>查询成功</h3>
+                            <div class="vocabulary-list">
+                                ${vocabularyHtml}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    throw new Error(data.error || '查询失败');
+                }
+            } catch (error) {
+                resultContainer.innerHTML = `
+                    <div class="error">
+                        <h3>查询失败</h3>
+                        <p>${error.message}</p>
+                        <p>详细信息: ${error}</p>
+                    </div>
+                `;
+                console.error('API Error:', error);
+            }
+        });
+
         function previewData(data) {
             const tableBody = document.getElementById('dataTableBody');
             tableBody.innerHTML = '';
@@ -881,6 +1141,26 @@
                 tableBody.appendChild(tr);
             });
         }
+
+        // Initialize forms
+        document.addEventListener('DOMContentLoaded', function() {
+            // Disable all upload buttons by default
+            document.getElementById('uploadVocabulary').disabled = true;
+            
+            // Set up change event for vocabulary file input
+            document.getElementById('vocabularyFile').addEventListener('change', function() {
+                // Reset status when file changes
+                document.getElementById('vocabularyStatus').innerHTML = '';
+                document.getElementById('vocabularyStatus').className = 'status';
+                
+                // Clear preview table
+                const tbody = document.getElementById('vocabularyPreview').getElementsByTagName('tbody')[0];
+                tbody.innerHTML = '';
+                
+                // Reset and disable upload button until preview
+                document.getElementById('uploadVocabulary').disabled = true;
+            });
+        });
     </script>
 </body>
 </html> 

@@ -23,7 +23,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote', "chinese_poem", "english_dialog", "world_history"]; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }

@@ -156,8 +156,8 @@ function initTestimonialsSlider() {
  * Initialize On-Scroll Animations
  */
 function initAnimations() {
-    const animatedElements = document.querySelectorAll('.animate-on-scroll');
-    
+        const animatedElements = document.querySelectorAll('.animate-on-scroll');
+        
     if (animatedElements.length) {
         const checkVisibility = function() {
             animatedElements.forEach(element => {
@@ -296,7 +296,7 @@ function initFirstVisitPrompt() {
             promptElement.classList.add('show');
             
             const closeButton = promptElement.querySelector('.close-prompt');
-            
+    
             if (closeButton) {
                 closeButton.addEventListener('click', function() {
                     promptElement.classList.remove('show');
@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             if (typeof openChatModal === 'function') {
                 openChatModal();
-            }
+                }
         });
     });
 });
