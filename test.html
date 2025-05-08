@@ -349,26 +349,37 @@
             document.getElementById('error').style.display = 'none';
             
             const deviceType = detectDeviceType();
+            let ttsSuccessful = false;
             
             try {
                 switch (deviceType) {
                     case 'ios':
-                        speakIOS(text);
+                        ttsSuccessful = speakIOS(text);
                         break;
                     case 'android':
-                        speakAndroid(text);
+                        ttsSuccessful = speakAndroid(text);
                         break;
                     case 'windows':
-                        speakWindows(text);
+                        ttsSuccessful = speakWindows(text);
                         break;
                     default:
-                        speakWeb(text);
+                        ttsSuccessful = speakWeb(text);
                         break;
+                }
+
+                // If no exception was thrown and ttsSuccessful is still false,
+                // it means we need to try a different approach
+                if (!ttsSuccessful) {
+                    // Try alternative TTS method as a last resort
+                    tryAlternativeTTS(text);
                 }
             } catch (error) {
                 console.error('TTS Error:', error);
                 document.getElementById('error').textContent = 'Error speaking text: ' + error.message;
                 document.getElementById('error').style.display = 'block';
+                
+                // Try alternative TTS as a fallback for all errors
+                tryAlternativeTTS(text);
             } finally {
                 // Hide status after a short delay
                 setTimeout(() => {
@@ -378,11 +389,66 @@
         }
 
         /**
+         * Alternative TTS using HTML5 Audio and third-party services
+         * This is a last resort when all other methods fail
+         */
+        function tryAlternativeTTS(text) {
+            try {
+                // Limit text length for API calls
+                const shortText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+                const encodedText = encodeURIComponent(shortText);
+                
+                // Default to English, but try to use browser language if available
+                const langCode = navigator.language || 'en-US';
+                const lang = langCode.split('-')[0] || 'en';
+                
+                // Try using Google Translate TTS (note: this has usage limitations)
+                const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`);
+                
+                // Add error handling for the audio
+                audio.onerror = function(e) {
+                    console.error('Audio playback error:', e);
+                    document.getElementById('error').textContent = 'Could not play audio. Please try a different browser.';
+                    document.getElementById('error').style.display = 'block';
+                };
+                
+                // Play the audio
+                audio.play().catch(e => {
+                    console.error('Audio play error:', e);
+                    // Don't show error since we already have an onerror handler
+                });
+                
+                return true;
+            } catch (e) {
+                console.error('Alternative TTS error:', e);
+                return false;
+            }
+        }
+
+        /**
          * Web Speech API for standard browsers
          */
         function speakWeb(text) {
             if (!('speechSynthesis' in window)) {
-                throw new Error('Your browser does not support Web Speech API');
+                // Instead of throwing an error, use a fallback approach
+                try {
+                    // Create a Google Translate TTS URL (as fallback)
+                    const langCode = navigator.language || 'en-US';
+                    const lang = langCode.split('-')[0] || 'en';
+                    const encodedText = encodeURIComponent(text);
+                    const audioSrc = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
+                    
+                    // Create an audio element
+                    const audio = new Audio(audioSrc);
+                    
+                    // Play the audio
+                    audio.play().catch(e => {
+                        throw new Error('Failed to play audio: ' + e.message);
+                    });
+                    return true;
+                } catch (e) {
+                    throw new Error('Your browser does not support text-to-speech features');
+                }
             }
             
             // Cancel any ongoing speech
@@ -430,6 +496,8 @@
             
             // For browsers that load voices synchronously
             setVoice();
+            
+            return true;
         }
 
         /**
@@ -442,10 +510,22 @@
             const isInStandaloneMode = window.navigator.standalone;
             
             // Use regular Web Speech API
-            speakWeb(text);
-            
-            // Additional iOS-specific logic can be added here
-            // For example, handling PWA specific behaviors
+            try {
+                return speakWeb(text);
+            } catch (e) {
+                // iOS-specific fallback - try using HTML5 Audio
+                try {
+                    const encodedText = encodeURIComponent(text);
+                    const langCode = navigator.language || 'en-US';
+                    const lang = langCode.split('-')[0] || 'en';
+                    const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`);
+                    audio.play();
+                    return true;
+                } catch (audioError) {
+                    console.error('iOS Audio fallback error:', audioError);
+                    return false;
+                }
+            }
         }
 
         /**
@@ -456,10 +536,47 @@
             // Check if we're in an Android WebView with TTS bridge available
             if (window.Android && window.Android.textToSpeech) {
                 // Use native Android TTS via JavaScript bridge
-                window.Android.textToSpeech(text);
-            } else {
-                // Fallback to Web Speech API
-                speakWeb(text);
+                try {
+                    window.Android.textToSpeech(text);
+                    return true;
+                } catch (e) {
+                    console.error('Native Android TTS error:', e);
+                    // If native method fails, continue to fallbacks
+                }
+            }
+            
+            // Check if Web Speech API is available
+            if ('speechSynthesis' in window) {
+                try {
+                    // Fallback to Web Speech API
+                    return speakWeb(text);
+                } catch (e) {
+                    console.error('Web Speech API fallback error on Android:', e);
+                    // Continue to next fallback
+                }
+            }
+            
+            // If Web Speech API is not available, try using HTML5 Audio
+            try {
+                // Create a Google Translate TTS URL (as fallback)
+                const langCode = navigator.language || 'en-US';
+                const lang = langCode.split('-')[0] || 'en';
+                const encodedText = encodeURIComponent(text);
+                const audioSrc = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
+                
+                // Create an audio element
+                const audio = new Audio(audioSrc);
+                
+                // Play the audio
+                audio.play().catch(e => {
+                    console.error('Audio play error on Android:', e);
+                    return false;
+                });
+                
+                return true;
+            } catch (e) {
+                console.error('Android fallback TTS error:', e);
+                return false;
             }
         }
 
@@ -474,13 +591,31 @@
                 // Format: "tts:text to speak"
                 try {
                     window.external.notify('tts:' + text);
+                    return true;
                 } catch (e) {
-                    // Fallback to Web Speech API
-                    speakWeb(text);
+                    console.error('Native Windows TTS error:', e);
+                    // Continue to fallbacks
                 }
-            } else {
-                // Fallback to Web Speech API
-                speakWeb(text);
+            }
+            
+            // Try standard Web Speech API
+            try {
+                return speakWeb(text);
+            } catch (e) {
+                console.error('Web Speech API fallback error on Windows:', e);
+                // Continue to HTML5 Audio fallback
+                
+                try {
+                    const encodedText = encodeURIComponent(text);
+                    const langCode = navigator.language || 'en-US';
+                    const lang = langCode.split('-')[0] || 'en';
+                    const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`);
+                    audio.play();
+                    return true;
+                } catch (audioError) {
+                    console.error('Windows Audio fallback error:', audioError);
+                    return false;
+                }
             }
         }
     </script>
