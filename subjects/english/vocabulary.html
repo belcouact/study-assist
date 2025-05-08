@@ -1845,6 +1845,68 @@
         .vocabulary-card:hover .word::after {
             width: 100%;
         }
+        
+        @keyframes resetPulse {
+            0% { box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(67, 97, 238, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(67, 97, 238, 0); }
+        }
+        
+        .filters-reset {
+            animation: resetPulse 0.5s ease-out;
+        }
+        
+        /* Responsive Adjustments for Filter Section */
+        @media (max-width: 768px) {
+            .filter-section {
+                padding: 1.5rem;
+            }
+            
+            .letter-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 0.9rem;
+                border-radius: 10px;
+            }
+            
+            .alphabet-filter {
+                padding: 1rem;
+                gap: 0.4rem;
+            }
+            
+            .btn-primary, .btn-outline {
+                padding: 0.75rem 1.5rem;
+                font-size: 0.95rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .filter-section {
+                padding: 1.25rem 1rem;
+            }
+            
+            .letter-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.85rem;
+                border-radius: 8px;
+            }
+            
+            .alphabet-filter {
+                padding: 0.75rem;
+                gap: 0.3rem;
+            }
+            
+            .filter-buttons {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            
+            .btn-primary, .btn-outline {
+                width: 100%;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1933,10 +1995,7 @@
                         <button class="letter-btn" data-letter="Z">Z</button>
                     </div>
                     
-                    <div class="filter-buttons">
-                        <button id="apply-filters" class="btn btn-primary">应用筛选</button>
-                        <button id="reset-filters" class="btn btn-outline">重置筛选</button>
-                    </div>
+                    <!-- 移除了过滤和重置按钮 -->
                 </div>
                 
                 <!-- 统计部分 -->
@@ -2226,11 +2285,13 @@
                     letterButtons.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentLetter = btn.dataset.letter;
+                    applyFilters(); // 立即应用筛选
                 });
             });
-
-            applyFiltersBtn.addEventListener('click', applyFilters);
-            resetFiltersBtn.addEventListener('click', resetFilters);
+            
+            // Remove these lines since we removed the buttons
+            // applyFiltersBtn.addEventListener('click', applyFilters);
+            // resetFiltersBtn.addEventListener('click', resetFilters);
             
             // View toggles
             cardViewBtn.addEventListener('click', () => setView('cards'));
@@ -2271,17 +2332,65 @@
                 }
             }, 300));
             
-            // Resort on change
+            // Add a clear search button inside the search input
+            const searchParent = searchInput.parentElement;
+            const clearSearchBtn = document.createElement('button');
+            clearSearchBtn.type = 'button';
+            clearSearchBtn.className = 'search-clear-btn';
+            clearSearchBtn.innerHTML = '<i class="fas fa-times"></i>';
+            clearSearchBtn.style.position = 'absolute';
+            clearSearchBtn.style.right = '10px';
+            clearSearchBtn.style.top = '50%';
+            clearSearchBtn.style.transform = 'translateY(-50%)';
+            clearSearchBtn.style.border = 'none';
+            clearSearchBtn.style.background = 'transparent';
+            clearSearchBtn.style.cursor = 'pointer';
+            clearSearchBtn.style.color = '#718096';
+            clearSearchBtn.style.display = 'none';
+            clearSearchBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                clearSearchBtn.style.display = 'none';
+                applyFilters();
+            });
+            
+            searchInput.addEventListener('input', () => {
+                clearSearchBtn.style.display = searchInput.value ? 'block' : 'none';
+            });
+            
+            // Make sure parent has position relative for absolute positioning of the clear button
+            searchParent.style.position = 'relative';
+            searchParent.appendChild(clearSearchBtn);
+            
+            // Resort on change - apply immediately
             sortBy.addEventListener('change', () => {
                 currentSort = sortBy.value;
                 applyFilters();
             });
             
-            // Grade filter change
+            // Grade filter change - apply immediately
             gradeFilter.addEventListener('change', () => {
                 currentGrade = gradeFilter.value;
                 applyFilters();
             });
+            
+            // Add a reset all filters button to the top of the filter section
+            const filterSection = document.querySelector('.filter-section');
+            const resetAllBtn = document.createElement('button');
+            resetAllBtn.type = 'button';
+            resetAllBtn.className = 'reset-all-btn';
+            resetAllBtn.innerHTML = '<i class="fas fa-redo"></i> 重置全部筛选';
+            resetAllBtn.style.position = 'absolute';
+            resetAllBtn.style.right = '1.75rem';
+            resetAllBtn.style.top = '1.75rem';
+            resetAllBtn.style.border = 'none';
+            resetAllBtn.style.background = 'transparent';
+            resetAllBtn.style.cursor = 'pointer';
+            resetAllBtn.style.color = '#718096';
+            resetAllBtn.style.fontSize = '0.9rem';
+            resetAllBtn.addEventListener('click', resetFilters);
+            
+            filterSection.style.position = 'relative';
+            filterSection.insertBefore(resetAllBtn, filterSection.firstChild);
         }
 
         // Apply filters to vocabulary data
@@ -2339,7 +2448,23 @@
             currentGrade = 'all';
             currentSort = 'rank';
             
+            // Hide clear search button if it exists
+            const clearSearchBtn = document.querySelector('.search-clear-btn');
+            if (clearSearchBtn) {
+                clearSearchBtn.style.display = 'none';
+            }
+            
+            // Apply filters immediately after reset
             applyFilters();
+            
+            // Add a visual feedback that filters were reset
+            const filterSection = document.querySelector('.filter-section');
+            filterSection.classList.add('filters-reset');
+            
+            // Remove the class after animation completes
+            setTimeout(() => {
+                filterSection.classList.remove('filters-reset');
+            }, 500);
         }
 
         // Update stats display
