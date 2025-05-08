@@ -177,6 +177,23 @@
                 margin: 15% auto;
             }
         }
+
+        /* TTS button styles */
+        .tts-button {
+            background-color: #3498db;
+            margin-right: 10px;
+        }
+        
+        .tts-button:hover {
+            background-color: #2980b9;
+        }
+        
+        /* Add a loading state for TTS */
+        .tts-loading {
+            display: inline-block;
+            margin-left: 10px;
+            color: #3498db;
+        }
     </style>
 </head>
 <body>
@@ -189,8 +206,10 @@
             <div class="input-section">
                 <textarea id="promptInput" placeholder="Enter your prompt here..."></textarea>
                 <div class="button-group">
+                    <button id="ttsBtn" class="tts-button" onclick="speakText()">Speak Text</button>
                     <button id="submitBtn" onclick="handleSubmit()">Generate Text</button>
                 </div>
+                <div id="ttsStatus" class="tts-loading" style="display: none;">Processing speech...</div>
             </div>
             <div id="loading" class="loading" style="display: none;">
                 <div class="spinner"></div>
@@ -283,6 +302,185 @@
             const modal = document.getElementById('popupModal');
             if (event.target === modal) {
                 modal.style.display = 'none';
+            }
+        }
+
+        /**
+         * Device detection and Text-to-Speech functionality
+         */
+        function detectDeviceType() {
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            
+            // iOS detection
+            if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+                return 'ios';
+            }
+            
+            // Android detection
+            if (/android/i.test(userAgent)) {
+                return 'android';
+            }
+            
+            // Windows detection
+            if (/windows phone|windows/i.test(userAgent)) {
+                return 'windows';
+            }
+            
+            // Default to web
+            return 'web';
+        }
+
+        /**
+         * Main function to speak text aloud
+         */
+        function speakText() {
+            const text = document.getElementById('promptInput').value.trim();
+            if (!text) {
+                const errorElement = document.getElementById('error');
+                errorElement.textContent = 'Please enter text to speak.';
+                errorElement.style.display = 'block';
+                return;
+            }
+
+            const ttsStatus = document.getElementById('ttsStatus');
+            ttsStatus.style.display = 'inline-block';
+            
+            // Clear previous errors
+            document.getElementById('error').style.display = 'none';
+            
+            const deviceType = detectDeviceType();
+            
+            try {
+                switch (deviceType) {
+                    case 'ios':
+                        speakIOS(text);
+                        break;
+                    case 'android':
+                        speakAndroid(text);
+                        break;
+                    case 'windows':
+                        speakWindows(text);
+                        break;
+                    default:
+                        speakWeb(text);
+                        break;
+                }
+            } catch (error) {
+                console.error('TTS Error:', error);
+                document.getElementById('error').textContent = 'Error speaking text: ' + error.message;
+                document.getElementById('error').style.display = 'block';
+            } finally {
+                // Hide status after a short delay
+                setTimeout(() => {
+                    ttsStatus.style.display = 'none';
+                }, 2000);
+            }
+        }
+
+        /**
+         * Web Speech API for standard browsers
+         */
+        function speakWeb(text) {
+            if (!('speechSynthesis' in window)) {
+                throw new Error('Your browser does not support Web Speech API');
+            }
+            
+            // Cancel any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Default language
+            utterance.lang = 'en-US';
+            
+            // Get browser language if available
+            if (navigator.language) {
+                utterance.lang = navigator.language;
+            }
+            
+            // Optional: Adjust voice settings
+            utterance.rate = 1.0; // Speed - normal
+            utterance.pitch = 1.0; // Pitch - normal
+            utterance.volume = 1.0; // Volume - max
+            
+            // Optional: Get available voices and select one
+            // Browsers handle this differently, so fallback is implemented
+            let voices = [];
+            
+            function setVoice() {
+                voices = window.speechSynthesis.getVoices();
+                
+                if (voices.length > 0) {
+                    // Try to find a voice that matches browser language
+                    const preferredVoice = voices.find(voice => voice.lang === utterance.lang);
+                    
+                    if (preferredVoice) {
+                        utterance.voice = preferredVoice;
+                    }
+                }
+                
+                // Speak the text
+                window.speechSynthesis.speak(utterance);
+            }
+            
+            // Chrome needs this event, other browsers may not
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = setVoice;
+            }
+            
+            // For browsers that load voices synchronously
+            setVoice();
+        }
+
+        /**
+         * iOS-specific TTS handling
+         * This uses the Web Speech API but with iOS-specific considerations
+         */
+        function speakIOS(text) {
+            // iOS Safari supports Web Speech API but with limitations
+            // Check if running in standalone mode (PWA)
+            const isInStandaloneMode = window.navigator.standalone;
+            
+            // Use regular Web Speech API
+            speakWeb(text);
+            
+            // Additional iOS-specific logic can be added here
+            // For example, handling PWA specific behaviors
+        }
+
+        /**
+         * Android-specific TTS handling
+         * This attempts to use Android TTS via JavaScript bridge if available
+         */
+        function speakAndroid(text) {
+            // Check if we're in an Android WebView with TTS bridge available
+            if (window.Android && window.Android.textToSpeech) {
+                // Use native Android TTS via JavaScript bridge
+                window.Android.textToSpeech(text);
+            } else {
+                // Fallback to Web Speech API
+                speakWeb(text);
+            }
+        }
+
+        /**
+         * Windows-specific TTS handling
+         * This attempts to use Windows TTS via JavaScript bridge if available
+         */
+        function speakWindows(text) {
+            // Check if we're in a Windows WebView with TTS bridge available
+            if (window.external && typeof window.external.notify === 'function') {
+                // Use UWP bridge for text-to-speech
+                // Format: "tts:text to speak"
+                try {
+                    window.external.notify('tts:' + text);
+                } catch (e) {
+                    // Fallback to Web Speech API
+                    speakWeb(text);
+                }
+            } else {
+                // Fallback to Web Speech API
+                speakWeb(text);
             }
         }
     </script>
