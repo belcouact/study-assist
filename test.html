@@ -316,9 +316,20 @@
                 return 'ios';
             }
             
-            // Android detection
+            // Android detection with browser specifics
             if (/android/i.test(userAgent)) {
-                return 'android';
+                // Check for specific Android browsers
+                if (/ Edg\//i.test(userAgent)) {
+                    return 'android-edge';
+                } else if (/chrome/i.test(userAgent)) {
+                    return 'android-chrome';
+                } else if (/firefox/i.test(userAgent)) {
+                    return 'android-firefox';
+                } else if (/samsung/i.test(userAgent)) {
+                    return 'android-samsung';
+                } else {
+                    return 'android-webview';
+                }
             }
             
             // Windows detection
@@ -356,8 +367,16 @@
                     case 'ios':
                         ttsSuccessful = speakIOS(text);
                         break;
-                    case 'android':
-                        ttsSuccessful = speakAndroid(text);
+                    case 'android-edge':
+                    case 'android-chrome':
+                    case 'android-firefox':
+                        // Modern Android browsers - try Web Speech first
+                        ttsSuccessful = speakWeb(text);
+                        break;
+                    case 'android-samsung':
+                    case 'android-webview':
+                        // Samsung browser or generic Android WebView - try direct audio first
+                        ttsSuccessful = speakAndroidNative(text);
                         break;
                     case 'windows':
                         ttsSuccessful = speakWindows(text);
@@ -402,25 +421,101 @@
                 const langCode = navigator.language || 'en-US';
                 const lang = langCode.split('-')[0] || 'en';
                 
-                // Try using Google Translate TTS (note: this has usage limitations)
-                const audio = new Audio(`https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`);
+                // Create an audio element programmatically
+                const audioElement = document.createElement('audio');
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
                 
-                // Add error handling for the audio
-                audio.onerror = function(e) {
+                // Set up source - try Google Translate TTS
+                audioElement.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
+                audioElement.type = 'audio/mpeg';
+                
+                // Set up event handlers
+                audioElement.onerror = function(e) {
                     console.error('Audio playback error:', e);
                     document.getElementById('error').textContent = 'Could not play audio. Please try a different browser.';
                     document.getElementById('error').style.display = 'block';
+                    document.body.removeChild(audioElement);
                 };
                 
-                // Play the audio
-                audio.play().catch(e => {
-                    console.error('Audio play error:', e);
-                    // Don't show error since we already have an onerror handler
-                });
+                audioElement.onended = function() {
+                    document.body.removeChild(audioElement);
+                };
+                
+                // Force autoplay
+                audioElement.autoplay = true;
+                audioElement.muted = false;
+                audioElement.volume = 1.0;
+                
+                // Try to play - this may trigger Autoplay Policy issues on some browsers
+                const playPromise = audioElement.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.catch(function(e) {
+                        console.error('Audio play error:', e);
+                        // Try a user-interaction-based approach (can work in Samsung browser)
+                        document.getElementById('error').textContent = 'Touch the screen to enable audio on this device.';
+                        document.getElementById('error').style.display = 'block';
+                        
+                        // Set up a one-time touch event handler to play audio
+                        const handleTouchToPlay = function() {
+                            audioElement.play().catch(function(e2) {
+                                console.error('Touch-triggered audio play error:', e2);
+                            });
+                            document.removeEventListener('touchstart', handleTouchToPlay);
+                        };
+                        
+                        document.addEventListener('touchstart', handleTouchToPlay);
+                        
+                        // Clean up if not played after 10 seconds
+                        setTimeout(function() {
+                            document.removeEventListener('touchstart', handleTouchToPlay);
+                            if (document.body.contains(audioElement)) {
+                                document.body.removeChild(audioElement);
+                            }
+                        }, 10000);
+                    });
+                }
                 
                 return true;
             } catch (e) {
                 console.error('Alternative TTS error:', e);
+                return false;
+            }
+        }
+        
+        /**
+         * Specialized function for native Android browsers
+         * These often have limitations with Web Speech API
+         */
+        function speakAndroidNative(text) {
+            // Try native Android TTS bridge first
+            if (window.Android && window.Android.textToSpeech) {
+                try {
+                    window.Android.textToSpeech(text);
+                    return true;
+                } catch (e) {
+                    console.error('Native Android TTS error:', e);
+                }
+            }
+            
+            // For native Android browser, skip Web Speech API and go directly to audio
+            try {
+                const shortText = text.length > 100 ? text.substring(0, 100) + '...' : text;
+                const encodedText = encodeURIComponent(shortText);
+                const langCode = navigator.language || 'en-US';
+                const lang = langCode.split('-')[0] || 'en';
+                
+                // Use direct audio element for better compatibility
+                const audio = new Audio();
+                audio.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
+                
+                // This direct play approach works better in some Android browsers
+                audio.play();
+                
+                return true;
+            } catch (e) {
+                console.error('Android native audio error:', e);
                 return false;
             }
         }
@@ -525,58 +620,6 @@
                     console.error('iOS Audio fallback error:', audioError);
                     return false;
                 }
-            }
-        }
-
-        /**
-         * Android-specific TTS handling
-         * This attempts to use Android TTS via JavaScript bridge if available
-         */
-        function speakAndroid(text) {
-            // Check if we're in an Android WebView with TTS bridge available
-            if (window.Android && window.Android.textToSpeech) {
-                // Use native Android TTS via JavaScript bridge
-                try {
-                    window.Android.textToSpeech(text);
-                    return true;
-                } catch (e) {
-                    console.error('Native Android TTS error:', e);
-                    // If native method fails, continue to fallbacks
-                }
-            }
-            
-            // Check if Web Speech API is available
-            if ('speechSynthesis' in window) {
-                try {
-                    // Fallback to Web Speech API
-                    return speakWeb(text);
-                } catch (e) {
-                    console.error('Web Speech API fallback error on Android:', e);
-                    // Continue to next fallback
-                }
-            }
-            
-            // If Web Speech API is not available, try using HTML5 Audio
-            try {
-                // Create a Google Translate TTS URL (as fallback)
-                const langCode = navigator.language || 'en-US';
-                const lang = langCode.split('-')[0] || 'en';
-                const encodedText = encodeURIComponent(text);
-                const audioSrc = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
-                
-                // Create an audio element
-                const audio = new Audio(audioSrc);
-                
-                // Play the audio
-                audio.play().catch(e => {
-                    console.error('Audio play error on Android:', e);
-                    return false;
-                });
-                
-                return true;
-            } catch (e) {
-                console.error('Android fallback TTS error:', e);
-                return false;
             }
         }
 
