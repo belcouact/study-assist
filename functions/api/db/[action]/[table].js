@@ -140,6 +140,33 @@ export async function onRequest(context) {
                                 row.Dynasty || null
                             );
                         }));
+                    } else if (table === 'vocabulary') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO vocabulary (
+                                    Word_Rank, Word, Word_ID, US_Pronunciation, UK_Pronunciation, 
+                                    US_Speech, UK_Speech, Translations, Synonyms, Example_Sentences, 
+                                    Remark_1, Remark_2, Remark_3, Remark_4, Remark_5
+                                )
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                row.Word_Rank || null,
+                                row.Word || null,
+                                row.Word_ID || null,
+                                row.US_Pronunciation || null,
+                                row.UK_Pronunciation || null,
+                                row.US_Speech || null,
+                                row.UK_Speech || null,
+                                row.Translations || null,
+                                row.Synonyms || null,
+                                row.Example_Sentences || null,
+                                row.Remark_1 || null,
+                                row.Remark_2 || null,
+                                row.Remark_3 || null,
+                                row.Remark_4 || null,
+                                row.Remark_5 || null
+                            );
+                        }));
                     }
 
                     insertedCount = data.length;
