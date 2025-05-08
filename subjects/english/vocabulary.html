@@ -1070,6 +1070,126 @@
                 opacity: 0;
             }
         }
+        
+        /* Content Item Styles */
+        .content-item {
+            margin-bottom: 0.8rem;
+            line-height: 1.5;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        
+        .content-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .content-item:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+        }
+        
+        .vocabulary-card-back h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.6rem;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid rgba(67, 97, 238, 0.2);
+        }
+        
+        .vocabulary-card-back h3:first-child {
+            margin-top: 0;
+        }
+        
+        .synonyms, .examples, .phrases, .related-words {
+            margin-bottom: 1rem;
+            color: var(--medium-text);
+            font-size: 0.95rem;
+        }
+        
+        /* Scrollbar styling for card back */
+        .vocabulary-card-back::-webkit-scrollbar {
+            width: 5px;
+        }
+        
+        .vocabulary-card-back::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 10px;
+        }
+        
+        .vocabulary-card-back::-webkit-scrollbar-thumb {
+            background: rgba(67, 97, 238, 0.3);
+            border-radius: 10px;
+        }
+        
+        .vocabulary-card-back::-webkit-scrollbar-thumb:hover {
+            background: rgba(67, 97, 238, 0.5);
+        }
+        
+        /* Update flashcard content styling to match */
+        .flashcard-back .content-item {
+            margin-bottom: 0.8rem;
+            line-height: 1.5;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+        
+        .flashcard-back .content-item:before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+        }
+        
+        .flashcard-back h3 {
+            margin-top: 1rem;
+            margin-bottom: 0.6rem;
+            color: var(--primary-color);
+            font-size: 1.2rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid rgba(67, 97, 238, 0.2);
+        }
+        
+        .flashcard-back h3:first-child {
+            margin-top: 0;
+        }
+        
+        /* Responsive adjustments for content items */
+        @media (max-width: 768px) {
+            .content-item {
+                padding-left: 1.2rem;
+                font-size: 0.9rem;
+            }
+            
+            .vocabulary-card-back h3,
+            .flashcard-back h3 {
+                font-size: 1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .content-item {
+                padding-left: 1rem;
+                font-size: 0.85rem;
+                margin-bottom: 0.6rem;
+            }
+            
+            .content-item:before {
+                width: 5px;
+                height: 5px;
+                top: 0.45rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1618,6 +1738,32 @@
             updatePagination();
         }
 
+        // 在JavaScript部分添加格式化函数
+        // Format text content with line breaks
+        function formatTextWithLineBreaks(text) {
+            if (!text) return 'N/A';
+            
+            // Split by empty lines (two or more consecutive line breaks)
+            const lines = text.split(/\n\s*\n|\r\n\s*\r\n|\r\s*\r/);
+            
+            // Filter out empty lines and trim each line
+            const filteredLines = lines
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+            
+            // If after filtering we have no content, return N/A
+            if (filteredLines.length === 0) return 'N/A';
+            
+            // Join with HTML line breaks and format as a list when multiple items exist
+            if (filteredLines.length > 1) {
+                return filteredLines
+                    .map((line, index) => `<div class="content-item">${index + 1}. ${line}</div>`)
+                    .join('');
+            } else {
+                return filteredLines[0];
+            }
+        }
+
         // Render vocabulary cards
         function renderCards() {
             const gridContainer = document.querySelector('.vocabulary-grid');
@@ -1645,6 +1791,12 @@
                     } else if (reviewWords.includes(word.Word_ID)) {
                         status = 'review';
                     }
+                    
+                    // Format text content for better readability
+                    const formattedSynonyms = formatTextWithLineBreaks(word.Synonyms);
+                    const formattedExamples = formatTextWithLineBreaks(word.Example_Sentences);
+                    const formattedPhrases = word.Phrases ? formatTextWithLineBreaks(word.Phrases) : '';
+                    const formattedRelatedWords = word.Related_Words ? formatTextWithLineBreaks(word.Related_Words) : '';
                     
                     html += `
                         <div class="vocabulary-card ${status}" data-id="${word.Word_ID}">
@@ -1674,9 +1826,11 @@
                                 </div>
                                 <div class="vocabulary-card-back">
                                     <h3>同义词</h3>
-                                    <div class="synonyms">${word.Synonyms || 'No synonyms available'}</div>
+                                    <div class="synonyms">${formattedSynonyms}</div>
+                                    ${word.Phrases ? `<h3>常用词组</h3><div class="phrases">${formattedPhrases}</div>` : ''}
+                                    ${word.Related_Words ? `<h3>相关词汇</h3><div class="related-words">${formattedRelatedWords}</div>` : ''}
                                     <h3>例句</h3>
-                                    <div class="examples">${word.Example_Sentences || 'No examples available'}</div>
+                                    <div class="examples">${formattedExamples}</div>
                                 </div>
                             </div>
                             <div class="card-controls">
@@ -1867,9 +2021,53 @@
             
             document.querySelector('.flashcard .translations').textContent = word.Translations || 'No translation available';
             
-            // Update back side
-            document.querySelector('.flashcard .synonyms').textContent = word.Synonyms || 'No synonyms available';
-            document.querySelector('.flashcard .examples').textContent = word.Example_Sentences || 'No examples available';
+            // Format text content for better readability
+            const formattedSynonyms = formatTextWithLineBreaks(word.Synonyms);
+            const formattedExamples = formatTextWithLineBreaks(word.Example_Sentences);
+            const formattedPhrases = word.Phrases ? formatTextWithLineBreaks(word.Phrases) : '';
+            const formattedRelatedWords = word.Related_Words ? formatTextWithLineBreaks(word.Related_Words) : '';
+            
+            // Update back side with formatted content
+            document.querySelector('.flashcard .synonyms').innerHTML = formattedSynonyms;
+            document.querySelector('.flashcard .examples').innerHTML = formattedExamples;
+            
+            // Check if phrases and related words containers exist, if not, create them
+            let phrasesContainer = document.querySelector('.flashcard .phrases');
+            let relatedWordsContainer = document.querySelector('.flashcard .related-words');
+            
+            // Handle phrases section
+            if (word.Phrases) {
+                if (!phrasesContainer) {
+                    const phrasesSection = document.createElement('div');
+                    phrasesSection.innerHTML = `<h3>常用词组</h3><div class="phrases">${formattedPhrases}</div>`;
+                    
+                    // Insert after synonyms
+                    const synonymsEl = document.querySelector('.flashcard .synonyms');
+                    synonymsEl.parentNode.insertBefore(phrasesSection, synonymsEl.nextSibling);
+                } else {
+                    phrasesContainer.innerHTML = formattedPhrases;
+                }
+            } else if (phrasesContainer) {
+                // Remove phrases section if it exists but word has no phrases
+                phrasesContainer.parentElement.remove();
+            }
+            
+            // Handle related words section
+            if (word.Related_Words) {
+                if (!relatedWordsContainer) {
+                    const relatedWordsSection = document.createElement('div');
+                    relatedWordsSection.innerHTML = `<h3>相关词汇</h3><div class="related-words">${formattedRelatedWords}</div>`;
+                    
+                    // Insert before examples
+                    const examplesHeader = document.querySelector('.flashcard-back h3:last-of-type');
+                    examplesHeader.parentNode.insertBefore(relatedWordsSection, examplesHeader);
+                } else {
+                    relatedWordsContainer.innerHTML = formattedRelatedWords;
+                }
+            } else if (relatedWordsContainer) {
+                // Remove related words section if it exists but word has no related words
+                relatedWordsContainer.parentElement.remove();
+            }
             
             // Update audio buttons
             const usAudioBtn = document.querySelector('.flashcard .us-pronunciation .audio-btn');
@@ -1900,6 +2098,12 @@
 
         // Show word detail popup
         function showWordDetail(word) {
+            // Format text content for better readability
+            const formattedSynonyms = formatTextWithLineBreaks(word.Synonyms);
+            const formattedExamples = formatTextWithLineBreaks(word.Example_Sentences);
+            const formattedPhrases = word.Phrases ? formatTextWithLineBreaks(word.Phrases) : '';
+            const formattedRelatedWords = word.Related_Words ? formatTextWithLineBreaks(word.Related_Words) : '';
+            
             // Create modal to show word details
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -1932,11 +2136,21 @@
                             </div>
                             <div class="word-section">
                                 <h3>同义词</h3>
-                                <p>${word.Synonyms || 'No synonyms available'}</p>
+                                <div class="formatted-content">${formattedSynonyms}</div>
                             </div>
+                            ${word.Phrases ? `
+                            <div class="word-section">
+                                <h3>常用词组</h3>
+                                <div class="formatted-content">${formattedPhrases}</div>
+                            </div>` : ''}
+                            ${word.Related_Words ? `
+                            <div class="word-section">
+                                <h3>相关词汇</h3>
+                                <div class="formatted-content">${formattedRelatedWords}</div>
+                            </div>` : ''}
                             <div class="word-section">
                                 <h3>例句</h3>
-                                <p>${word.Example_Sentences || 'No examples available'}</p>
+                                <div class="formatted-content">${formattedExamples}</div>
                             </div>
                         </div>
                     </div>
@@ -2017,8 +2231,10 @@
                 .word-section h3 {
                     margin-top: 0;
                     margin-bottom: 0.75rem;
-                    color: #4361ee;
+                    color: var(--primary-color);
                     font-size: 1.25rem;
+                    padding-bottom: 0.3rem;
+                    border-bottom: 1px solid rgba(67, 97, 238, 0.2);
                 }
                 
                 .modal-footer {
@@ -2029,9 +2245,32 @@
                     border-top: 1px solid #e2e8f0;
                 }
                 
+                .formatted-content .content-item {
+                    margin-bottom: 0.8rem;
+                    line-height: 1.5;
+                    position: relative;
+                    padding-left: 1.5rem;
+                }
+                
+                .formatted-content .content-item:before {
+                    content: '';
+                    position: absolute;
+                    left: 0;
+                    top: 0.5rem;
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background: linear-gradient(90deg, #4361ee, #7209b7);
+                }
+                
                 @media (max-width: 768px) {
                     .modal-footer {
                         flex-direction: column;
+                    }
+                    
+                    .formatted-content .content-item {
+                        padding-left: 1.2rem;
+                        font-size: 0.9rem;
                     }
                 }
             `;
