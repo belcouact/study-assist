@@ -177,6 +177,19 @@
             transform: rotateY(180deg);
         }
         
+        /* Word status styles */
+        .vocabulary-card.mastered .vocabulary-card-inner {
+            border-left: 4px solid #48bb78; /* Green for mastered */
+        }
+        
+        .vocabulary-card.review .vocabulary-card-inner {
+            border-left: 4px solid #ed8936; /* Orange for review */
+        }
+        
+        .vocabulary-card.difficult .vocabulary-card-inner {
+            border-left: 4px solid #e53e3e; /* Red for difficult */
+        }
+        
         .vocabulary-card-front, .vocabulary-card-back {
             position: absolute;
             width: 100%;
@@ -636,10 +649,7 @@
                             <label for="grade-filter">年级水平</label>
                             <select id="grade-filter" class="form-select">
                                 <option value="all">全部年级</option>
-                                <option value="elementary">小学</option>
-                                <option value="junior">初中</option>
-                                <option value="senior">高中</option>
-                                <option value="college">大学</option>
+                                <!-- Grade levels will be populated dynamically from Remark_1 column -->
                             </select>
                         </div>
                         <div class="filter-control">
@@ -652,7 +662,7 @@
                         </div>
                         <div class="filter-control">
                             <label for="search-vocab">搜索词汇</label>
-                            <input type="text" id="search-vocab" placeholder="输入单词或翻译..." class="form-input">
+                            <input type="text" id="search-vocab" placeholder="输入单词关键字..." class="form-input">
                         </div>
                     </div>
                     
@@ -924,6 +934,10 @@
                 if (data.success) {
                     vocabularyData = data.data;
                     updateStatistics();
+                    
+                    // Populate grade levels from Remark_1 column
+                    populateGradeLevels();
+                    
                     return true;
                 } else {
                     throw new Error(data.error || 'Failed to fetch vocabulary data');
@@ -939,6 +953,32 @@
                 document.getElementById('retry-load')?.addEventListener('click', fetchVocabularyData);
                 return false;
             }
+        }
+        
+        // Populate grade levels dropdown from Remark_1 column
+        function populateGradeLevels() {
+            // Extract unique grade levels from Remark_1 column
+            const gradeLevels = new Set();
+            vocabularyData.forEach(word => {
+                if (word.Remark_1) {
+                    gradeLevels.add(word.Remark_1);
+                }
+            });
+            
+            // Clear existing options except "all"
+            const gradeFilterEl = document.getElementById('grade-filter');
+            while (gradeFilterEl.options.length > 1) {
+                gradeFilterEl.options.remove(1);
+            }
+            
+            // Add new options from data
+            const gradesArray = Array.from(gradeLevels).sort();
+            gradesArray.forEach(grade => {
+                const option = document.createElement('option');
+                option.value = grade;
+                option.textContent = grade;
+                gradeFilterEl.appendChild(option);
+            });
         }
 
         // Set up event listeners
@@ -1030,8 +1070,8 @@
                 
                 // Filter by search term
                 if (searchTerm) {
-                    return word.Word.toLowerCase().includes(searchTerm) || 
-                           (word.Translations && word.Translations.toLowerCase().includes(searchTerm));
+                    // Match against Word column first, then fallback to Translations if needed
+                    return word.Word.toLowerCase().includes(searchTerm);
                 }
                 
                 return true;
