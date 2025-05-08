@@ -105,17 +105,51 @@
             background-color: #f8d7da;
             color: #721c24;
         }
-        
+
+        /* Loader styles */
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #3498db;
+            margin: 0 auto;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            margin-left: 10px;
+        }
+
+        .btn.loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: calc(50% - 8px);
+            left: calc(50% - 8px);
+            border: 2px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 2px solid currentColor;
+            animation: spin 1s linear infinite;
+        }
+
         /* Responsive styles for mobile devices */
         @media (max-width: 768px) {
-            .test-container {
-                padding: 10px;
-                margin: 20px auto;
-            }
-            
             .upload-section {
                 padding: 1rem;
-                margin: 1rem auto;
+                margin: 1rem;
             }
             
             .button-group {
@@ -123,22 +157,69 @@
                 gap: 0.5rem;
             }
             
-            .preview-table {
-                font-size: 14px;
-            }
-            
-            .preview-table th, .preview-table td {
-                padding: 4px;
-            }
-            
-            /* Horizontal scrolling for tables on mobile */
             .preview-container {
                 overflow-x: auto;
             }
             
-            .vocabulary-list div {
-                padding: 8px;
-                margin-bottom: 8px;
+            .preview-table {
+                min-width: 800px; /* Ensure horizontal scrolling on small screens */
+            }
+            
+            .file-input {
+                width: 100%;
+            }
+
+            /* Make buttons easier to tap on mobile */
+            .btn {
+                padding: 12px;
+                margin: 5px 0;
+                min-height: 48px;
+                width: 100%;
+            }
+            
+            /* Touch-friendly scrollable tables */
+            .preview-container {
+                -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS devices */
+            }
+            
+            /* Specific styling for vocabulary table on mobile */
+            #vocabularyPreview {
+                font-size: 14px;
+            }
+            
+            #vocabularyPreview th, 
+            #vocabularyPreview td {
+                padding: 8px 6px;
+                white-space: nowrap; /* Prevent text wrapping */
+            }
+            
+            /* Highlight primary columns on mobile for better visibility */
+            #vocabularyPreview td:nth-child(1), /* Word_Rank */
+            #vocabularyPreview td:nth-child(2), /* Word */
+            #vocabularyPreview th:nth-child(1),
+            #vocabularyPreview th:nth-child(2) {
+                position: sticky;
+                left: 0;
+                background-color: #f8f9fa;
+                z-index: 1;
+                box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            }
+            
+            /* Add swipe hint for mobile users */
+            .preview-container::after {
+                content: '← 左右滑动查看更多 →';
+                display: none;
+                text-align: center;
+                font-size: 14px;
+                color: #666;
+                padding: 5px 0;
+                margin-top: 8px;
+            }
+            
+            @media (max-width: 768px) {
+                .preview-container::after {
+                    display: block;
+                }
             }
         }
     </style>
@@ -298,7 +379,7 @@
 
         <!-- Vocabulary Data Upload Section -->
         <section class="upload-section">
-            <h2>导入词汇表数据</h2>
+            <h2>导入词汇数据</h2>
             <input type="file" id="vocabularyFile" class="file-input" accept=".xlsx, .xls">
             <div class="preview-container">
                 <table id="vocabularyPreview" class="preview-table">
@@ -307,13 +388,15 @@
                             <th>Word_Rank</th>
                             <th>Word</th>
                             <th>Word_ID</th>
-                            <th>UK_Phonetic</th>
-                            <th>US_Phonetic</th>
-                            <th>Translations</th>
-                            <th>Example_Sentence</th>
-                            <th>Remark_1</th>
-                            <th>Remark_2</th>
-                            <th>Remark_3</th>
+                            <th>Definition_CN</th>
+                            <th>Definition_EN</th>
+                            <th>Example</th>
+                            <th>Pronunciation</th>
+                            <th>Synonym</th>
+                            <th>Antonym</th>
+                            <th>Category</th>
+                            <th>Difficulty</th>
+                            <th>Note</th>
                         </tr>
                     </thead>
                     <tbody></tbody>
@@ -324,6 +407,7 @@
                 <button id="uploadVocabulary" class="btn btn-primary">上传数据</button>
                 <button id="queryVocabulary" class="btn btn-outline">查询前10条数据</button>
             </div>
+            <div id="vocabularyLoader" class="loader"></div>
             <div id="vocabularyStatus" class="status"></div>
             <div id="vocabularyQueryResult" class="result-container">
                 <p>查询结果将显示在这里...</p>
@@ -941,32 +1025,23 @@
             tbody.innerHTML = '';
             
             data.slice(0, 10).forEach(row => {
-                // Check if this row has all required fields
-                if (!row.Word || !row.Word_Rank) {
-                    console.warn('Row missing required fields:', row);
-                }
-                
-                // Handle both Example_Sentence and Example_Sentences fields
-                const exampleText = row.Example_Sentences || row.Example_Sentence || '';
-                
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${row.Word_Rank || ''}</td>
                     <td>${row.Word || ''}</td>
                     <td>${row.Word_ID || ''}</td>
-                    <td>${row.UK_Phonetic || ''}</td>
-                    <td>${row.US_Phonetic || ''}</td>
-                    <td>${row.Translations || ''}</td>
-                    <td>${exampleText}</td>
-                    <td>${row.Remark_1 || ''}</td>
-                    <td>${row.Remark_2 || ''}</td>
-                    <td>${row.Remark_3 || ''}</td>
+                    <td>${row.Definition_CN || ''}</td>
+                    <td>${row.Definition_EN || ''}</td>
+                    <td>${row.Example || ''}</td>
+                    <td>${row.Pronunciation || ''}</td>
+                    <td>${row.Synonym || ''}</td>
+                    <td>${row.Antonym || ''}</td>
+                    <td>${row.Category || ''}</td>
+                    <td>${row.Difficulty || ''}</td>
+                    <td>${row.Note || ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
-            
-            // Log the actual data to help with debugging
-            console.log('Preview data sample:', data.slice(0, 2));
         }
 
         document.getElementById('previewVocabulary').addEventListener('click', function() {
@@ -975,35 +1050,13 @@
                 showVocabularyStatus('请先选择文件', false);
                 return;
             }
-            
-            // Show loading state
-            const previewButton = document.getElementById('previewVocabulary');
-            const originalText = previewButton.textContent;
-            previewButton.textContent = '预览中...';
-            previewButton.disabled = true;
-            showVocabularyStatus('正在处理数据，请稍候...', true);
+
+            const previewButton = this;
+            previewButton.classList.add('loading');
             
             handleExcelFile(file, function(data) {
-                previewButton.textContent = originalText;
-                previewButton.disabled = false;
-                
-                if (data.length === 0) {
-                    showVocabularyStatus('Excel文件中没有数据', false);
-                    return;
-                }
-                
-                // Check if required fields exist
-                const firstRow = data[0];
-                if (!firstRow.Word || !firstRow.Word_Rank) {
-                    showVocabularyStatus('数据格式错误: 必须包含 Word 和 Word_Rank 字段', false);
-                    return;
-                }
-                
                 previewVocabularyData(data);
-                showVocabularyStatus(`成功读取 ${data.length} 条记录，显示前10条`, true);
-                
-                // Enable upload button after successful preview
-                document.getElementById('uploadVocabulary').disabled = false;
+                previewButton.classList.remove('loading');
             });
         });
 
@@ -1014,101 +1067,46 @@
                 return;
             }
 
-            console.log('Starting vocabulary data upload process');
-            // Show loading state
-            const uploadButton = document.getElementById('uploadVocabulary');
-            const originalText = uploadButton.textContent;
-            uploadButton.textContent = '上传中...';
-            uploadButton.disabled = true;
-            showVocabularyStatus('正在处理数据，请稍候...', true);
+            const uploadButton = this;
+            uploadButton.classList.add('loading');
+            document.getElementById('vocabularyLoader').style.display = 'block';
+            showVocabularyStatus('正在上传...', true);
 
-            // Use a different approach to match the world history section exactly
-            try {
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    try {
-                        console.log('File read successfully, processing data');
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-                        
-                        console.log(`Processed ${jsonData.length} vocabulary items from the Excel file`);
-                        console.log('Sample data:', jsonData.slice(0, 2));
-                        
-                        // Validate data
-                        if (jsonData.length === 0) {
-                            throw new Error('Excel文件中没有数据');
-                        }
-                        
-                        // Check if required fields exist (exact same validation)
-                        const firstRow = jsonData[0];
-                        if (!firstRow.Word || !firstRow.Word_Rank) {
-                            throw new Error('数据格式错误: 必须包含 Word 和 Word_Rank 字段');
-                        }
-                        
-                        // Check field names in first row to help diagnose column mapping issues
-                        console.log('Available fields in data:', Object.keys(firstRow));
-                        
-                        // Make API request - exactly matching the world history pattern
-                        console.log('Sending vocabulary data to server...');
-                        const response = await fetch('/api/db/upload/vocabulary', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({ data: jsonData })
-                        });
-                        
-                        // Process response
-                        const result = await response.json();
-                        console.log('Server response:', result);
-                        
-                        if (result.success) {
-                            // Successful upload
-                            console.log(`Successfully uploaded ${jsonData.length} vocabulary items`);
-                            showVocabularyStatus(`数据上传成功！共上传 ${jsonData.length} 条记录`, true);
-                            
-                            // Force a query to verify data was uploaded
-                            const verifyBtn = document.getElementById('queryVocabulary');
-                            if (verifyBtn) {
-                                console.log('Triggering query to verify data');
-                                setTimeout(() => verifyBtn.click(), 1000);
-                            }
-                        } else {
-                            // Failed upload
-                            const errorMessage = result.error || result.message || '未知错误';
-                            console.error('Upload failed with server error:', errorMessage);
-                            showVocabularyStatus(`上传失败：${errorMessage}`, false);
-                            console.error('Upload error details:', result);
-                        }
-                    } catch (error) {
-                        console.error('Upload processing error:', error);
-                        showVocabularyStatus(`处理上传出错：${error.message || '未知错误'}`, false);
-                    } finally {
-                        // Always reset button state
-                        uploadButton.textContent = originalText;
-                        uploadButton.disabled = false;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                try {
+                    const response = await fetch('/api/db/upload/vocabulary', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ data: jsonData })
+                    });
+
+                    const result = await response.json();
+                    console.log('Server response:', result);
+
+                    if (result.success) {
+                        showVocabularyStatus(`数据上传成功！共上传 ${jsonData.length} 条记录`, true);
+                    } else {
+                        const errorMessage = result.error || result.message || '未知错误';
+                        showVocabularyStatus(`上传失败：${errorMessage}`, false);
+                        console.error('Upload error details:', result);
                     }
-                };
-                
-                reader.onerror = function(error) {
-                    console.error('File reading error:', error);
-                    uploadButton.textContent = originalText;
-                    uploadButton.disabled = false;
-                    showVocabularyStatus('文件读取失败', false);
-                };
-                
-                // Start reading the file
-                console.log('Starting file read');
-                reader.readAsArrayBuffer(file);
-                
-            } catch (error) {
-                console.error('General upload error:', error);
-                uploadButton.textContent = originalText;
-                uploadButton.disabled = false;
-                showVocabularyStatus(`上传过程出错：${error.message || '未知错误'}`, false);
-            }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    showVocabularyStatus(`上传出错：${error.message || '服务器连接失败'}`, false);
+                } finally {
+                    uploadButton.classList.remove('loading');
+                    document.getElementById('vocabularyLoader').style.display = 'none';
+                }
+            };
+            reader.readAsArrayBuffer(file);
         });
 
         function showVocabularyStatus(message, isSuccess) {
@@ -1119,50 +1117,37 @@
 
         document.getElementById('queryVocabulary').addEventListener('click', async function() {
             const resultContainer = document.getElementById('vocabularyQueryResult');
-            resultContainer.innerHTML = '<p>正在查询数据，请稍候...</p>';
+            const queryButton = this;
+            
+            queryButton.classList.add('loading');
+            resultContainer.innerHTML = '<p>正在查询，请稍候...</p>';
             
             try {
-                const response = await fetch('/api/db/query/vocabulary?limit=10');
-                
-                if (!response.ok) {
-                    throw new Error(`服务器返回错误状态: ${response.status}`);
-                }
-                
+                const response = await fetch('/api/db/query/vocabulary');
                 const data = await response.json();
                 
                 if (data.success) {
-                    if (data.data && data.data.length > 0) {
-                        const vocabularyHtml = data.data.map(vocab => `
-                            <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
-                                <h4>${vocab.Word || '无单词'} (Rank: ${vocab.Word_Rank || 'N/A'})</h4>
-                                <p><strong>音标：</strong>英 [${vocab.UK_Phonetic || 'N/A'}] 美 [${vocab.US_Phonetic || 'N/A'}]</p>
-                                <p><strong>翻译：</strong>${vocab.Translations || '无翻译'}</p>
-                                <p><strong>例句：</strong>${vocab.Example_Sentences || vocab.Example_Sentence || '无例句'}</p>
+                    const vocabularyHtml = data.data.map(vocab => `
+                        <div style="margin-bottom: 10px; padding: 10px; background: #fff; border-radius: 4px;">
+                            <h4>${vocab.Word} (${vocab.Word_Rank})</h4>
+                            <p><strong>中文释义：</strong>${vocab.Definition_CN || '无'}</p>
+                            <p><strong>英文释义：</strong>${vocab.Definition_EN || '无'}</p>
+                            <p><strong>例句：</strong>${vocab.Example || '无'}</p>
+                        </div>
+                    `).join('');
+                    
+                    resultContainer.innerHTML = `
+                        <div class="success">
+                            <h3>查询成功</h3>
+                            <div class="vocabulary-list">
+                                ${vocabularyHtml}
                             </div>
-                        `).join('');
-                        
-                        resultContainer.innerHTML = `
-                            <div class="success">
-                                <h3>查询成功</h3>
-                                <p>共找到 ${data.total || data.data.length} 条记录，显示前 ${data.data.length} 条</p>
-                                <div class="vocabulary-list">
-                                    ${vocabularyHtml}
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        resultContainer.innerHTML = `
-                            <div class="error">
-                                <h3>查询结果为空</h3>
-                                <p>数据库中没有词汇数据，请先上传数据</p>
-                            </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 } else {
-                    throw new Error(data.error || data.message || '查询失败');
+                    throw new Error(data.error || '查询失败');
                 }
             } catch (error) {
-                console.error('Vocabulary query error:', error);
                 resultContainer.innerHTML = `
                     <div class="error">
                         <h3>查询失败</h3>
@@ -1170,51 +1155,10 @@
                         <p>详细信息: ${error}</p>
                     </div>
                 `;
+                console.error('API Error:', error);
+            } finally {
+                queryButton.classList.remove('loading');
             }
-        });
-
-        function previewData(data) {
-            const tableBody = document.getElementById('dataTableBody');
-            tableBody.innerHTML = '';
-
-            data.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${row.ID || ''}</td>
-                    <td>${row.LINE || ''}</td>
-                    <td>${row.DATE || ''}</td>
-                    <td>${row.TIME || ''}</td>
-                    <td>${row.DAY || ''}</td>
-                    <td>${row.MONTH || ''}</td>
-                    <td>${row.YEAR || ''}</td>
-                    <td>${row.EVENT || ''}</td>
-                    <td>${row.LOCATION || ''}</td>
-                    <td>${row.REMARK_1 || ''}</td>
-                    <td>${row.REMARK_2 || ''}</td>
-                    <td>${row.REMARK_3 || ''}</td>
-                `;
-                tableBody.appendChild(tr);
-            });
-        }
-
-        // Initialize forms
-        document.addEventListener('DOMContentLoaded', function() {
-            // Disable all upload buttons by default
-            document.getElementById('uploadVocabulary').disabled = true;
-            
-            // Set up change event for vocabulary file input
-            document.getElementById('vocabularyFile').addEventListener('change', function() {
-                // Reset status when file changes
-                document.getElementById('vocabularyStatus').innerHTML = '';
-                document.getElementById('vocabularyStatus').className = 'status';
-                
-                // Clear preview table
-                const tbody = document.getElementById('vocabularyPreview').getElementsByTagName('tbody')[0];
-                tbody.innerHTML = '';
-                
-                // Reset and disable upload button until preview
-                document.getElementById('uploadVocabulary').disabled = true;
-            });
         });
     </script>
 </body>
