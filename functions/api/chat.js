@@ -35,7 +35,7 @@ export async function onRequestPost(context) {
         // Return the response
           return new Response(JSON.stringify({
           output: output
-        }), {
+          }), {
             headers: { 
               "Content-Type": "application/json",
               "Access-Control-Allow-Origin": "*",
@@ -47,7 +47,7 @@ export async function onRequestPost(context) {
           return new Response(JSON.stringify({
           error: "Error generating response",
           message: error.message
-        }), {
+          }), {
           status: 500,
             headers: { 
               "Content-Type": "application/json",
