@@ -33,24 +33,24 @@ export async function onRequestPost(context) {
         const output = await workerChatOutput(body.prompt, env);
         
         // Return the response
-        return new Response(JSON.stringify({
+          return new Response(JSON.stringify({
           output: output
         }), {
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
-          }
-        });
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
+          });
       } catch (error) {
-        return new Response(JSON.stringify({ 
+          return new Response(JSON.stringify({
           error: "Error generating response",
           message: error.message
         }), {
           status: 500,
-          headers: { 
-            "Content-Type": "application/json",
+            headers: { 
+              "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*"
           }
         });
@@ -69,7 +69,7 @@ export async function onRequestPost(context) {
         
         const deepSeekResponse = await fetch(DS_URL, {
           method: "POST",
-          headers: {
+          headers: { 
             "Content-Type": "application/json",
             "Authorization": `Bearer ${DS_KEY}`
           },
@@ -90,14 +90,14 @@ export async function onRequestPost(context) {
         
         // Return the original DeepSeek response format
         return new Response(JSON.stringify(result), {
-          headers: {
+          headers: { 
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization"
           }
         });
-      } catch (error) {
+    } catch (error) {
         return new Response(JSON.stringify({ 
           error: "Error calling DeepSeek API",
           message: error.message
@@ -114,7 +114,7 @@ export async function onRequestPost(context) {
         error: "Missing prompt or messages in request body"
       }), {
         status: 400,
-        headers: {
+        headers: { 
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*"
         }
