@@ -512,7 +512,18 @@ function initChineseChat() {
             }
             
             const data = await response.json();
-            const aiResponse = data.choices[0].message.content;
+            
+            // Check for the structure of the response
+            let aiResponse;
+            if (data.choices && data.choices[0]?.message?.content) {
+                // Original DeepSeek API format
+                aiResponse = data.choices[0].message.content;
+            } else if (data.output) {
+                // Worker-chat format
+                aiResponse = data.output;
+            } else {
+                throw new Error('API响应格式无效');
+            }
             
             // Remove loading indicator
             chatMessages.removeChild(loadingDiv);
