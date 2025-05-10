@@ -36,11 +36,7 @@ async function generateTTS(text, voice) {
         // Get the audio data
         const audioData = await response.arrayBuffer();
         
-        return {
-            success: true,
-            data: audioData,
-            type: 'audio/mpeg'
-        };
+        return audioData;
     } catch (error) {
         console.error('TTS error:', error);
         throw error;
@@ -89,8 +85,7 @@ export async function onRequestPost(context) {
         const selectedVoice = voice || 'zh-CN-XiaoxiaoNeural';
 
         try {
-            // Generate TTS using the worker
-            const result = await generateTTS(text, selectedVoice, env);            // Generate TTS directly and return audio
+            // Generate TTS directly and return audio
             const audioData = await generateTTS(text, selectedVoice);
             
             // Return the audio response
@@ -99,66 +94,61 @@ export async function onRequestPost(context) {
                 headers: {
                     'Content-Type': 'audio/mpeg',
                     'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'public, max-age=86400'
+                    'Cache-Control': 'no-cache'
                 }
             });
-        } catch (ttsError) {
-            console.error('TTS generation error:', ttsError);
+        } catch (error) {
+            console.error('TTS generation error:', error);
             return new Response(JSON.stringify({
                 success: false,
-                error: `TTS generation failed: ${ttsError.message}`
+                error: error.message || 'Failed to generate TTS'
             }), {
                 status: 500,
                 headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
                 }
             });
         }
     } catch (error) {
-        console.error('TTS error:', error);
+        console.error('Request handler error:', error);
         return new Response(JSON.stringify({
             success: false,
-            error: error.message || "Internal server error"
+            error: 'Internal server error'
         }), {
             status: 500,
             headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
             }
         });
     }
 }
 
-// Handle OPTIONS requests for CORS
-export function onRequestOptions() {
+// Handle OPTIONS requests for CORS preflight
+export async function onRequestOptions() {
     return new Response(null, {
+        status: 204,
         headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "86400"
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '86400'
         }
     });
 }
 
-// Handle GET requests with API info
-export function onRequestGet() {
+// Handle GET requests (return error since this endpoint only supports POST)
+export async function onRequestGet() {
     return new Response(JSON.stringify({
-        message: "Edge TTS Worker API",
-        endpoint: TTS_WORKER_URL,
-        methods: ["POST"],
-        example: {
-            text: "Hello, how are you?",
-            voice: "zh-CN-XiaoxiaoNeural"
-        },
-        defaultVoice: "zh-CN-XiaoxiaoNeural"
+        success: false,
+        error: 'This endpoint only supports POST requests'
     }), {
+        status: 405,
         headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Allow': 'POST, OPTIONS'
         }
     });
 }
