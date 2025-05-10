@@ -1,5 +1,5 @@
-// Microsoft Edge TTS endpoint
-const EDGE_TTS_URL = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
+// Microsoft Edge TTS endpoint - updated to match current Edge browser implementation
+const EDGE_TTS_URL = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
 // Function to generate TTS using Edge speech API
 async function generateTTS(text, voice) {
@@ -19,24 +19,27 @@ async function generateTTS(text, voice) {
             method: 'POST',
             headers: {
                 'Authority': 'speech.platform.bing.com',
-                'Sec-CH-UA': '"Microsoft Edge";v="113", "Chromium";v="113"',
+                'Path': '/consumer/speech/synthesize/readaloud/edge/v1',
+                'Sec-CH-UA': '"Microsoft Edge";v="119"',
                 'Sec-CH-UA-Mobile': '?0',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.35',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0',
                 'Sec-CH-UA-Platform': '"Windows"',
                 'Accept': '*/*',
+                'Origin': 'edge://settings',
                 'Sec-Fetch-Site': 'none',
                 'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Dest': 'audio',
+                'Sec-Fetch-Dest': 'empty',
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Content-Type': 'application/ssml+xml',
                 'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
-                'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
+                'Authorization': 'Bearer ${context.env.EDGE_TTS_TOKEN}',
+                'Referer': 'edge://settings/'
             },
             body: SSML
         });
 
-        // Log response status and headers
+        // Log response status and headers for debugging
         console.log('TTS response status:', response.status);
         console.log('TTS response headers:', Object.fromEntries(response.headers.entries()));
 
@@ -53,6 +56,9 @@ async function generateTTS(text, voice) {
 
         // Get the audio data
         const audioData = await response.arrayBuffer();
+        if (audioData.byteLength === 0) {
+            throw new Error('Received empty audio data from TTS service');
+        }
         
         return audioData;
     } catch (error) {
