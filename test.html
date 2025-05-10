@@ -213,6 +213,32 @@
             font-size: 16px;
         }
 
+        .voice-categories {
+            margin-top: 10px;
+            padding: 10px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .voice-category {
+            padding: 6px 12px;
+            background-color: #e9ecef;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .voice-category:hover {
+            background-color: #dee2e6;
+        }
+
+        .voice-category.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
         .audio-player-container {
             margin-top: 20px;
             padding: 15px;
@@ -230,6 +256,22 @@
             color: #3498db;
             margin-top: 10px;
             font-style: italic;
+        }
+
+        /* Additional responsive styles for the Edge TTS demo */
+        @media (max-width: 768px) {
+            .voice-categories {
+                justify-content: center;
+            }
+            
+            .voice-category {
+                font-size: 12px;
+                padding: 5px 10px;
+            }
+            
+            .edge-tts-demo {
+                padding: 15px;
+            }
         }
     </style>
 </head>
@@ -267,17 +309,25 @@
             <div class="input-section">
                 <textarea id="edgeTtsInput" placeholder="Enter text for Edge TTS..."></textarea>
                 
+                <div class="voice-categories">
+                    <div class="voice-category active" data-language="zh-CN">中文 (Chinese)</div>
+                    <div class="voice-category" data-language="en-US">English</div>
+                    <div class="voice-category" data-language="ja-JP">日本語 (Japanese)</div>
+                    <div class="voice-category" data-language="ko-KR">한국어 (Korean)</div>
+                    <div class="voice-category" data-language="fr-FR">Français</div>
+                    <div class="voice-category" data-language="es-ES">Español</div>
+                    <div class="voice-category" data-language="de-DE">Deutsch</div>
+                </div>
+                
                 <select id="voiceSelect" class="voice-select">
                     <option value="zh-CN-XiaoxiaoNeural">中文 - 晓晓 (女声)</option>
                     <option value="zh-CN-YunxiNeural">中文 - 云希 (男声)</option>
                     <option value="zh-CN-XiaoyiNeural">中文 - 晓伊 (女声)</option>
                     <option value="zh-CN-YunjianNeural">中文 - 云健 (男声)</option>
-                    <option value="en-US-AriaNeural">English - Aria (Female)</option>
-                    <option value="en-US-GuyNeural">English - Guy (Male)</option>
-                    <option value="ja-JP-NanamiNeural">日本語 - 七海 (女声)</option>
-                    <option value="ja-JP-KeitaNeural">日本語 - 圭太 (男声)</option>
-                    <option value="ko-KR-SunHiNeural">한국어 - 선히 (여성)</option>
-                    <option value="ko-KR-InJoonNeural">한국어 - 인준 (남성)</option>
+                    <option value="zh-CN-YunyangNeural">中文 - 云扬 (男声)</option>
+                    <option value="zh-CN-XiaohanNeural">中文 - 晓涵 (女声)</option>
+                    <option value="zh-CN-XiaomoNeural">中文 - 晓墨 (女声)</option>
+                    <option value="zh-CN-XiaoxuanNeural">中文 - 晓萱 (女声)</option>
                 </select>
                 
                 <div class="button-group">
@@ -700,6 +750,107 @@
         /**
          * Edge TTS Worker functionality
          */
+        // Voice options organized by language
+        const voiceOptions = {
+            'zh-CN': [
+                { value: 'zh-CN-XiaoxiaoNeural', label: '中文 - 晓晓 (女声)' },
+                { value: 'zh-CN-YunxiNeural', label: '中文 - 云希 (男声)' },
+                { value: 'zh-CN-XiaoyiNeural', label: '中文 - 晓伊 (女声)' },
+                { value: 'zh-CN-YunjianNeural', label: '中文 - 云健 (男声)' },
+                { value: 'zh-CN-YunyangNeural', label: '中文 - 云扬 (男声)' },
+                { value: 'zh-CN-XiaohanNeural', label: '中文 - 晓涵 (女声)' },
+                { value: 'zh-CN-XiaomoNeural', label: '中文 - 晓墨 (女声)' },
+                { value: 'zh-CN-XiaoxuanNeural', label: '中文 - 晓萱 (女声)' }
+            ],
+            'en-US': [
+                { value: 'en-US-AriaNeural', label: 'English - Aria (Female)' },
+                { value: 'en-US-GuyNeural', label: 'English - Guy (Male)' },
+                { value: 'en-US-JennyNeural', label: 'English - Jenny (Female)' },
+                { value: 'en-US-SaraNeural', label: 'English - Sara (Female)' },
+                { value: 'en-US-JasonNeural', label: 'English - Jason (Male)' },
+                { value: 'en-US-TonyNeural', label: 'English - Tony (Male)' }
+            ],
+            'ja-JP': [
+                { value: 'ja-JP-NanamiNeural', label: '日本語 - 七海 (女声)' },
+                { value: 'ja-JP-KeitaNeural', label: '日本語 - 圭太 (男声)' },
+                { value: 'ja-JP-AoiNeural', label: '日本語 - 葵 (女声)' },
+                { value: 'ja-JP-DaichiNeural', label: '日本語 - 大地 (男声)' }
+            ],
+            'ko-KR': [
+                { value: 'ko-KR-SunHiNeural', label: '한국어 - 선히 (여성)' },
+                { value: 'ko-KR-InJoonNeural', label: '한국어 - 인준 (남성)' }
+            ],
+            'fr-FR': [
+                { value: 'fr-FR-DeniseNeural', label: 'Français - Denise (Femme)' },
+                { value: 'fr-FR-HenriNeural', label: 'Français - Henri (Homme)' }
+            ],
+            'es-ES': [
+                { value: 'es-ES-ElviraNeural', label: 'Español - Elvira (Mujer)' },
+                { value: 'es-ES-AlvaroNeural', label: 'Español - Alvaro (Hombre)' }
+            ],
+            'de-DE': [
+                { value: 'de-DE-KatjaNeural', label: 'Deutsch - Katja (Weiblich)' },
+                { value: 'de-DE-ConradNeural', label: 'Deutsch - Conrad (Männlich)' }
+            ]
+        };
+        
+        // Update voice selection based on language
+        function updateVoiceOptions(language) {
+            const voiceSelect = document.getElementById('voiceSelect');
+            voiceSelect.innerHTML = '';
+            
+            // Add options for the selected language
+            if (voiceOptions[language]) {
+                voiceOptions[language].forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.value;
+                    option.textContent = voice.label;
+                    voiceSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Initialize voice categories
+        document.addEventListener('DOMContentLoaded', () => {
+            const categories = document.querySelectorAll('.voice-category');
+            
+            categories.forEach(category => {
+                category.addEventListener('click', function() {
+                    // Remove active class from all categories
+                    categories.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to clicked category
+                    this.classList.add('active');
+                    
+                    // Update voice options
+                    const language = this.dataset.language;
+                    updateVoiceOptions(language);
+                });
+            });
+            
+            // Initialize with Chinese voices
+            updateVoiceOptions('zh-CN');
+            
+            // Cleanup function to free resources when audio is no longer needed
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            // When a new audio source is set, revoke the old URL
+            audioPlayer.addEventListener('loadeddata', () => {
+                const oldSrc = audioPlayer.dataset.oldSrc;
+                if (oldSrc) {
+                    URL.revokeObjectURL(oldSrc);
+                }
+                audioPlayer.dataset.oldSrc = audioPlayer.src;
+            });
+            
+            // Handle unload to clean up resources
+            window.addEventListener('beforeunload', () => {
+                if (audioPlayer.src && audioPlayer.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioPlayer.src);
+                }
+            });
+        });
+        
         async function generateEdgeTTS() {
             const text = document.getElementById('edgeTtsInput').value.trim();
             const voiceSelect = document.getElementById('voiceSelect');
@@ -775,27 +926,6 @@
                 edgeTtsBtn.disabled = false;
             }
         }
-        
-        // Cleanup function to free resources when audio is no longer needed
-        document.addEventListener('DOMContentLoaded', () => {
-            const audioPlayer = document.getElementById('audioPlayer');
-            
-            // When a new audio source is set, revoke the old URL
-            audioPlayer.addEventListener('loadeddata', () => {
-                const oldSrc = audioPlayer.dataset.oldSrc;
-                if (oldSrc) {
-                    URL.revokeObjectURL(oldSrc);
-                }
-                audioPlayer.dataset.oldSrc = audioPlayer.src;
-            });
-            
-            // Handle unload to clean up resources
-            window.addEventListener('beforeunload', () => {
-                if (audioPlayer.src && audioPlayer.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(audioPlayer.src);
-                }
-            });
-        });
     </script>
 </body>
 </html> 

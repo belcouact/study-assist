@@ -8,6 +8,19 @@ export const onRequest = async (context) => {
     // Extract request data
     const { request, env } = context;
     
+    // Handle OPTIONS preflight request
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Max-Age': '86400'
+        }
+      });
+    }
+    
     // Check request method
     if (request.method !== 'POST') {
       return new Response(JSON.stringify({
@@ -20,19 +33,6 @@ export const onRequest = async (context) => {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'POST, OPTIONS',
           'Access-Control-Allow-Headers': 'Content-Type'
-        }
-      });
-    }
-
-    // Handle OPTIONS preflight request
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Max-Age': '86400'
         }
       });
     }
@@ -76,19 +76,41 @@ export const onRequest = async (context) => {
     const edgeTTSResponse = await fetch('https://edge-tts.study-llm.me/api/tts', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg' // Explicitly request audio format
       },
       body: JSON.stringify({
         text,
-        voice: selectedVoice
+        voice: selectedVoice,
+        rate: "+0%", // Default rate
+        volume: "+0%"  // Default volume
       })
     });
     
     if (!edgeTTSResponse.ok) {
-      const errorText = await edgeTTSResponse.text();
+      let errorMessage = `Edge TTS worker responded with status: ${edgeTTSResponse.status}`;
+      
+      try {
+        // Try to extract more detailed error message if available
+        const errorData = await edgeTTSResponse.json();
+        if (errorData && errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch (e) {
+        // If we can't parse JSON, try to get text
+        try {
+          const errorText = await edgeTTSResponse.text();
+          if (errorText) {
+            errorMessage = `Edge TTS worker error: ${errorText}`;
+          }
+        } catch (textError) {
+          // If both fail, use the default error message
+        }
+      }
+      
       return new Response(JSON.stringify({
         success: false,
-        error: `Edge TTS worker error: ${errorText}`
+        error: errorMessage
       }), {
         status: edgeTTSResponse.status,
         headers: {
@@ -114,7 +136,7 @@ export const onRequest = async (context) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: `Internal server error: ${error.message}`
+      error: `Internal server error: ${error.message || 'Unknown error'}`
     }), {
       status: 500,
       headers: {
