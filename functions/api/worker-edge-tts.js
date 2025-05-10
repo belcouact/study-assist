@@ -55,7 +55,7 @@ async function generateTTS(text, voice) {
 }
 
 // Main request handler that handles all HTTP methods
-export async function onRequest(context) {
+async function handleRequest(context) {
     // Get the request method
     const { request } = context;
     const method = request.method.toUpperCase();
@@ -185,3 +185,8 @@ export async function onRequest(context) {
         }
     });
 }
+
+// Export default object with fetch method as required by Cloudflare Workers
+export default {
+    fetch: handleRequest
+};
