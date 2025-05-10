@@ -701,8 +701,39 @@
                                 throw new Error('请求超时，豆包API可能暂时不可用');
                             }
                             
-                            // 重新抛出其他错误
-                            throw e;
+                            // 提示用户豆包API不可用，正在尝试使用Pollinations.ai
+                            console.error('豆包API错误，尝试使用Pollinations.ai作为备选方案:', e);
+                            
+                            // 显示友好提示
+                            imageResult.innerHTML = '<div class="loading-image">豆包API当前不可用，正在尝试使用Pollinations.ai作为备选方案...</div>';
+                            
+                            // 等待1.5秒以便用户看到提示
+                            await new Promise(resolve => setTimeout(resolve, 1500));
+                            
+                            // 确保有英文描述可用
+                            const englishPromptText = selectedPromptType === 'english' 
+                                ? selectedPrompt 
+                                : englishPrompt.value;
+                                
+                            if (!englishPromptText) {
+                                throw new Error('豆包API不可用，需要英文描述才能使用Pollinations.ai备选方案。');
+                            }
+                            
+                            // 使用Pollinations.ai作为备选方案
+                            const encodedDescription = encodeURIComponent(englishPromptText);
+                            const imageUrl = `https://image.pollinations.ai/prompt/${encodedDescription}?width=${width}&height=${height}&model=flux&enhance=true&private=true&nologo=true&safe=true`;
+                            
+                            // 显示图像（使用Pollinations.ai）
+                            imageResult.innerHTML = `
+                                <div class="alert alert-info" style="margin-bottom: 1rem; padding: 1rem; border-radius: 0.5rem; background-color: #e0f7fa; color: #00838f;">
+                                    <strong>提示：</strong> 豆包API当前不可用，已自动切换到Pollinations.ai生成图像。
+                                </div>
+                                <div class="loading-image">加载Pollinations.ai图像中...</div>
+                                <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
+                            `;
+                            
+                            // 告知用户已切换到Pollinations.ai
+                            return; // 成功使用备选方案，退出catch块
                         }
                     }
                 } catch (error) {
