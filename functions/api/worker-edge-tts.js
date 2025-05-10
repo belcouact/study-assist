@@ -1,7 +1,33 @@
 /**
  * Worker Edge TTS API
- * This module provides a serverless function for generating speech using the edge-tts.study-llm.me worker
+ * This module provides a serverless function for generating speech using Microsoft Edge TTS
  */
+
+async function generateTTS(text, voice) {
+  // Use Microsoft Edge TTS to generate speech
+  const SSML = `
+    <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+      <voice name="${voice}">
+        ${text}
+      </voice>
+    </speak>`;
+
+  const response = await fetch('https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/ssml+xml',
+      'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.35'
+    },
+    body: SSML
+  });
+
+  if (!response.ok) {
+    throw new Error(`TTS generation failed with status: ${response.status}`);
+  }
+
+  return response.arrayBuffer();
+}
 
 export const onRequest = async (context) => {
   try {
@@ -71,65 +97,32 @@ export const onRequest = async (context) => {
     
     // Use default voice if not provided
     const selectedVoice = voice || 'zh-CN-XiaoxiaoNeural';
-      // Forward the request to edge-tts.study-llm.me worker
-    const response = await fetch('https://edge-tts.study-llm.me/api/tts', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg' // Explicitly request audio format
-      },
-      body: JSON.stringify({
-        text,
-        voice: selectedVoice,
-        rate: "+0%", // Default rate
-        volume: "+0%"  // Default volume
-      })
-    });
     
-    if (!response.ok) {
-      let errorMessage = `Edge TTS worker responded with status: ${response.status}`;
+    try {
+      // Generate TTS directly
+      const audioData = await generateTTS(text, selectedVoice);
       
-      try {
-        // Try to extract more detailed error message if available
-        const errorData = await response.json();
-        if (errorData && errorData.error) {
-          errorMessage = errorData.error;
+      // Return the audio response
+      return new Response(audioData, {
+        status: 200,
+        headers: {
+          'Content-Type': 'audio/mpeg',
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'public, max-age=86400'
         }
-      } catch (e) {
-        // If we can't parse JSON, try to get text
-        try {
-          const errorText = await response.text();
-          if (errorText) {
-            errorMessage = `Edge TTS worker error: ${errorText}`;
-          }
-        } catch (textError) {
-          // If both fail, use the default error message
-        }
-      }
-      
+      });
+    } catch (ttsError) {
       return new Response(JSON.stringify({
         success: false,
-        error: errorMessage
+        error: `TTS generation failed: ${ttsError.message}`
       }), {
-        status: response.status,
+        status: 500,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
         }
       });
     }
-    
-    // Return the audio response directly
-    const audioBuffer = await response.arrayBuffer();
-    
-    return new Response(audioBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'audio/mpeg',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=86400'
-      }
-    });
   } catch (error) {
     console.error('Edge TTS API error:', error);
     
