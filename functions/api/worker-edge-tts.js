@@ -18,19 +18,37 @@ async function generateTTS(text, voice) {
         const response = await fetch(EDGE_TTS_URL, {
             method: 'POST',
             headers: {
+                'Authority': 'speech.platform.bing.com',
+                'Sec-CH-UA': '"Microsoft Edge";v="113", "Chromium";v="113"',
+                'Sec-CH-UA-Mobile': '?0',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.35',
+                'Sec-CH-UA-Platform': '"Windows"',
+                'Accept': '*/*',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Dest': 'audio',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Accept-Language': 'en-US,en;q=0.9',
                 'Content-Type': 'application/ssml+xml',
                 'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36 Edg/113.0.1774.35'
+                'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
             },
             body: SSML
         });
 
-        // Log response status
+        // Log response status and headers
         console.log('TTS response status:', response.status);
+        console.log('TTS response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('TTS error response:', errorText);
+            try {
+                const errorData = JSON.parse(errorText);
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+            } catch (e) {
+                throw new Error(`HTTP error! Status: ${response.status}, Response: ${errorText}`);
+            }
         }
 
         // Get the audio data
