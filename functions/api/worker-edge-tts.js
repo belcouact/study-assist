@@ -71,9 +71,8 @@ export const onRequest = async (context) => {
     
     // Use default voice if not provided
     const selectedVoice = voice || 'zh-CN-XiaoxiaoNeural';
-    
-    // Forward the request to edge-tts.study-llm.me worker
-    const edgeTTSResponse = await fetch('https://edge-tts.study-llm.me/api/tts', {
+      // Forward the request to edge-tts.study-llm.me worker
+    const response = await fetch('https://edge-tts.study-llm.me/api/tts', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,19 +86,19 @@ export const onRequest = async (context) => {
       })
     });
     
-    if (!edgeTTSResponse.ok) {
-      let errorMessage = `Edge TTS worker responded with status: ${edgeTTSResponse.status}`;
+    if (!response.ok) {
+      let errorMessage = `Edge TTS worker responded with status: ${response.status}`;
       
       try {
         // Try to extract more detailed error message if available
-        const errorData = await edgeTTSResponse.json();
+        const errorData = await response.json();
         if (errorData && errorData.error) {
           errorMessage = errorData.error;
         }
       } catch (e) {
         // If we can't parse JSON, try to get text
         try {
-          const errorText = await edgeTTSResponse.text();
+          const errorText = await response.text();
           if (errorText) {
             errorMessage = `Edge TTS worker error: ${errorText}`;
           }
@@ -112,7 +111,7 @@ export const onRequest = async (context) => {
         success: false,
         error: errorMessage
       }), {
-        status: edgeTTSResponse.status,
+        status: response.status,
         headers: {
           'Content-Type': 'application/json',
           'Access-Control-Allow-Origin': '*'
@@ -121,7 +120,7 @@ export const onRequest = async (context) => {
     }
     
     // Return the audio response directly
-    const audioBuffer = await edgeTTSResponse.arrayBuffer();
+    const audioBuffer = await response.arrayBuffer();
     
     return new Response(audioBuffer, {
       status: 200,
@@ -145,4 +144,4 @@ export const onRequest = async (context) => {
       }
     });
   }
-}; 
+};
