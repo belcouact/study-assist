@@ -1,5 +1,5 @@
 // Microsoft Edge TTS endpoint - updated to match current Edge browser implementation
-const EDGE_TTS_URL = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4";
+const EDGE_TTS_URL = "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1";
 
 // Function to generate TTS using Edge speech API
 async function generateTTS(text, voice) {
@@ -15,26 +15,13 @@ async function generateTTS(text, voice) {
         // Log request details
         console.log('Sending TTS request:', { text: text.substring(0, 100) + '...', voice });
 
-        const response = await fetch(EDGE_TTS_URL, {
+        const response = await fetch(EDGE_TTS_URL + "?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4", {
             method: 'POST',
             headers: {
-                'Authority': 'speech.platform.bing.com',
-                'Path': '/consumer/speech/synthesize/readaloud/edge/v1',
-                'Sec-CH-UA': '"Microsoft Edge";v="119"',
-                'Sec-CH-UA-Mobile': '?0',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0',
-                'Sec-CH-UA-Platform': '"Windows"',
-                'Accept': '*/*',
-                'Origin': 'edge://settings',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-Mode': 'cors',
-                'Sec-Fetch-Dest': 'empty',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Accept-Language': 'en-US,en;q=0.9',
                 'Content-Type': 'application/ssml+xml',
                 'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
-                'Authorization': 'Bearer ${context.env.EDGE_TTS_TOKEN}',
-                'Referer': 'edge://settings/'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0',
+                'Authorization': 'Bearer 6A5AA1D4EAFF4E9FB37E23D68491D6F4'
             },
             body: SSML
         });
