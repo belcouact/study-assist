@@ -43,111 +43,133 @@ async function generateTTS(text, voice) {
     }
 }
 
-// Handle POST requests
-export async function onRequestPost(context) {
-    try {
-        const { request, env } = context;
-        let requestData;
+// Main request handler that handles all HTTP methods
+export async function onRequest(context) {
+    // Get the request method
+    const { request } = context;
+    const method = request.method.toUpperCase();
 
-        try {
-            requestData = await request.json();
-        } catch (e) {
-            return new Response(JSON.stringify({
-                success: false,
-                error: "Invalid JSON in request body"
-            }), {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                    "Access-Control-Allow-Headers": "Content-Type, Authorization"
-                }
-            });
-        }
+    // Set common CORS headers
+    const corsHeaders = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    };
 
-        // Validate required parameters
-        const { text, voice } = requestData;
-        if (!text) {
-            return new Response(JSON.stringify({
-                success: false,
-                error: "Missing required parameter: text"
-            }), {
-                status: 400,
-                headers: {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                }
-            });
-        }
-
-        // Use default voice if not provided
-        const selectedVoice = voice || 'zh-CN-XiaoxiaoNeural';
-
-        try {
-            // Generate TTS directly and return audio
-            const audioData = await generateTTS(text, selectedVoice);
-            
-            // Return the audio response
-            return new Response(audioData, {
-                status: 200,
-                headers: {
-                    'Content-Type': 'audio/mpeg',
-                    'Access-Control-Allow-Origin': '*',
-                    'Cache-Control': 'no-cache'
-                }
-            });
-        } catch (error) {
-            console.error('TTS generation error:', error);
-            return new Response(JSON.stringify({
-                success: false,
-                error: error.message || 'Failed to generate TTS'
-            }), {
-                status: 500,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*'
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Request handler error:', error);
-        return new Response(JSON.stringify({
-            success: false,
-            error: 'Internal server error'
-        }), {
-            status: 500,
+    // Handle OPTIONS request (CORS preflight)
+    if (method === 'OPTIONS') {
+        return new Response(null, {
+            status: 204,
             headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                ...corsHeaders,
+                'Access-Control-Max-Age': '86400'
             }
         });
     }
-}
 
-// Handle OPTIONS requests for CORS preflight
-export async function onRequestOptions() {
-    return new Response(null, {
-        status: 204,
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '86400'
+    // Handle GET request
+    if (method === 'GET') {
+        return new Response(JSON.stringify({
+            success: false,
+            error: 'This endpoint only supports POST requests'
+        }), {
+            status: 405,
+            headers: {
+                ...corsHeaders,
+                'Content-Type': 'application/json',
+                'Allow': 'POST, OPTIONS'
+            }
+        });
+    }
+
+    // Handle POST request
+    if (method === 'POST') {
+        try {
+            let requestData;
+
+            try {
+                requestData = await request.json();
+            } catch (e) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: "Invalid JSON in request body"
+                }), {
+                    status: 400,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+
+            // Validate required parameters
+            const { text, voice } = requestData;
+            if (!text) {
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: "Missing required parameter: text"
+                }), {
+                    status: 400,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+
+            // Use default voice if not provided
+            const selectedVoice = voice || 'zh-CN-XiaoxiaoNeural';
+
+            try {
+                // Generate TTS directly and return audio
+                const audioData = await generateTTS(text, selectedVoice);
+                
+                // Return the audio response
+                return new Response(audioData, {
+                    status: 200,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'audio/mpeg',
+                        'Cache-Control': 'no-cache'
+                    }
+                });
+            } catch (error) {
+                console.error('TTS generation error:', error);
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: error.message || 'Failed to generate TTS'
+                }), {
+                    status: 500,
+                    headers: {
+                        ...corsHeaders,
+                        'Content-Type': 'application/json'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Request handler error:', error);
+            return new Response(JSON.stringify({
+                success: false,
+                error: 'Internal server error'
+            }), {
+                status: 500,
+                headers: {
+                    ...corsHeaders,
+                    'Content-Type': 'application/json'
+                }
+            });
         }
-    });
-}
+    }
 
-// Handle GET requests (return error since this endpoint only supports POST)
-export async function onRequestGet() {
+    // Handle any other HTTP methods
     return new Response(JSON.stringify({
         success: false,
-        error: 'This endpoint only supports POST requests'
+        error: 'Method not allowed'
     }), {
         status: 405,
         headers: {
+            ...corsHeaders,
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
             'Allow': 'POST, OPTIONS'
         }
     });
