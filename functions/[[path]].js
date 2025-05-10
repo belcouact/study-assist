@@ -18,18 +18,17 @@ export async function onRequest(context) {
       },
     });
   }
-  
-  // API endpoints routing
+    // API endpoints routing
   if (pathname.startsWith('/api/')) {
     // Handle API routes
     
-    // Edge TTS Worker API
-    if (pathname === '/api/worker-edge-tts') {
-      // Forward the request to the worker-edge-tts handler
-      return await import('./api/worker-edge-tts-route.js')
+    // Edge TTS API
+    if (pathname === '/api/edge-tts') {
+      // Forward the request to the edge-tts handler
+      return await import('./api/edge-tts-route.js')
         .then(module => module.onRequest(context))
         .catch(error => {
-          console.error('Error loading worker-edge-tts-route module:', error);
+          console.error('Error loading edge-tts-route module:', error);
           return new Response(JSON.stringify({ 
             success: false, 
             error: 'Internal server error loading worker-edge-tts module' 

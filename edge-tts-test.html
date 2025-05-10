@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge TTS Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        select {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #4361ee;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #3251ee;
+        }
+        .loading {
+            display: none;
+            margin: 10px 0;
+            color: #666;
+        }
+        .error {
+            color: red;
+            margin: 10px 0;
+            display: none;
+        }
+        .audio-container {
+            margin: 20px 0;
+            display: none;
+        }
+        audio {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Edge TTS Test</h1>
+        
+        <div>
+            <label for="text">Enter text to convert to speech:</label>
+            <textarea id="text" placeholder="Enter text here..."></textarea>
+        </div>
+        
+        <div>
+            <label for="voice">Select voice:</label>
+            <select id="voice">
+                <option value="zh-CN-XiaoxiaoNeural">中文 - 晓晓 (女声)</option>
+                <option value="zh-CN-YunxiNeural">中文 - 云希 (男声)</option>
+                <option value="en-US-JennyNeural">English - Jenny (Female)</option>
+                <option value="en-US-GuyNeural">English - Guy (Male)</option>
+            </select>
+        </div>
+        
+        <button onclick="generateSpeech()">Generate Speech</button>
+        
+        <div id="loading" class="loading">Generating speech...</div>
+        <div id="error" class="error"></div>
+        
+        <div id="audio-container" class="audio-container">
+            <audio id="audio" controls></audio>
+        </div>
+    </div>
+
+    <script>
+        async function generateSpeech() {
+            const text = document.getElementById('text').value.trim();
+            const voice = document.getElementById('voice').value;
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const audioContainer = document.getElementById('audio-container');
+            const audio = document.getElementById('audio');
+            
+            if (!text) {
+                error.textContent = 'Please enter some text';
+                error.style.display = 'block';
+                return;
+            }
+            
+            // Reset UI
+            error.style.display = 'none';
+            audioContainer.style.display = 'none';
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/edge-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text,
+                        voice,
+                        rate: 1.0,
+                        pitch: 0,
+                        volume: 1.0
+                    })
+                });
+                
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Failed to generate speech');
+                }
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                audio.src = url;
+                audioContainer.style.display = 'block';
+                
+                // Clean up old audio URL
+                audio.onended = () => URL.revokeObjectURL(url);
+                
+            } catch (err) {
+                error.textContent = err.message;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
