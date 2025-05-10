@@ -619,29 +619,55 @@
                             throw new Error('请确保描述不为空');
                         }
                         
+                        // 构建正确的请求体
+                        const requestBody = {
+                            prompt: prompt,
+                            size: `${width}x${height}`,
+                            count: 1
+                        };
+                        
+                        // 仅当风格不为空时添加风格
+                        if (selectedStyle) {
+                            // 不要在这里拼接风格，而是单独传递，后端会处理拼接
+                            requestBody.style = selectedStyle;
+                        }
+                        
+                        console.log('发送到豆包API的请求:', JSON.stringify(requestBody));
+                        
                         // 调用豆包API
                         const response = await fetch('/api/ark-image', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
                             },
-                            body: JSON.stringify({
-                                prompt: prompt,
-                                size: `${width}x${height}`,
-                                style: selectedStyle,
-                                count: 1
-                            })
+                            body: JSON.stringify(requestBody)
                         });
                         
+                        // 处理错误
                         if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.error || `请求失败，状态码: ${response.status}`);
+                            let errorMessage = `请求失败，状态码: ${response.status}`;
+                            try {
+                                const errorData = await response.json();
+                                if (errorData && errorData.error) {
+                                    errorMessage = errorData.error;
+                                }
+                            } catch (e) {
+                                // 无法解析JSON，使用默认错误消息
+                            }
+                            throw new Error(errorMessage);
                         }
                         
+                        // 解析响应
                         const imageData = await response.json();
                         
+                        // 验证成功响应
                         if (!imageData.success) {
                             throw new Error(imageData.error || '生成图像失败');
+                        }
+                        
+                        // 检查并确保data路径存在
+                        if (!imageData.data || !imageData.data.data || !imageData.data.data[0] || !imageData.data.data[0].url) {
+                            throw new Error('API返回的数据格式无效，找不到图像URL');
                         }
                         
                         // 获取图像URL
