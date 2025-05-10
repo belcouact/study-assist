@@ -194,6 +194,43 @@
             margin-left: 10px;
             color: #3498db;
         }
+
+        /* Edge TTS Worker Demo Styles */
+        .edge-tts-demo {
+            margin-top: 30px;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+        }
+
+        .voice-select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+
+        .audio-player-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #edf2f7;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .status-message {
+            color: #3498db;
+            margin-top: 10px;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -219,6 +256,45 @@
             <div id="responseContainer" style="margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; display: none;">
                 <h3>Response:</h3>
                 <div id="responseContent" style="margin-top: 10px; white-space: pre-wrap;"></div>
+            </div>
+        </div>
+
+        <!-- Edge TTS Worker Demo Section -->
+        <div class="section edge-tts-demo">
+            <h2>Edge TTS Worker Demo</h2>
+            <p>Test the edge-tts.study-llm.me worker functionality by entering text and selecting a voice.</p>
+            
+            <div class="input-section">
+                <textarea id="edgeTtsInput" placeholder="Enter text for Edge TTS..."></textarea>
+                
+                <select id="voiceSelect" class="voice-select">
+                    <option value="zh-CN-XiaoxiaoNeural">中文 - 晓晓 (女声)</option>
+                    <option value="zh-CN-YunxiNeural">中文 - 云希 (男声)</option>
+                    <option value="zh-CN-XiaoyiNeural">中文 - 晓伊 (女声)</option>
+                    <option value="zh-CN-YunjianNeural">中文 - 云健 (男声)</option>
+                    <option value="en-US-AriaNeural">English - Aria (Female)</option>
+                    <option value="en-US-GuyNeural">English - Guy (Male)</option>
+                    <option value="ja-JP-NanamiNeural">日本語 - 七海 (女声)</option>
+                    <option value="ja-JP-KeitaNeural">日本語 - 圭太 (男声)</option>
+                    <option value="ko-KR-SunHiNeural">한국어 - 선히 (여성)</option>
+                    <option value="ko-KR-InJoonNeural">한국어 - 인준 (남성)</option>
+                </select>
+                
+                <div class="button-group">
+                    <button id="edgeTtsBtn" class="tts-button" onclick="generateEdgeTTS()">Generate Speech</button>
+                </div>
+            </div>
+            
+            <div id="edgeTtsLoading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating speech...</p>
+            </div>
+            
+            <div id="edgeTtsError" class="error" style="display: none;"></div>
+            
+            <div id="audioPlayerContainer" class="audio-player-container" style="display: none;">
+                <p class="status-message">Audio generated successfully! Use the player below to listen:</p>
+                <audio id="audioPlayer" class="audio-player" controls></audio>
             </div>
         </div>
 
@@ -618,6 +694,108 @@
                 }
             }
         }
+    </script>
+
+    <script>
+        /**
+         * Edge TTS Worker functionality
+         */
+        async function generateEdgeTTS() {
+            const text = document.getElementById('edgeTtsInput').value.trim();
+            const voiceSelect = document.getElementById('voiceSelect');
+            const voice = voiceSelect.value;
+            const loadingElement = document.getElementById('edgeTtsLoading');
+            const errorElement = document.getElementById('edgeTtsError');
+            const audioPlayerContainer = document.getElementById('audioPlayerContainer');
+            const audioPlayer = document.getElementById('audioPlayer');
+            const edgeTtsBtn = document.getElementById('edgeTtsBtn');
+            
+            // Validate input
+            if (!text) {
+                errorElement.textContent = 'Please enter text for speech generation.';
+                errorElement.style.display = 'block';
+                return;
+            }
+            
+            // Clear previous errors and hide audio player
+            errorElement.style.display = 'none';
+            audioPlayerContainer.style.display = 'none';
+            
+            // Show loading and disable button
+            loadingElement.style.display = 'flex';
+            edgeTtsBtn.disabled = true;
+            
+            try {
+                // Make the request to our proxy API
+                const response = await fetch('/api/worker-edge-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ text, voice })
+                });
+                
+                if (!response.ok) {
+                    // Try to parse error if available
+                    let errorMessage;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || `Server error: ${response.status}`;
+                    } catch (e) {
+                        errorMessage = `Server error: ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+                
+                // Get the audio data as blob
+                const audioBlob = await response.blob();
+                
+                // Create a URL for the blob
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                // Set the audio source and show the player
+                audioPlayer.src = audioUrl;
+                audioPlayerContainer.style.display = 'block';
+                
+                // Auto-play with a slight delay to ensure UI updates first
+                setTimeout(() => {
+                    audioPlayer.play().catch(e => {
+                        console.warn('Auto-play failed:', e);
+                        // This is expected in many browsers, so we don't show an error
+                    });
+                }, 100);
+                
+            } catch (error) {
+                console.error('Edge TTS Error:', error);
+                errorElement.textContent = error.message || 'An error occurred while generating speech.';
+                errorElement.style.display = 'block';
+            } finally {
+                // Hide loading and re-enable button
+                loadingElement.style.display = 'none';
+                edgeTtsBtn.disabled = false;
+            }
+        }
+        
+        // Cleanup function to free resources when audio is no longer needed
+        document.addEventListener('DOMContentLoaded', () => {
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            // When a new audio source is set, revoke the old URL
+            audioPlayer.addEventListener('loadeddata', () => {
+                const oldSrc = audioPlayer.dataset.oldSrc;
+                if (oldSrc) {
+                    URL.revokeObjectURL(oldSrc);
+                }
+                audioPlayer.dataset.oldSrc = audioPlayer.src;
+            });
+            
+            // Handle unload to clean up resources
+            window.addEventListener('beforeunload', () => {
+                if (audioPlayer.src && audioPlayer.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(audioPlayer.src);
+                }
+            });
+        });
     </script>
 </body>
 </html> 
