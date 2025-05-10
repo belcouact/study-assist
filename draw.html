@@ -619,65 +619,91 @@
                             throw new Error('请确保描述不为空');
                         }
                         
-                        // 构建正确的请求体
+                        // 简化请求体，只保留关键参数
                         const requestBody = {
                             prompt: prompt,
-                            size: `${width}x${height}`,
+                            // 使用默认大小 - 可能服务器端只支持特定尺寸
+                            size: "1024x1024",
                             count: 1
                         };
                         
-                        // 仅当风格不为空时添加风格
-                        if (selectedStyle) {
-                            // 不要在这里拼接风格，而是单独传递，后端会处理拼接
-                            requestBody.style = selectedStyle;
-                        }
+                        // 让服务器处理风格应用
+                        // 注释掉风格设置，让服务器使用默认风格
+                        // if (selectedStyle) {
+                        //     requestBody.style = selectedStyle;
+                        // }
                         
-                        console.log('发送到豆包API的请求:', JSON.stringify(requestBody));
+                        console.log('发送到豆包API的简化请求:', JSON.stringify(requestBody));
                         
-                        // 调用豆包API
-                        const response = await fetch('/api/ark-image', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(requestBody)
-                        });
+                        // 添加超时控制
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
                         
-                        // 处理错误
-                        if (!response.ok) {
-                            let errorMessage = `请求失败，状态码: ${response.status}`;
-                            try {
-                                const errorData = await response.json();
-                                if (errorData && errorData.error) {
-                                    errorMessage = errorData.error;
-                                }
-                            } catch (e) {
-                                // 无法解析JSON，使用默认错误消息
+                        try {
+                            // 调用豆包API
+                            const response = await fetch('/api/ark-image', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(requestBody),
+                                signal: controller.signal
+                            });
+                            
+                            clearTimeout(timeoutId); // 清除超时
+                            
+                            // 检查状态码
+                            if (response.status === 500) {
+                                throw new Error('服务器内部错误，可能是API密钥配置问题或外部服务不可用');
                             }
-                            throw new Error(errorMessage);
+                            
+                            if (response.status === 400) {
+                                throw new Error('请求参数错误，服务器无法处理当前请求');
+                            }
+                            
+                            if (!response.ok) {
+                                throw new Error(`请求失败，状态码: ${response.status}`);
+                            }
+                            
+                            // 尝试解析响应
+                            let imageData;
+                            try {
+                                imageData = await response.json();
+                            } catch (e) {
+                                throw new Error('无法解析服务器响应');
+                            }
+                            
+                            // 检查响应格式
+                            if (!imageData || !imageData.success) {
+                                throw new Error(imageData.error || '服务器无法生成图像');
+                            }
+                            
+                            // 尝试提取图像URL
+                            let imageUrl;
+                            try {
+                                imageUrl = imageData.data.data[0].url;
+                                
+                                // 显示图像
+                                imageResult.innerHTML = `
+                                    <div class="loading-image">加载豆包图像中...</div>
+                                    <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
+                                `;
+                            } catch (e) {
+                                throw new Error('无法从响应中提取图像URL');
+                            }
+                            
+                        } catch (e) {
+                            // 清除超时
+                            clearTimeout(timeoutId);
+                            
+                            // 处理超时错误
+                            if (e.name === 'AbortError') {
+                                throw new Error('请求超时，豆包API可能暂时不可用');
+                            }
+                            
+                            // 重新抛出其他错误
+                            throw e;
                         }
-                        
-                        // 解析响应
-                        const imageData = await response.json();
-                        
-                        // 验证成功响应
-                        if (!imageData.success) {
-                            throw new Error(imageData.error || '生成图像失败');
-                        }
-                        
-                        // 检查并确保data路径存在
-                        if (!imageData.data || !imageData.data.data || !imageData.data.data[0] || !imageData.data.data[0].url) {
-                            throw new Error('API返回的数据格式无效，找不到图像URL');
-                        }
-                        
-                        // 获取图像URL
-                        const imageUrl = imageData.data.data[0].url;
-                        
-                        // 显示图像
-                        imageResult.innerHTML = `
-                            <div class="loading-image">加载豆包图像中...</div>
-                            <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
-                        `;
                     }
                 } catch (error) {
                     console.error('生成图像失败:', error);
