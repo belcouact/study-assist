@@ -4,6 +4,106 @@
  * It uses environment variables for API key and URL for security.
  */
 
+const crypto = require('crypto');
+const axios = require('axios');
+
+// 豆包 Text to Image API implementation
+const API_URL = process.env.ARK_IMAGE_URL;
+const ACCESS_KEY = process.env.ARK_IMAGE_KEY;
+const SECRET_KEY = process.env.DOUPACK_SECRET_KEY;
+
+/**
+ * Generate SHA-256 hash of the given data
+ * @param {string|Buffer} data - Data to hash
+ * @returns {string} - Hex encoded hash
+ */
+function hashSHA256(data) {
+  const hash = crypto.createHash('sha256');
+  hash.update(typeof data === 'string' ? data : Buffer.from(data));
+  return hash.digest('hex');
+}
+
+/**
+ * Get formatted X-Date header
+ * @param {number} timestamp - Unix timestamp in milliseconds
+ * @returns {string} - Formatted date
+ */
+function getFormattedXDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+/**
+ * Generate signature for the API request
+ * @param {number} timestamp - Unix timestamp in milliseconds
+ * @param {string} accessKey - Access key
+ * @param {string} secretKey - Secret key
+ * @param {string} method - HTTP method
+ * @param {string} path - Request path
+ * @param {string} contentType - Content type
+ * @param {string} requestBody - Request body
+ * @returns {string} - Authorization header value
+ */
+function generateSignature(timestamp, accessKey, secretKey, method, path, contentType, requestBody) {
+  const xDate = getFormattedXDate(timestamp);
+  const contentSha256 = hashSHA256(requestBody);
+  
+  const stringToSign = `${method}\n${path}\n${contentType}\n${xDate}\n${contentSha256}`;
+  const signature = crypto.createHmac('sha256', secretKey).update(stringToSign).digest('hex');
+  
+  return `HMAC-SHA256 AccessKey=${accessKey}, Signature=${signature}`;
+}
+
+/**
+ * Generate image from text prompt
+ * @param {string} prompt - Text prompt for image generation
+ * @param {string} modelVersion - Model version, default is "general_v2.0_L"
+ * @param {string} reqKey - Request key, default is "high_aes_general_v20_L"
+ * @returns {Promise<Object>} - API response
+ */
+async function generateImage(prompt, modelVersion = "general_v2.0_L", reqKey = "high_aes_general_v20_L") {
+  try {
+    const timestamp = Date.now();
+    const method = "POST";
+    const path = "/generate";
+    const contentType = "application/json";
+
+    const requestData = {
+      req_key: reqKey,
+      prompt: prompt,
+      model_version: modelVersion
+    };
+
+    const requestBody = JSON.stringify(requestData);
+    const signature = generateSignature(
+      timestamp, 
+      ACCESS_KEY, 
+      SECRET_KEY, 
+      method, 
+      path, 
+      contentType, 
+      requestBody
+    );
+
+    const response = await axios({
+      method: method,
+      url: API_URL,
+      headers: {
+        'Content-Type': contentType,
+        'X-Date': getFormattedXDate(timestamp),
+        'X-Content-Sha256': hashSHA256(requestBody),
+        'Authorization': signature
+      },
+      data: requestData
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error('Error generating image:', error);
+    throw error;
+  }
+}
+
 export const onRequest = async (context) => {
   try {
     // Extract request data
@@ -67,7 +167,7 @@ export const onRequest = async (context) => {
     const fullPrompt = style ? `${style}风格，${prompt}` : prompt;
     
     // Call the image generation API
-    const imageResponse = await generateImage(apiKey, apiUrl, fullPrompt, size, count);
+    const imageResponse = await generateImage(fullPrompt, size, count);
     
     // Return the API response
     return new Response(JSON.stringify({
@@ -95,40 +195,12 @@ export const onRequest = async (context) => {
   }
 };
 
-/**
- * Call the external image generation API
- * 
- * @param {string} apiKey - API key from environment variable
- * @param {string} apiUrl - API URL from environment variable
- * @param {string} prompt - The text prompt for image generation
- * @param {string} size - Image size (e.g., "1024x1024")
- * @param {number} count - Number of images to generate
- * @returns {Object} The API response
- */
-async function generateImage(apiKey, apiUrl, prompt, size, count) {
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      prompt: prompt,
-      n: count,
-      size: size,
-    }),
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error?.message || `HTTP error! Status: ${response.status}`);
-  }
-  
-  return await response.json();
-}
-
 // For local testing and debugging
 export const config = {
   path: "/api/ark-image",
   method: ["POST"],
+};
+
+module.exports = {
+  generateImage
 }; 

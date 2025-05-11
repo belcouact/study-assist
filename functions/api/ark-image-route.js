@@ -3,40 +3,65 @@
  * This module forwards requests to the ark-image.js implementation
  */
 
-import { onRequest as arkImageHandler } from './ark-image';
+const { generateImage } = require('./ark-image');
 
+/**
+ * API handler for text to image generation requests
+ */
 export const onRequest = async (context) => {
-  // Add CORS headers to the response
-  const response = await arkImageHandler(context);
-  
-  // Clone the response to add CORS headers
-  const corsResponse = new Response(response.body, response);
-  
-  // Add CORS headers
-  corsResponse.headers.set('Access-Control-Allow-Origin', '*');
-  corsResponse.headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  corsResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  corsResponse.headers.set('Access-Control-Max-Age', '86400');
-  
-  return corsResponse;
-};
-
-// Handle OPTIONS requests for CORS preflight
-export const onRequestOptions = async (context) => {
-  // Create a Response with CORS headers
-  return new Response(null, {
-    status: 204,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Access-Control-Max-Age': '86400',
+  try {
+    // Set CORS headers
+    context.header('Access-Control-Allow-Origin', '*');
+    context.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    context.header('Access-Control-Allow-Headers', 'Content-Type');
+    
+    // Handle preflight requests
+    if (context.request.method === 'OPTIONS') {
+      return new Response(null, { status: 204 });
     }
-  });
+    
+    if (context.request.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Parse request body
+    const requestData = await context.request.json();
+    const { prompt, modelVersion, reqKey } = requestData;
+    
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: 'Prompt is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Call the image generation function
+    const result = await generateImage(prompt, modelVersion, reqKey);
+    
+    // Return the result
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (error) {
+    console.error('Error processing request:', error);
+    return new Response(JSON.stringify({ 
+      error: 'Failed to generate image',
+      message: error.message
+    }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
 };
 
-// Configuration for the route
+// For local testing and debugging
 export const config = {
-  path: "/api/ark-image",
+  path: "/api/ark-image-route",
   method: ["POST", "OPTIONS"],
 }; 
