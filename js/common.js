@@ -351,4 +351,19 @@ function getBaseUrl() {
     } else {
         return Array(depth).join('../');
     }
+}
+
+/**
+ * Initialize Chat Functionality
+ * This function is needed for the chat feature to work properly
+ */
+function initChat() {
+    // This is a placeholder that will be replaced by the functionality in chat-init.js
+    // We define it here to prevent the ReferenceError
+    console.log('Chat initialization placeholder from common.js');
+    
+    // Check if we have the actual implementation available
+    if (typeof initializeChatWithFloatingButton === 'function') {
+        initializeChatWithFloatingButton();
+    }
 } 
