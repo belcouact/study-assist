@@ -4,8 +4,8 @@
  * It uses environment variables for API key and URL for security.
  */
 
-const crypto = require('crypto');
-const axios = require('axios');
+import { createHash, createHmac } from 'crypto';
+import axios from 'axios';
 
 // 豆包 Text to Image API implementation
 const API_URL = process.env.ARK_IMAGE_URL;
@@ -18,7 +18,7 @@ const SECRET_KEY = process.env.DOUPACK_SECRET_KEY;
  * @returns {string} - Hex encoded hash
  */
 function hashSHA256(data) {
-  const hash = crypto.createHash('sha256');
+  const hash = createHash('sha256');
   hash.update(typeof data === 'string' ? data : Buffer.from(data));
   return hash.digest('hex');
 }
@@ -49,7 +49,7 @@ function generateSignature(timestamp, accessKey, secretKey, method, path, conten
   const contentSha256 = hashSHA256(requestBody);
   
   const stringToSign = `${method}\n${path}\n${contentType}\n${xDate}\n${contentSha256}`;
-  const signature = crypto.createHmac('sha256', secretKey).update(stringToSign).digest('hex');
+  const signature = createHmac('sha256', secretKey).update(stringToSign).digest('hex');
   
   return `HMAC-SHA256 AccessKey=${accessKey}, Signature=${signature}`;
 }
@@ -201,6 +201,4 @@ export const config = {
   method: ["POST"],
 };
 
-module.exports = {
-  generateImage
-}; 
+export { generateImage }; 

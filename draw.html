@@ -59,7 +59,7 @@
             margin-bottom: 1.5rem;
             width: 100%;
         }
-        
+
         #draw-prompt-input {
             flex: 1;
             resize: vertical;
@@ -83,7 +83,7 @@
             border: 1.5px solid #7209b7;
             background: #f8fafc;
         }
-        
+
         #optimize-button {
             padding: 0 2rem;
             background: linear-gradient(90deg, #7209b7, #4361ee);
@@ -98,12 +98,12 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         #optimize-button:hover {
             opacity: 0.9;
             background: linear-gradient(90deg, #4361ee, #7209b7 80%);
         }
-        
+
         /* 优化后的提示词区域 */
         .optimized-prompts {
             display: flex;
@@ -117,19 +117,19 @@
                 gap: 1rem;
             }
         }
-        
+
         .prompt-column {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
-        
+
         .prompt-column label {
             font-weight: 500;
             color: #4361ee;
         }
-        
+
         .prompt-column textarea {
             width: 100%;
             min-height: 120px;
@@ -140,7 +140,7 @@
             font-size: 1rem;
             resize: vertical;
         }
-        
+
         /* 选项区域 */
         .options-section {
             display: grid;
@@ -152,13 +152,13 @@
             padding: 1.5rem;
             border: 1.5px solid #e0c3fc;
         }
-        
+
         .option-group {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
-        
+
         .option-group label {
             font-weight: 500;
             color: #4361ee;
@@ -167,7 +167,7 @@
             gap: 0.5rem;
             font-size: 1rem;
         }
-        
+
         .option-group select {
             width: 100%;
             padding: 0.8rem;
@@ -261,7 +261,7 @@
             .section-header p {
                 font-size: 1rem;
             }
-            
+
             .top-input-section {
                 flex-direction: column;
             }
@@ -358,21 +358,21 @@
             <div class="assistant-container">
                 <!-- 顶部输入区域 -->
                 <div class="top-input-section">
-                    <textarea id="draw-prompt-input" placeholder="描述你想要的图像..."></textarea>
-                    <button id="optimize-button">优化描述</button>
-                </div>
+                        <textarea id="draw-prompt-input" placeholder="描述你想要的图像..."></textarea>
+                        <button id="optimize-button">优化描述</button>
+                    </div>
                 
                 <!-- 优化后的提示词区域 -->
-                <div class="optimized-prompts">
-                    <div class="prompt-column">
-                        <label>优化后的中文描述:</label>
-                        <textarea id="chinese-prompt" readonly></textarea>
+                    <div class="optimized-prompts">
+                        <div class="prompt-column">
+                            <label>优化后的中文描述:</label>
+                            <textarea id="chinese-prompt" readonly></textarea>
+                        </div>
+                        <div class="prompt-column">
+                            <label>优化后的英文描述:</label>
+                            <textarea id="english-prompt" readonly></textarea>
+                        </div>
                     </div>
-                    <div class="prompt-column">
-                        <label>优化后的英文描述:</label>
-                        <textarea id="english-prompt" readonly></textarea>
-                    </div>
-                </div>
                 
                 <!-- 选项区域 -->
                 <div class="options-section">
@@ -607,11 +607,11 @@
                         const imageUrl = `https://image.pollinations.ai/prompt/${encodedDescription}?width=${width}&height=${height}&model=flux&enhance=true&private=true&nologo=true&safe=true`;
                         
                         // 显示图像
-                        imageResult.innerHTML = `
-                            <div class="loading-image">加载Pollinations.ai图像中...</div>
-                            <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
-                        `;
-                        
+                            imageResult.innerHTML = `
+                                <div class="loading-image">加载Pollinations.ai图像中...</div>
+                                <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
+                            `;
+                            
                     } else if (selectedModel === 'doubao') {
                         // 使用豆包API生成图像
                         const prompt = selectedPromptType === 'english' ? chinesePrompt.value : selectedPrompt;
@@ -619,122 +619,39 @@
                             throw new Error('请确保描述不为空');
                         }
                         
-                        // 简化请求体，只保留关键参数
-                        const requestBody = {
-                            prompt: prompt,
-                            // 使用默认大小 - 可能服务器端只支持特定尺寸
-                            size: "1024x1024",
-                            count: 1
-                        };
-                        
-                        // 让服务器处理风格应用
-                        // 注释掉风格设置，让服务器使用默认风格
-                        // if (selectedStyle) {
-                        //     requestBody.style = selectedStyle;
-                        // }
-                        
-                        console.log('发送到豆包API的简化请求:', JSON.stringify(requestBody));
-                        
-                        // 添加超时控制
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
-                        
-                        try {
-                            // 调用豆包API
+                        // 调用豆包API
                             const response = await fetch('/api/ark-image', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
-                                body: JSON.stringify(requestBody),
-                                signal: controller.signal
+                                body: JSON.stringify({
+                                prompt: prompt,
+                                    size: `${width}x${height}`,
+                                    style: selectedStyle,
+                                    count: 1
+                                })
                             });
                             
-                            clearTimeout(timeoutId); // 清除超时
-                            
-                            // 检查状态码
-                            if (response.status === 500) {
-                                throw new Error('服务器内部错误，可能是API密钥配置问题或外部服务不可用');
-                            }
-                            
-                            if (response.status === 400) {
-                                throw new Error('请求参数错误，服务器无法处理当前请求');
-                            }
-                            
                             if (!response.ok) {
-                                throw new Error(`请求失败，状态码: ${response.status}`);
+                                const errorData = await response.json();
+                                throw new Error(errorData.error || `请求失败，状态码: ${response.status}`);
                             }
                             
-                            // 尝试解析响应
-                            let imageData;
-                            try {
-                                imageData = await response.json();
-                            } catch (e) {
-                                throw new Error('无法解析服务器响应');
+                            const imageData = await response.json();
+                            
+                            if (!imageData.success) {
+                                throw new Error(imageData.error || '生成图像失败');
                             }
                             
-                            // 检查响应格式
-                            if (!imageData || !imageData.success) {
-                                throw new Error(imageData.error || '服务器无法生成图像');
-                            }
+                        // 获取图像URL
+                            const imageUrl = imageData.data.data[0].url;
                             
-                            // 尝试提取图像URL
-                            let imageUrl;
-                            try {
-                                imageUrl = imageData.data.data[0].url;
-                                
-                                // 显示图像
-                                imageResult.innerHTML = `
-                                    <div class="loading-image">加载豆包图像中...</div>
-                                    <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
-                                `;
-                            } catch (e) {
-                                throw new Error('无法从响应中提取图像URL');
-                            }
-                            
-                        } catch (e) {
-                            // 清除超时
-                            clearTimeout(timeoutId);
-                            
-                            // 处理超时错误
-                            if (e.name === 'AbortError') {
-                                throw new Error('请求超时，豆包API可能暂时不可用');
-                            }
-                            
-                            // 提示用户豆包API不可用，正在尝试使用Pollinations.ai
-                            console.error('豆包API错误，尝试使用Pollinations.ai作为备选方案:', e);
-                            
-                            // 显示友好提示
-                            imageResult.innerHTML = '<div class="loading-image">豆包API当前不可用，正在尝试使用Pollinations.ai作为备选方案...</div>';
-                            
-                            // 等待1.5秒以便用户看到提示
-                            await new Promise(resolve => setTimeout(resolve, 1500));
-                            
-                            // 确保有英文描述可用
-                            const englishPromptText = selectedPromptType === 'english' 
-                                ? selectedPrompt 
-                                : englishPrompt.value;
-                                
-                            if (!englishPromptText) {
-                                throw new Error('豆包API不可用，需要英文描述才能使用Pollinations.ai备选方案。');
-                            }
-                            
-                            // 使用Pollinations.ai作为备选方案
-                            const encodedDescription = encodeURIComponent(englishPromptText);
-                            const imageUrl = `https://image.pollinations.ai/prompt/${encodedDescription}?width=${width}&height=${height}&model=flux&enhance=true&private=true&nologo=true&safe=true`;
-                            
-                            // 显示图像（使用Pollinations.ai）
+                        // 显示图像
                             imageResult.innerHTML = `
-                                <div class="alert alert-info" style="margin-bottom: 1rem; padding: 1rem; border-radius: 0.5rem; background-color: #e0f7fa; color: #00838f;">
-                                    <strong>提示：</strong> 豆包API当前不可用，已自动切换到Pollinations.ai生成图像。
-                                </div>
-                                <div class="loading-image">加载Pollinations.ai图像中...</div>
+                                <div class="loading-image">加载豆包图像中...</div>
                                 <img src="${imageUrl}" alt="Generated image" onload="this.previousElementSibling.style.display='none';">
                             `;
-                            
-                            // 告知用户已切换到Pollinations.ai
-                            return; // 成功使用备选方案，退出catch块
-                        }
                     }
                 } catch (error) {
                     console.error('生成图像失败:', error);
