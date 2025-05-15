@@ -128,6 +128,17 @@
         .prompt-column label {
             font-weight: 500;
             color: #4361ee;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .prompt-column label::after {
+            content: "(可编辑)";
+            font-size: 0.8rem;
+            color: #7209b7;
+            font-weight: normal;
+            opacity: 0.8;
         }
 
         .prompt-column textarea {
@@ -139,6 +150,13 @@
             background: rgba(255,255,255,0.8);
             font-size: 1rem;
             resize: vertical;
+            transition: border 0.2s, box-shadow 0.2s, height 0.2s;
+        }
+        
+        .prompt-column textarea:focus {
+            border: 1.5px solid #7209b7;
+            box-shadow: 0 0 8px rgba(114, 9, 183, 0.15);
+            outline: none;
         }
 
         /* 选项区域 */
@@ -281,6 +299,17 @@
                 width: 100%;
                 padding: 0.8rem;
             }
+            
+            .prompt-column textarea {
+                min-height: 100px;
+                font-size: 0.9rem;
+                padding: 0.8rem;
+            }
+            
+            /* 改善触摸设备上的交互体验 */
+            .prompt-column textarea:focus {
+                min-height: 150px; /* 聚焦时增加高度，便于移动设备编辑 */
+            }
         }
 
         /* Gradient text style */
@@ -366,11 +395,11 @@
                     <div class="optimized-prompts">
                         <div class="prompt-column">
                             <label>优化后的中文描述:</label>
-                            <textarea id="chinese-prompt" readonly></textarea>
+                            <textarea id="chinese-prompt"></textarea>
                         </div>
                         <div class="prompt-column">
                             <label>优化后的英文描述:</label>
-                            <textarea id="english-prompt" readonly></textarea>
+                            <textarea id="english-prompt"></textarea>
                         </div>
                     </div>
                 
@@ -458,6 +487,97 @@
             const generateButton = document.getElementById('generate-button');
             const imageResult = document.getElementById('image-result');
             const loaderContainer = document.querySelector('.loader-container');
+            
+            // 风格翻译词典 - 集中定义一次
+            const styleTranslations = {
+                '写实': 'realistic',
+                '油画': 'oil painting',
+                '插画': 'illustration',
+                '水彩': 'watercolor',
+                '像素': 'pixel art',
+                '概念艺术': 'concept art',
+                '赛博朋克': 'cyberpunk',
+                '动漫': 'anime'
+            };
+            
+            // 载入保存的输入内容
+            loadSavedInputs();
+            
+            // 保存用户输入到本地存储
+            function saveUserInputs() {
+                const inputs = {
+                    promptInput: promptInput.value,
+                    chinesePrompt: chinesePrompt.value,
+                    englishPrompt: englishPrompt.value,
+                    promptSelect: promptSelect.value,
+                    resolutionSelect: resolutionSelect.value,
+                    styleSelect: styleSelect.value,
+                    modelSelect: modelSelect.value
+                };
+                
+                localStorage.setItem('drawAIUserInputs', JSON.stringify(inputs));
+            }
+            
+            // 加载保存的输入内容
+            function loadSavedInputs() {
+                const savedInputs = localStorage.getItem('drawAIUserInputs');
+                if (savedInputs) {
+                    try {
+                        const inputs = JSON.parse(savedInputs);
+                        promptInput.value = inputs.promptInput || '';
+                        chinesePrompt.value = inputs.chinesePrompt || '';
+                        englishPrompt.value = inputs.englishPrompt || '';
+                        
+                        // 只有当选择项存在于当前选项中时才恢复
+                        if (inputs.promptSelect && (inputs.promptSelect === 'chinese' || inputs.promptSelect === 'english')) {
+                            promptSelect.value = inputs.promptSelect;
+                        }
+                        
+                        // 检查分辨率是否存在于当前选项中
+                        if (inputs.resolutionSelect) {
+                            const resOptions = Array.from(resolutionSelect.options).map(opt => opt.value);
+                            if (resOptions.includes(inputs.resolutionSelect)) {
+                                resolutionSelect.value = inputs.resolutionSelect;
+                            }
+                        }
+                        
+                        // 检查风格是否存在于当前选项中
+                        if (inputs.styleSelect) {
+                            const styleOptions = Array.from(styleSelect.options).map(opt => opt.value);
+                            if (styleOptions.includes(inputs.styleSelect)) {
+                                styleSelect.value = inputs.styleSelect;
+                            }
+                        }
+                        
+                        // 检查模型是否存在于当前选项中
+                        if (inputs.modelSelect) {
+                            const modelOptions = Array.from(modelSelect.options).map(opt => opt.value);
+                            if (modelOptions.includes(inputs.modelSelect)) {
+                                modelSelect.value = inputs.modelSelect;
+                            }
+                        }
+                        
+                        // 应用自动调整高度
+                        if (chinesePrompt.value || englishPrompt.value) {
+                            setupTextareaAutoResize(chinesePrompt);
+                            setupTextareaAutoResize(englishPrompt);
+                        }
+                    } catch (e) {
+                        console.error('加载保存的输入数据失败:', e);
+                        // 出错时清除可能损坏的数据
+                        localStorage.removeItem('drawAIUserInputs');
+                    }
+                }
+            }
+            
+            // 添加保存事件监听
+            [promptInput, chinesePrompt, englishPrompt, promptSelect, resolutionSelect, styleSelect, modelSelect].forEach(element => {
+                element.addEventListener('change', saveUserInputs);
+                // 对文本框，也监听输入事件以便实时保存
+                if (element.tagName === 'TEXTAREA') {
+                    element.addEventListener('input', saveUserInputs);
+                }
+            });
             
             // 优化描述按钮点击事件
             optimizeButton.addEventListener('click', async () => {
@@ -623,6 +743,23 @@
                 }
             });
             
+            // 优化中英文文本框高度自适应
+            function setupTextareaAutoResize(textarea) {
+                textarea.addEventListener('input', function() {
+                    this.style.height = 'auto';
+                    const newHeight = Math.max(this.scrollHeight, 120); // 最小高度为120px
+                    this.style.height = newHeight + 'px';
+                });
+                
+                // 初始化高度
+                textarea.style.height = 'auto';
+                textarea.style.height = Math.max(textarea.scrollHeight, 120) + 'px';
+            }
+            
+            // 应用自动调整高度 - 对空文本框也应用初始化
+            setupTextareaAutoResize(chinesePrompt);
+            setupTextareaAutoResize(englishPrompt);
+            
             // 支持按Enter键提交描述
             promptInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey && promptInput.value.trim()) {
@@ -630,6 +767,88 @@
                     optimizeButton.click();
                 }
             });
+            
+            // 图片风格选择事件，自动添加风格到两个文本框
+            styleSelect.addEventListener('change', () => {
+                const selectedStyle = styleSelect.value;
+                const englishStyle = styleTranslations[selectedStyle] || selectedStyle;
+                
+                // 处理中文描述
+                updateStyleInPrompt(chinesePrompt, selectedStyle, '风格');
+                
+                // 处理英文描述
+                updateStyleInPrompt(englishPrompt, englishStyle, 'style');
+                
+                // 显示提示消息，尤其对移动端用户友好
+                const message = document.createElement('div');
+                message.textContent = `已添加 ${selectedStyle} 风格`;
+                message.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:rgba(67, 97, 238, 0.9); color:white; padding:10px 20px; border-radius:30px; font-size:14px; box-shadow:0 2px 10px rgba(0,0,0,0.2); z-index:1000; transition:opacity 0.3s;';
+                
+                // 移动端适配：较小设备上显示更小的提示
+                if (window.innerWidth < 768) {
+                    message.style.fontSize = '12px';
+                    message.style.padding = '8px 16px';
+                    message.style.bottom = '15px';
+                }
+                
+                document.body.appendChild(message);
+                
+                // 2秒后自动消失
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    setTimeout(() => document.body.removeChild(message), 300);
+                }, 2000);
+            });
+            
+            // 辅助函数：更新提示词中的风格
+            function updateStyleInPrompt(textArea, style, suffix) {
+                const text = textArea.value.trim();
+                const styleSuffix = suffix ? ` ${suffix}` : '';
+                
+                // 检查所有常见风格名称是否已存在于文本中
+                const commonStyles = Object.keys(styleTranslations);
+                const commonEnglishStyles = Object.values(styleTranslations);
+                const allStyles = [...commonStyles, ...commonEnglishStyles];
+                
+                // 如果文本为空，则直接设置风格
+                if (!text) {
+                    textArea.value = style + styleSuffix;
+                    return;
+                }
+                
+                // 检查是否已包含任何风格关键词
+                let hasStyle = false;
+                for (const existingStyle of allStyles) {
+                    // 检查完整的风格词组，避免部分匹配
+                    const stylePattern = new RegExp(`${existingStyle}\\s*(风格|style|$)`, 'i');
+                    if (stylePattern.test(text)) {
+                        hasStyle = true;
+                        break;
+                    }
+                }
+                
+                // 如果没有任何风格关键词，添加新的风格
+                if (!hasStyle) {
+                    // 检查是否有适合添加逗号的情况
+                    const needsComma = !text.endsWith('，') && !text.endsWith(',') && text.length > 0;
+                    const separator = needsComma ? (suffix === 'style' ? ', ' : '，') : '';
+                    textArea.value = text + separator + style + styleSuffix;
+                } else {
+                    // 如果有风格关键词，尝试替换它
+                    for (const existingStyle of allStyles) {
+                        const stylePattern = new RegExp(`${existingStyle}\\s*(风格|style)`, 'i');
+                        if (stylePattern.test(text)) {
+                            textArea.value = text.replace(stylePattern, style + styleSuffix);
+                            return;
+                        }
+                    }
+                    
+                    // 如果无法直接替换，则简单地附加
+                    const needsComma = !text.endsWith('，') && !text.endsWith(',');
+                    const separator = needsComma ? (suffix === 'style' ? ', ' : '，') : '';
+                    textArea.value = text + separator + style + styleSuffix;
+                }
+            }
         });
     </script>
 </body>
