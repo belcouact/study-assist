@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Assist - Textbook Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        header {
+            background-color: #3498db;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin: 0;
+            font-size: 2em;
+        }
+        .container {
+            display: flex;
+            max-width: 1400px;
+            margin: 20px auto;
+        }
+        .sidebar {
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-right: 20px;
+            height: fit-content;
+        }
+        .content {
+            flex: 1;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            font-size: 16px;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .textbook-list {
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .textbook-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .textbook-item:last-child {
+            border-bottom: none;
+        }
+        .textbook-item:hover {
+            background-color: #f5f7fa;
+        }
+        .textbook-item.selected {
+            background-color: #e1f0fa;
+            border-left: 4px solid #3498db;
+        }
+        .pdf-container {
+            height: 700px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        .no-textbook-selected {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #7f8c8d;
+            text-align: center;
+            padding: 40px;
+        }
+        .no-textbook-selected i {
+            font-size: 60px;
+            margin-bottom: 20px;
+            color: #bdc3c7;
+        }
+        .no-textbook-selected h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: auto;
+                margin-right: 0;
+                margin-bottom: 20px;
+            }
+            .pdf-container {
+                height: 500px;
+            }
+        }
+        /* Loading spinner */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* PDF header info */
+        .pdf-header {
+            padding: 10px 15px;
+            background-color: #f5f7fa;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pdf-header h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        .pdf-info {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Textbook Viewer</h1>
+    </header>
+    
+    <div class="container">
+        <div class="sidebar">
+            <h2>Textbook Browser</h2>
+            <div class="form-group">
+                <label for="subject-select">Subject:</label>
+                <select id="subject-select">
+                    <option value="">Select a subject</option>
+                    <!-- Options will be populated via JavaScript -->
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="grade-select">Grade:</label>
+                <select id="grade-select" disabled>
+                    <option value="">Select a grade</option>
+                    <!-- Options will be populated via JavaScript -->
+                </select>
+            </div>
+            
+            <div class="form-group textbook-list-container" style="display: none;">
+                <label>Available Textbooks:</label>
+                <div class="textbook-list" id="textbook-list">
+                    <!-- Textbook list will be populated via JavaScript -->
+                </div>
+            </div>
+            
+            <button id="load-textbook" disabled>Load Selected Textbook</button>
+            
+            <div class="loader" id="loader"></div>
+        </div>
+        
+        <div class="content">
+            <div id="pdf-header" class="pdf-header" style="display: none;">
+                <h3 id="current-textbook-title">No textbook loaded</h3>
+                <div class="pdf-info">
+                    <span id="current-subject"></span> - 
+                    <span id="current-grade"></span>
+                </div>
+            </div>
+            
+            <div id="pdf-container" class="pdf-container">
+                <div class="no-textbook-selected" id="placeholder">
+                    <i>📚</i>
+                    <h3>No Textbook Selected</h3>
+                    <p>Please select a subject, grade, and textbook from the menu on the left to get started.</p>
+                </div>
+                <!-- PDF viewer will be inserted here by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load the PDF reader script -->
+    <script src="js/pdf-reader.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const subjectSelect = document.getElementById('subject-select');
+            const gradeSelect = document.getElementById('grade-select');
+            const textbookList = document.getElementById('textbook-list');
+            const textbookListContainer = document.querySelector('.textbook-list-container');
+            const loadButton = document.getElementById('load-textbook');
+            const pdfContainer = document.getElementById('pdf-container');
+            const placeholder = document.getElementById('placeholder');
+            const loader = document.getElementById('loader');
+            const pdfHeader = document.getElementById('pdf-header');
+            const currentTextbookTitle = document.getElementById('current-textbook-title');
+            const currentSubject = document.getElementById('current-subject');
+            const currentGrade = document.getElementById('current-grade');
+            
+            // State
+            let selectedTextbook = null;
+            const textbookBasePath = 'assets/textbook';
+            
+            // Subject data - this would ideally come from an API or server-side script
+            // For now, we'll hard-code the data we have observed from the directory structure
+            const subjects = [
+                { id: 'english', name: 'English' },
+                { id: 'math', name: 'Mathematics' },
+                { id: 'science', name: 'Science' },
+                { id: 'history', name: 'History' },
+                { id: 'geography', name: 'Geography' }
+            ];
+            
+            // Grade data
+            const grades = Array.from({ length: 12 }, (_, i) => ({
+                id: `grade${i + 1}`,
+                name: `Grade ${i + 1}`
+            }));
+            
+            // Populate subject select
+            subjects.forEach(subject => {
+                const option = document.createElement('option');
+                option.value = subject.id;
+                option.textContent = subject.name;
+                subjectSelect.appendChild(option);
+            });
+            
+            // Event Listeners
+            subjectSelect.addEventListener('change', handleSubjectChange);
+            gradeSelect.addEventListener('change', handleGradeChange);
+            loadButton.addEventListener('click', loadSelectedTextbook);
+            
+            // Functions
+            function handleSubjectChange() {
+                const selectedSubject = subjectSelect.value;
+                
+                // Reset the grade selection
+                gradeSelect.innerHTML = '<option value="">Select a grade</option>';
+                
+                // Hide the textbook list and disable load button
+                textbookListContainer.style.display = 'none';
+                loadButton.disabled = true;
+                
+                if (selectedSubject) {
+                    // Enable the grade select
+                    gradeSelect.disabled = false;
+                    
+                    // Populate the grade select
+                    grades.forEach(grade => {
+                        const option = document.createElement('option');
+                        option.value = grade.id;
+                        option.textContent = grade.name;
+                        gradeSelect.appendChild(option);
+                    });
+                } else {
+                    // Disable the grade select
+                    gradeSelect.disabled = true;
+                }
+            }
+            
+            function handleGradeChange() {
+                const selectedSubject = subjectSelect.value;
+                const selectedGrade = gradeSelect.value;
+                
+                // Reset textbook selection
+                selectedTextbook = null;
+                loadButton.disabled = true;
+                
+                if (selectedSubject && selectedGrade) {
+                    // Show the loader
+                    loader.style.display = 'block';
+                    
+                    // Fetch available textbooks for the selected subject and grade
+                    fetchAvailableTextbooks(selectedSubject, selectedGrade)
+                        .then(textbooks => {
+                            populateTextbookList(textbooks);
+                            
+                            // Hide the loader
+                            loader.style.display = 'none';
+                            
+                            // Show the textbook list if there are textbooks
+                            if (textbooks.length > 0) {
+                                textbookListContainer.style.display = 'block';
+                            } else {
+                                textbookListContainer.style.display = 'none';
+                                alert('No textbooks found for the selected subject and grade.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching textbooks:', error);
+                            loader.style.display = 'none';
+                            alert('Error loading textbooks. Please try again later.');
+                        });
+                } else {
+                    // Hide the textbook list
+                    textbookListContainer.style.display = 'none';
+                }
+            }
+            
+            function fetchAvailableTextbooks(subject, grade) {
+                // In a real application, this would be an API call to the server
+                // For this example, we'll simulate it with a promise that resolves with sample data
+                return new Promise((resolve) => {
+                    // Simulate network delay
+                    setTimeout(() => {
+                        // This is where you would normally fetch from the server
+                        // For now, just return some predefined textbooks based on the directory structure
+                        if (subject === 'english' && grade === 'grade7') {
+                            resolve([
+                                { id: 'english_grammar_7', name: 'English Grammar', filename: 'grammar.pdf' },
+                                { id: 'english_literature_7', name: 'English Literature', filename: 'literature.pdf' },
+                                { id: 'english_vocabulary_7', name: 'Vocabulary Builder', filename: 'vocabulary.pdf' }
+                            ]);
+                        } else {
+                            // Return empty array for other combinations (no textbooks found)
+                            resolve([]);
+                        }
+                    }, 500);
+                });
+            }
+            
+            function populateTextbookList(textbooks) {
+                // Clear the current list
+                textbookList.innerHTML = '';
+                
+                // Add each textbook to the list
+                textbooks.forEach(textbook => {
+                    const item = document.createElement('div');
+                    item.className = 'textbook-item';
+                    item.textContent = textbook.name;
+                    item.dataset.id = textbook.id;
+                    item.dataset.name = textbook.name;
+                    item.dataset.filename = textbook.filename;
+                    
+                    // Add click event to select the textbook
+                    item.addEventListener('click', function() {
+                        // Remove selected class from all items
+                        document.querySelectorAll('.textbook-item').forEach(el => {
+                            el.classList.remove('selected');
+                        });
+                        
+                        // Add selected class to this item
+                        this.classList.add('selected');
+                        
+                        // Update selected textbook
+                        selectedTextbook = {
+                            id: this.dataset.id,
+                            name: this.dataset.name,
+                            filename: this.dataset.filename,
+                            subject: subjectSelect.value,
+                            grade: gradeSelect.value
+                        };
+                        
+                        // Enable the load button
+                        loadButton.disabled = false;
+                    });
+                    
+                    textbookList.appendChild(item);
+                });
+            }
+            
+            function loadSelectedTextbook() {
+                if (!selectedTextbook) return;
+                
+                // Show the loader
+                loader.style.display = 'block';
+                
+                // Hide the placeholder
+                placeholder.style.display = 'none';
+                
+                // Build the path to the textbook file
+                const textbookPath = `${textbookBasePath}/${selectedTextbook.subject}/${selectedTextbook.grade}/${selectedTextbook.filename}`;
+                
+                // Update the PDF header
+                currentTextbookTitle.textContent = selectedTextbook.name;
+                currentSubject.textContent = subjects.find(s => s.id === selectedTextbook.subject).name;
+                currentGrade.textContent = grades.find(g => g.id === selectedTextbook.grade).name;
+                pdfHeader.style.display = 'flex';
+                
+                // Check if PDFReader is initialized
+                if (window.PDFReader) {
+                    try {
+                        // Load the PDF with options
+                        window.PDFReader.loadPDF(textbookPath, {
+                            initialPage: 1,
+                            scale: 1.0,
+                            lazyLoad: true,
+                            preloadPages: 2,
+                            cacheSize: 10
+                        });
+                        
+                        // Hide the loader after a short delay to allow the PDF to start rendering
+                        setTimeout(() => {
+                            loader.style.display = 'none';
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Error loading PDF:', error);
+                        loader.style.display = 'none';
+                        alert('Failed to load the textbook. Please try again later.');
+                    }
+                } else {
+                    console.error('PDF Reader not initialized');
+                    loader.style.display = 'none';
+                    alert('PDF Reader component is not loaded. Please refresh the page and try again.');
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
