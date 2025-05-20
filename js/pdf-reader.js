@@ -149,9 +149,6 @@
         overflow: auto;
         background-color: #f5f5f5;
         position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
       }
       
       .pdf-page {
@@ -310,24 +307,6 @@
     pageCache = new Map();
     pagePriority = [];
     
-    // Set the container to the passed container or find it by ID
-    if (options.container) {
-      pdfContainer = options.container;
-    } else if (!pdfContainer) {
-      pdfContainer = document.getElementById('pdf-viewer');
-      if (!pdfContainer) {
-        pdfContainer = document.getElementById('pdf-container');
-      }
-    }
-    
-    // Make sure the container is empty
-    if (pdfContainer) {
-      pdfContainer.innerHTML = '';
-    } else {
-      console.error('PDF container not found');
-      return;
-    }
-    
     // Load the PDF document
     window.pdfjsLib.getDocument(url).promise
       .then(function(pdfDoc) {
@@ -335,10 +314,7 @@
         totalPages = pdfDoc.numPages;
         
         // Update UI
-        const totalPagesElement = document.getElementById('pdf-total-pages');
-        if (totalPagesElement) {
-          totalPagesElement.textContent = totalPages;
-        }
+        document.getElementById('pdf-total-pages').textContent = totalPages;
         updatePageInfo();
         updateZoomLevel();
         
@@ -450,6 +426,9 @@
    */
   function renderPageContent(page) {
     showLoader();
+    
+    // Clear the container
+    pdfContainer.innerHTML = '';
     
     // Create a container for this page
     const pageContainer = document.createElement('div');
