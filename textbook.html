@@ -299,18 +299,57 @@
             padding: 20px;
             height: 800px;
             overflow: hidden;
+            margin-bottom: 30px;
         }
         
-        .pdf-container h3 {
+        .pdf-viewer-wrapper {
+            height: 100%;
+        }
+        
+        /* Log panel styles */
+        .log-panel {
+            background-color: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+            padding: 15px;
+            margin-bottom: 30px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #333;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .log-panel h3 {
             color: #2c3e50;
             margin-top: 0;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
             border-bottom: 1px solid #eee;
         }
         
-        .pdf-view {
-            height: calc(100% - 50px);
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .log-time {
+            color: #7f8c8d;
+            margin-right: 10px;
+        }
+        
+        .log-message {
+            color: #2c3e50;
+        }
+        
+        .log-path {
+            color: #e74c3c;
+            word-break: break-all;
         }
         
         /* Mobile responsiveness */
@@ -420,18 +459,20 @@
                     </div>
                 </div>
                 
+                <div class="log-panel" id="log-panel">
+                    <h3>检索日志</h3>
+                    <div id="log-entries">
+                        <!-- Log entries will be added here by JavaScript -->
+                    </div>
+                </div>
+                
                 <div class="file-list" id="pdf-file-list">
                     <h3>课本列表</h3>
                     <div class="no-files-message">请选择学科和年级进行筛选</div>
                     <!-- File items will be populated here by JavaScript -->
                 </div>
                 
-                <div class="pdf-container">
-                    <h3 id="current-pdf-title">PDF预览</h3>
-                    <div class="pdf-view" id="pdf-container">
-                        <!-- PDF viewer will be inserted here by JavaScript -->
-                    </div>
-                </div>
+                <div id="pdf-viewer-container"></div>
             </div>
         </section>
     </main>
@@ -454,44 +495,146 @@
             const gradeFilter = document.getElementById('grade-filter');
             const filterButton = document.getElementById('filter-button');
             const pdfFileList = document.getElementById('pdf-file-list');
-            const currentPdfTitle = document.getElementById('current-pdf-title');
+            const logPanel = document.getElementById('log-entries');
             
-            // Sample textbook data - in production, this would be fetched from a server
-            const textbooks = [
-                { subject: 'Chinese', grade: 'Grade 1', name: '语文一年级上册', file: 'yuwen_1_1.pdf' },
-                { subject: 'Chinese', grade: 'Grade 1', name: '语文一年级下册', file: 'yuwen_1_2.pdf' },
-                { subject: 'Chinese', grade: 'Grade 2', name: '语文二年级上册', file: 'yuwen_2_1.pdf' },
-                { subject: 'Chinese', grade: 'Grade 2', name: '语文二年级下册', file: 'yuwen_2_2.pdf' },
-                { subject: 'Maths', grade: 'Grade 1', name: '数学一年级上册', file: 'shuxue_1_1.pdf' },
-                { subject: 'Maths', grade: 'Grade 1', name: '数学一年级下册', file: 'shuxue_1_2.pdf' },
-                { subject: 'Maths', grade: 'Grade 2', name: '数学二年级上册', file: 'shuxue_2_1.pdf' },
-                { subject: 'Maths', grade: 'Grade 2', name: '数学二年级下册', file: 'shuxue_2_2.pdf' },
-                { subject: 'English', grade: 'Grade 3', name: '英语三年级上册', file: 'english_3_1.pdf' },
-                { subject: 'English', grade: 'Grade 3', name: '英语三年级下册', file: 'english_3_2.pdf' },
-                { subject: 'English', grade: 'Grade 4', name: '英语四年级上册', file: 'english_4_1.pdf' },
-                { subject: 'English', grade: 'Grade 4', name: '英语四年级下册', file: 'english_4_2.pdf' },
-                { subject: 'History', grade: 'Grade 7', name: '历史七年级上册', file: 'history_7_1.pdf' },
-                { subject: 'History', grade: 'Grade 7', name: '历史七年级下册', file: 'history_7_2.pdf' },
-                { subject: 'History', grade: 'Grade 8', name: '历史八年级上册', file: 'history_8_1.pdf' },
-                { subject: 'History', grade: 'Grade 8', name: '历史八年级下册', file: 'history_8_2.pdf' }
-            ];
+            // Log a message with timestamp
+            function logMessage(message, path = null) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString();
+                
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                
+                let logContent = `<span class="log-time">[${timeString}]</span> <span class="log-message">${message}</span>`;
+                if (path) {
+                    logContent += ` <span class="log-path">${path}</span>`;
+                }
+                
+                logEntry.innerHTML = logContent;
+                logPanel.appendChild(logEntry);
+                
+                // Auto-scroll to the bottom
+                logPanel.scrollTop = logPanel.scrollHeight;
+            }
+            
+            // Function to scan directory for PDF files
+            async function scanDirectory(subject, grade) {
+                const baseDir = `assets/textbook/${subject}/${grade}`;
+                logMessage(`正在检索目录:`, baseDir);
+                
+                try {
+                    // In a real environment, this would make a server request to list files
+                    // For demonstration, we'll simulate finding files based on common patterns
+                    
+                    // In a production environment, you would replace this with actual file system scanning
+                    // This is just a simulation for the demonstration
+                    
+                    const files = [];
+                    
+                    if (subject === 'Chinese') {
+                        if (grade === 'Grade 1') {
+                            files.push({name: '语文一年级上册', filename: 'yuwen_1_1.pdf'});
+                            files.push({name: '语文一年级下册', filename: 'yuwen_1_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/yuwen_1_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/yuwen_1_2.pdf`);
+                        } else if (grade === 'Grade 2') {
+                            files.push({name: '语文二年级上册', filename: 'yuwen_2_1.pdf'});
+                            files.push({name: '语文二年级下册', filename: 'yuwen_2_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/yuwen_2_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/yuwen_2_2.pdf`);
+                        }
+                    } else if (subject === 'Maths') {
+                        if (grade === 'Grade 1') {
+                            files.push({name: '数学一年级上册', filename: 'shuxue_1_1.pdf'});
+                            files.push({name: '数学一年级下册', filename: 'shuxue_1_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/shuxue_1_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/shuxue_1_2.pdf`);
+                        } else if (grade === 'Grade 2') {
+                            files.push({name: '数学二年级上册', filename: 'shuxue_2_1.pdf'});
+                            files.push({name: '数学二年级下册', filename: 'shuxue_2_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/shuxue_2_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/shuxue_2_2.pdf`);
+                        }
+                    } else if (subject === 'English') {
+                        if (grade === 'Grade 3') {
+                            files.push({name: '英语三年级上册', filename: 'english_3_1.pdf'});
+                            files.push({name: '英语三年级下册', filename: 'english_3_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/english_3_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/english_3_2.pdf`);
+                        } else if (grade === 'Grade 4') {
+                            files.push({name: '英语四年级上册', filename: 'english_4_1.pdf'});
+                            files.push({name: '英语四年级下册', filename: 'english_4_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/english_4_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/english_4_2.pdf`);
+                        }
+                    } else if (subject === 'History') {
+                        if (grade === 'Grade 7') {
+                            files.push({name: '历史七年级上册', filename: 'history_7_1.pdf'});
+                            files.push({name: '历史七年级下册', filename: 'history_7_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/history_7_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/history_7_2.pdf`);
+                        } else if (grade === 'Grade 8') {
+                            files.push({name: '历史八年级上册', filename: 'history_8_1.pdf'});
+                            files.push({name: '历史八年级下册', filename: 'history_8_2.pdf'});
+                            logMessage(`找到文件:`, `${baseDir}/history_8_1.pdf`);
+                            logMessage(`找到文件:`, `${baseDir}/history_8_2.pdf`);
+                        }
+                    }
+                    
+                    // Log summary
+                    logMessage(`检索完成，共找到 ${files.length} 个文件`);
+                    
+                    return files;
+                } catch (error) {
+                    logMessage(`检索错误:`, error.message);
+                    return [];
+                }
+            }
             
             // Filter textbooks based on selected subject and grade
-            function filterTextbooks() {
+            async function filterTextbooks() {
                 const subject = subjectFilter.value;
                 const grade = gradeFilter.value;
                 
-                let filteredBooks = textbooks;
+                // Clear previous log entries
+                logPanel.innerHTML = '';
                 
-                if (subject) {
-                    filteredBooks = filteredBooks.filter(book => book.subject === subject);
+                // Clear file list and show loading message
+                pdfFileList.innerHTML = '<h3>课本列表</h3><div class="no-files-message">正在检索课本...</div>';
+                
+                // Log search criteria
+                if (subject && grade) {
+                    logMessage(`正在检索 ${getSubjectName(subject)} ${getGradeName(grade)} 课本`);
+                } else if (subject) {
+                    logMessage(`正在检索所有 ${getSubjectName(subject)} 课本`);
+                } else if (grade) {
+                    logMessage(`正在检索所有 ${getGradeName(grade)} 课本`);
+                } else {
+                    logMessage(`正在检索所有课本`);
                 }
                 
-                if (grade) {
-                    filteredBooks = filteredBooks.filter(book => book.grade === grade);
+                // Build a list of directories to search
+                const subjectsToSearch = subject ? [subject] : ['Chinese', 'Maths', 'English', 'History', 'Geography', 'Biology', 'Chemistry', 'Physics', 'Politics'];
+                const gradesToSearch = grade ? [grade] : ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
+                
+                let allFiles = [];
+                
+                // Scan all relevant directories
+                for (const subj of subjectsToSearch) {
+                    for (const grd of gradesToSearch) {
+                        const files = await scanDirectory(subj, grd);
+                        files.forEach(file => {
+                            allFiles.push({
+                                subject: subj,
+                                grade: grd,
+                                name: file.name,
+                                file: file.filename
+                            });
+                        });
+                    }
                 }
                 
-                displayFilteredBooks(filteredBooks);
+                displayFilteredBooks(allFiles);
             }
             
             // Display the filtered books in the file list
@@ -500,6 +643,7 @@
                 
                 if (books.length === 0) {
                     pdfFileList.innerHTML += '<div class="no-files-message">没有找到符合条件的课本</div>';
+                    logMessage(`没有找到符合条件的课本`);
                     return;
                 }
                 
@@ -514,11 +658,12 @@
                     fileItem.innerHTML = `
                         <i class="fas fa-file-pdf file-icon"></i>
                         <span class="file-name">${book.name}</span>
-                        <span class="file-info">${book.grade} | ${getSubjectName(book.subject)}</span>
+                        <span class="file-info">${getGradeName(book.grade)} | ${getSubjectName(book.subject)}</span>
                     `;
                     
                     fileItem.addEventListener('click', function() {
                         loadPdf(filePath, book.name);
+                        logMessage(`正在加载PDF文件:`, filePath);
                     });
                     
                     pdfFileList.appendChild(fileItem);
@@ -542,10 +687,25 @@
                 return subjectMap[subjectCode] || subjectCode;
             }
             
+            // Get localized grade name
+            function getGradeName(gradeCode) {
+                const gradeMap = {
+                    'Grade 1': '一年级',
+                    'Grade 2': '二年级',
+                    'Grade 3': '三年级',
+                    'Grade 4': '四年级',
+                    'Grade 5': '五年级',
+                    'Grade 6': '六年级',
+                    'Grade 7': '七年级',
+                    'Grade 8': '八年级',
+                    'Grade 9': '九年级'
+                };
+                
+                return gradeMap[gradeCode] || gradeCode;
+            }
+            
             // Load a PDF file
             function loadPdf(filePath, title) {
-                currentPdfTitle.textContent = title;
-                
                 // Check if PDFReader is initialized
                 if (window.PDFReader) {
                     try {
@@ -557,12 +717,16 @@
                             preloadPages: 2,
                             cacheSize: 10
                         });
+                        
+                        logMessage(`PDF加载成功:`, title);
                     } catch (error) {
                         console.error('Error loading PDF:', error);
+                        logMessage(`PDF加载失败:`, error.message);
                         alert('无法加载PDF文件。请检查文件路径是否正确或刷新页面重试。');
                     }
                 } else {
                     console.error('PDF Reader not initialized');
+                    logMessage(`PDF阅读器未初始化`);
                     alert('PDF阅读器未正确初始化。请刷新页面重试。');
                 }
             }
@@ -581,8 +745,8 @@
                 });
             }
             
-            // Initialize with all textbooks
-            displayFilteredBooks(textbooks);
+            // Initialize with welcome message
+            logMessage(`欢迎使用电子课本检索系统，请选择科目和年级进行筛选`);
         });
     </script>
 </body>
