@@ -358,24 +358,102 @@
             }
             
             function fetchAvailableTextbooks(subject, grade) {
-                // In a real application, this would be an API call to the server
-                // For this example, we'll simulate it with a promise that resolves with sample data
                 return new Promise((resolve) => {
-                    // Simulate network delay
-                    setTimeout(() => {
-                        // This is where you would normally fetch from the server
-                        // For now, just return some predefined textbooks based on the directory structure
-                        if (subject === 'english' && grade === 'grade7') {
-                            resolve([
-                                { id: 'english_grammar_7', name: 'English Grammar', filename: 'grammar.pdf' },
-                                { id: 'english_literature_7', name: 'English Literature', filename: 'literature.pdf' },
-                                { id: 'english_vocabulary_7', name: 'Vocabulary Builder', filename: 'vocabulary.pdf' }
-                            ]);
-                        } else {
-                            // Return empty array for other combinations (no textbooks found)
-                            resolve([]);
+                    // Create a path to the directory
+                    const dirPath = `${textbookBasePath}/${subject}/${grade}/`;
+                    
+                    // This is a client-side approach to check for available PDFs
+                    // We'll use HEAD requests to check if files exist
+                    
+                    // Array to store available textbooks
+                    const availableTextbooks = [];
+                    const checkQueue = [];
+                    let completedChecks = 0;
+                    
+                    // Create a function to check if a file exists
+                    function checkFileExists(filename) {
+                        return new Promise(resolve => {
+                            const filePath = `${dirPath}${filename}`;
+                            const xhr = new XMLHttpRequest();
+                            xhr.open('HEAD', filePath, true);
+                            xhr.onreadystatechange = function() {
+                                if (xhr.readyState === 4) {
+                                    resolve(xhr.status >= 200 && xhr.status < 300);
+                                }
+                            };
+                            xhr.onerror = function() {
+                                resolve(false);
+                            };
+                            xhr.send();
+                        });
+                    }
+                    
+                    // Start checking all common textbook file patterns
+                    // This is a simple approach - the actual implementation would depend on naming conventions
+                    const commonPdfNames = [
+                        // General textbooks
+                        'textbook.pdf',
+                        'main.pdf',
+                        'book.pdf',
+                        'reader.pdf',
+                        
+                        // Subject-specific files
+                        `${subject}.pdf`,
+                        `${subject}_${grade.replace('grade', '')}.pdf`,
+                        
+                        // Grade-specific files
+                        `${grade.replace('grade', '')}.pdf`,
+                        
+                        // Combined names
+                        `${subject}_textbook.pdf`,
+                        `${subject}_book.pdf`,
+                        `${subject}_${grade.replace('grade', '')}_textbook.pdf`,
+                        
+                        // Chapter files
+                        'chapter1.pdf',
+                        'chapter2.pdf',
+                        'chapter3.pdf',
+                        
+                        // Other common names
+                        'workbook.pdf',
+                        'exercises.pdf',
+                        'guide.pdf',
+                        'notes.pdf'
+                    ];
+                    
+                    // For each potential file, add a check to the queue
+                    commonPdfNames.forEach(filename => {
+                        const check = checkFileExists(filename).then(exists => {
+                            if (exists) {
+                                // Create a title from the filename by removing the .pdf extension and replacing underscores with spaces
+                                let title = filename.replace('.pdf', '').replace(/_/g, ' ');
+                                
+                                // Capitalize first letters of words
+                                title = title.split(' ')
+                                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                    .join(' ');
+                                
+                                availableTextbooks.push({
+                                    id: `${subject}_${filename.replace('.pdf', '')}`,
+                                    name: title,
+                                    filename: filename
+                                });
+                            }
+                            completedChecks++;
+                            if (completedChecks === commonPdfNames.length) {
+                                resolve(availableTextbooks);
+                            }
+                        });
+                        checkQueue.push(check);
+                    });
+                    
+                    // If all checks fail, resolve with an empty array
+                    Promise.all(checkQueue).then(() => {
+                        if (availableTextbooks.length === 0) {
+                            console.log(`No textbooks found in ${dirPath}`);
                         }
-                    }, 500);
+                        resolve(availableTextbooks);
+                    });
                 });
             }
             
