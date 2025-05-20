@@ -53,10 +53,8 @@
    * Initialize the PDF Viewer component
    */
   function initPDFViewer() {
-    // Create PDF viewer container if it doesn't exist
-    if (!document.getElementById('pdf-viewer-container')) {
-      createPDFViewerUI();
-    }
+    // Create or update PDF viewer container
+    createPDFViewerUI();
     
     // Setup event listeners
     setupEventListeners();
@@ -66,12 +64,18 @@
    * Create the PDF viewer UI elements
    */
   function createPDFViewerUI() {
-    const container = document.createElement('div');
-    container.id = 'pdf-viewer-container';
-    container.classList.add('pdf-viewer-container');
+    // Check if container already exists
+    let container = document.getElementById('pdf-viewer-container');
     
-    // Add the container to the document
-    document.body.appendChild(container);
+    if (!container) {
+      // Create new container if it doesn't exist
+      container = document.createElement('div');
+      container.id = 'pdf-viewer-container';
+      container.classList.add('pdf-viewer-container');
+      
+      // Add the container to the document
+      document.body.appendChild(container);
+    }
     
     // Build the viewer UI
     container.innerHTML = `
@@ -196,15 +200,22 @@
    */
   function setupEventListeners() {
     // Page navigation
-    document.getElementById('pdf-prev').addEventListener('click', previousPage);
-    document.getElementById('pdf-next').addEventListener('click', nextPage);
+    const prevButton = document.getElementById('pdf-prev');
+    const nextButton = document.getElementById('pdf-next');
+    const zoomInButton = document.getElementById('pdf-zoom-in');
+    const zoomOutButton = document.getElementById('pdf-zoom-out');
+    const fullscreenButton = document.getElementById('pdf-fullscreen');
+    const viewer = document.getElementById('pdf-viewer');
+    
+    if (prevButton) prevButton.addEventListener('click', previousPage);
+    if (nextButton) nextButton.addEventListener('click', nextPage);
     
     // Zoom controls
-    document.getElementById('pdf-zoom-in').addEventListener('click', zoomIn);
-    document.getElementById('pdf-zoom-out').addEventListener('click', zoomOut);
+    if (zoomInButton) zoomInButton.addEventListener('click', zoomIn);
+    if (zoomOutButton) zoomOutButton.addEventListener('click', zoomOut);
     
     // Fullscreen toggle
-    document.getElementById('pdf-fullscreen').addEventListener('click', toggleFullscreen);
+    if (fullscreenButton) fullscreenButton.addEventListener('click', toggleFullscreen);
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -219,6 +230,8 @@
   function setupTouchControls() {
     let touchStartX = 0;
     const viewer = document.getElementById('pdf-viewer');
+    
+    if (!viewer) return; // Exit if viewer doesn't exist
     
     viewer.addEventListener('touchstart', function(e) {
       touchStartX = e.changedTouches[0].screenX;
@@ -551,14 +564,18 @@
    */
   function toggleFullscreen() {
     const container = document.getElementById('pdf-viewer-container');
+    const fullscreenButton = document.getElementById('pdf-fullscreen');
+    
+    if (!container) return;
+    
     isFullscreen = !isFullscreen;
     
     if (isFullscreen) {
       container.classList.add('fullscreen');
-      document.getElementById('pdf-fullscreen').textContent = '⤢';
+      if (fullscreenButton) fullscreenButton.textContent = '⤢';
     } else {
       container.classList.remove('fullscreen');
-      document.getElementById('pdf-fullscreen').textContent = '⛶';
+      if (fullscreenButton) fullscreenButton.textContent = '⛶';
     }
     
     // Re-render the page to fit the new container size
@@ -569,38 +586,51 @@
    * Update the page information display
    */
   function updatePageInfo() {
-    document.getElementById('pdf-current-page').textContent = currentPage;
+    const currentPageEl = document.getElementById('pdf-current-page');
+    if (currentPageEl) {
+      currentPageEl.textContent = currentPage;
+    }
   }
   
   /**
    * Update the zoom level display
    */
   function updateZoomLevel() {
-    const zoomPercent = Math.round(currentScale * 100);
-    document.getElementById('pdf-zoom-level').textContent = `${zoomPercent}%`;
+    const zoomLevelEl = document.getElementById('pdf-zoom-level');
+    if (zoomLevelEl) {
+      const zoomPercent = Math.round(currentScale * 100);
+      zoomLevelEl.textContent = `${zoomPercent}%`;
+    }
   }
   
   /**
    * Show the loader
    */
   function showLoader() {
-    document.getElementById('pdf-viewer-loader').style.display = 'block';
-    document.getElementById('pdf-viewer-error').style.display = 'none';
+    const loader = document.getElementById('pdf-viewer-loader');
+    const error = document.getElementById('pdf-viewer-error');
+    
+    if (loader) loader.style.display = 'block';
+    if (error) error.style.display = 'none';
   }
   
   /**
    * Hide the loader
    */
   function hideLoader() {
-    document.getElementById('pdf-viewer-loader').style.display = 'none';
+    const loader = document.getElementById('pdf-viewer-loader');
+    if (loader) loader.style.display = 'none';
   }
   
   /**
    * Show error message
    */
   function showError() {
-    document.getElementById('pdf-viewer-loader').style.display = 'none';
-    document.getElementById('pdf-viewer-error').style.display = 'block';
+    const loader = document.getElementById('pdf-viewer-loader');
+    const error = document.getElementById('pdf-viewer-error');
+    
+    if (loader) loader.style.display = 'none';
+    if (error) error.style.display = 'block';
   }
   
   // Expose the PDF reader functions to the global scope
