@@ -523,61 +523,67 @@
                 logMessage(`正在检索目录:`, baseDir);
                 
                 try {
-                    // In a real environment, this would make a server request to list files
-                    // For demonstration, we'll simulate finding files based on common patterns
-                    
-                    // In a production environment, you would replace this with actual file system scanning
-                    // This is just a simulation for the demonstration
+                    // In a browser environment, we can't directly list directory contents without server support
+                    // We'll make a HEAD request for each PDF file we find to check if it exists
                     
                     const files = [];
                     
-                    if (subject === 'Chinese') {
-                        if (grade === 'Grade 1') {
-                            files.push({name: '语文一年级上册', filename: 'yuwen_1_1.pdf'});
-                            files.push({name: '语文一年级下册', filename: 'yuwen_1_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/yuwen_1_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/yuwen_1_2.pdf`);
-                        } else if (grade === 'Grade 2') {
-                            files.push({name: '语文二年级上册', filename: 'yuwen_2_1.pdf'});
-                            files.push({name: '语文二年级下册', filename: 'yuwen_2_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/yuwen_2_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/yuwen_2_2.pdf`);
+                    // This is a client-side approach to simulate directory scanning
+                    // For a more complete solution, you would need a server-side component
+                    
+                    // Try to fetch the directory listing if the server supports it
+                    try {
+                        const response = await fetch(baseDir);
+                        // If server returns a directory listing HTML page
+                        if (response.ok) {
+                            const html = await response.text();
+                            // Extract links to PDF files from the directory listing
+                            const regex = /href=["']([^"']+\.pdf)["']/gi;
+                            let match;
+                            while ((match = regex.exec(html)) !== null) {
+                                const filename = match[1];
+                                // Remove any path portion, keeping just the filename
+                                const shortName = filename.split('/').pop();
+                                
+                                // Generate a display name from the filename
+                                let displayName = shortName.replace('.pdf', '')
+                                    .replace(/_/g, ' ')
+                                    .replace(/\b\w/g, l => l.toUpperCase());
+                                
+                                // Add localized name if applicable
+                                if (subject === 'English') {
+                                    displayName = `英语${getGradeName(grade)} ${displayName}`;
+                                } else if (subject === 'Chinese') {
+                                    displayName = `语文${getGradeName(grade)} ${displayName}`;
+                                } else if (subject === 'Maths') {
+                                    displayName = `数学${getGradeName(grade)} ${displayName}`;
+                                } else if (subject === 'History') {
+                                    displayName = `历史${getGradeName(grade)} ${displayName}`;
+                                }
+                                
+                                files.push({name: displayName, filename: shortName});
+                                logMessage(`找到文件:`, `${baseDir}/${shortName}`);
+                            }
                         }
-                    } else if (subject === 'Maths') {
-                        if (grade === 'Grade 1') {
-                            files.push({name: '数学一年级上册', filename: 'shuxue_1_1.pdf'});
-                            files.push({name: '数学一年级下册', filename: 'shuxue_1_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/shuxue_1_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/shuxue_1_2.pdf`);
-                        } else if (grade === 'Grade 2') {
-                            files.push({name: '数学二年级上册', filename: 'shuxue_2_1.pdf'});
-                            files.push({name: '数学二年级下册', filename: 'shuxue_2_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/shuxue_2_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/shuxue_2_2.pdf`);
-                        }
-                    } else if (subject === 'English') {
-                        if (grade === 'Grade 3') {
-                            files.push({name: '英语三年级上册', filename: 'english_3_1.pdf'});
-                            files.push({name: '英语三年级下册', filename: 'english_3_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/english_3_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/english_3_2.pdf`);
-                        } else if (grade === 'Grade 4') {
-                            files.push({name: '英语四年级上册', filename: 'english_4_1.pdf'});
-                            files.push({name: '英语四年级下册', filename: 'english_4_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/english_4_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/english_4_2.pdf`);
-                        }
-                    } else if (subject === 'History') {
-                        if (grade === 'Grade 7') {
-                            files.push({name: '历史七年级上册', filename: 'history_7_1.pdf'});
-                            files.push({name: '历史七年级下册', filename: 'history_7_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/history_7_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/history_7_2.pdf`);
-                        } else if (grade === 'Grade 8') {
-                            files.push({name: '历史八年级上册', filename: 'history_8_1.pdf'});
-                            files.push({name: '历史八年级下册', filename: 'history_8_2.pdf'});
-                            logMessage(`找到文件:`, `${baseDir}/history_8_1.pdf`);
-                            logMessage(`找到文件:`, `${baseDir}/history_8_2.pdf`);
+                    } catch (e) {
+                        console.log('Directory listing not available: ', e);
+                    }
+                    
+                    // If no files found through directory listing, try to check for specific files
+                    if (files.length === 0) {
+                        // For the specific directory the user mentioned
+                        if (subject === 'English' && grade === 'Grade 8') {
+                            // Check for any PDF file in this directory
+                            const fileCheck = await checkFileExists(`${baseDir}/`);
+                            if (fileCheck.exists) {
+                                for (const foundFile of fileCheck.files) {
+                                    // Extract just the filename
+                                    const filename = foundFile.split('/').pop();
+                                    const displayName = `英语八年级 ${filename.replace('.pdf', '')}`;
+                                    files.push({name: displayName, filename});
+                                    logMessage(`找到文件:`, `${baseDir}/${filename}`);
+                                }
+                            }
                         }
                     }
                     
@@ -588,6 +594,35 @@
                 } catch (error) {
                     logMessage(`检索错误:`, error.message);
                     return [];
+                }
+            }
+            
+            // Helper function to check if a file exists
+            async function checkFileExists(url) {
+                try {
+                    // For directory check, attempt to fetch the directory
+                    if (url.endsWith('/')) {
+                        const response = await fetch(url);
+                        if (response.ok) {
+                            const html = await response.text();
+                            // Find PDF links
+                            const regex = /href=["']([^"']+\.pdf)["']/gi;
+                            const files = [];
+                            let match;
+                            while ((match = regex.exec(html)) !== null) {
+                                files.push(match[1]);
+                            }
+                            return { exists: files.length > 0, files };
+                        }
+                        return { exists: false, files: [] };
+                    }
+                    
+                    // For specific file check
+                    const response = await fetch(url, { method: 'HEAD' });
+                    return { exists: response.ok, files: response.ok ? [url] : [] };
+                } catch (error) {
+                    console.error('Error checking file existence:', error);
+                    return { exists: false, files: [] };
                 }
             }
             
