@@ -391,6 +391,11 @@
                             } else {
                                 textbookListContainer.style.display = 'block';
                                 textbookList.innerHTML = '<div class="no-textbooks-found">No textbooks found for the selected subject and grade.</div>';
+                                
+                                // Format the path with proper capitalization
+                                const formattedSubject = selectedSubject.charAt(0).toUpperCase() + selectedSubject.slice(1);
+                                const formattedGrade = selectedGrade.replace('grade', 'Grade ');
+                                console.log(`No textbooks found in ${textbookBasePath}/${formattedSubject}/${formattedGrade}/`);
                             }
                         })
                         .catch(error => {
@@ -546,81 +551,121 @@
             // Check individual files in the directory
             function individualFileCheck(dirPath, subject, grade, formattedSubject, formattedGrade) {
                 return new Promise((resolve) => {
+                    console.log(`Checking individual files in: ${dirPath}`);
+                    
                     // Function to check if a file exists
                     function checkFileExists(filename) {
                         return new Promise(resolve => {
                             const filePath = `${dirPath}${filename}`;
+                            console.log(`Checking file: ${filePath}`);
                             const xhr = new XMLHttpRequest();
                             xhr.open('HEAD', filePath, true);
                             xhr.onreadystatechange = function() {
                                 if (xhr.readyState === 4) {
-                                    resolve(xhr.status >= 200 && xhr.status < 300);
+                                    const exists = xhr.status >= 200 && xhr.status < 300;
+                                    console.log(`File ${filename}: ${exists ? 'EXISTS' : 'NOT FOUND'} (${xhr.status})`);
+                                    resolve(exists);
                                 }
                             };
                             xhr.onerror = function() {
+                                console.log(`Error checking file: ${filename}`);
                                 resolve(false);
                             };
                             xhr.send();
                         });
                     }
                     
-                    // List of possible PDF filenames to check based on common patterns
-                    const possibleFilenames = [
-                        // Check for likely Chinese textbook filenames with grade numbers
-                        `义务教育教科书·${subject === 'english' ? '英语' : subject}${grade.replace('grade', '')}年级上册.pdf`,
-                        `义务教育教科书·${subject === 'english' ? '英语' : subject}${grade.replace('grade', '')}年级下册.pdf`,
-                        // Check for English filenames
-                        `${formattedSubject}_textbook_${formattedGrade}.pdf`,
-                        `${formattedSubject}_${formattedGrade}.pdf`,
-                        `textbook_${formattedSubject}_${formattedGrade}.pdf`
-                    ];
-                    
-                    // Try to list directory contents first (could be enabled on some servers)
+                    // Special handling for empty directories
+                    // Check if the directory exists but is empty
                     fetch(dirPath)
-                        .then(response => response.text())
-                        .then(html => {
-                            // Try to find PDF links in the HTML
-                            const regex = /href="([^"]+\.pdf)"/gi;
-                            let match;
-                            const foundFiles = [];
-                            
-                            while ((match = regex.exec(html)) !== null) {
-                                const filename = match[1].split('/').pop();
-                                foundFiles.push({
-                                    id: `${subject}_${filename.replace('.pdf', '').replace(/[^a-zA-Z0-9]/g, '_')}`,
-                                    name: filename.replace('.pdf', ''),
-                                    filename: filename
-                                });
-                            }
-                            
-                            if (foundFiles.length > 0) {
-                                resolve(foundFiles);
+                        .then(response => {
+                            console.log(`Directory fetch status for ${dirPath}: ${response.status}`);
+                            return response.ok;
+                        })
+                        .then(directoryExists => {
+                            if (directoryExists) {
+                                console.log(`Directory ${dirPath} exists, proceeding with file checks`);
+                                proceedWithChecks();
                             } else {
-                                // If no files found in directory listing, check possible filenames
-                                checkPossibleFiles();
+                                console.log(`Directory ${dirPath} doesn't exist, returning empty result`);
+                                resolve([]);
                             }
                         })
-                        .catch(() => {
-                            // If directory listing fails, check possible filenames
-                            checkPossibleFiles();
+                        .catch(error => {
+                            console.log(`Error checking directory: ${error.message}, proceeding with file checks anyway`);
+                            proceedWithChecks();
                         });
                     
-                    // Function to check all possible PDF filenames
-                    function checkPossibleFiles() {
-                        // Use Promise.all to check all filenames in parallel
-                        Promise.all(possibleFilenames.map(filename => 
-                            checkFileExists(filename).then(exists => ({ filename, exists }))
-                        )).then(results => {
-                            // Filter to only the files that exist
-                            const existingFiles = results.filter(result => result.exists)
-                                .map(result => ({
-                                    id: `${subject}_${result.filename.replace('.pdf', '').replace(/[^a-zA-Z0-9]/g, '_')}`,
-                                    name: result.filename.replace('.pdf', ''),
-                                    filename: result.filename
-                                }));
+                    function proceedWithChecks() {
+                        // Extract grade number for Chinese titles
+                        const gradeNumber = grade.replace('grade', '');
+                        
+                        // List of possible PDF filenames to check based on common patterns
+                        const possibleFilenames = [
+                            // Check for likely Chinese textbook filenames with grade numbers
+                            `义务教育教科书·${subject === 'english' ? '英语' : subject}${gradeNumber}年级上册.pdf`,
+                            `义务教育教科书·${subject === 'english' ? '英语' : subject}${gradeNumber}年级下册.pdf`,
+                            // Check for English filenames with various formats
+                            `${formattedSubject}_textbook_${formattedGrade}.pdf`,
+                            `${formattedSubject}_${formattedGrade}.pdf`,
+                            `textbook_${formattedSubject}_${formattedGrade}.pdf`,
+                            // Try with different capitalization and spacing
+                            `${formattedSubject.toLowerCase()}_textbook_grade${gradeNumber}.pdf`,
+                            `${formattedSubject.toLowerCase()}_grade${gradeNumber}.pdf`,
+                            `${formattedSubject}_Grade${gradeNumber}.pdf`,
+                            // Try with common textbook naming patterns
+                            `Book_${gradeNumber}.pdf`,
+                            `Textbook_${gradeNumber}.pdf`,
+                            `${formattedSubject}Book${gradeNumber}.pdf`,
+                            // Add patterns specifically for Grade 8 English
+                            `EnglishBook8.pdf`,
+                            `English8.pdf`,
+                            `Grade8_English.pdf`,
+                            `英语八年级.pdf`,
+                            `英语8年级.pdf`,
+                            `义务教育教科书英语八年级上册.pdf`,
+                            `义务教育教科书英语八年级下册.pdf`
+                        ];
+                        
+                        // Check readme.txt as a common non-PDF file to confirm directory access
+                        checkFileExists('readme.txt')
+                            .then(readmeExists => {
+                                if (readmeExists) {
+                                    console.log('Found readme.txt, directory is accessible');
+                                }
+                                checkPossibleFiles();
+                            })
+                            .catch(() => {
+                                console.log('Error checking for readme.txt');
+                                checkPossibleFiles();
+                            });
+                        
+                        // Function to check all possible PDF filenames
+                        function checkPossibleFiles() {
+                            console.log(`Checking ${possibleFilenames.length} possible filenames`);
                             
-                            resolve(existingFiles);
-                        });
+                            // Use Promise.all to check all filenames in parallel
+                            Promise.all(possibleFilenames.map(filename => 
+                                checkFileExists(filename).then(exists => ({ filename, exists }))
+                            )).then(results => {
+                                // Filter to only the files that exist
+                                const existingFiles = results.filter(result => result.exists)
+                                    .map(result => ({
+                                        id: `${subject}_${result.filename.replace('.pdf', '').replace(/[^a-zA-Z0-9]/g, '_')}`,
+                                        name: result.filename.replace('.pdf', ''),
+                                        filename: result.filename
+                                    }));
+                                
+                                console.log(`Found ${existingFiles.length} existing files through individual checks`);
+                                
+                                // If we still haven't found any files and this is Grade 8 English, log a message
+                                if (existingFiles.length === 0 && subject === 'english' && grade === 'grade8') {
+                                    console.log('No files found for Grade 8 English - directory is empty.');
+                                }
+                                
+                                resolve(existingFiles);
+                            });
+                        }
                     }
                 });
             }
