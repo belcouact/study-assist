@@ -127,7 +127,29 @@
             width: 100%;
             position: relative;
             overflow: hidden;
+            display: flex;
+            justify-content: center;
         }
+        
+        /* Center PDF pages */
+        #pdf-viewer {
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .pdf-page {
+            margin: 10px auto !important;
+        }
+        
+        /* Responsive PDF viewer */
+        @media (max-width: 768px) {
+            .pdf-viewer-container {
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+        }
+        
         .no-textbook-selected {
             display: flex;
             flex-direction: column;
@@ -252,13 +274,13 @@
                 </div>
             </div>
             
-            <div id="pdf-container" class="pdf-container">
+            <div id="pdf-viewer" class="pdf-container">
                 <div class="no-textbook-selected" id="placeholder">
                     <i>📚</i>
                     <h3>No Textbook Selected</h3>
                     <p>Please select a subject, grade, and textbook from the filters above to get started.</p>
                 </div>
-                <!-- PDF viewer will be inserted here by JavaScript -->
+                <!-- PDF viewer contents will be added here by JavaScript -->
             </div>
         </div>
     </div>
@@ -274,7 +296,7 @@
             const textbookList = document.getElementById('textbook-list');
             const textbookListContainer = document.getElementById('textbook-list-container');
             const loadButton = document.getElementById('load-textbook');
-            const pdfContainer = document.getElementById('pdf-container');
+            const pdfViewer = document.getElementById('pdf-viewer');
             const placeholder = document.getElementById('placeholder');
             const loader = document.getElementById('loader');
             const pdfHeader = document.getElementById('pdf-header');
@@ -388,10 +410,14 @@
                     // For a frontend-only approach without server support, we'll use a directory listing endpoint
                     // Note: In a production environment, you would implement a proper server-side directory listing API
                     
+                    // Format the path with proper capitalization to match actual directory structure
+                    const formattedSubject = subject.charAt(0).toUpperCase() + subject.slice(1);
+                    const formattedGrade = grade.replace('grade', 'Grade ');
+                    
                     // The path to the directory we want to list
-                    const dirPath = `${textbookBasePath}/${subject}/${grade}/`;
+                    const dirPath = `${textbookBasePath}/${formattedSubject}/${formattedGrade}/`;
                     console.log(dirPath);
-
+                    
                     // Create a request to fetch file index if one exists
                     // Since browsers can't directly list directories, we'll check for a JSON index file
                     // that could contain the file listing, or try a directory listing API if available
@@ -421,7 +447,7 @@
                         .catch(error => {
                             console.log('Index JSON not available, trying directory listing:', error.message);
                             // Fall back to checking known files
-                            fallbackDirectoryCheck(dirPath, subject, grade)
+                            fallbackDirectoryCheck(dirPath, subject, grade, formattedSubject, formattedGrade)
                                 .then(availableTextbooks => resolve(availableTextbooks))
                                 .catch(error => reject(error));
                         });
@@ -429,7 +455,7 @@
             }
             
             // Fallback method to check for PDF files in the directory
-            function fallbackDirectoryCheck(dirPath, subject, grade) {
+            function fallbackDirectoryCheck(dirPath, subject, grade, formattedSubject, formattedGrade) {
                 return new Promise((resolve) => {
                     // Array to store available textbooks
                     const availableTextbooks = [];
@@ -504,21 +530,21 @@
                                 resolve(textbooks);
                             } else {
                                 // Fall back to individual file checks if no textbooks found
-                                individualFileCheck(dirPath, subject, grade)
+                                individualFileCheck(dirPath, subject, grade, formattedSubject, formattedGrade)
                                     .then(textbooks => resolve(textbooks));
                             }
                         })
                         .catch(error => {
                             console.log('Directory listing parse error:', error.message);
                             // Fall back to checking individual files
-                            individualFileCheck(dirPath, subject, grade)
+                            individualFileCheck(dirPath, subject, grade, formattedSubject, formattedGrade)
                                 .then(textbooks => resolve(textbooks));
                         });
                 });
             }
             
             // Check individual files in the directory
-            function individualFileCheck(dirPath, subject, grade) {
+            function individualFileCheck(dirPath, subject, grade, formattedSubject, formattedGrade) {
                 return new Promise((resolve) => {
                     // Function to check if a file exists
                     function checkFileExists(filename) {
@@ -544,9 +570,9 @@
                         `义务教育教科书·${subject === 'english' ? '英语' : subject}${grade.replace('grade', '')}年级上册.pdf`,
                         `义务教育教科书·${subject === 'english' ? '英语' : subject}${grade.replace('grade', '')}年级下册.pdf`,
                         // Check for English filenames
-                        `${subject}_textbook_${grade}.pdf`,
-                        `${subject}_${grade}.pdf`,
-                        `textbook_${subject}_${grade}.pdf`
+                        `${formattedSubject}_textbook_${formattedGrade}.pdf`,
+                        `${formattedSubject}_${formattedGrade}.pdf`,
+                        `textbook_${formattedSubject}_${formattedGrade}.pdf`
                     ];
                     
                     // Try to list directory contents first (could be enabled on some servers)
@@ -648,8 +674,12 @@
                 // Hide the placeholder
                 placeholder.style.display = 'none';
                 
+                // Format the path with proper capitalization
+                const formattedSubject = selectedTextbook.subject.charAt(0).toUpperCase() + selectedTextbook.subject.slice(1);
+                const formattedGrade = selectedTextbook.grade.replace('grade', 'Grade ');
+                
                 // Build the path to the textbook file
-                const textbookPath = `${textbookBasePath}/${selectedTextbook.subject}/${selectedTextbook.grade}/${selectedTextbook.filename}`;
+                const textbookPath = `${textbookBasePath}/${formattedSubject}/${formattedGrade}/${selectedTextbook.filename}`;
                 
                 // Update the PDF header
                 currentTextbookTitle.textContent = selectedTextbook.name;
@@ -660,13 +690,21 @@
                 // Check if PDFReader is initialized
                 if (window.PDFReader) {
                     try {
-                        // Load the PDF with options
+                        // Clear previous content except placeholder
+                        Array.from(pdfViewer.children).forEach(child => {
+                            if (child !== placeholder) {
+                                pdfViewer.removeChild(child);
+                            }
+                        });
+                        
+                        // Load the PDF with options, providing the container
                         window.PDFReader.loadPDF(textbookPath, {
                             initialPage: 1,
                             scale: 1.0,
                             lazyLoad: true,
                             preloadPages: 2,
-                            cacheSize: 10
+                            cacheSize: 10,
+                            container: pdfViewer
                         });
                         
                         // Hide the loader after a short delay to allow the PDF to start rendering
