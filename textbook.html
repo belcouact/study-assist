@@ -24,28 +24,36 @@
             font-size: 2em;
         }
         .container {
-            display: flex;
             max-width: 1400px;
             margin: 20px auto;
+            padding: 0 20px;
         }
-        .sidebar {
-            width: 300px;
+        .filters-container {
             background-color: white;
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-right: 20px;
-            height: fit-content;
+            margin-bottom: 20px;
         }
-        .content {
-            flex: 1;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
+        .filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: flex-end;
         }
         .form-group {
-            margin-bottom: 20px;
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 15px;
+        }
+        .textbook-list-container {
+            flex: 2;
+            min-width: 300px;
+        }
+        .button-group {
+            min-width: 120px;
+            display: flex;
+            align-items: flex-end;
         }
         label {
             display: block;
@@ -86,11 +94,11 @@
             cursor: not-allowed;
         }
         .textbook-list {
-            margin-top: 20px;
-            max-height: 300px;
+            height: 200px;
             overflow-y: auto;
             border: 1px solid #eee;
             border-radius: 4px;
+            background-color: #f9f9f9;
         }
         .textbook-item {
             padding: 12px 15px;
@@ -107,6 +115,12 @@
         .textbook-item.selected {
             background-color: #e1f0fa;
             border-left: 4px solid #3498db;
+        }
+        .content {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
         }
         .pdf-container {
             height: 700px;
@@ -134,14 +148,18 @@
             margin-bottom: 10px;
             color: #2c3e50;
         }
+        .no-textbooks-found {
+            padding: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+        }
         @media (max-width: 768px) {
-            .container {
+            .filters-row {
                 flex-direction: column;
             }
-            .sidebar {
-                width: auto;
-                margin-right: 0;
-                margin-bottom: 20px;
+            .form-group, .button-group {
+                width: 100%;
             }
             .pdf-container {
                 height: 500px;
@@ -152,8 +170,8 @@
             border: 5px solid #f3f3f3;
             border-top: 5px solid #3498db;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 30px;
+            height: 30px;
             animation: spin 1s linear infinite;
             margin: 20px auto;
             display: none;
@@ -188,36 +206,43 @@
     </header>
     
     <div class="container">
-        <div class="sidebar">
-            <h2>Textbook Browser</h2>
-            <div class="form-group">
-                <label for="subject-select">Subject:</label>
-                <select id="subject-select">
-                    <option value="">Select a subject</option>
-                    <!-- Options will be populated via JavaScript -->
-                </select>
-            </div>
+        <!-- Filters at the top -->
+        <div class="filters-container">
+            <h2>Select a Textbook</h2>
             
-            <div class="form-group">
-                <label for="grade-select">Grade:</label>
-                <select id="grade-select" disabled>
-                    <option value="">Select a grade</option>
-                    <!-- Options will be populated via JavaScript -->
-                </select>
-            </div>
-            
-            <div class="form-group textbook-list-container" style="display: none;">
-                <label>Available Textbooks:</label>
-                <div class="textbook-list" id="textbook-list">
-                    <!-- Textbook list will be populated via JavaScript -->
+            <div class="filters-row">
+                <div class="form-group">
+                    <label for="subject-select">Subject:</label>
+                    <select id="subject-select">
+                        <option value="">Select a subject</option>
+                        <!-- Options will be populated via JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="grade-select">Grade:</label>
+                    <select id="grade-select" disabled>
+                        <option value="">Select a grade</option>
+                        <!-- Options will be populated via JavaScript -->
+                    </select>
+                </div>
+                
+                <div class="form-group textbook-list-container" id="textbook-list-container" style="display: none;">
+                    <label>Available Textbooks:</label>
+                    <div class="textbook-list" id="textbook-list">
+                        <!-- Textbook list will be populated via JavaScript -->
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="load-textbook" disabled>Load Selected Textbook</button>
                 </div>
             </div>
-            
-            <button id="load-textbook" disabled>Load Selected Textbook</button>
             
             <div class="loader" id="loader"></div>
         </div>
         
+        <!-- PDF viewer below -->
         <div class="content">
             <div id="pdf-header" class="pdf-header" style="display: none;">
                 <h3 id="current-textbook-title">No textbook loaded</h3>
@@ -231,7 +256,7 @@
                 <div class="no-textbook-selected" id="placeholder">
                     <i>📚</i>
                     <h3>No Textbook Selected</h3>
-                    <p>Please select a subject, grade, and textbook from the menu on the left to get started.</p>
+                    <p>Please select a subject, grade, and textbook from the filters above to get started.</p>
                 </div>
                 <!-- PDF viewer will be inserted here by JavaScript -->
             </div>
@@ -247,7 +272,7 @@
             const subjectSelect = document.getElementById('subject-select');
             const gradeSelect = document.getElementById('grade-select');
             const textbookList = document.getElementById('textbook-list');
-            const textbookListContainer = document.querySelector('.textbook-list-container');
+            const textbookListContainer = document.getElementById('textbook-list-container');
             const loadButton = document.getElementById('load-textbook');
             const pdfContainer = document.getElementById('pdf-container');
             const placeholder = document.getElementById('placeholder');
@@ -342,14 +367,15 @@
                             if (textbooks.length > 0) {
                                 textbookListContainer.style.display = 'block';
                             } else {
-                                textbookListContainer.style.display = 'none';
-                                alert('No textbooks found for the selected subject and grade.');
+                                textbookListContainer.style.display = 'block';
+                                textbookList.innerHTML = '<div class="no-textbooks-found">No textbooks found for the selected subject and grade.</div>';
                             }
                         })
                         .catch(error => {
                             console.error('Error fetching textbooks:', error);
                             loader.style.display = 'none';
-                            alert('Error loading textbooks. Please try again later.');
+                            textbookListContainer.style.display = 'block';
+                            textbookList.innerHTML = '<div class="no-textbooks-found">Error loading textbooks. Please try again later.</div>';
                         });
                 } else {
                     // Hide the textbook list
