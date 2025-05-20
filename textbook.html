@@ -523,66 +523,48 @@
                 logMessage(`正在检索目录:`, baseDir);
                 
                 try {
-                    // In a browser environment, we can't directly list directory contents without server support
-                    // We'll make a HEAD request for each PDF file we find to check if it exists
-                    
                     const files = [];
                     
-                    // This is a client-side approach to simulate directory scanning
-                    // For a more complete solution, you would need a server-side component
-                    
-                    // Try to fetch the directory listing if the server supports it
-                    try {
-                        const response = await fetch(baseDir);
-                        // If server returns a directory listing HTML page
-                        if (response.ok) {
-                            const html = await response.text();
-                            // Extract links to PDF files from the directory listing
-                            const regex = /href=["']([^"']+\.pdf)["']/gi;
-                            let match;
-                            while ((match = regex.exec(html)) !== null) {
-                                const filename = match[1];
-                                // Remove any path portion, keeping just the filename
-                                const shortName = filename.split('/').pop();
-                                
-                                // Generate a display name from the filename
-                                let displayName = shortName.replace('.pdf', '')
-                                    .replace(/_/g, ' ')
-                                    .replace(/\b\w/g, l => l.toUpperCase());
-                                
-                                // Add localized name if applicable
-                                if (subject === 'English') {
-                                    displayName = `英语${getGradeName(grade)} ${displayName}`;
-                                } else if (subject === 'Chinese') {
-                                    displayName = `语文${getGradeName(grade)} ${displayName}`;
-                                } else if (subject === 'Maths') {
-                                    displayName = `数学${getGradeName(grade)} ${displayName}`;
-                                } else if (subject === 'History') {
-                                    displayName = `历史${getGradeName(grade)} ${displayName}`;
-                                }
-                                
-                                files.push({name: displayName, filename: shortName});
-                                logMessage(`找到文件:`, `${baseDir}/${shortName}`);
-                            }
+                    // Define a mapping of known textbooks
+                    const knownTextbooks = {
+                        "English": {
+                            "Grade 7": [
+                                { filename: "义务教育教科书·英语七年级上册.pdf", name: "英语七年级上册" },
+                                { filename: "义务教育教科书·英语七年级下册.pdf", name: "英语七年级下册" }
+                            ],
+                            "Grade 8": [
+                                { filename: "义务教育教科书·英语八年级上册.pdf", name: "英语八年级上册" },
+                                { filename: "义务教育教科书·英语八年级下册.pdf", name: "英语八年级下册" }
+                            ],
+                            "Grade 9": [
+                                { filename: "义务教育教科书·英语九年级全一册.pdf", name: "英语九年级全一册" }
+                            ]
                         }
-                    } catch (e) {
-                        console.log('Directory listing not available: ', e);
-                    }
+                    };
                     
-                    // If no files found through directory listing, try to check for specific files
-                    if (files.length === 0) {
-                        // For the specific directory the user mentioned
-                        if (subject === 'English' && grade === 'Grade 8') {
-                            // Check for any PDF file in this directory
-                            const fileCheck = await checkFileExists(`${baseDir}/`);
-                            if (fileCheck.exists) {
-                                for (const foundFile of fileCheck.files) {
-                                    // Extract just the filename
-                                    const filename = foundFile.split('/').pop();
-                                    const displayName = `英语八年级 ${filename.replace('.pdf', '')}`;
-                                    files.push({name: displayName, filename});
-                                    logMessage(`找到文件:`, `${baseDir}/${filename}`);
+                    // Check if we have known textbooks for this subject and grade
+                    if (knownTextbooks[subject] && knownTextbooks[subject][grade]) {
+                        const textbooks = knownTextbooks[subject][grade];
+                        
+                        // Check each known textbook
+                        for (const textbook of textbooks) {
+                            const filePath = `${baseDir}/${textbook.filename}`;
+                            
+                            try {
+                                // Use fetch with HEAD request to check if file exists
+                                const response = await fetch(filePath, { method: 'HEAD' });
+                                
+                                if (response.ok) {
+                                    // File exists
+                                    files.push({
+                                        name: textbook.name,
+                                        filename: textbook.filename
+                                    });
+                                    
+                                    logMessage(`找到文件:`, filePath);
                                 }
+                            } catch (error) {
+                                console.log(`Error checking file: ${filePath}`, error);
                             }
                         }
                     }
@@ -594,35 +576,6 @@
                 } catch (error) {
                     logMessage(`检索错误:`, error.message);
                     return [];
-                }
-            }
-            
-            // Helper function to check if a file exists
-            async function checkFileExists(url) {
-                try {
-                    // For directory check, attempt to fetch the directory
-                    if (url.endsWith('/')) {
-                        const response = await fetch(url);
-                        if (response.ok) {
-                            const html = await response.text();
-                            // Find PDF links
-                            const regex = /href=["']([^"']+\.pdf)["']/gi;
-                            const files = [];
-                            let match;
-                            while ((match = regex.exec(html)) !== null) {
-                                files.push(match[1]);
-                            }
-                            return { exists: files.length > 0, files };
-                        }
-                        return { exists: false, files: [] };
-                    }
-                    
-                    // For specific file check
-                    const response = await fetch(url, { method: 'HEAD' });
-                    return { exists: response.ok, files: response.ok ? [url] : [] };
-                } catch (error) {
-                    console.error('Error checking file existence:', error);
-                    return { exists: false, files: [] };
                 }
             }
             
