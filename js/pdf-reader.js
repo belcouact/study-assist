@@ -327,7 +327,8 @@
         totalPages = pdfDoc.numPages;
         
         // Update UI
-        document.getElementById('pdf-total-pages').textContent = totalPages;
+        const totalPagesEl = document.getElementById('pdf-total-pages');
+        if (totalPagesEl) totalPagesEl.textContent = totalPages;
         updatePageInfo();
         updateZoomLevel();
         
