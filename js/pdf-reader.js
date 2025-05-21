@@ -117,7 +117,7 @@
   }
   
   // PDF Viewer Configuration
-  const DEFAULT_SCALE = 1.0;
+  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.2 : 1.0; // Higher default scale for high-DPI displays
   const ZOOM_STEP = 0.1;
   const MAX_SCALE = 3.0;
   const MIN_SCALE = 0.5;
@@ -130,6 +130,7 @@
   let pdfContainer = null;
   let isFullscreen = false;
   let currentPdfUrl = null; // Track the current PDF URL
+  let isHighQualityMode = true; // Default to high quality rendering
   
   // Cache for lazy loading
   let pageCache = new Map();
@@ -197,6 +198,7 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
@@ -298,18 +300,51 @@
         background-color: #45a049;
       }
       
+      #pdf-toggle-quality {
+        background-color: #9c27b0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        opacity: 0.7;
+      }
+      
+      #pdf-toggle-quality.active {
+        opacity: 1;
+        font-weight: bold;
+      }
+      
+      #pdf-toggle-quality:hover {
+        opacity: 1;
+      }
+      
       .pdf-viewer {
         flex: 1;
         overflow: auto;
-        background-color: #f5f5f5;
+        background-color: #525659;
         position: relative;
+        text-align: center;
+        padding: 20px 0;
       }
       
       .pdf-page {
         margin: 10px auto;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
+        display: inline-block;
+        box-sizing: border-box;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+      }
+      
+      .pdf-page canvas {
+        display: block;
+        image-rendering: -webkit-optimize-contrast; /* For Webkit browsers */
+        image-rendering: crisp-edges; /* For Firefox */
+        -ms-interpolation-mode: nearest-neighbor; /* For IE */
       }
       
       .pdf-page-textlayer {
@@ -321,6 +356,9 @@
         overflow: hidden;
         opacity: 0.2;
         line-height: 1.0;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
       
       .pdf-page-textlayer.active {
@@ -392,6 +430,7 @@
     const pageInput = document.getElementById('pdf-page-input');
     const goToPageButton = document.getElementById('pdf-go-to-page');
     const downloadButton = document.getElementById('pdf-download');
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -406,6 +445,11 @@
     
     // Download button
     if (downloadButton) downloadButton.addEventListener('click', downloadPDF);
+    
+    // Quality toggle button
+    if (qualityToggleButton) {
+      qualityToggleButton.addEventListener('click', toggleRenderingQuality);
+    }
     
     // Page search
     if (pageInput && goToPageButton) {
@@ -704,17 +748,43 @@
     const context = canvas.getContext('2d');
     pageContainer.appendChild(canvas);
     
+    // Get device pixel ratio for high-DPI displays (like Retina)
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    
+    // Determine quality factor based on mode
+    const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
+    
     // Calculate viewport based on scale
-    const viewport = page.getViewport({ scale: currentScale });
+    const viewport = page.getViewport({ 
+      scale: currentScale * qualityFactor
+    });
     
-    // Set canvas dimensions
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
+    // Set display size (css pixels)
+    const displayWidth = viewport.width / devicePixelRatio;
+    const displayHeight = viewport.height / devicePixelRatio;
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
     
-    // Render the page
+    // Set actual size in memory (scaled to account for extra pixel density)
+    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.5) : devicePixelRatio;
+    canvas.width = Math.floor(viewport.width * scaleFactor);
+    canvas.height = Math.floor(viewport.height * scaleFactor);
+    
+    // Scale context to ensure correct drawing operations
+    context.scale(scaleFactor, scaleFactor);
+    
+    // Improve image rendering quality
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = isHighQualityMode ? 'high' : 'medium';
+    
+    // Render the page with appropriate quality settings
     const renderContext = {
       canvasContext: context,
-      viewport: viewport
+      viewport: viewport,
+      enableWebGL: isHighQualityMode, // Use WebGL for high quality
+      renderInteractiveForms: true,
+      // Use fine-grained render parameters for better quality
+      transform: isHighQualityMode && devicePixelRatio > 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null,
     };
     
     // Create a div for the text layer
@@ -722,20 +792,25 @@
     textLayerDiv.className = 'pdf-page-textlayer';
     pageContainer.appendChild(textLayerDiv);
     
+    // Scale the text layer correctly to match the canvas
+    textLayerDiv.style.width = `${displayWidth}px`;
+    textLayerDiv.style.height = `${displayHeight}px`;
+    
     // Enable text selection by rendering the text layer
     page.render(renderContext).promise.then(function() {
       // Get the text content from the page
-      return page.getTextContent();
+      return isHighQualityMode ? page.getTextContent() : null;
     }).then(function(textContent) {
-      // Enable text layer only if PDF.js TextLayerBuilder is available
-      if (window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
+      // Enable text layer only if PDF.js TextLayerBuilder is available and we're in high quality mode
+      if (isHighQualityMode && textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
         try {
-          // Render text layer
+          // Render text layer with better resolution
           window.pdfjsLib.renderTextLayer({
             textContent: textContent,
             container: textLayerDiv,
             viewport: viewport,
-            textDivs: []
+            textDivs: [],
+            enhanceTextSelection: true
           });
           
           // Add active class to make text selectable
@@ -971,6 +1046,28 @@
     }
   }
   
+  /**
+   * Toggle rendering quality
+   */
+  function toggleRenderingQuality() {
+    isHighQualityMode = !isHighQualityMode;
+    
+    // Update the button appearance
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
+    if (qualityToggleButton) {
+      if (isHighQualityMode) {
+        qualityToggleButton.classList.add('active');
+        qualityToggleButton.textContent = 'HD';
+      } else {
+        qualityToggleButton.classList.remove('active');
+        qualityToggleButton.textContent = 'SD';
+      }
+    }
+    
+    // Re-render the current page with new quality settings
+    renderPage(currentPage);
+  }
+  
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -980,6 +1077,7 @@
     zoomOut,
     toggleFullscreen,
     goToPage,
-    downloadPDF
+    downloadPDF,
+    toggleRenderingQuality
   };
 })(); 
