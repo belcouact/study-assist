@@ -134,6 +134,7 @@
   let pdfContainer = null;
   let isFullscreen = false;
   let currentPdfUrl = null; // Track the current PDF URL
+  let isHighQualityMode = true; // Default to high quality rendering
   
   // Highlight and note modes
   let isHighlightMode = false;
@@ -207,6 +208,7 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
           <button id="pdf-print" title="Print PDF"><i class="fas fa-print"></i></button>
@@ -560,6 +562,26 @@
           max-width: 200px;
         }
       }
+      
+      #pdf-toggle-quality {
+        background-color: #9c27b0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        opacity: 0.7;
+      }
+      
+      #pdf-toggle-quality.active {
+        opacity: 1;
+        font-weight: bold;
+      }
+      
+      #pdf-toggle-quality:hover {
+        opacity: 1;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -580,6 +602,7 @@
     const printButton = document.getElementById('pdf-print');
     const highlightButton = document.getElementById('pdf-highlight');
     const noteButton = document.getElementById('pdf-note');
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -597,6 +620,11 @@
     
     // Print button
     if (printButton) printButton.addEventListener('click', printPDF);
+    
+    // Quality toggle button
+    if (qualityToggleButton) {
+      qualityToggleButton.addEventListener('click', toggleRenderingQuality);
+    }
     
     // Highlight button
     if (highlightButton) highlightButton.addEventListener('click', toggleHighlightMode);
@@ -738,6 +766,12 @@
     preloadPageCount = settings.preloadPages;
     maxCacheSize = settings.cacheSize;
     
+    // Make sure PDF viewer is initialized
+    if (!document.getElementById('pdf-viewer-container')) {
+      console.log("PDF viewer container not found, initializing PDF viewer");
+      initPDFViewer();
+    }
+    
     // Make sure pdfContainer exists
     if (!pdfContainer) {
       console.error("PDF container not found. Trying to initialize viewer again.");
@@ -745,8 +779,14 @@
       pdfContainer = document.getElementById('pdf-viewer');
       if (!pdfContainer) {
         console.error("Failed to initialize PDF viewer. Container element not found.");
-        showError();
-        return;
+        // Try to create the container as a last resort
+        const container = document.querySelector('.pdf-container') || document.body;
+        createPDFViewerUI();
+        pdfContainer = document.getElementById('pdf-viewer');
+        if (!pdfContainer) {
+          showError();
+          return;
+        }
       }
     }
     
@@ -928,9 +968,12 @@
     // Get device pixel ratio for high-DPI displays (like Retina)
     const devicePixelRatio = window.devicePixelRatio || 1;
     
+    // Determine quality factor based on mode
+    const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
+    
     // Calculate viewport based on scale
     const viewport = page.getViewport({ 
-      scale: currentScale
+      scale: currentScale * qualityFactor
     });
     
     // Set display size (css pixels)
@@ -940,7 +983,7 @@
     canvas.style.height = `${displayHeight}px`;
     
     // Set actual size in memory (scaled to account for extra pixel density)
-    const scaleFactor = devicePixelRatio;
+    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.5) : devicePixelRatio;
     canvas.width = Math.floor(viewport.width * scaleFactor);
     canvas.height = Math.floor(viewport.height * scaleFactor);
     
@@ -949,16 +992,16 @@
     
     // Improve image rendering quality
     context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = 'high';
+    context.imageSmoothingQuality = isHighQualityMode ? 'high' : 'medium';
     
     // Render the page with appropriate quality settings
     const renderContext = {
       canvasContext: context,
       viewport: viewport,
-      enableWebGL: true,
+      enableWebGL: isHighQualityMode, // Use WebGL for high quality
       renderInteractiveForms: true,
       // Use fine-grained render parameters for better quality
-      transform: devicePixelRatio > 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null,
+      transform: isHighQualityMode && devicePixelRatio > 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null,
     };
     
     // Create a div for the text layer
@@ -973,10 +1016,10 @@
     // Enable text selection by rendering the text layer
     page.render(renderContext).promise.then(function() {
       // Get the text content from the page
-      return page.getTextContent();
+      return isHighQualityMode ? page.getTextContent() : null;
     }).then(function(textContent) {
-      // Enable text layer only if PDF.js TextLayerBuilder is available
-      if (textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
+      // Enable text layer only if PDF.js TextLayerBuilder is available and we're in high quality mode
+      if (isHighQualityMode && textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
         try {
           // Render text layer with better resolution
           window.pdfjsLib.renderTextLayer({
@@ -1602,6 +1645,28 @@
   }
   
   /**
+   * Toggle rendering quality
+   */
+  function toggleRenderingQuality() {
+    isHighQualityMode = !isHighQualityMode;
+    
+    // Update the button appearance
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
+    if (qualityToggleButton) {
+      if (isHighQualityMode) {
+        qualityToggleButton.classList.add('active');
+        qualityToggleButton.textContent = 'HD';
+      } else {
+        qualityToggleButton.classList.remove('active');
+        qualityToggleButton.textContent = 'SD';
+      }
+    }
+    
+    // Re-render the current page with new quality settings
+    renderPage(currentPage);
+  }
+  
+  /**
    * Print the current PDF
    */
   function printPDF() {
@@ -1673,8 +1738,9 @@
     try {
       if (!currentPdfUrl) return;
       
-      // Create a key based on the PDF URL
-      const storageKey = `pdf-annotations-${btoa(currentPdfUrl).replace(/[=+/]/g, '')}`;
+      // Create a safer key based on the PDF URL
+      // Use a hash-like approach to handle non-Latin1 characters
+      const storageKey = `pdf-annotations-${createSafeKey(currentPdfUrl)}`;
       
       const annotationData = {
         highlights: highlights,
@@ -1695,8 +1761,8 @@
     try {
       if (!currentPdfUrl) return;
       
-      // Create a key based on the PDF URL
-      const storageKey = `pdf-annotations-${btoa(currentPdfUrl).replace(/[=+/]/g, '')}`;
+      // Create a safer key based on the PDF URL
+      const storageKey = `pdf-annotations-${createSafeKey(currentPdfUrl)}`;
       
       const savedData = localStorage.getItem(storageKey);
       if (!savedData) return;
@@ -1712,6 +1778,21 @@
       console.error('Error loading annotations:', error);
     }
   }
+  
+  /**
+   * Create a safe key for localStorage from any string
+   * This avoids the btoa encoding issues with non-Latin1 characters
+   */
+  function createSafeKey(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    // Convert to a positive hex string
+    return Math.abs(hash).toString(16);
+  }
 
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
@@ -1725,6 +1806,7 @@
     downloadPDF,
     printPDF,
     toggleHighlightMode,
-    toggleNoteMode
+    toggleNoteMode,
+    toggleRenderingQuality
   };
 })(); 
