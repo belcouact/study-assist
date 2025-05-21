@@ -19,13 +19,20 @@
   scriptElement.src = `${PDFJS_CDN}/pdf.min.js`;
   document.head.appendChild(scriptElement);
   
+  // Load the text layer builder
+  const textLayerScript = document.createElement('script');
+  textLayerScript.src = `${PDFJS_CDN}/pdf_viewer.min.js`;
+  document.head.appendChild(textLayerScript);
+  
   // Initialize PDF.js after script is loaded
   scriptElement.onload = function() {
     // Set the worker source
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
     
-    // Initialize the PDF viewer component
-    initPDFViewer();
+    // Initialize the PDF viewer component only after text layer is loaded
+    textLayerScript.onload = function() {
+      initPDFViewer();
+    };
   };
   
   // PDF Viewer Configuration
@@ -84,6 +91,10 @@
           <button id="pdf-prev" title="Previous Page">◀</button>
           <span id="pdf-page-info">Page <span id="pdf-current-page">0</span> of <span id="pdf-total-pages">0</span></span>
           <button id="pdf-next" title="Next Page">▶</button>
+          <div class="pdf-page-search">
+            <input type="number" id="pdf-page-input" min="1" placeholder="Go to page" title="Go to page">
+            <button id="pdf-go-to-page" title="Go to Page">Go</button>
+          </div>
         </div>
         <div class="pdf-zoom-controls">
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
@@ -148,6 +159,33 @@
         gap: 10px;
       }
       
+      .pdf-page-search {
+        display: flex;
+        align-items: center;
+        margin-left: 15px;
+      }
+      
+      .pdf-page-search input {
+        width: 80px;
+        padding: 4px 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-right: 5px;
+      }
+      
+      .pdf-page-search button {
+        padding: 4px 8px;
+        background-color: #4361ee;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      
+      .pdf-page-search button:hover {
+        background-color: #3a56d4;
+      }
+      
       .pdf-viewer {
         flex: 1;
         overflow: auto;
@@ -159,6 +197,35 @@
         margin: 10px auto;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         background-color: white;
+        position: relative;
+      }
+      
+      .pdf-page-textlayer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        opacity: 0.2;
+        line-height: 1.0;
+      }
+      
+      .pdf-page-textlayer.active {
+        color: transparent;
+        opacity: 1;
+      }
+      
+      .pdf-page-textlayer span {
+        color: transparent;
+        position: absolute;
+        white-space: pre;
+        cursor: text;
+        transform-origin: 0% 0%;
+      }
+      
+      .pdf-page-textlayer ::selection {
+        background: rgba(67, 97, 238, 0.3);
       }
       
       .pdf-viewer-loader, .pdf-viewer-error {
@@ -190,6 +257,11 @@
           width: 100%;
           justify-content: center;
         }
+        
+        .pdf-page-search {
+          margin-left: 0;
+          margin-top: 10px;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -205,6 +277,8 @@
     const zoomInButton = document.getElementById('pdf-zoom-in');
     const zoomOutButton = document.getElementById('pdf-zoom-out');
     const fullscreenButton = document.getElementById('pdf-fullscreen');
+    const pageInput = document.getElementById('pdf-page-input');
+    const goToPageButton = document.getElementById('pdf-go-to-page');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -216,6 +290,19 @@
     
     // Fullscreen toggle
     if (fullscreenButton) fullscreenButton.addEventListener('click', toggleFullscreen);
+    
+    // Page search
+    if (pageInput && goToPageButton) {
+      // Go to page when button is clicked
+      goToPageButton.addEventListener('click', () => goToPage(pageInput.value));
+      
+      // Go to page when Enter key is pressed in the input field
+      pageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          goToPage(pageInput.value);
+        }
+      });
+    }
     
     // Keyboard shortcuts
     document.addEventListener('keydown', handleKeyboardShortcuts);
@@ -272,6 +359,15 @@
         break;
       case '-':
         zoomOut();
+        break;
+      case 'g':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const pageNum = prompt(`Enter page number (1-${totalPages}):`, currentPage);
+          if (pageNum !== null) {
+            goToPage(pageNum);
+          }
+        }
         break;
       case 'f':
         if (e.ctrlKey || e.metaKey) {
@@ -467,7 +563,30 @@
       viewport: viewport
     };
     
+    // Create a div for the text layer
+    const textLayerDiv = document.createElement('div');
+    textLayerDiv.className = 'pdf-page-textlayer';
+    pageContainer.appendChild(textLayerDiv);
+    
+    // Enable text selection by rendering the text layer
     page.render(renderContext).promise.then(function() {
+      // Get the text content from the page
+      return page.getTextContent();
+    }).then(function(textContent) {
+      // Enable text layer only if PDF.js TextLayerBuilder is available
+      if (window.pdfjsLib.renderTextLayer) {
+        // Render text layer
+        window.pdfjsLib.renderTextLayer({
+          textContent: textContent,
+          container: textLayerDiv,
+          viewport: viewport,
+          textDivs: []
+        });
+        
+        // Add active class to make text selectable
+        textLayerDiv.classList.add('active');
+      }
+      
       hideLoader();
       updatePageInfo();
     });
@@ -634,6 +753,33 @@
     if (error) error.style.display = 'block';
   }
   
+  /**
+   * Go to a specific page
+   * @param {number|string} pageNum - Page number to go to
+   */
+  function goToPage(pageNum) {
+    // Convert input to a number
+    const targetPage = parseInt(pageNum, 10);
+    
+    // Validate page number
+    if (isNaN(targetPage) || targetPage < 1 || targetPage > totalPages) {
+      alert(`Please enter a valid page number between 1 and ${totalPages}`);
+      return;
+    }
+    
+    // Go to the specified page if it's different from current page
+    if (targetPage !== currentPage) {
+      currentPage = targetPage;
+      renderPage(currentPage);
+      
+      // Clear the input field
+      const pageInput = document.getElementById('pdf-page-input');
+      if (pageInput) {
+        pageInput.value = '';
+      }
+    }
+  }
+  
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -641,6 +787,7 @@
     nextPage,
     zoomIn,
     zoomOut,
-    toggleFullscreen
+    toggleFullscreen,
+    goToPage
   };
 })(); 
