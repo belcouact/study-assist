@@ -56,8 +56,33 @@
       // Set the worker source
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
       
-      // Configure CMap URL for proper font rendering
-      window.pdfjsLib.GlobalWorkerOptions.CMapReaderFactory = window.pdfjsLib.DOMCMapReaderFactory;
+      // Configure CMap URL for proper font rendering with CORS mode
+      window.pdfjsLib.GlobalWorkerOptions.CMapReaderFactory = function({ baseUrl, isCompressed }) {
+        return {
+          fetch: function(cmapName) {
+            return fetch(`${baseUrl}${cmapName}${isCompressed ? '.bcmap' : ''}`, { 
+              mode: 'cors',  // Try with CORS first
+              credentials: 'same-origin'
+            })
+            .then(response => {
+              if (!response.ok) {
+                // If CORS fails, fall back to no-cors (for CDN resources)
+                return fetch(`${baseUrl}${cmapName}${isCompressed ? '.bcmap' : ''}`, { 
+                  mode: 'no-cors' 
+                });
+              }
+              return response;
+            })
+            .then(response => {
+              if (isCompressed) {
+                return response.arrayBuffer();
+              }
+              return response.text();
+            });
+          }
+        };
+      };
+      
       window.pdfjsLib.GlobalWorkerOptions.standardFontDataUrl = `${PDFJS_CDN}/standard_fonts/`;
       
       // Track successful loading
@@ -156,6 +181,17 @@
         pdfContainer = document.getElementById('pdf-viewer');
         if (!pdfContainer) {
           console.error("Could not find or create pdf-viewer element");
+          // Get the pdf-container from the document
+          const existingContainer = document.querySelector('.pdf-container');
+          if (existingContainer) {
+            // Create the PDF viewer container within the existing container
+            createPDFViewerInContainer(existingContainer);
+            pdfContainer = document.getElementById('pdf-viewer');
+          } else {
+            // Create the container in the body if no existing container is found
+            createPDFViewerUI();
+            pdfContainer = document.getElementById('pdf-viewer');
+          }
         }
       }
       
@@ -211,6 +247,56 @@
       <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
       <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
     `;
+    
+    // Add styles if not already included
+    if (!document.getElementById('pdf-viewer-style')) {
+      addPDFViewerStyles();
+    }
+    
+    // Set the pdfContainer reference
+    pdfContainer = document.getElementById('pdf-viewer');
+  }
+
+  /**
+   * Create the PDF viewer inside an existing container
+   */
+  function createPDFViewerInContainer(container) {
+    // Clear existing content
+    container.innerHTML = '';
+    
+    // Create the PDF viewer container
+    const viewerContainer = document.createElement('div');
+    viewerContainer.id = 'pdf-viewer-container';
+    viewerContainer.classList.add('pdf-viewer-container');
+    
+    // Build the viewer UI
+    viewerContainer.innerHTML = `
+      <div class="pdf-viewer-toolbar">
+        <div class="pdf-controls">
+          <button id="pdf-prev" title="Previous Page">◀</button>
+          <span id="pdf-page-info">Page <span id="pdf-current-page">0</span> of <span id="pdf-total-pages">0</span></span>
+          <button id="pdf-next" title="Next Page">▶</button>
+          <div class="pdf-page-search">
+            <input type="number" id="pdf-page-input" min="1" placeholder="Go to page" title="Go to page">
+            <button id="pdf-go-to-page" title="Go to Page">Go</button>
+          </div>
+        </div>
+        <div class="pdf-zoom-controls">
+          <button id="pdf-zoom-out" title="Zoom Out">−</button>
+          <span id="pdf-zoom-level">100%</span>
+          <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
+          <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
+          <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
+        </div>
+      </div>
+      <div id="pdf-viewer" class="pdf-viewer"></div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
+    `;
+    
+    // Add the container to the document
+    container.appendChild(viewerContainer);
     
     // Add styles if not already included
     if (!document.getElementById('pdf-viewer-style')) {
@@ -349,6 +435,7 @@
         image-rendering: -webkit-optimize-contrast; /* For Webkit browsers */
         image-rendering: crisp-edges; /* For Firefox */
         -ms-interpolation-mode: nearest-neighbor; /* For IE */
+        will-change: transform; /* Optimization for performance */
       }
       
       .pdf-page-textlayer {
@@ -576,10 +663,21 @@
     preloadPageCount = settings.preloadPages;
     maxCacheSize = settings.cacheSize;
     
+    // Ensure the viewer container exists before loading
+    let container = document.getElementById('pdf-viewer-container');
+    if (!container) {
+      console.log("PDF viewer container not found, creating one");
+      const pdfContainer = document.querySelector('.pdf-container');
+      if (pdfContainer) {
+        createPDFViewerInContainer(pdfContainer);
+      } else {
+        createPDFViewerUI();
+      }
+    }
+    
     // Make sure pdfContainer exists
     if (!pdfContainer) {
-      console.error("PDF container not found. Trying to initialize viewer again.");
-      initPDFViewer();
+      console.warn("PDF container reference not set, trying to get it again");
       pdfContainer = document.getElementById('pdf-viewer');
       if (!pdfContainer) {
         console.error("Failed to initialize PDF viewer. Container element not found.");
@@ -590,7 +688,11 @@
     
     // Clear the previous document if any
     if (currentPdfDocument) {
-      currentPdfDocument.destroy();
+      try {
+        currentPdfDocument.destroy();
+      } catch (e) {
+        console.warn("Error destroying previous PDF document:", e);
+      }
       currentPdfDocument = null;
     }
     
@@ -605,14 +707,18 @@
     pageCache = new Map();
     pagePriority = [];
     
-    // Configure PDF.js options with CMap URL for proper font rendering
+    // Configure PDF.js options with CMap URL for proper font rendering with CORS handling
     const pdfOptions = {
       cMapUrl: `${PDFJS_CDN}/cmaps/`,
       cMapPacked: true,
       standardFontDataUrl: `${PDFJS_CDN}/standard_fonts/`,
       disableFontFace: false,
       nativeImageDecoderSupport: 'display',
-      useSystemFonts: true
+      useSystemFonts: true,
+      // Enable range requests for better loading performance
+      rangeChunkSize: 65536,
+      disableStream: false,
+      disableAutoFetch: false
     };
     
     // Load the PDF document
@@ -759,7 +865,9 @@
     
     // Create a canvas for the page
     const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
+    // Add will-read-frequently attribute for better performance when using getImageData
+    canvas.setAttribute('willReadFrequently', 'true');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     pageContainer.appendChild(canvas);
     
     // Get device pixel ratio for high-DPI displays (like Retina)
@@ -810,6 +918,9 @@
     textLayerDiv.style.width = `${displayWidth}px`;
     textLayerDiv.style.height = `${displayHeight}px`;
     
+    // Set the scale factor CSS variable for text layer alignment
+    textLayerDiv.style.setProperty('--scale-factor', viewport.scale);
+    
     // Enable text selection by rendering the text layer
     page.render(renderContext).promise.then(function() {
       // Get the text content from the page
@@ -818,9 +929,9 @@
       // Enable text layer only if PDF.js TextLayerBuilder is available and we're in high quality mode
       if (isHighQualityMode && textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
         try {
-          // Render text layer with better resolution
+          // Use modern API with textContentSource instead of deprecated textContent parameter
           window.pdfjsLib.renderTextLayer({
-            textContent: textContent,
+            textContentSource: textContent,
             container: textLayerDiv,
             viewport: viewport,
             textDivs: [],
@@ -831,6 +942,19 @@
           textLayerDiv.classList.add('active');
         } catch (error) {
           console.error("Error rendering text layer:", error);
+          // Try with deprecated API as fallback
+          try {
+            window.pdfjsLib.renderTextLayer({
+              textContent: textContent,
+              container: textLayerDiv,
+              viewport: viewport,
+              textDivs: [],
+              enhanceTextSelection: true
+            });
+            textLayerDiv.classList.add('active');
+          } catch (fallbackError) {
+            console.error("Error rendering text layer with fallback method:", fallbackError);
+          }
         }
       }
       
@@ -1092,6 +1216,10 @@
     toggleFullscreen,
     goToPage,
     downloadPDF,
-    toggleRenderingQuality
+    toggleRenderingQuality,
+    // Expose a method to check if the viewer is initialized
+    isInitialized: function() {
+      return isLibraryLoaded && !!pdfContainer;
+    }
   };
 })(); 
