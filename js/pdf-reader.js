@@ -56,6 +56,10 @@
       // Set the worker source
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
       
+      // Configure CMap URL for proper font rendering
+      window.pdfjsLib.GlobalWorkerOptions.CMapReaderFactory = window.pdfjsLib.DOMCMapReaderFactory;
+      window.pdfjsLib.GlobalWorkerOptions.standardFontDataUrl = `${PDFJS_CDN}/standard_fonts/`;
+      
       // Track successful loading
       isLibraryLoaded = true;
       
@@ -601,8 +605,18 @@
     pageCache = new Map();
     pagePriority = [];
     
+    // Configure PDF.js options with CMap URL for proper font rendering
+    const pdfOptions = {
+      cMapUrl: `${PDFJS_CDN}/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${PDFJS_CDN}/standard_fonts/`,
+      disableFontFace: false,
+      nativeImageDecoderSupport: 'display',
+      useSystemFonts: true
+    };
+    
     // Load the PDF document
-    window.pdfjsLib.getDocument(url).promise
+    window.pdfjsLib.getDocument({url: url, ...pdfOptions}).promise
       .then(function(pdfDoc) {
         currentPdfDocument = pdfDoc;
         totalPages = pdfDoc.numPages;
