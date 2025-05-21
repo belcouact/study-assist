@@ -134,7 +134,12 @@
   let pdfContainer = null;
   let isFullscreen = false;
   let currentPdfUrl = null; // Track the current PDF URL
-  let isHighQualityMode = true; // Default to high quality rendering
+  
+  // Highlight and note modes
+  let isHighlightMode = false;
+  let isNoteMode = false;
+  let highlights = []; // Store highlight data
+  let notes = []; // Store note data
   
   // Cache for lazy loading
   let pageCache = new Map();
@@ -202,9 +207,11 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
-          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
+          <button id="pdf-print" title="Print PDF"><i class="fas fa-print"></i></button>
+          <button id="pdf-highlight" title="Highlight Text" class="pdf-highlight-btn"><i class="fas fa-highlighter"></i></button>
+          <button id="pdf-note" title="Add Note" class="pdf-note-btn"><i class="fas fa-sticky-note"></i></button>
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
@@ -304,24 +311,117 @@
         background-color: #45a049;
       }
       
-      #pdf-toggle-quality {
-        background-color: #9c27b0;
+      #pdf-print {
+        background-color: #2196F3;
         color: white;
         border: none;
         border-radius: 4px;
-        padding: 4px 8px;
+        padding: 4px 12px;
         cursor: pointer;
-        transition: all 0.3s;
-        opacity: 0.7;
+        transition: background-color 0.3s;
       }
       
-      #pdf-toggle-quality.active {
-        opacity: 1;
-        font-weight: bold;
+      #pdf-print:hover {
+        background-color: #0b7dda;
       }
       
-      #pdf-toggle-quality:hover {
-        opacity: 1;
+      .pdf-highlight-btn {
+        background-color: #FFC107;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      
+      .pdf-highlight-btn:hover {
+        background-color: #e5ac06;
+      }
+      
+      .pdf-highlight-btn.active {
+        background-color: #FF9800;
+      }
+      
+      .pdf-note-btn {
+        background-color: #9C27B0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      
+      .pdf-note-btn:hover {
+        background-color: #7B1FA2;
+      }
+      
+      .pdf-note-btn.active {
+        background-color: #6A1B9A;
+      }
+      
+      .pdf-highlight {
+        background-color: rgba(255, 193, 7, 0.4);
+        border-radius: 2px;
+        cursor: pointer;
+      }
+      
+      .pdf-note-container {
+        position: absolute;
+        background-color: #FFEB3B;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 100;
+        max-width: 300px;
+      }
+      
+      .pdf-note-container textarea {
+        width: 100%;
+        min-height: 80px;
+        border: 1px solid #ddd;
+        padding: 5px;
+        margin-bottom: 5px;
+        font-family: inherit;
+      }
+      
+      .pdf-note-container .note-controls {
+        display: flex;
+        justify-content: space-between;
+      }
+      
+      .pdf-note-container button {
+        padding: 3px 8px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      
+      .pdf-note-container .save-note {
+        background-color: #4CAF50;
+        color: white;
+      }
+      
+      .pdf-note-container .delete-note {
+        background-color: #F44336;
+        color: white;
+      }
+      
+      .pdf-note-marker {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: #FFEB3B;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #000;
       }
       
       .pdf-viewer {
@@ -409,12 +509,55 @@
         
         .pdf-controls, .pdf-zoom-controls {
           width: 100%;
-          justify-content: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 5px;
         }
         
         .pdf-page-search {
           margin-left: 0;
           margin-top: 10px;
+          width: 100%;
+          justify-content: space-between;
+        }
+        
+        .pdf-page-search input {
+          flex: 1;
+          margin-right: 5px;
+        }
+        
+        .pdf-viewer-container {
+          height: 80vh;
+          max-height: 600px;
+        }
+        
+        .pdf-zoom-controls button {
+          padding: 6px 10px;
+          font-size: 14px;
+        }
+        
+        .pdf-note-container {
+          max-width: 250px;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .pdf-zoom-controls {
+          justify-content: center;
+        }
+        
+        .pdf-zoom-controls button {
+          padding: 8px;
+          margin: 2px;
+        }
+        
+        #pdf-zoom-level {
+          min-width: 50px;
+          text-align: center;
+        }
+        
+        .pdf-note-container {
+          max-width: 200px;
         }
       }
     `;
@@ -434,7 +577,9 @@
     const pageInput = document.getElementById('pdf-page-input');
     const goToPageButton = document.getElementById('pdf-go-to-page');
     const downloadButton = document.getElementById('pdf-download');
-    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
+    const printButton = document.getElementById('pdf-print');
+    const highlightButton = document.getElementById('pdf-highlight');
+    const noteButton = document.getElementById('pdf-note');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -450,10 +595,14 @@
     // Download button
     if (downloadButton) downloadButton.addEventListener('click', downloadPDF);
     
-    // Quality toggle button
-    if (qualityToggleButton) {
-      qualityToggleButton.addEventListener('click', toggleRenderingQuality);
-    }
+    // Print button
+    if (printButton) printButton.addEventListener('click', printPDF);
+    
+    // Highlight button
+    if (highlightButton) highlightButton.addEventListener('click', toggleHighlightMode);
+    
+    // Note button
+    if (noteButton) noteButton.addEventListener('click', toggleNoteMode);
     
     // Page search
     if (pageInput && goToPageButton) {
@@ -473,6 +622,12 @@
     
     // Touch swipe for mobile devices
     setupTouchControls();
+    
+    // Add text selection event handler for highlighting and notes
+    if (viewer) {
+      viewer.addEventListener('mouseup', handleTextSelection);
+      viewer.addEventListener('click', handleViewerClick);
+    }
   }
   
   /**
@@ -558,6 +713,13 @@
     
     // Store the PDF URL
     currentPdfUrl = url;
+    
+    // Reset annotations
+    highlights = [];
+    notes = [];
+    
+    // Load saved annotations for this PDF
+    loadAnnotations();
     
     // Default options
     const defaultOptions = {
@@ -755,6 +917,7 @@
     // Create a container for this page
     const pageContainer = document.createElement('div');
     pageContainer.className = 'pdf-page';
+    pageContainer.dataset.pageNumber = page.pageNumber;
     pdfContainer.appendChild(pageContainer);
     
     // Create a canvas for the page
@@ -765,12 +928,9 @@
     // Get device pixel ratio for high-DPI displays (like Retina)
     const devicePixelRatio = window.devicePixelRatio || 1;
     
-    // Determine quality factor based on mode
-    const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
-    
     // Calculate viewport based on scale
     const viewport = page.getViewport({ 
-      scale: currentScale * qualityFactor
+      scale: currentScale
     });
     
     // Set display size (css pixels)
@@ -780,7 +940,7 @@
     canvas.style.height = `${displayHeight}px`;
     
     // Set actual size in memory (scaled to account for extra pixel density)
-    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.5) : devicePixelRatio;
+    const scaleFactor = devicePixelRatio;
     canvas.width = Math.floor(viewport.width * scaleFactor);
     canvas.height = Math.floor(viewport.height * scaleFactor);
     
@@ -789,16 +949,16 @@
     
     // Improve image rendering quality
     context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = isHighQualityMode ? 'high' : 'medium';
+    context.imageSmoothingQuality = 'high';
     
     // Render the page with appropriate quality settings
     const renderContext = {
       canvasContext: context,
       viewport: viewport,
-      enableWebGL: isHighQualityMode, // Use WebGL for high quality
+      enableWebGL: true,
       renderInteractiveForms: true,
       // Use fine-grained render parameters for better quality
-      transform: isHighQualityMode && devicePixelRatio > 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null,
+      transform: devicePixelRatio > 1 ? [devicePixelRatio, 0, 0, devicePixelRatio, 0, 0] : null,
     };
     
     // Create a div for the text layer
@@ -813,10 +973,10 @@
     // Enable text selection by rendering the text layer
     page.render(renderContext).promise.then(function() {
       // Get the text content from the page
-      return isHighQualityMode ? page.getTextContent() : null;
+      return page.getTextContent();
     }).then(function(textContent) {
-      // Enable text layer only if PDF.js TextLayerBuilder is available and we're in high quality mode
-      if (isHighQualityMode && textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
+      // Enable text layer only if PDF.js TextLayerBuilder is available
+      if (textContent && window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
         try {
           // Render text layer with better resolution
           window.pdfjsLib.renderTextLayer({
@@ -833,6 +993,9 @@
           console.error("Error rendering text layer:", error);
         }
       }
+      
+      // Render existing highlights and notes for this page
+      renderPageAnnotations(page.pageNumber, viewport, textLayerDiv);
       
       hideLoader();
       updatePageInfo();
@@ -1061,27 +1224,495 @@
   }
   
   /**
-   * Toggle rendering quality
+   * Toggle highlight mode
    */
-  function toggleRenderingQuality() {
-    isHighQualityMode = !isHighQualityMode;
+  function toggleHighlightMode() {
+    isHighlightMode = !isHighlightMode;
+    isNoteMode = false; // Turn off note mode
     
-    // Update the button appearance
-    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
-    if (qualityToggleButton) {
-      if (isHighQualityMode) {
-        qualityToggleButton.classList.add('active');
-        qualityToggleButton.textContent = 'HD';
+    // Update button states
+    const highlightButton = document.getElementById('pdf-highlight');
+    const noteButton = document.getElementById('pdf-note');
+    
+    if (highlightButton) {
+      if (isHighlightMode) {
+        highlightButton.classList.add('active');
       } else {
-        qualityToggleButton.classList.remove('active');
-        qualityToggleButton.textContent = 'SD';
+        highlightButton.classList.remove('active');
       }
     }
     
-    // Re-render the current page with new quality settings
-    renderPage(currentPage);
+    if (noteButton) {
+      noteButton.classList.remove('active');
+    }
+    
+    // Update cursor style
+    if (pdfContainer) {
+      if (isHighlightMode) {
+        pdfContainer.style.cursor = 'text';
+      } else {
+        pdfContainer.style.cursor = 'auto';
+      }
+    }
   }
   
+  /**
+   * Toggle note mode
+   */
+  function toggleNoteMode() {
+    isNoteMode = !isNoteMode;
+    isHighlightMode = false; // Turn off highlight mode
+    
+    // Update button states
+    const highlightButton = document.getElementById('pdf-highlight');
+    const noteButton = document.getElementById('pdf-note');
+    
+    if (noteButton) {
+      if (isNoteMode) {
+        noteButton.classList.add('active');
+      } else {
+        noteButton.classList.remove('active');
+      }
+    }
+    
+    if (highlightButton) {
+      highlightButton.classList.remove('active');
+    }
+    
+    // Update cursor style
+    if (pdfContainer) {
+      if (isNoteMode) {
+        pdfContainer.style.cursor = 'text';
+      } else {
+        pdfContainer.style.cursor = 'auto';
+      }
+    }
+  }
+  
+  /**
+   * Handle text selection for highlighting or adding notes
+   */
+  function handleTextSelection(e) {
+    const selection = window.getSelection();
+    if (!selection.rangeCount || selection.isCollapsed) return;
+    
+    const range = selection.getRangeAt(0);
+    const textLayerElements = document.querySelectorAll('.pdf-page-textlayer');
+    
+    // Check if selection is within a text layer
+    let textLayer = null;
+    let pageNumber = null;
+    
+    for (const el of textLayerElements) {
+      if (el.contains(range.commonAncestorContainer)) {
+        textLayer = el;
+        const pageEl = el.closest('.pdf-page');
+        if (pageEl) {
+          pageNumber = parseInt(pageEl.dataset.pageNumber, 10);
+        }
+        break;
+      }
+    }
+    
+    if (!textLayer || !pageNumber) return;
+    
+    if (isHighlightMode) {
+      addHighlight(range, textLayer, pageNumber);
+      selection.removeAllRanges(); // Clear selection after highlighting
+    } else if (isNoteMode) {
+      addNoteToSelection(range, textLayer, pageNumber);
+      selection.removeAllRanges(); // Clear selection after adding note
+    }
+  }
+  
+  /**
+   * Handle clicks on viewer (for closing notes, etc.)
+   */
+  function handleViewerClick(e) {
+    // Close all open note editors
+    const noteEditors = document.querySelectorAll('.pdf-note-container');
+    noteEditors.forEach(editor => {
+      // Don't close if clicking inside a note editor
+      if (!editor.contains(e.target)) {
+        editor.remove();
+      }
+    });
+    
+    // Handle note marker clicks
+    if (e.target.classList.contains('pdf-note-marker')) {
+      const noteId = e.target.dataset.noteId;
+      if (noteId) {
+        showNoteContent(noteId, e.target);
+      }
+    }
+  }
+  
+  /**
+   * Add highlight to selected text
+   */
+  function addHighlight(range, textLayer, pageNumber) {
+    const highlightId = `highlight-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    try {
+      // Create highlight element
+      const highlight = document.createElement('div');
+      highlight.className = 'pdf-highlight';
+      highlight.id = highlightId;
+      
+      // Get the client rects of the range
+      const rects = Array.from(range.getClientRects());
+      
+      // Convert client rects to positions relative to the text layer
+      const textLayerRect = textLayer.getBoundingClientRect();
+      
+      // Store highlight data for persistence
+      const highlightData = {
+        id: highlightId,
+        pageNumber: pageNumber,
+        rects: rects.map(rect => ({
+          left: (rect.left - textLayerRect.left) / textLayerRect.width,
+          top: (rect.top - textLayerRect.top) / textLayerRect.height,
+          width: rect.width / textLayerRect.width,
+          height: rect.height / textLayerRect.height
+        })),
+        text: range.toString(),
+        timestamp: new Date().toISOString()
+      };
+      
+      highlights.push(highlightData);
+      
+      // Render the highlight
+      renderHighlight(highlightData, textLayer);
+      
+      console.log('Highlight added:', highlightData);
+      saveAnnotations();
+      
+    } catch (error) {
+      console.error('Error adding highlight:', error);
+    }
+  }
+  
+  /**
+   * Render a highlight on the page
+   */
+  function renderHighlight(highlightData, textLayer) {
+    const textLayerRect = textLayer.getBoundingClientRect();
+    
+    highlightData.rects.forEach((rect, index) => {
+      const highlightEl = document.createElement('div');
+      highlightEl.className = 'pdf-highlight';
+      highlightEl.dataset.highlightId = highlightData.id;
+      highlightEl.dataset.highlightIndex = index;
+      
+      // Position and size the highlight based on stored percentages
+      highlightEl.style.position = 'absolute';
+      highlightEl.style.left = `${rect.left * 100}%`;
+      highlightEl.style.top = `${rect.top * 100}%`;
+      highlightEl.style.width = `${rect.width * 100}%`;
+      highlightEl.style.height = `${rect.height * 100}%`;
+      
+      // Add a tooltip with the highlighted text
+      highlightEl.title = highlightData.text;
+      
+      // Add click handler to remove highlight
+      highlightEl.addEventListener('click', function(e) {
+        if (e.ctrlKey || e.metaKey) {
+          removeHighlight(highlightData.id);
+        }
+      });
+      
+      textLayer.appendChild(highlightEl);
+    });
+  }
+  
+  /**
+   * Remove a highlight
+   */
+  function removeHighlight(highlightId) {
+    // Remove from DOM
+    document.querySelectorAll(`[data-highlight-id="${highlightId}"]`).forEach(el => {
+      el.remove();
+    });
+    
+    // Remove from data store
+    highlights = highlights.filter(h => h.id !== highlightId);
+    
+    // Save updated annotations
+    saveAnnotations();
+  }
+  
+  /**
+   * Add a note to the selected text
+   */
+  function addNoteToSelection(range, textLayer, pageNumber) {
+    const noteId = `note-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    
+    try {
+      // Get position for the note marker
+      const rects = Array.from(range.getClientRects());
+      if (rects.length === 0) return;
+      
+      const textLayerRect = textLayer.getBoundingClientRect();
+      
+      // Use the first rect for the note marker position
+      const rect = rects[0];
+      
+      // Store note data
+      const noteData = {
+        id: noteId,
+        pageNumber: pageNumber,
+        position: {
+          left: (rect.left - textLayerRect.left) / textLayerRect.width,
+          top: (rect.top - textLayerRect.top) / textLayerRect.height
+        },
+        text: range.toString(),
+        content: '',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Add to notes array
+      notes.push(noteData);
+      
+      // Create note marker
+      renderNoteMarker(noteData, textLayer);
+      
+      // Show note editor
+      const marker = document.querySelector(`[data-note-id="${noteId}"]`);
+      if (marker) {
+        showNoteEditor(noteData, marker);
+      }
+      
+      console.log('Note added:', noteData);
+      saveAnnotations();
+      
+    } catch (error) {
+      console.error('Error adding note:', error);
+    }
+  }
+  
+  /**
+   * Render a note marker
+   */
+  function renderNoteMarker(noteData, textLayer) {
+    const marker = document.createElement('div');
+    marker.className = 'pdf-note-marker';
+    marker.dataset.noteId = noteData.id;
+    marker.innerHTML = '<i class="fas fa-sticky-note"></i>';
+    marker.title = noteData.text;
+    
+    // Position the marker
+    marker.style.position = 'absolute';
+    marker.style.left = `${noteData.position.left * 100}%`;
+    marker.style.top = `${noteData.position.top * 100}%`;
+    
+    textLayer.appendChild(marker);
+  }
+  
+  /**
+   * Show note editor
+   */
+  function showNoteEditor(noteData, markerElement) {
+    // Close any open note editors
+    document.querySelectorAll('.pdf-note-container').forEach(el => el.remove());
+    
+    // Create note editor container
+    const noteContainer = document.createElement('div');
+    noteContainer.className = 'pdf-note-container';
+    noteContainer.dataset.noteId = noteData.id;
+    
+    const markerRect = markerElement.getBoundingClientRect();
+    const viewerRect = pdfContainer.getBoundingClientRect();
+    
+    // Position the note container next to the marker
+    const left = markerRect.right - viewerRect.left + 10;
+    const top = markerRect.top - viewerRect.top;
+    
+    noteContainer.style.position = 'absolute';
+    noteContainer.style.left = `${left}px`;
+    noteContainer.style.top = `${top}px`;
+    
+    // Create editor content
+    noteContainer.innerHTML = `
+      <p><strong>Note for:</strong> ${noteData.text.length > 50 ? noteData.text.substring(0, 50) + '...' : noteData.text}</p>
+      <textarea placeholder="Type your note here...">${noteData.content || ''}</textarea>
+      <div class="note-controls">
+        <button class="save-note">Save</button>
+        <button class="delete-note">Delete</button>
+      </div>
+    `;
+    
+    // Add event listeners
+    const saveButton = noteContainer.querySelector('.save-note');
+    const deleteButton = noteContainer.querySelector('.delete-note');
+    const textarea = noteContainer.querySelector('textarea');
+    
+    saveButton.addEventListener('click', function() {
+      const updatedContent = textarea.value.trim();
+      saveNoteContent(noteData.id, updatedContent);
+      noteContainer.remove();
+    });
+    
+    deleteButton.addEventListener('click', function() {
+      removeNote(noteData.id);
+      noteContainer.remove();
+    });
+    
+    // Auto-focus the textarea
+    textarea.focus();
+    
+    // Add the note container to the viewer
+    pdfContainer.appendChild(noteContainer);
+  }
+  
+  /**
+   * Show note content (when clicking on a note marker)
+   */
+  function showNoteContent(noteId, markerElement) {
+    const noteData = notes.find(n => n.id === noteId);
+    if (!noteData) return;
+    
+    showNoteEditor(noteData, markerElement);
+  }
+  
+  /**
+   * Save note content
+   */
+  function saveNoteContent(noteId, content) {
+    const noteIndex = notes.findIndex(n => n.id === noteId);
+    if (noteIndex !== -1) {
+      notes[noteIndex].content = content;
+      saveAnnotations();
+    }
+  }
+  
+  /**
+   * Remove a note
+   */
+  function removeNote(noteId) {
+    // Remove from DOM
+    document.querySelectorAll(`[data-note-id="${noteId}"]`).forEach(el => {
+      el.remove();
+    });
+    
+    // Remove from data store
+    notes = notes.filter(n => n.id !== noteId);
+    
+    // Save updated annotations
+    saveAnnotations();
+  }
+  
+  /**
+   * Print the current PDF
+   */
+  function printPDF() {
+    if (!currentPdfDocument || !currentPdfUrl) {
+      alert('No PDF is currently loaded.');
+      return;
+    }
+    
+    try {
+      // Create an iframe for printing
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      
+      iframe.onload = function() {
+        try {
+          // Wait for iframe to load, then start printing
+          setTimeout(function() {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            
+            // Remove the iframe after print dialog is closed
+            setTimeout(function() {
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 1000); // Give PDF time to load
+        } catch (err) {
+          console.error('Error during print operation:', err);
+          document.body.removeChild(iframe);
+          // Fallback - open the PDF in a new tab
+          window.open(currentPdfUrl, '_blank');
+          alert('Print dialog could not be opened automatically. A new tab has been opened with the PDF instead.');
+        }
+      };
+      
+      // Set the iframe source to the PDF URL
+      iframe.src = currentPdfUrl;
+    } catch (error) {
+      console.error('Error setting up print operation:', error);
+      // Fallback - open the PDF in a new tab
+      window.open(currentPdfUrl, '_blank');
+      alert('Print operation failed. A new tab has been opened with the PDF instead.');
+    }
+  }
+  
+  /**
+   * Render existing annotations for a page
+   */
+  function renderPageAnnotations(pageNumber, viewport, textLayer) {
+    // Render highlights for this page
+    highlights
+      .filter(h => h.pageNumber === pageNumber)
+      .forEach(highlight => {
+        renderHighlight(highlight, textLayer);
+      });
+    
+    // Render note markers for this page
+    notes
+      .filter(n => n.pageNumber === pageNumber)
+      .forEach(note => {
+        renderNoteMarker(note, textLayer);
+      });
+  }
+  
+  /**
+   * Save annotations to localStorage
+   */
+  function saveAnnotations() {
+    try {
+      if (!currentPdfUrl) return;
+      
+      // Create a key based on the PDF URL
+      const storageKey = `pdf-annotations-${btoa(currentPdfUrl).replace(/[=+/]/g, '')}`;
+      
+      const annotationData = {
+        highlights: highlights,
+        notes: notes,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      localStorage.setItem(storageKey, JSON.stringify(annotationData));
+    } catch (error) {
+      console.error('Error saving annotations:', error);
+    }
+  }
+  
+  /**
+   * Load annotations from localStorage
+   */
+  function loadAnnotations() {
+    try {
+      if (!currentPdfUrl) return;
+      
+      // Create a key based on the PDF URL
+      const storageKey = `pdf-annotations-${btoa(currentPdfUrl).replace(/[=+/]/g, '')}`;
+      
+      const savedData = localStorage.getItem(storageKey);
+      if (!savedData) return;
+      
+      const annotationData = JSON.parse(savedData);
+      
+      // Set the annotations
+      highlights = annotationData.highlights || [];
+      notes = annotationData.notes || [];
+      
+      console.log('Loaded annotations:', highlights.length, 'highlights,', notes.length, 'notes');
+    } catch (error) {
+      console.error('Error loading annotations:', error);
+    }
+  }
+
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -1092,6 +1723,8 @@
     toggleFullscreen,
     goToPage,
     downloadPDF,
-    toggleRenderingQuality
+    printPDF,
+    toggleHighlightMode,
+    toggleNoteMode
   };
 })(); 
