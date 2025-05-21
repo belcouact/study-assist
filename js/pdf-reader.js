@@ -8,6 +8,10 @@
   // Load PDF.js library from CDN (latest stable version)
   const PDFJS_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.10.111';
   
+  // Track library loading status
+  let isLibraryLoaded = false;
+  let libraryLoadingError = null;
+  
   // Load the PDF.js viewer CSS
   const linkElement = document.createElement('link');
   linkElement.rel = 'stylesheet';
@@ -24,16 +28,93 @@
   textLayerScript.src = `${PDFJS_CDN}/pdf_viewer.min.js`;
   document.head.appendChild(textLayerScript);
   
+  // Handle script loading error
+  scriptElement.onerror = function(error) {
+    console.error('Failed to load PDF.js library:', error);
+    libraryLoadingError = 'Failed to load PDF.js library. Please check your internet connection and try again.';
+    displayLibraryError();
+  };
+  
+  textLayerScript.onerror = function(error) {
+    console.error('Failed to load PDF.js viewer script:', error);
+    // We can still use basic functionality without the text layer
+    if (window.pdfjsLib) {
+      initPDFViewer();
+    }
+  };
+  
   // Initialize PDF.js after script is loaded
   scriptElement.onload = function() {
-    // Set the worker source
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
+    if (!window.pdfjsLib) {
+      console.error('PDF.js library loaded but pdfjsLib not defined.');
+      libraryLoadingError = 'PDF.js library failed to initialize. Please try refreshing the page.';
+      displayLibraryError();
+      return;
+    }
     
-    // Initialize the PDF viewer component only after text layer is loaded
-    textLayerScript.onload = function() {
-      initPDFViewer();
-    };
+    try {
+      // Set the worker source
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
+      
+      // Track successful loading
+      isLibraryLoaded = true;
+      
+      // Initialize the PDF viewer component only after text layer is loaded
+      textLayerScript.onload = function() {
+        initPDFViewer();
+      };
+      
+      // If text layer script is taking too long, go ahead with viewer initialization
+      setTimeout(function() {
+        if (!window.pdfjsLib.renderTextLayer) {
+          console.warn('PDF.js text layer not loaded in time, proceeding with basic viewer');
+          initPDFViewer();
+        }
+      }, 3000); // 3 second timeout
+    } catch (error) {
+      console.error('Error initializing PDF.js:', error);
+      libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
+      displayLibraryError();
+    }
   };
+  
+  /**
+   * Display library error message to the user
+   */
+  function displayLibraryError() {
+    // Create error message element
+    const errorContainer = document.createElement('div');
+    errorContainer.style.padding = '20px';
+    errorContainer.style.margin = '20px auto';
+    errorContainer.style.maxWidth = '600px';
+    errorContainer.style.backgroundColor = '#f8d7da';
+    errorContainer.style.color = '#721c24';
+    errorContainer.style.borderRadius = '5px';
+    errorContainer.style.border = '1px solid #f5c6cb';
+    errorContainer.style.textAlign = 'center';
+    
+    errorContainer.innerHTML = `
+      <h3 style="margin-top: 0;">PDF Viewer Error</h3>
+      <p>${libraryLoadingError || 'An error occurred while loading the PDF viewer.'}</p>
+      <button style="padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Retry</button>
+    `;
+    
+    // Add retry button functionality
+    const retryButton = errorContainer.querySelector('button');
+    retryButton.onclick = function() {
+      window.location.reload();
+    };
+    
+    // Find a suitable place to show the error
+    const pdfContainer = document.getElementById('pdf-viewer-container');
+    if (pdfContainer) {
+      pdfContainer.innerHTML = '';
+      pdfContainer.appendChild(errorContainer);
+    } else {
+      // If no container exists, append to body
+      document.body.appendChild(errorContainer);
+    }
+  }
   
   // PDF Viewer Configuration
   const DEFAULT_SCALE = 1.0;
@@ -61,11 +142,26 @@
    * Initialize the PDF Viewer component
    */
   function initPDFViewer() {
-    // Create or update PDF viewer container
-    createPDFViewerUI();
-    
-    // Setup event listeners
-    setupEventListeners();
+    try {
+      // Create or update PDF viewer container
+      createPDFViewerUI();
+      
+      // Ensure the pdfContainer reference is set
+      if (!pdfContainer) {
+        pdfContainer = document.getElementById('pdf-viewer');
+        if (!pdfContainer) {
+          console.error("Could not find or create pdf-viewer element");
+        }
+      }
+      
+      // Setup event listeners
+      setupEventListeners();
+      
+      return true; // Indicate successful initialization
+    } catch (error) {
+      console.error("Error initializing PDF viewer:", error);
+      return false; // Indicate failed initialization
+    }
   }
   
   /**
@@ -432,10 +528,26 @@
     preloadPageCount = settings.preloadPages;
     maxCacheSize = settings.cacheSize;
     
+    // Make sure pdfContainer exists
+    if (!pdfContainer) {
+      console.error("PDF container not found. Trying to initialize viewer again.");
+      initPDFViewer();
+      pdfContainer = document.getElementById('pdf-viewer');
+      if (!pdfContainer) {
+        console.error("Failed to initialize PDF viewer. Container element not found.");
+        showError();
+        return;
+      }
+    }
+    
     // Clear the previous document if any
     if (currentPdfDocument) {
       currentPdfDocument.destroy();
       currentPdfDocument = null;
+    }
+    
+    // Clear the container safely
+    if (pdfContainer) {
       pdfContainer.innerHTML = '';
     }
     
@@ -458,12 +570,18 @@
         updateZoomLevel();
         
         // Setup lazy loading if enabled
-        if (lazyLoadEnabled) {
-          // Add scroll event listener to load pages as they become visible
-          pdfContainer.addEventListener('scroll', handleScroll);
-          
-          // Load initial page and preload adjacent pages
-          preloadVisiblePages();
+        if (lazyLoadEnabled && pdfContainer) {
+          try {
+            // Add scroll event listener to load pages as they become visible
+            pdfContainer.addEventListener('scroll', handleScroll);
+            
+            // Load initial page and preload adjacent pages
+            preloadVisiblePages();
+          } catch (error) {
+            console.error("Error setting up lazy loading:", error);
+            // Fallback to regular rendering
+            renderPage(currentPage);
+          }
         } else {
           // Render the initial page without lazy loading
           renderPage(currentPage);
@@ -566,6 +684,13 @@
   function renderPageContent(page) {
     showLoader();
     
+    // Check if pdfContainer exists
+    if (!pdfContainer) {
+      console.error("PDF container not found. Cannot render content.");
+      showError();
+      return;
+    }
+    
     // Clear the container
     pdfContainer.innerHTML = '';
     
@@ -603,21 +728,28 @@
       return page.getTextContent();
     }).then(function(textContent) {
       // Enable text layer only if PDF.js TextLayerBuilder is available
-      if (window.pdfjsLib.renderTextLayer) {
-        // Render text layer
-        window.pdfjsLib.renderTextLayer({
-          textContent: textContent,
-          container: textLayerDiv,
-          viewport: viewport,
-          textDivs: []
-        });
-        
-        // Add active class to make text selectable
-        textLayerDiv.classList.add('active');
+      if (window.pdfjsLib && window.pdfjsLib.renderTextLayer) {
+        try {
+          // Render text layer
+          window.pdfjsLib.renderTextLayer({
+            textContent: textContent,
+            container: textLayerDiv,
+            viewport: viewport,
+            textDivs: []
+          });
+          
+          // Add active class to make text selectable
+          textLayerDiv.classList.add('active');
+        } catch (error) {
+          console.error("Error rendering text layer:", error);
+        }
       }
       
       hideLoader();
       updatePageInfo();
+    }).catch(function(error) {
+      console.error("Error rendering page content:", error);
+      hideLoader();
     });
   }
   
