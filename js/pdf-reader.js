@@ -48,6 +48,7 @@
   let totalPages = 0;
   let pdfContainer = null;
   let isFullscreen = false;
+  let currentPdfUrl = null; // Track the current PDF URL
   
   // Cache for lazy loading
   let pageCache = new Map();
@@ -101,6 +102,7 @@
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
+          <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
@@ -184,6 +186,20 @@
       
       .pdf-page-search button:hover {
         background-color: #3a56d4;
+      }
+      
+      #pdf-download {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 12px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+      }
+      
+      #pdf-download:hover {
+        background-color: #45a049;
       }
       
       .pdf-viewer {
@@ -279,6 +295,7 @@
     const fullscreenButton = document.getElementById('pdf-fullscreen');
     const pageInput = document.getElementById('pdf-page-input');
     const goToPageButton = document.getElementById('pdf-go-to-page');
+    const downloadButton = document.getElementById('pdf-download');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -290,6 +307,9 @@
     
     // Fullscreen toggle
     if (fullscreenButton) fullscreenButton.addEventListener('click', toggleFullscreen);
+    
+    // Download button
+    if (downloadButton) downloadButton.addEventListener('click', downloadPDF);
     
     // Page search
     if (pageInput && goToPageButton) {
@@ -375,6 +395,12 @@
           toggleFullscreen();
         }
         break;
+      case 's':
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          downloadPDF();
+        }
+        break;
     }
   }
   
@@ -385,6 +411,9 @@
    */
   function loadPDF(url, options = {}) {
     showLoader();
+    
+    // Store the PDF URL
+    currentPdfUrl = url;
     
     // Default options
     const defaultOptions = {
@@ -780,6 +809,36 @@
     }
   }
   
+  /**
+   * Download the current PDF file
+   */
+  function downloadPDF() {
+    if (!currentPdfDocument || !currentPdfUrl) {
+      alert('No PDF is currently loaded.');
+      return;
+    }
+    
+    try {
+      // Create a hidden anchor element to trigger the download
+      const downloadLink = document.createElement('a');
+      downloadLink.href = currentPdfUrl;
+      
+      // Extract the filename from the URL
+      const filename = currentPdfUrl.split('/').pop();
+      downloadLink.download = filename;
+      
+      // Append, trigger click, and remove
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+      
+      console.log('PDF download initiated:', filename);
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF. Please try again or download directly from the source.');
+    }
+  }
+  
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -788,6 +847,7 @@
     zoomIn,
     zoomOut,
     toggleFullscreen,
-    goToPage
+    goToPage,
+    downloadPDF
   };
 })(); 
