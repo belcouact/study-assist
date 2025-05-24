@@ -1173,6 +1173,46 @@ function renderComparisonTimeline(timeline) {
     
     const detailLevelText = getDetailLevelText(timeline.detailLevel || 'medium');
     
+    // Extract and merge all events from all time periods
+    let allEvents = [];
+    
+    timeline.timePeriods.forEach(period => {
+        // Add world events
+        if (period.worldEvents && period.worldEvents.length > 0) {
+            period.worldEvents.forEach(event => {
+                allEvents.push({
+                    ...event,
+                    type: 'world',
+                    periodName: period.name
+                });
+            });
+        }
+        
+        // Add country events
+        if (period.countryEvents && period.countryEvents.length > 0) {
+            period.countryEvents.forEach(event => {
+                allEvents.push({
+                    ...event,
+                    type: 'country',
+                    periodName: period.name
+                });
+            });
+        }
+    });
+    
+    // Sort events by date
+    allEvents.sort((a, b) => {
+        const yearA = extractYearValue(a.year);
+        const yearB = extractYearValue(b.year);
+        
+        // Handle cases where year extraction fails
+        if (!yearA && !yearB) return 0;
+        if (!yearA) return 1;
+        if (!yearB) return -1;
+        
+        return yearA - yearB;
+    });
+    
     let html = `
         <div class="timeline-header">
             <h3>${timeline.title}</h3>
@@ -1180,91 +1220,47 @@ function renderComparisonTimeline(timeline) {
             <p class="timeline-detail-level">详细程度：${detailLevelText}</p>
         </div>
         <div class="country-info">
-            <h3><i class="fas fa-info-circle"></i> 对比学习说明</h3>
-            <p>下方时间线按关键时间段组织，每个时间段内并排展示全球事件和${timeline.country}事件，帮助理解全球历史与${timeline.country}历史的关联与影响。</p>
-            <p>圆形时间标记显示了历史时期的划分，帮助您理解历史发展的阶段性。</p>
-            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，事件将垂直排列，但保持时间段的组织方式。点击事件可以高亮相同年份的事件。</p>
+            <h3><i class="fas fa-info-circle"></i> 时间线说明</h3>
+            <p>下方时间线按历史事件发生时间的先后顺序排列，世界事件显示在左侧，${timeline.country}事件显示在右侧，帮助理解全球历史与${timeline.country}历史的时间联系。</p>
+            <p class="mobile-note"><i class="fas fa-mobile-alt"></i> 在手机上查看时，事件将垂直排列。点击事件可以高亮相同年份的事件。</p>
         </div>
-        <div class="timeline">
-            <div class="timeline-periods">
+        
+        <!-- Column Headers -->
+        <div class="timeline-clearfix">
+            <div class="timeline-column-header world-header">
+                <i class="fas fa-globe"></i> 世界事件
+            </div>
+            <div class="timeline-column-header country-header">
+                <i class="fas fa-flag"></i> ${timeline.country}事件
+            </div>
+        </div>
+        
+        <div class="timeline-content">
     `;
     
-    // Render each time period with its events
-    timeline.timePeriods.forEach((period, index) => {
-        html += `
-            <div class="timeline-period ${index % 2 === 0 ? 'even-period' : 'odd-period'}">
-                <div class="period-marker">
-                    <div class="period-circle">
-                        <span class="period-years">${period.startYear} - ${period.endYear}</span>
-                    </div>
-                    <h3 class="period-name">${period.name}</h3>
-                </div>
-                <div class="period-content">
-                    <div class="world-events-column">
-                        <div class="column-header">
-                            <i class="fas fa-globe"></i> 全球事件
-                        </div>
-        `;
+    // Render events chronologically
+    allEvents.forEach((event, index) => {
+        const eventClass = event.type === 'world' ? 'world-event' : 'country-event';
+        const eventTypeLabel = event.type === 'world' ? '世界事件' : `${timeline.country}事件`;
         
-        if (period.worldEvents && period.worldEvents.length > 0) {
-            period.worldEvents.forEach(event => {
-                html += `
-                    <div class="event-item world-event" data-year="${event.year}">
+        html += `
+            <div class="timeline-event ${eventClass}" data-year="${event.year}">
                 <div class="event-year">${event.year}</div>
                 <div class="event-content">
-                            <div class="event-type-badge">全球事件</div>
+                    <div class="event-type-badge">${eventTypeLabel}</div>
                     <h4>${event.title}</h4>
                     <p class="event-description">${event.description}</p>
                     <div class="event-significance">
                         <strong>历史意义：</strong>
                         <p>${event.significance}</p>
                     </div>
-                </div>
-            </div>
-        `;
-    });
-        } else {
-            html += `<div class="no-events">该时期无全球重要事件记录</div>`;
-        }
-    
-    html += `
-                    </div>
-                    <div class="country-events-column">
-                        <div class="column-header">
-                            <i class="fas fa-flag"></i> ${timeline.country}事件
-                        </div>
-        `;
-        
-        if (period.countryEvents && period.countryEvents.length > 0) {
-            period.countryEvents.forEach(event => {
-                html += `
-                    <div class="event-item country-event" data-year="${event.year}">
-                        <div class="event-year">${event.year}</div>
-                        <div class="event-content">
-                            <div class="event-type-badge">${timeline.country}事件</div>
-                            <h4>${event.title}</h4>
-                            <p class="event-description">${event.description}</p>
-                            <div class="event-significance">
-                                <strong>历史意义：</strong>
-                                <p>${event.significance}</p>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            html += `<div class="no-events">该时期无${timeline.country}重要事件记录</div>`;
-        }
-        
-        html += `
-                    </div>
+                    ${event.periodName ? `<div class="event-period-tag">时期：${event.periodName}</div>` : ''}
                 </div>
             </div>
         `;
     });
     
     html += `
-            </div>
         </div>
         <div class="timeline-actions">
             <button class="btn btn-outline" id="print-timeline">打印时间线</button>
@@ -1290,11 +1286,11 @@ function renderComparisonTimeline(timeline) {
     }
     
     // Add highlight functionality for events with the same year
-    const eventItems = document.querySelectorAll('.event-item');
+    const eventItems = document.querySelectorAll('.timeline-event');
     eventItems.forEach(item => {
         item.addEventListener('click', () => {
             const year = item.getAttribute('data-year');
-            const sameYearEvents = document.querySelectorAll(`.event-item[data-year="${year}"]`);
+            const sameYearEvents = document.querySelectorAll(`.timeline-event[data-year="${year}"]`);
             
             // If we already highlighted this event, unhighlight it
             if (item.classList.contains('highlighted')) {
@@ -1305,7 +1301,7 @@ function renderComparisonTimeline(timeline) {
             }
             
             // First, remove highlight from any previously highlighted events
-            document.querySelectorAll('.event-item.highlighted').forEach(el => {
+            document.querySelectorAll('.timeline-event.highlighted').forEach(el => {
                 el.classList.remove('highlighted');
             });
             
@@ -1331,39 +1327,6 @@ function renderComparisonTimeline(timeline) {
             }
         });
     });
-    
-    // Add swiping functionality for mobile to navigate between periods
-    if ('ontouchstart' in window) {
-        const periods = document.querySelectorAll('.timeline-period');
-        let touchStartX = 0;
-        let touchEndX = 0;
-        
-        periods.forEach((period, index) => {
-            period.addEventListener('touchstart', (e) => {
-                touchStartX = e.changedTouches[0].screenX;
-            }, { passive: true });
-            
-            period.addEventListener('touchend', (e) => {
-                touchEndX = e.changedTouches[0].screenX;
-                handleSwipe(index, periods);
-            }, { passive: true });
-        });
-        
-        function handleSwipe(currentIndex, periods) {
-            const swipeThreshold = 50;
-            if (touchEndX < touchStartX - swipeThreshold) {
-                // Swipe left - go to next period if available
-                if (currentIndex < periods.length - 1) {
-                    periods[currentIndex + 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            } else if (touchEndX > touchStartX + swipeThreshold) {
-                // Swipe right - go to previous period if available
-                if (currentIndex > 0) {
-                    periods[currentIndex - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-        }
-    }
 }
 
 /**
