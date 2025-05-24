@@ -862,9 +862,6 @@ function initTimeline() {
                     throw new Error('无法从响应中提取JSON');
                 }
                 
-                // Clean the JSON string to remove potential control characters
-                jsonText = jsonText.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
-                
                 // Enhanced JSON parsing with multiple fallback strategies
                 try {
                     // First attempt: direct parsing
@@ -873,34 +870,45 @@ function initTimeline() {
                     console.error('第一次解析JSON失败，尝试修复格式...', parseError);
                     console.log('原始JSON:', jsonText);
                     
-                    // Second attempt: fix common JSON issues
+                    // Second attempt: only fix obvious JSON issues, don't touch valid structures
                     try {
                         const fixedJson = jsonText
-                            .replace(/,\s*}/g, '}')  // Remove trailing commas
-                            .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
-                            .replace(/\\(?!["\\/bfnrtu])/g, '\\\\')  // Escape backslashes
-                            .replace(/([{,]\s*)(\w+)(\s*:)/g, '$1"$2"$3')  // Quote unquoted keys
-                            .replace(/:\s*'([^']*?)'/g, ':"$1"')  // Replace single quotes with double quotes
-                            .replace(/:\s*`([^`]*?)`/g, ':"$1"');  // Replace backticks with double quotes
+                            .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+                            .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+                            .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":');  // Quote unquoted property names only
                             
                         timeline = JSON.parse(fixedJson);
                     } catch (fixError) {
                         console.error('修复JSON后仍然无法解析:', fixError);
                         
-                        // Third attempt: Try a more aggressive approach with a JSON5 like parser
+                        // Third attempt: More conservative sanitization
                         try {
-                            // Simple approach to handle more JSON issues
+                            // Only remove control characters and normalize whitespace
                             const sanitized = jsonText
-                                .replace(/[\n\r\t]/g, ' ')
-                                .replace(/\s+/g, ' ')
-                                .replace(/'/g, '"')
-                                .replace(/([{,]\s*)([a-zA-Z0-9_]+)(\s*:)/g, '$1"$2"$3')
-                                .replace(/:\s*([-+]?\d+\.?\d*)\s*(,|}|])/g, ':"$1"$2');
+                                .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")  // Remove control characters
+                                .replace(/\r\n/g, '\n')  // Normalize line endings
+                                .replace(/\r/g, '\n')   // Normalize line endings
+                                .trim();
                                 
                             timeline = JSON.parse(sanitized);
                         } catch (sanitizeError) {
                             console.error('进一步修复JSON后仍然无法解析:', sanitizeError);
-                            throw new Error('无法解析JSON数据，将尝试手动提取信息');
+                            
+                            // Fourth attempt: Try with more specific fixes
+                            try {
+                                // Fix specific common issues without breaking valid JSON
+                                const specificFix = jsonText
+                                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")  // Remove control characters
+                                    .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+                                    .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*(?=:)/g, '$1"$2"')  // Quote unquoted keys
+                                    .replace(/:\s*'([^'\\]*(\\.[^'\\]*)*)'/g, ':"$1"')  // Replace single quotes with double quotes
+                                    .trim();
+                                    
+                                timeline = JSON.parse(specificFix);
+                            } catch (finalError) {
+                                console.error('最终修复JSON仍然失败:', finalError);
+                                throw new Error('无法解析JSON数据，将尝试手动提取信息');
+                            }
                         }
                     }
                 }
