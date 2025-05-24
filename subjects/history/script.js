@@ -783,7 +783,8 @@ function initTimeline() {
             '2. 全球部分：在每个时间段内，展示该时段内全球范围内最重要的历史事件（不包括' + countryName + '国内事件）\n' +
             '3. ' + countryName + '部分：在每个时间段内，展示该时段内与' + countryName + '相关的重要历史事件，以便对比该国与全球历史的联系\n' +
             '4. 所有事件应包括：\n' +
-            '   - 具体年份或时间段\n' +
+            '   - 具体年份或时间段（year字段）\n' +
+            '   - 开始年份的数字值（startingYear字段，用于排序，BCE年份使用负数）\n' +
             '   - 事件名称\n' +
             '   - 简要描述（适合' + levelName + '学生理解）\n' +
             '   - 历史意义和影响\n\n' +
@@ -800,7 +801,8 @@ function initTimeline() {
             '      "endYear": "结束年份",\n' +
             '      "worldEvents": [\n' +
             '        {\n' +
-            '          "year": "年份",\n' +
+            '          "year": "年份（如：1492年、公元前220年）",\n' +
+            '          "startingYear": 具体年份数字（如：1492、-220），\n' +
             '          "title": "事件名称",\n' +
             '          "description": "事件描述",\n' +
             '          "significance": "历史意义"\n' +
@@ -808,7 +810,8 @@ function initTimeline() {
             '      ],\n' +
             '      "countryEvents": [\n' +
             '        {\n' +
-            '          "year": "年份",\n' +
+            '          "year": "年份（如：1492年、公元前220年）",\n' +
+            '          "startingYear": 具体年份数字（如：1492、-220），\n' +
             '          "title": "事件名称",\n' +
             '          "description": "事件描述",\n' +
             '          "significance": "历史意义"\n' +
@@ -817,7 +820,7 @@ function initTimeline() {
             '    }\n' +
             '  ]\n' +
             '}' + 
-            '\n\n请确保JSON格式正确，不要有控制字符、换行符或其他可能导致解析错误的特殊字符。确保timePeriods数组存在并包含3-5个时间段，每个时间段至少应包含2-3个全球事件和2-3个' + countryName + '事件。';
+            '\n\n请确保JSON格式正确，不要有控制字符、换行符或其他可能导致解析错误的特殊字符。确保timePeriods数组存在并包含3-5个时间段，每个时间段至少应包含2-3个全球事件和2-3个' + countryName + '事件。每个事件必须包含startingYear字段（数字类型），BCE年份使用负数表示。';
             
             // Call DeepSeek API
             const response = await fetch('/api/chat', {
@@ -1038,6 +1041,7 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
                 
                 const event = {
                     year: year,
+                    startingYear: extractYearValue(year) || 0,
                     title: title,
                     description: description,
                     significance: "重要历史事件"
@@ -1086,6 +1090,7 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
                 
                 const event = {
                     year: year,
+                    startingYear: extractYearValue(year) || 0,
                     title: title,
                     description: description,
                     significance: "重要历史事件"
@@ -1127,8 +1132,8 @@ function createFallbackTimeline(responseText, periodName, countryName, detailLev
                 name: periodName,
                 startYear: "未知开始年份",
                 endYear: "未知结束年份",
-                worldEvents: [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }],
-                countryEvents: [{ year: "未知", title: "无法解析事件", description: "数据解析出错", significance: "请重试" }]
+                worldEvents: [{ year: "未知", startingYear: 0, title: "无法解析事件", description: "数据解析出错", significance: "请重试" }],
+                countryEvents: [{ year: "未知", startingYear: 0, title: "无法解析事件", description: "数据解析出错", significance: "请重试" }]
             }]
         };
     } catch (e) {
@@ -1202,6 +1207,12 @@ function renderComparisonTimeline(timeline) {
     
     // Sort events by date
     allEvents.sort((a, b) => {
+        // First try to use the new startingYear field if available
+        if (a.startingYear !== undefined && b.startingYear !== undefined) {
+            return a.startingYear - b.startingYear;
+        }
+        
+        // Fallback to extracting year from the year field
         const yearA = extractYearValue(a.year);
         const yearB = extractYearValue(b.year);
         
@@ -1254,7 +1265,7 @@ function renderComparisonTimeline(timeline) {
                         <strong>历史意义：</strong>
                         <p>${event.significance}</p>
                     </div>
-                    ${event.periodName ? `<div class="event-period-tag">时期：${event.periodName}</div>` : ''}
+                    <div class="event-period-tag">年份：${event.year}</div>
                 </div>
             </div>
         `;
