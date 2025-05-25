@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交互式世界地图 - 地理学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .map-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1600px;
+        }
+
+        .map-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .map-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .map-header p {
+            margin: 1rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .map-controls {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .control-input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        .map-type-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .map-type-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #28a745;
+            background: white;
+            color: #28a745;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .map-type-btn.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .map-type-btn:hover {
+            background: #28a745;
+            color: white;
+        }
+
+        .map-workspace {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            padding: 2rem;
+            min-height: 700px;
+        }
+
+        .map-display {
+            background: #f8f9fa;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e9ecef;
+        }
+
+        .world-map-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .country {
+            fill: #e9ecef;
+            stroke: #fff;
+            stroke-width: 1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .country:hover {
+            fill: #28a745;
+            stroke: #20c997;
+            stroke-width: 2;
+        }
+
+        .country.selected {
+            fill: #dc3545;
+            stroke: #c82333;
+            stroke-width: 2;
+        }
+
+        .country-info {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            height: fit-content;
+        }
+
+        .country-info h3 {
+            margin: 0 0 1rem 0;
+            color: #28a745;
+            font-size: 1.5rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-item {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .info-item label {
+            font-size: 0.8rem;
+            color: #666;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-item value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .country-flag {
+            width: 60px;
+            height: 40px;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .country-description {
+            background: #f0f8ff;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+
+        .country-description h4 {
+            margin: 0 0 0.5rem 0;
+            color: #28a745;
+        }
+
+        .country-description p {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: none;
+        }
+
+        .search-result-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s ease;
+        }
+
+        .search-result-item:hover {
+            background: #f8f9fa;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .continent-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 0.75rem;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1976d2;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        @media (max-width: 768px) {
+            .map-workspace {
+                grid-template-columns: 1fr;
+            }
+            
+            .map-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .control-input {
+                min-width: auto;
+            }
+            
+            .map-display {
+                height: 400px;
+                order: 1;
+            }
+            
+            .country-info {
+                order: 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">地理</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="map-page">
+        <div class="container">
+            <div class="map-container">
+                <div class="map-header">
+                    <h1><i class="fas fa-globe"></i> 交互式世界地图</h1>
+                    <p>探索世界各国地理位置、首都、人口和基本信息</p>
+                </div>
+
+                <div class="map-controls">
+                    <div class="control-group">
+                        <label>搜索国家</label>
+                        <div style="position: relative;">
+                            <input type="text" class="control-input" id="country-search" placeholder="输入国家名称...">
+                            <div class="search-results" id="search-results"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label>地图视图</label>
+                        <div class="map-type-buttons">
+                            <button class="map-type-btn active" data-type="political">政治地图</button>
+                            <button class="map-type-btn" data-type="population">人口密度</button>
+                            <button class="map-type-btn" data-type="economy">经济发展</button>
+                            <button class="map-type-btn" data-type="climate">气候分布</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="map-workspace">
+                    <div class="map-display">
+                        <div class="continent-legend">
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #ff6b6b;"></div>
+                                <span>亚洲</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #4ecdc4;"></div>
+                                <span>欧洲</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #45b7d1;"></div>
+                                <span>非洲</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #f9ca24;"></div>
+                                <span>北美洲</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #6c5ce7;"></div>
+                                <span>南美洲</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background: #a29bfe;"></div>
+                                <span>大洋洲</span>
+                            </div>
+                        </div>
+                        
+                        <svg class="world-map-svg" id="world-map" viewBox="0 0 1000 500">
+                            <!-- Simplified world map - in a real implementation, this would be much more detailed -->
+                            <!-- China -->
+                            <path class="country" data-country="china" data-continent="asia" 
+                                  d="M 700 200 L 750 180 L 780 200 L 770 230 L 740 240 L 710 230 Z" 
+                                  fill="#ff6b6b"/>
+                            <!-- USA -->
+                            <path class="country" data-country="usa" data-continent="north-america" 
+                                  d="M 150 180 L 250 170 L 280 200 L 270 240 L 200 250 L 140 230 Z" 
+                                  fill="#f9ca24"/>
+                            <!-- Russia -->
+                            <path class="country" data-country="russia" data-continent="asia" 
+                                  d="M 500 120 L 750 100 L 780 140 L 750 160 L 500 150 Z" 
+                                  fill="#ff6b6b"/>
+                            <!-- Brazil -->
+                            <path class="country" data-country="brazil" data-continent="south-america" 
+                                  d="M 300 300 L 380 290 L 400 350 L 370 380 L 320 370 L 290 340 Z" 
+                                  fill="#6c5ce7"/>
+                            <!-- India -->
+                            <path class="country" data-country="india" data-continent="asia" 
+                                  d="M 650 250 L 680 240 L 690 280 L 670 300 L 640 290 Z" 
+                                  fill="#ff6b6b"/>
+                            <!-- Germany -->
+                            <path class="country" data-country="germany" data-continent="europe" 
+                                  d="M 480 180 L 510 175 L 520 200 L 500 210 L 470 205 Z" 
+                                  fill="#4ecdc4"/>
+                            <!-- Australia -->
+                            <path class="country" data-country="australia" data-continent="oceania" 
+                                  d="M 750 350 L 820 340 L 840 370 L 810 390 L 740 385 Z" 
+                                  fill="#a29bfe"/>
+                            <!-- Egypt -->
+                            <path class="country" data-country="egypt" data-continent="africa" 
+                                  d="M 520 260 L 540 255 L 545 280 L 535 290 L 515 285 Z" 
+                                  fill="#45b7d1"/>
+                            <!-- Japan -->
+                            <path class="country" data-country="japan" data-continent="asia" 
+                                  d="M 820 200 L 840 195 L 845 220 L 835 230 L 815 225 Z" 
+                                  fill="#ff6b6b"/>
+                            <!-- United Kingdom -->
+                            <path class="country" data-country="uk" data-continent="europe" 
+                                  d="M 450 160 L 465 155 L 470 175 L 460 180 L 445 175 Z" 
+                                  fill="#4ecdc4"/>
+                        </svg>
+                    </div>
+                    
+                    <div class="country-info" id="country-info">
+                        <h3>选择一个国家</h3>
+                        <p>点击地图上的任意国家查看详细信息</p>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="total-countries">195</div>
+                                <div class="stat-label">世界国家总数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="total-population">78亿</div>
+                                <div class="stat-label">世界总人口</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // 世界地图功能
+        class WorldMap {
+            constructor() {
+                this.selectedCountry = null;
+                this.currentMapType = 'political';
+                this.countries = this.initializeCountries();
+                this.initializeEventListeners();
+            }
+
+            initializeCountries() {
+                // 简化的国家数据 - 实际应用中应该从完整数据库加载
+                return {
+                    'china': {
+                        name: '中华人民共和国',
+                        capital: '北京',
+                        population: '14.4亿',
+                        area: '960万平方公里',
+                        continent: '亚洲',
+                        currency: '人民币',
+                        language: '中文',
+                        flag: '🇨🇳',
+                        description: '世界上人口最多的国家，拥有悠久的历史和丰富的文化遗产。'
+                    },
+                    'usa': {
+                        name: '美利坚合众国',
+                        capital: '华盛顿特区',
+                        population: '3.3亿',
+                        area: '983万平方公里',
+                        continent: '北美洲',
+                        currency: '美元',
+                        language: '英语',
+                        flag: '🇺🇸',
+                        description: '世界最大的经济体，由50个州组成的联邦共和国。'
+                    },
+                    'russia': {
+                        name: '俄罗斯联邦',
+                        capital: '莫斯科',
+                        population: '1.46亿',
+                        area: '1710万平方公里',
+                        continent: '亚洲/欧洲',
+                        currency: '卢布',
+                        language: '俄语',
+                        flag: '🇷🇺',
+                        description: '世界上面积最大的国家，横跨欧亚大陆。'
+                    },
+                    'brazil': {
+                        name: '巴西联邦共和国',
+                        capital: '巴西利亚',
+                        population: '2.15亿',
+                        area: '851万平方公里',
+                        continent: '南美洲',
+                        currency: '雷亚尔',
+                        language: '葡萄牙语',
+                        flag: '🇧🇷',
+                        description: '南美洲最大的国家，拥有亚马逊雨林的大部分区域。'
+                    },
+                    'india': {
+                        name: '印度共和国',
+                        capital: '新德里',
+                        population: '13.8亿',
+                        area: '328万平方公里',
+                        continent: '亚洲',
+                        currency: '卢比',
+                        language: '印地语、英语',
+                        flag: '🇮🇳',
+                        description: '世界第二人口大国，拥有丰富的文化多样性。'
+                    },
+                    'germany': {
+                        name: '德意志联邦共和国',
+                        capital: '柏林',
+                        population: '8300万',
+                        area: '35.7万平方公里',
+                        continent: '欧洲',
+                        currency: '欧元',
+                        language: '德语',
+                        flag: '🇩🇪',
+                        description: '欧洲经济强国，以工程技术和制造业闻名。'
+                    },
+                    'australia': {
+                        name: '澳大利亚联邦',
+                        capital: '堪培拉',
+                        population: '2500万',
+                        area: '769万平方公里',
+                        continent: '大洋洲',
+                        currency: '澳元',
+                        language: '英语',
+                        flag: '🇦🇺',
+                        description: '世界第六大国家，以独特的野生动物和自然景观著称。'
+                    },
+                    'egypt': {
+                        name: '阿拉伯埃及共和国',
+                        capital: '开罗',
+                        population: '1.02亿',
+                        area: '100万平方公里',
+                        continent: '非洲',
+                        currency: '埃及镑',
+                        language: '阿拉伯语',
+                        flag: '🇪🇬',
+                        description: '古代文明的发源地，拥有金字塔等世界著名古迹。'
+                    },
+                    'japan': {
+                        name: '日本国',
+                        capital: '东京',
+                        population: '1.25亿',
+                        area: '37.8万平方公里',
+                        continent: '亚洲',
+                        currency: '日元',
+                        language: '日语',
+                        flag: '🇯🇵',
+                        description: '岛国，以先进技术和独特文化闻名于世。'
+                    },
+                    'uk': {
+                        name: '大不列颠及北爱尔兰联合王国',
+                        capital: '伦敦',
+                        population: '6700万',
+                        area: '24.3万平方公里',
+                        continent: '欧洲',
+                        currency: '英镑',
+                        language: '英语',
+                        flag: '🇬🇧',
+                        description: '由英格兰、苏格兰、威尔士和北爱尔兰组成的岛国。'
+                    }
+                };
+            }
+
+            initializeEventListeners() {
+                // 国家点击事件
+                document.querySelectorAll('.country').forEach(country => {
+                    country.addEventListener('click', (e) => {
+                        this.selectCountry(e.target.dataset.country);
+                    });
+                });
+
+                // 搜索功能
+                document.getElementById('country-search').addEventListener('input', (e) => {
+                    this.searchCountries(e.target.value);
+                });
+
+                // 地图类型切换
+                document.querySelectorAll('.map-type-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.switchMapType(e.target.dataset.type);
+                    });
+                });
+
+                // 点击其他地方关闭搜索结果
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('#country-search') && !e.target.closest('#search-results')) {
+                        document.getElementById('search-results').style.display = 'none';
+                    }
+                });
+            }
+
+            selectCountry(countryCode) {
+                // 移除之前的选择
+                document.querySelectorAll('.country.selected').forEach(country => {
+                    country.classList.remove('selected');
+                });
+
+                // 选择新国家
+                const countryElement = document.querySelector(`[data-country="${countryCode}"]`);
+                if (countryElement) {
+                    countryElement.classList.add('selected');
+                }
+
+                this.selectedCountry = countryCode;
+                this.displayCountryInfo(countryCode);
+            }
+
+            displayCountryInfo(countryCode) {
+                const country = this.countries[countryCode];
+                if (!country) return;
+
+                const infoDiv = document.getElementById('country-info');
+                
+                infoDiv.innerHTML = `
+                    <div class="country-flag">${country.flag}</div>
+                    <h3>${country.name}</h3>
+                    
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>首都</label>
+                            <value>${country.capital}</value>
+                        </div>
+                        <div class="info-item">
+                            <label>人口</label>
+                            <value>${country.population}</value>
+                        </div>
+                        <div class="info-item">
+                            <label>面积</label>
+                            <value>${country.area}</value>
+                        </div>
+                        <div class="info-item">
+                            <label>大洲</label>
+                            <value>${country.continent}</value>
+                        </div>
+                        <div class="info-item">
+                            <label>货币</label>
+                            <value>${country.currency}</value>
+                        </div>
+                        <div class="info-item">
+                            <label>语言</label>
+                            <value>${country.language}</value>
+                        </div>
+                    </div>
+
+                    <div class="country-description">
+                        <h4>国家简介</h4>
+                        <p>${country.description}</p>
+                    </div>
+                `;
+            }
+
+            searchCountries(query) {
+                const resultsDiv = document.getElementById('search-results');
+                
+                if (!query) {
+                    resultsDiv.style.display = 'none';
+                    return;
+                }
+
+                const matches = Object.entries(this.countries).filter(([code, country]) => 
+                    country.name.toLowerCase().includes(query.toLowerCase()) ||
+                    country.capital.toLowerCase().includes(query.toLowerCase())
+                );
+
+                if (matches.length > 0) {
+                    resultsDiv.innerHTML = matches.map(([code, country]) => `
+                        <div class="search-result-item" onclick="worldMap.selectCountry('${code}')">
+                            ${country.flag} ${country.name}
+                        </div>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
+                } else {
+                    resultsDiv.innerHTML = '<div class="search-result-item">未找到匹配的国家</div>';
+                    resultsDiv.style.display = 'block';
+                }
+            }
+
+            switchMapType(type) {
+                // 更新按钮状态
+                document.querySelectorAll('.map-type-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-type="${type}"]`).classList.add('active');
+
+                this.currentMapType = type;
+                this.updateMapDisplay();
+            }
+
+            updateMapDisplay() {
+                const countries = document.querySelectorAll('.country');
+                
+                switch (this.currentMapType) {
+                    case 'political':
+                        // 按大洲着色
+                        countries.forEach(country => {
+                            const continent = country.dataset.continent;
+                            const colors = {
+                                'asia': '#ff6b6b',
+                                'europe': '#4ecdc4',
+                                'africa': '#45b7d1',
+                                'north-america': '#f9ca24',
+                                'south-america': '#6c5ce7',
+                                'oceania': '#a29bfe'
+                            };
+                            country.style.fill = colors[continent] || '#e9ecef';
+                        });
+                        break;
+                        
+                    case 'population':
+                        // 按人口密度着色（简化示例）
+                        countries.forEach(country => {
+                            const countryData = this.countries[country.dataset.country];
+                            if (countryData) {
+                                const population = parseFloat(countryData.population);
+                                if (population > 10) {
+                                    country.style.fill = '#d32f2f'; // 高人口
+                                } else if (population > 1) {
+                                    country.style.fill = '#f57c00'; // 中等人口
+                                } else {
+                                    country.style.fill = '#388e3c'; // 低人口
+                                }
+                            }
+                        });
+                        break;
+                        
+                    case 'economy':
+                        // 按经济发展水平着色（简化示例）
+                        countries.forEach(country => {
+                            const developed = ['usa', 'germany', 'japan', 'uk', 'australia'];
+                            const developing = ['china', 'india', 'brazil'];
+                            
+                            if (developed.includes(country.dataset.country)) {
+                                country.style.fill = '#2e7d32'; // 发达国家
+                            } else if (developing.includes(country.dataset.country)) {
+                                country.style.fill = '#f57c00'; // 发展中国家
+                            } else {
+                                country.style.fill = '#d32f2f'; // 欠发达国家
+                            }
+                        });
+                        break;
+                        
+                    case 'climate':
+                        // 按气候类型着色（简化示例）
+                        countries.forEach(country => {
+                            const climates = {
+                                'china': '#ff9800', // 温带
+                                'usa': '#4caf50', // 多样气候
+                                'russia': '#2196f3', // 寒带
+                                'brazil': '#f44336', // 热带
+                                'india': '#ff5722', // 热带季风
+                                'germany': '#9c27b0', // 温带海洋性
+                                'australia': '#ffeb3b', // 干旱
+                                'egypt': '#795548', // 沙漠
+                                'japan': '#607d8b', // 温带季风
+                                'uk': '#3f51b5' // 温带海洋性
+                            };
+                            country.style.fill = climates[country.dataset.country] || '#e9ecef';
+                        });
+                        break;
+                }
+            }
+        }
+
+        // 初始化世界地图
+        let worldMap;
+        document.addEventListener('DOMContentLoaded', () => {
+            worldMap = new WorldMap();
+        });
+    </script>
+</body>
+</html> 
