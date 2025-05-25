@@ -40,6 +40,38 @@
             backdrop-filter: blur(10px);
             height: 100%;
             min-height: 600px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #functionChart {
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            background: white;
+            cursor: crosshair;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .chart-info {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .coordinates {
+            font-family: 'Courier New', monospace;
+            color: #4361ee;
+            font-weight: 500;
         }
 
         .function-selector {
@@ -215,7 +247,13 @@
             .chart-container {
                 order: 1;
                 min-height: 400px;
-                height: 400px;
+                height: 450px;
+            }
+
+            #functionChart {
+                max-width: 100%;
+                width: auto;
+                height: auto;
             }
 
             .function-tabs {
@@ -256,6 +294,19 @@
             .function-tab {
                 padding: 0.5rem 0.6rem;
                 font-size: 0.75rem;
+            }
+
+            .chart-info {
+                position: relative;
+                top: auto;
+                left: auto;
+                margin: 1rem 0;
+                text-align: center;
+            }
+
+            .chart-container {
+                height: 400px;
+                min-height: 350px;
             }
         }
     </style>
@@ -341,7 +392,10 @@
                     </div>
 
                     <div class="chart-container">
-                        <div id="functionChart"></div>
+                        <canvas id="functionChart" width="800" height="600"></canvas>
+                        <div class="chart-info" id="chartInfo">
+                            <div class="coordinates" id="coordinates"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -358,7 +412,6 @@
     </footer>
 
     <!-- Scripts -->
-    <script src="../../libs/plotly/plotly.min.js"></script>
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     <script>
@@ -498,9 +551,9 @@
 
         // Initialize the simulator
         function initSimulator() {
+            initCanvas();
             setupFunctionTabs();
             switchFunction('linear');
-            plotFunction();
         }
 
         // Setup function tab event listeners
@@ -599,73 +652,297 @@
             });
         }
 
-        // Plot the function using Plotly
-        function plotFunction() {
-            const func = functions[currentFunction];
-            let xRange;
+        // Canvas plotting variables
+        let canvas, ctx;
+        let chartBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+        let canvasWidth = 800;
+        let canvasHeight = 600;
+        let padding = { top: 60, right: 40, bottom: 60, left: 60 };
+
+        // Initialize canvas
+        function initCanvas() {
+            canvas = document.getElementById('functionChart');
+            ctx = canvas.getContext('2d');
             
-            if (currentFunction === 'logarithmic') {
-                xRange = Array.from({length: 200}, (_, i) => 0.1 + i * 0.1);
-            } else if (currentFunction === 'inverse') {
-                // For inverse functions, avoid x = 0 by creating two ranges
-                const range1 = Array.from({length: 100}, (_, i) => -10 + i * 0.099);
-                const range2 = Array.from({length: 100}, (_, i) => 0.01 + i * 0.099);
-                xRange = [...range1, ...range2];
-            } else if (currentFunction === 'radical') {
-                // For radical functions, start from h (the minimum x value)
-                const h = func.parameters.h.value;
-                xRange = Array.from({length: 200}, (_, i) => h + i * 0.1);
-            } else {
-                xRange = Array.from({length: 200}, (_, i) => -10 + i * 0.1);
+            // Set up responsive canvas
+            resizeCanvas();
+            
+            // Add mouse move event for coordinates display
+            canvas.addEventListener('mousemove', showCoordinates);
+            
+            // Add window resize event
+            window.addEventListener('resize', () => {
+                setTimeout(resizeCanvas, 100);
+            });
+        }
+
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const containerWidth = container.offsetWidth - 40; // Account for padding
+            const containerHeight = container.offsetHeight - 40;
+            
+            // Calculate appropriate size while maintaining aspect ratio
+            const aspectRatio = 4/3;
+            let newWidth = Math.min(containerWidth, 800);
+            let newHeight = newWidth / aspectRatio;
+            
+            if (newHeight > containerHeight) {
+                newHeight = containerHeight;
+                newWidth = newHeight * aspectRatio;
             }
             
-            const yValues = xRange.map(x => func.calculate(x, func.parameters)).filter(y => y !== null && isFinite(y));
-            const xValues = xRange.slice(0, yValues.length);
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            canvas.style.width = newWidth + 'px';
+            canvas.style.height = newHeight + 'px';
             
-            const trace = {
-                x: xValues,
-                y: yValues,
-                type: 'scatter',
-                mode: 'lines',
-                line: {
-                    color: '#4361ee',
-                    width: 3
-                },
-                name: func.equation
-            };
+            canvasWidth = newWidth;
+            canvasHeight = newHeight;
+            
+            // Replot after resize
+            if (currentFunction) {
+                plotFunction();
+            }
+        }
 
-            const layout = {
-                title: {
-                    text: `${func.name}: ${func.equation}`,
-                    font: { size: 18, color: '#333' }
-                },
-                xaxis: {
-                    title: 'x',
-                    gridcolor: '#e5e5e5',
-                    zerolinecolor: '#999',
-                    range: currentFunction === 'logarithmic' ? [0, 20] : 
-                           currentFunction === 'radical' ? [func.parameters.h.value, func.parameters.h.value + 20] : 
-                           [-10, 10]
-                },
-                yaxis: {
-                    title: 'y',
-                    gridcolor: '#e5e5e5',
-                    zerolinecolor: '#999',
-                    range: [-10, 10]
-                },
-                plot_bgcolor: 'rgba(0,0,0,0)',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                margin: { t: 60, r: 20, b: 60, l: 60 },
-                showlegend: false,
-                responsive: true
-            };
+        function showCoordinates(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Convert pixel coordinates to mathematical coordinates
+            const mathX = chartBounds.xMin + (x - padding.left) * (chartBounds.xMax - chartBounds.xMin) / (canvasWidth - padding.left - padding.right);
+            const mathY = chartBounds.yMax - (y - padding.top) * (chartBounds.yMax - chartBounds.yMin) / (canvasHeight - padding.top - padding.bottom);
+            
+            if (x >= padding.left && x <= canvasWidth - padding.right && 
+                y >= padding.top && y <= canvasHeight - padding.bottom) {
+                document.getElementById('coordinates').textContent = `x: ${mathX.toFixed(2)}, y: ${mathY.toFixed(2)}`;
+            }
+        }
 
-            const config = {
-                displayModeBar: false,
-                responsive: true
-            };
+        // Plot the function using Canvas
+        function plotFunction() {
+            if (!ctx) return;
+            
+            const func = functions[currentFunction];
+            
+            // Set chart bounds based on function type
+            if (currentFunction === 'logarithmic') {
+                chartBounds = { xMin: 0.1, xMax: 20, yMin: -10, yMax: 10 };
+            } else if (currentFunction === 'radical') {
+                const h = func.parameters.h.value;
+                chartBounds = { xMin: h - 1, xMax: h + 20, yMin: -10, yMax: 10 };
+            } else {
+                chartBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw grid and axes
+            drawGrid();
+            drawAxes();
+            
+            // Draw function
+            drawFunction(func);
+            
+            // Draw title
+            drawTitle(func);
+        }
 
-            Plotly.newPlot('functionChart', [trace], layout, config);
+        function drawGrid() {
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            // Vertical grid lines
+            const xStep = (chartBounds.xMax - chartBounds.xMin) / 20;
+            for (let x = chartBounds.xMin; x <= chartBounds.xMax; x += xStep) {
+                const pixelX = padding.left + (x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+                ctx.beginPath();
+                ctx.moveTo(pixelX, padding.top);
+                ctx.lineTo(pixelX, canvasHeight - padding.bottom);
+                ctx.stroke();
+            }
+            
+            // Horizontal grid lines
+            const yStep = (chartBounds.yMax - chartBounds.yMin) / 20;
+            for (let y = chartBounds.yMin; y <= chartBounds.yMax; y += yStep) {
+                const pixelY = canvasHeight - padding.bottom - (y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, pixelY);
+                ctx.lineTo(canvasWidth - padding.right, pixelY);
+                ctx.stroke();
+            }
+        }
+
+        function drawAxes() {
+            ctx.strokeStyle = '#999999';
+            ctx.lineWidth = 2;
+            
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            // X-axis (y = 0)
+            if (chartBounds.yMin <= 0 && chartBounds.yMax >= 0) {
+                const y0 = canvasHeight - padding.bottom - (0 - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
+                ctx.beginPath();
+                ctx.moveTo(padding.left, y0);
+                ctx.lineTo(canvasWidth - padding.right, y0);
+                ctx.stroke();
+            }
+            
+            // Y-axis (x = 0)
+            if (chartBounds.xMin <= 0 && chartBounds.xMax >= 0) {
+                const x0 = padding.left + (0 - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+                ctx.beginPath();
+                ctx.moveTo(x0, padding.top);
+                ctx.lineTo(x0, canvasHeight - padding.bottom);
+                ctx.stroke();
+            }
+            
+            // Draw axis labels
+            drawAxisLabels();
+        }
+
+        function drawAxisLabels() {
+            ctx.fillStyle = '#666666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            // X-axis labels
+            const xLabelStep = (chartBounds.xMax - chartBounds.xMin) / 10;
+            for (let x = chartBounds.xMin; x <= chartBounds.xMax; x += xLabelStep) {
+                if (Math.abs(x) < 0.001) x = 0; // Handle floating point precision
+                const pixelX = padding.left + (x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+                ctx.fillText(x.toFixed(1), pixelX, canvasHeight - padding.bottom + 20);
+            }
+            
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            const yLabelStep = (chartBounds.yMax - chartBounds.yMin) / 10;
+            for (let y = chartBounds.yMin; y <= chartBounds.yMax; y += yLabelStep) {
+                if (Math.abs(y) < 0.001) y = 0; // Handle floating point precision
+                const pixelY = canvasHeight - padding.bottom - (y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
+                ctx.fillText(y.toFixed(1), padding.left - 10, pixelY + 4);
+            }
+            
+            // Axis titles
+            ctx.textAlign = 'center';
+            ctx.font = '14px Arial';
+            ctx.fillText('x', canvasWidth - 20, canvasHeight - padding.bottom + 35);
+            
+            ctx.save();
+            ctx.translate(20, padding.top + plotHeight / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('y', 0, 0);
+            ctx.restore();
+        }
+
+        function drawFunction(func) {
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            // Generate points for the function
+            let points = [];
+            const numPoints = 1000;
+            
+            if (currentFunction === 'inverse') {
+                // Handle inverse functions by splitting around x = 0
+                // Negative x values
+                for (let i = 0; i <= numPoints / 2; i++) {
+                    const x = chartBounds.xMin + i * (0 - chartBounds.xMin) / (numPoints / 2);
+                    if (Math.abs(x) > 0.001) {
+                        const y = func.calculate(x, func.parameters);
+                        if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
+                            points.push({ x, y });
+                        }
+                    }
+                }
+                
+                // Draw negative side
+                if (points.length > 1) {
+                    drawCurve(points);
+                }
+                
+                // Positive x values
+                points = [];
+                for (let i = 0; i <= numPoints / 2; i++) {
+                    const x = 0.001 + i * (chartBounds.xMax - 0.001) / (numPoints / 2);
+                    const y = func.calculate(x, func.parameters);
+                    if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
+                        points.push({ x, y });
+                    }
+                }
+                
+                // Draw positive side
+                if (points.length > 1) {
+                    drawCurve(points);
+                }
+            } else {
+                // Regular function plotting
+                for (let i = 0; i <= numPoints; i++) {
+                    const x = chartBounds.xMin + i * (chartBounds.xMax - chartBounds.xMin) / numPoints;
+                    const y = func.calculate(x, func.parameters);
+                    
+                    if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
+                        points.push({ x, y });
+                    } else if (points.length > 1) {
+                        // Draw the current segment and start a new one
+                        drawCurve(points);
+                        points = [];
+                    }
+                }
+                
+                // Draw the final segment
+                if (points.length > 1) {
+                    drawCurve(points);
+                }
+            }
+        }
+
+        function drawCurve(points) {
+            if (points.length < 2) return;
+            
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            ctx.beginPath();
+            
+            // Convert first point to pixels
+            const startX = padding.left + (points[0].x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+            const startY = canvasHeight - padding.bottom - (points[0].y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
+            ctx.moveTo(startX, startY);
+            
+            // Draw lines to subsequent points
+            for (let i = 1; i < points.length; i++) {
+                const pixelX = padding.left + (points[i].x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+                const pixelY = canvasHeight - padding.bottom - (points[i].y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
+                ctx.lineTo(pixelX, pixelY);
+            }
+            
+            ctx.stroke();
+        }
+
+        function drawTitle(func) {
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${func.name}: ${func.equation}`, canvasWidth / 2, 30);
         }
 
         // Animation functions
