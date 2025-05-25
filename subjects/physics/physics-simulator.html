@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理模拟器 - 学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        .simulator-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .simulator-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1400px;
+        }
+
+        .simulator-header {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .simulator-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .simulator-header p {
+            margin: 1rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .simulator-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .simulator-tab {
+            flex: 1;
+            min-width: 150px;
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .simulator-tab.active {
+            background: white;
+            color: #4361ee;
+            border-bottom: 3px solid #4361ee;
+        }
+
+        .simulator-tab:hover {
+            background: rgba(67, 97, 238, 0.1);
+            color: #4361ee;
+        }
+
+        .simulator-content {
+            padding: 2rem;
+            min-height: 600px;
+        }
+
+        .simulation-panel {
+            display: none;
+        }
+
+        .simulation-panel.active {
+            display: block;
+        }
+
+        .simulation-workspace {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            height: 600px;
+        }
+
+        .simulation-controls {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .simulation-display {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .simulation-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: linear-gradient(45deg, #f0f0f0 25%, transparent 25%), 
+                        linear-gradient(-45deg, #f0f0f0 25%, transparent 25%), 
+                        linear-gradient(45deg, transparent 75%, #f0f0f0 75%), 
+                        linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-slider {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .control-button.secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+
+        .simulation-info {
+            background: #e3f2fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .simulation-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: #1976d2;
+        }
+
+        .simulation-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .physics-object {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 0.1s ease;
+        }
+
+        .projectile {
+            width: 10px;
+            height: 10px;
+            background: #ff4444;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+        }
+
+        .pendulum-bob {
+            width: 20px;
+            height: 20px;
+            background: #4361ee;
+            box-shadow: 0 0 15px rgba(67, 97, 238, 0.5);
+        }
+
+        .pendulum-string {
+            position: absolute;
+            background: #333;
+            transform-origin: top center;
+        }
+
+        .wave-particle {
+            width: 4px;
+            height: 4px;
+            background: #7209b7;
+            border-radius: 50%;
+        }
+
+        .electric-field-line {
+            stroke: #4361ee;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .magnetic-field-line {
+            stroke: #ff6b35;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .charge-positive {
+            background: #ff4444;
+            border: 2px solid #cc0000;
+        }
+
+        .charge-negative {
+            background: #4444ff;
+            border: 2px solid #0000cc;
+        }
+
+        .ray-light {
+            stroke: #ffeb3b;
+            stroke-width: 3;
+            fill: none;
+            filter: drop-shadow(0 0 5px #ffeb3b);
+        }
+
+        .lens {
+            fill: rgba(67, 97, 238, 0.3);
+            stroke: #4361ee;
+            stroke-width: 2;
+        }
+
+        .mirror {
+            stroke: #666;
+            stroke-width: 4;
+            fill: none;
+        }
+
+        @media (max-width: 768px) {
+            .simulation-workspace {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .simulation-controls {
+                order: 2;
+            }
+            
+            .simulation-display {
+                height: 400px;
+                order: 1;
+            }
+            
+            .simulator-tabs {
+                flex-wrap: wrap;
+            }
+            
+            .simulator-tab {
+                min-width: 120px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">物理</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="simulator-page">
+        <div class="container">
+            <div class="simulator-container">
+                <div class="simulator-header">
+                    <h1><i class="fas fa-atom"></i> 物理模拟器</h1>
+                    <p>通过交互式模拟探索物理世界的奥秘</p>
+                </div>
+
+                <div class="simulator-tabs">
+                    <button class="simulator-tab active" data-tab="mechanics">
+                        <i class="fas fa-cogs"></i> 力学
+                    </button>
+                    <button class="simulator-tab" data-tab="electromagnetism">
+                        <i class="fas fa-bolt"></i> 电磁学
+                    </button>
+                    <button class="simulator-tab" data-tab="optics">
+                        <i class="fas fa-glasses"></i> 光学
+                    </button>
+                    <button class="simulator-tab" data-tab="waves">
+                        <i class="fas fa-water"></i> 波动
+                    </button>
+                    <button class="simulator-tab" data-tab="thermodynamics">
+                        <i class="fas fa-temperature-high"></i> 热力学
+                    </button>
+                </div>
+
+                <div class="simulator-content">
+                    <!-- 力学模拟 -->
+                    <div class="simulation-panel active" id="mechanics-panel">
+                        <div class="simulation-workspace">
+                            <div class="simulation-controls">
+                                <h3><i class="fas fa-cogs"></i> 力学模拟</h3>
+                                
+                                <div class="control-group">
+                                    <label>模拟类型</label>
+                                    <select class="control-input" id="mechanics-type">
+                                        <option value="projectile">抛体运动</option>
+                                        <option value="pendulum">单摆</option>
+                                        <option value="collision">碰撞</option>
+                                        <option value="spring">弹簧振动</option>
+                                    </select>
+                                </div>
+
+                                <div id="projectile-controls">
+                                    <div class="control-group">
+                                        <label>初始速度 (m/s): <span id="velocity-value">20</span></label>
+                                        <input type="range" class="control-slider" id="initial-velocity" min="5" max="50" value="20">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>发射角度 (°): <span id="angle-value">45</span></label>
+                                        <input type="range" class="control-slider" id="launch-angle" min="0" max="90" value="45">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>重力加速度 (m/s²): <span id="gravity-value">9.8</span></label>
+                                        <input type="range" class="control-slider" id="gravity" min="1" max="20" value="9.8" step="0.1">
+                                    </div>
+                                </div>
+
+                                <div id="pendulum-controls" style="display: none;">
+                                    <div class="control-group">
+                                        <label>摆长 (m): <span id="pendulum-length-value">1.0</span></label>
+                                        <input type="range" class="control-slider" id="pendulum-length" min="0.5" max="3" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>初始角度 (°): <span id="pendulum-angle-value">30</span></label>
+                                        <input type="range" class="control-slider" id="pendulum-angle" min="5" max="60" value="30">
+                                    </div>
+                                </div>
+
+                                <button class="control-button" id="start-mechanics">开始模拟</button>
+                                <button class="control-button secondary" id="reset-mechanics">重置</button>
+                                <button class="control-button secondary" id="pause-mechanics">暂停</button>
+
+                                <div class="simulation-info">
+                                    <h4>实时数据</h4>
+                                    <p id="mechanics-info">点击开始模拟查看实时数据</p>
+                                </div>
+                            </div>
+                            <div class="simulation-display">
+                                <canvas class="simulation-canvas" id="mechanics-canvas" width="800" height="600"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 电磁学模拟 -->
+                    <div class="simulation-panel" id="electromagnetism-panel">
+                        <div class="simulation-workspace">
+                            <div class="simulation-controls">
+                                <h3><i class="fas fa-bolt"></i> 电磁学模拟</h3>
+                                
+                                <div class="control-group">
+                                    <label>模拟类型</label>
+                                    <select class="control-input" id="em-type">
+                                        <option value="electric-field">电场</option>
+                                        <option value="magnetic-field">磁场</option>
+                                        <option value="electromagnetic-induction">电磁感应</option>
+                                        <option value="circuit">电路</option>
+                                    </select>
+                                </div>
+
+                                <div id="electric-field-controls">
+                                    <div class="control-group">
+                                        <label>电荷数量: <span id="charge-count-value">2</span></label>
+                                        <input type="range" class="control-slider" id="charge-count" min="1" max="5" value="2">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>电荷强度: <span id="charge-strength-value">1</span></label>
+                                        <input type="range" class="control-slider" id="charge-strength" min="0.1" max="3" value="1" step="0.1">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>显示电场线</label>
+                                        <input type="checkbox" id="show-field-lines" checked>
+                                    </div>
+                                </div>
+
+                                <button class="control-button" id="start-em">开始模拟</button>
+                                <button class="control-button secondary" id="reset-em">重置</button>
+                                <button class="control-button secondary" id="add-charge">添加电荷</button>
+
+                                <div class="simulation-info">
+                                    <h4>电磁学原理</h4>
+                                    <p id="em-info">点击画布添加电荷，观察电场分布</p>
+                                </div>
+                            </div>
+                            <div class="simulation-display">
+                                <canvas class="simulation-canvas" id="em-canvas" width="800" height="600"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 光学模拟 -->
+                    <div class="simulation-panel" id="optics-panel">
+                        <div class="simulation-workspace">
+                            <div class="simulation-controls">
+                                <h3><i class="fas fa-glasses"></i> 光学模拟</h3>
+                                
+                                <div class="control-group">
+                                    <label>模拟类型</label>
+                                    <select class="control-input" id="optics-type">
+                                        <option value="reflection">反射</option>
+                                        <option value="refraction">折射</option>
+                                        <option value="lens">透镜</option>
+                                        <option value="interference">干涉</option>
+                                    </select>
+                                </div>
+
+                                <div id="reflection-controls">
+                                    <div class="control-group">
+                                        <label>入射角 (°): <span id="incident-angle-value">30</span></label>
+                                        <input type="range" class="control-slider" id="incident-angle" min="0" max="80" value="30">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>镜面类型</label>
+                                        <select class="control-input" id="mirror-type">
+                                            <option value="plane">平面镜</option>
+                                            <option value="concave">凹面镜</option>
+                                            <option value="convex">凸面镜</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div id="refraction-controls" style="display: none;">
+                                    <div class="control-group">
+                                        <label>折射率1: <span id="n1-value">1.0</span></label>
+                                        <input type="range" class="control-slider" id="refractive-index-1" min="1.0" max="2.5" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>折射率2: <span id="n2-value">1.5</span></label>
+                                        <input type="range" class="control-slider" id="refractive-index-2" min="1.0" max="2.5" value="1.5" step="0.1">
+                                    </div>
+                                </div>
+
+                                <button class="control-button" id="start-optics">开始模拟</button>
+                                <button class="control-button secondary" id="reset-optics">重置</button>
+
+                                <div class="simulation-info">
+                                    <h4>光学定律</h4>
+                                    <p id="optics-info">调整参数观察光线传播规律</p>
+                                </div>
+                            </div>
+                            <div class="simulation-display">
+                                <canvas class="simulation-canvas" id="optics-canvas" width="800" height="600"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 波动模拟 -->
+                    <div class="simulation-panel" id="waves-panel">
+                        <div class="simulation-workspace">
+                            <div class="simulation-controls">
+                                <h3><i class="fas fa-water"></i> 波动模拟</h3>
+                                
+                                <div class="control-group">
+                                    <label>波动类型</label>
+                                    <select class="control-input" id="wave-type">
+                                        <option value="transverse">横波</option>
+                                        <option value="longitudinal">纵波</option>
+                                        <option value="standing">驻波</option>
+                                        <option value="interference">波的干涉</option>
+                                    </select>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>频率 (Hz): <span id="frequency-value">1.0</span></label>
+                                    <input type="range" class="control-slider" id="wave-frequency" min="0.1" max="5" value="1.0" step="0.1">
+                                </div>
+
+                                <div class="control-group">
+                                    <label>振幅: <span id="amplitude-value">50</span></label>
+                                    <input type="range" class="control-slider" id="wave-amplitude" min="10" max="100" value="50">
+                                </div>
+
+                                <div class="control-group">
+                                    <label>波速 (m/s): <span id="wave-speed-value">100</span></label>
+                                    <input type="range" class="control-slider" id="wave-speed" min="50" max="200" value="100">
+                                </div>
+
+                                <button class="control-button" id="start-waves">开始模拟</button>
+                                <button class="control-button secondary" id="reset-waves">重置</button>
+                                <button class="control-button secondary" id="pause-waves">暂停</button>
+
+                                <div class="simulation-info">
+                                    <h4>波动参数</h4>
+                                    <p id="waves-info">波长: <span id="wavelength">100m</span><br>周期: <span id="period">1.0s</span></p>
+                                </div>
+                            </div>
+                            <div class="simulation-display">
+                                <canvas class="simulation-canvas" id="waves-canvas" width="800" height="600"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 热力学模拟 -->
+                    <div class="simulation-panel" id="thermodynamics-panel">
+                        <div class="simulation-workspace">
+                            <div class="simulation-controls">
+                                <h3><i class="fas fa-temperature-high"></i> 热力学模拟</h3>
+                                
+                                <div class="control-group">
+                                    <label>模拟类型</label>
+                                    <select class="control-input" id="thermo-type">
+                                        <option value="gas-particles">气体分子运动</option>
+                                        <option value="heat-conduction">热传导</option>
+                                        <option value="phase-transition">相变</option>
+                                        <option value="carnot-cycle">卡诺循环</option>
+                                    </select>
+                                </div>
+
+                                <div id="gas-controls">
+                                    <div class="control-group">
+                                        <label>温度 (K): <span id="temperature-value">300</span></label>
+                                        <input type="range" class="control-slider" id="temperature" min="100" max="800" value="300">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>压强 (atm): <span id="pressure-value">1.0</span></label>
+                                        <input type="range" class="control-slider" id="pressure" min="0.1" max="5" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>分子数量: <span id="molecule-count-value">100</span></label>
+                                        <input type="range" class="control-slider" id="molecule-count" min="50" max="300" value="100">
+                                    </div>
+                                </div>
+
+                                <button class="control-button" id="start-thermo">开始模拟</button>
+                                <button class="control-button secondary" id="reset-thermo">重置</button>
+                                <button class="control-button secondary" id="pause-thermo">暂停</button>
+
+                                <div class="simulation-info">
+                                    <h4>热力学数据</h4>
+                                    <p id="thermo-info">平均动能: <span id="avg-kinetic">--</span><br>体积: <span id="volume">--</span></p>
+                                </div>
+                            </div>
+                            <div class="simulation-display">
+                                <canvas class="simulation-canvas" id="thermo-canvas" width="800" height="600"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // 物理模拟器主要功能
+        class PhysicsSimulator {
+            constructor() {
+                this.currentTab = 'mechanics';
+                this.animations = {};
+                this.isRunning = {};
+                this.initializeEventListeners();
+                this.initializeCanvases();
+            }
+
+            initializeEventListeners() {
+                // 标签切换
+                document.querySelectorAll('.simulator-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        this.switchTab(e.target.dataset.tab);
+                    });
+                });
+
+                // 力学控制
+                this.setupMechanicsControls();
+                this.setupElectromagnetismControls();
+                this.setupOpticsControls();
+                this.setupWavesControls();
+                this.setupThermodynamicsControls();
+            }
+
+            initializeCanvases() {
+                this.canvases = {
+                    mechanics: document.getElementById('mechanics-canvas'),
+                    em: document.getElementById('em-canvas'),
+                    optics: document.getElementById('optics-canvas'),
+                    waves: document.getElementById('waves-canvas'),
+                    thermo: document.getElementById('thermo-canvas')
+                };
+
+                this.contexts = {};
+                Object.keys(this.canvases).forEach(key => {
+                    this.contexts[key] = this.canvases[key].getContext('2d');
+                });
+            }
+
+            switchTab(tabName) {
+                // 停止当前动画
+                if (this.animations[this.currentTab]) {
+                    cancelAnimationFrame(this.animations[this.currentTab]);
+                }
+
+                // 更新标签状态
+                document.querySelectorAll('.simulator-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // 更新面板显示
+                document.querySelectorAll('.simulation-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-panel`).classList.add('active');
+
+                this.currentTab = tabName;
+            }
+
+            setupMechanicsControls() {
+                const typeSelect = document.getElementById('mechanics-type');
+                const startBtn = document.getElementById('start-mechanics');
+                const resetBtn = document.getElementById('reset-mechanics');
+                const pauseBtn = document.getElementById('pause-mechanics');
+
+                // 类型切换
+                typeSelect.addEventListener('change', (e) => {
+                    this.switchMechanicsType(e.target.value);
+                });
+
+                // 滑块更新
+                document.getElementById('initial-velocity').addEventListener('input', (e) => {
+                    document.getElementById('velocity-value').textContent = e.target.value;
+                });
+
+                document.getElementById('launch-angle').addEventListener('input', (e) => {
+                    document.getElementById('angle-value').textContent = e.target.value;
+                });
+
+                document.getElementById('gravity').addEventListener('input', (e) => {
+                    document.getElementById('gravity-value').textContent = e.target.value;
+                });
+
+                document.getElementById('pendulum-length').addEventListener('input', (e) => {
+                    document.getElementById('pendulum-length-value').textContent = e.target.value;
+                });
+
+                document.getElementById('pendulum-angle').addEventListener('input', (e) => {
+                    document.getElementById('pendulum-angle-value').textContent = e.target.value;
+                });
+
+                // 按钮控制
+                startBtn.addEventListener('click', () => this.startMechanicsSimulation());
+                resetBtn.addEventListener('click', () => this.resetMechanicsSimulation());
+                pauseBtn.addEventListener('click', () => this.pauseMechanicsSimulation());
+            }
+
+            switchMechanicsType(type) {
+                document.getElementById('projectile-controls').style.display = 
+                    type === 'projectile' ? 'block' : 'none';
+                document.getElementById('pendulum-controls').style.display = 
+                    type === 'pendulum' ? 'block' : 'none';
+            }
+
+            startMechanicsSimulation() {
+                const type = document.getElementById('mechanics-type').value;
+                this.isRunning.mechanics = true;
+
+                if (type === 'projectile') {
+                    this.simulateProjectileMotion();
+                } else if (type === 'pendulum') {
+                    this.simulatePendulum();
+                }
+            }
+
+            simulateProjectileMotion() {
+                const canvas = this.canvases.mechanics;
+                const ctx = this.contexts.mechanics;
+                
+                const velocity = parseFloat(document.getElementById('initial-velocity').value);
+                const angle = parseFloat(document.getElementById('launch-angle').value) * Math.PI / 180;
+                const gravity = parseFloat(document.getElementById('gravity').value);
+
+                const vx = velocity * Math.cos(angle);
+                const vy = velocity * Math.sin(angle);
+
+                let t = 0;
+                const dt = 0.05;
+                const scale = 10; // 像素/米
+
+                const animate = () => {
+                    if (!this.isRunning.mechanics) return;
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 绘制地面
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(0, canvas.height - 50);
+                    ctx.lineTo(canvas.width, canvas.height - 50);
+                    ctx.stroke();
+
+                    // 计算位置
+                    const x = vx * t * scale + 50;
+                    const y = canvas.height - 50 - (vy * t - 0.5 * gravity * t * t) * scale;
+
+                    // 绘制轨迹
+                    ctx.strokeStyle = '#4361ee';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.beginPath();
+                    for (let i = 0; i <= t; i += dt * 5) {
+                        const tx = vx * i * scale + 50;
+                        const ty = canvas.height - 50 - (vy * i - 0.5 * gravity * i * i) * scale;
+                        if (i === 0) ctx.moveTo(tx, ty);
+                        else ctx.lineTo(tx, ty);
+                    }
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // 绘制抛体
+                    if (y <= canvas.height - 50) {
+                        ctx.fillStyle = '#ff4444';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                        ctx.fill();
+
+                        // 绘制速度矢量
+                        const currentVx = vx;
+                        const currentVy = vy - gravity * t;
+                        ctx.strokeStyle = '#ff6b35';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + currentVx * 3, y - currentVy * 3);
+                        ctx.stroke();
+
+                        // 更新信息
+                        const height = (vy * t - 0.5 * gravity * t * t);
+                        const distance = vx * t;
+                        const speed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
+                        
+                        document.getElementById('mechanics-info').innerHTML = `
+                            时间: ${t.toFixed(2)}s<br>
+                            高度: ${Math.max(0, height).toFixed(2)}m<br>
+                            水平距离: ${distance.toFixed(2)}m<br>
+                            速度: ${speed.toFixed(2)}m/s
+                        `;
+
+                        t += dt;
+                        this.animations.mechanics = requestAnimationFrame(animate);
+                    } else {
+                        this.isRunning.mechanics = false;
+                        document.getElementById('mechanics-info').innerHTML += '<br><strong>着陆！</strong>';
+                    }
+                };
+
+                animate();
+            }
+
+            simulatePendulum() {
+                const canvas = this.canvases.mechanics;
+                const ctx = this.contexts.mechanics;
+                
+                const length = parseFloat(document.getElementById('pendulum-length').value);
+                const initialAngle = parseFloat(document.getElementById('pendulum-angle').value) * Math.PI / 180;
+                const gravity = 9.8;
+
+                let angle = initialAngle;
+                let angularVelocity = 0;
+                const dt = 0.02;
+                const scale = 150; // 像素/米
+
+                const centerX = canvas.width / 2;
+                const centerY = 100;
+
+                const animate = () => {
+                    if (!this.isRunning.mechanics) return;
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 计算摆球位置
+                    const bobX = centerX + length * scale * Math.sin(angle);
+                    const bobY = centerY + length * scale * Math.cos(angle);
+
+                    // 绘制摆线
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.lineTo(bobX, bobY);
+                    ctx.stroke();
+
+                    // 绘制固定点
+                    ctx.fillStyle = '#666';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // 绘制摆球
+                    ctx.fillStyle = '#4361ee';
+                    ctx.beginPath();
+                    ctx.arc(bobX, bobY, 15, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // 绘制轨迹
+                    ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, length * scale, 0, 2 * Math.PI);
+                    ctx.stroke();
+
+                    // 物理计算
+                    const angularAcceleration = -(gravity / length) * Math.sin(angle);
+                    angularVelocity += angularAcceleration * dt;
+                    angle += angularVelocity * dt;
+
+                    // 更新信息
+                    const period = 2 * Math.PI * Math.sqrt(length / gravity);
+                    const energy = 0.5 * angularVelocity * angularVelocity + gravity * (1 - Math.cos(angle));
+                    
+                    document.getElementById('mechanics-info').innerHTML = `
+                        角度: ${(angle * 180 / Math.PI).toFixed(1)}°<br>
+                        角速度: ${angularVelocity.toFixed(2)} rad/s<br>
+                        周期: ${period.toFixed(2)}s<br>
+                        能量: ${energy.toFixed(3)}J
+                    `;
+
+                    this.animations.mechanics = requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            resetMechanicsSimulation() {
+                this.isRunning.mechanics = false;
+                if (this.animations.mechanics) {
+                    cancelAnimationFrame(this.animations.mechanics);
+                }
+                this.contexts.mechanics.clearRect(0, 0, this.canvases.mechanics.width, this.canvases.mechanics.height);
+                document.getElementById('mechanics-info').textContent = '点击开始模拟查看实时数据';
+            }
+
+            pauseMechanicsSimulation() {
+                this.isRunning.mechanics = !this.isRunning.mechanics;
+                if (this.isRunning.mechanics) {
+                    const type = document.getElementById('mechanics-type').value;
+                    if (type === 'projectile') {
+                        this.simulateProjectileMotion();
+                    } else if (type === 'pendulum') {
+                        this.simulatePendulum();
+                    }
+                }
+            }
+
+            setupElectromagnetismControls() {
+                const startBtn = document.getElementById('start-em');
+                const resetBtn = document.getElementById('reset-em');
+                const addChargeBtn = document.getElementById('add-charge');
+
+                document.getElementById('charge-count').addEventListener('input', (e) => {
+                    document.getElementById('charge-count-value').textContent = e.target.value;
+                });
+
+                document.getElementById('charge-strength').addEventListener('input', (e) => {
+                    document.getElementById('charge-strength-value').textContent = e.target.value;
+                });
+
+                startBtn.addEventListener('click', () => this.startEMSimulation());
+                resetBtn.addEventListener('click', () => this.resetEMSimulation());
+                addChargeBtn.addEventListener('click', () => this.addCharge());
+
+                // 画布点击事件
+                this.canvases.em.addEventListener('click', (e) => {
+                    this.addChargeAtPosition(e);
+                });
+            }
+
+            startEMSimulation() {
+                this.charges = this.charges || [];
+                this.drawElectricField();
+            }
+
+            addChargeAtPosition(event) {
+                const rect = this.canvases.em.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const strength = parseFloat(document.getElementById('charge-strength').value);
+                
+                this.charges = this.charges || [];
+                this.charges.push({
+                    x: x,
+                    y: y,
+                    charge: Math.random() > 0.5 ? strength : -strength
+                });
+
+                this.drawElectricField();
+            }
+
+            drawElectricField() {
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if (!this.charges || this.charges.length === 0) return;
+
+                // 绘制电荷
+                this.charges.forEach(charge => {
+                    ctx.fillStyle = charge.charge > 0 ? '#ff4444' : '#4444ff';
+                    ctx.beginPath();
+                    ctx.arc(charge.x, charge.y, 15, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    // 绘制电荷符号
+                    ctx.fillStyle = 'white';
+                    ctx.font = 'bold 16px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(charge.charge > 0 ? '+' : '-', charge.x, charge.y + 5);
+                });
+
+                // 绘制电场线
+                if (document.getElementById('show-field-lines').checked) {
+                    this.drawFieldLines(ctx);
+                }
+
+                // 更新信息
+                document.getElementById('em-info').innerHTML = `
+                    电荷数量: ${this.charges.length}<br>
+                    点击画布添加更多电荷<br>
+                    红色: 正电荷, 蓝色: 负电荷
+                `;
+            }
+
+            drawFieldLines(ctx) {
+                const step = 40;
+                ctx.strokeStyle = 'rgba(67, 97, 238, 0.6)';
+                ctx.lineWidth = 1;
+
+                for (let x = step; x < this.canvases.em.width; x += step) {
+                    for (let y = step; y < this.canvases.em.height; y += step) {
+                        const field = this.calculateElectricField(x, y);
+                        const magnitude = Math.sqrt(field.x * field.x + field.y * field.y);
+                        
+                        if (magnitude > 0.1) {
+                            const length = Math.min(20, magnitude * 10);
+                            const endX = x + (field.x / magnitude) * length;
+                            const endY = y + (field.y / magnitude) * length;
+
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(endX, endY);
+                            ctx.stroke();
+
+                            // 箭头
+                            const angle = Math.atan2(field.y, field.x);
+                            ctx.beginPath();
+                            ctx.moveTo(endX, endY);
+                            ctx.lineTo(endX - 5 * Math.cos(angle - 0.3), endY - 5 * Math.sin(angle - 0.3));
+                            ctx.moveTo(endX, endY);
+                            ctx.lineTo(endX - 5 * Math.cos(angle + 0.3), endY - 5 * Math.sin(angle + 0.3));
+                            ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            calculateElectricField(x, y) {
+                let Ex = 0, Ey = 0;
+                const k = 8.99e9; // 库仑常数 (简化)
+
+                this.charges.forEach(charge => {
+                    const dx = x - charge.x;
+                    const dy = y - charge.y;
+                    const r = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (r > 20) { // 避免奇点
+                        const E = k * charge.charge / (r * r * r);
+                        Ex += E * dx;
+                        Ey += E * dy;
+                    }
+                });
+
+                return { x: Ex * 1e-6, y: Ey * 1e-6 }; // 缩放因子
+            }
+
+            resetEMSimulation() {
+                this.charges = [];
+                this.contexts.em.clearRect(0, 0, this.canvases.em.width, this.canvases.em.height);
+                document.getElementById('em-info').textContent = '点击画布添加电荷，观察电场分布';
+            }
+
+            setupOpticsControls() {
+                const typeSelect = document.getElementById('optics-type');
+                const startBtn = document.getElementById('start-optics');
+                const resetBtn = document.getElementById('reset-optics');
+
+                typeSelect.addEventListener('change', (e) => {
+                    this.switchOpticsType(e.target.value);
+                });
+
+                document.getElementById('incident-angle').addEventListener('input', (e) => {
+                    document.getElementById('incident-angle-value').textContent = e.target.value;
+                });
+
+                document.getElementById('refractive-index-1').addEventListener('input', (e) => {
+                    document.getElementById('n1-value').textContent = e.target.value;
+                });
+
+                document.getElementById('refractive-index-2').addEventListener('input', (e) => {
+                    document.getElementById('n2-value').textContent = e.target.value;
+                });
+
+                startBtn.addEventListener('click', () => this.startOpticsSimulation());
+                resetBtn.addEventListener('click', () => this.resetOpticsSimulation());
+            }
+
+            switchOpticsType(type) {
+                document.getElementById('reflection-controls').style.display = 
+                    type === 'reflection' ? 'block' : 'none';
+                document.getElementById('refraction-controls').style.display = 
+                    type === 'refraction' ? 'block' : 'none';
+            }
+
+            startOpticsSimulation() {
+                const type = document.getElementById('optics-type').value;
+                
+                if (type === 'reflection') {
+                    this.simulateReflection();
+                } else if (type === 'refraction') {
+                    this.simulateRefraction();
+                }
+            }
+
+            simulateReflection() {
+                const canvas = this.canvases.optics;
+                const ctx = this.contexts.optics;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const angle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
+                const mirrorType = document.getElementById('mirror-type').value;
+
+                // 绘制镜面
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                if (mirrorType === 'plane') {
+                    ctx.moveTo(canvas.width / 2, 100);
+                    ctx.lineTo(canvas.width / 2, canvas.height - 100);
+                }
+                ctx.stroke();
+
+                // 绘制法线
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2 - 100, canvas.height / 2);
+                ctx.lineTo(canvas.width / 2 + 100, canvas.height / 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 绘制入射光线
+                const incidentX = canvas.width / 2 - 150 * Math.cos(angle);
+                const incidentY = canvas.height / 2 - 150 * Math.sin(angle);
+                
+                ctx.strokeStyle = '#ffeb3b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(incidentX, incidentY);
+                ctx.lineTo(canvas.width / 2, canvas.height / 2);
+                ctx.stroke();
+
+                // 绘制反射光线
+                const reflectedX = canvas.width / 2 + 150 * Math.cos(angle);
+                const reflectedY = canvas.height / 2 - 150 * Math.sin(angle);
+                
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, canvas.height / 2);
+                ctx.lineTo(reflectedX, reflectedY);
+                ctx.stroke();
+
+                // 绘制角度标记
+                ctx.strokeStyle = '#4361ee';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, canvas.height / 2, 50, -angle, 0);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, canvas.height / 2, 50, 0, angle);
+                ctx.stroke();
+
+                // 更新信息
+                document.getElementById('optics-info').innerHTML = `
+                    入射角: ${(angle * 180 / Math.PI).toFixed(1)}°<br>
+                    反射角: ${(angle * 180 / Math.PI).toFixed(1)}°<br>
+                    反射定律: 入射角 = 反射角
+                `;
+            }
+
+            simulateRefraction() {
+                const canvas = this.canvases.optics;
+                const ctx = this.contexts.optics;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const incidentAngle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
+                const n1 = parseFloat(document.getElementById('refractive-index-1').value);
+                const n2 = parseFloat(document.getElementById('refractive-index-2').value);
+
+                // 计算折射角 (斯涅尔定律)
+                const sinRefracted = (n1 / n2) * Math.sin(incidentAngle);
+                const refractedAngle = Math.asin(Math.min(1, Math.abs(sinRefracted)));
+
+                // 绘制界面
+                ctx.fillStyle = 'rgba(67, 97, 238, 0.1)';
+                ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+                
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height / 2);
+                ctx.lineTo(canvas.width, canvas.height / 2);
+                ctx.stroke();
+
+                // 绘制法线
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, 100);
+                ctx.lineTo(canvas.width / 2, canvas.height - 100);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 绘制入射光线
+                const incidentX = canvas.width / 2 - 150 * Math.sin(incidentAngle);
+                const incidentY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
+                
+                ctx.strokeStyle = '#ffeb3b';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(incidentX, incidentY);
+                ctx.lineTo(canvas.width / 2, canvas.height / 2);
+                ctx.stroke();
+
+                // 绘制折射光线
+                if (sinRefracted <= 1) {
+                    const refractedX = canvas.width / 2 + 150 * Math.sin(refractedAngle);
+                    const refractedY = canvas.height / 2 + 150 * Math.cos(refractedAngle);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 2, canvas.height / 2);
+                    ctx.lineTo(refractedX, refractedY);
+                    ctx.stroke();
+                }
+
+                // 更新信息
+                document.getElementById('optics-info').innerHTML = `
+                    入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
+                    折射角: ${sinRefracted <= 1 ? (refractedAngle * 180 / Math.PI).toFixed(1) + '°' : '全反射'}<br>
+                    n₁ = ${n1}, n₂ = ${n2}<br>
+                    ${sinRefracted > 1 ? '发生全反射！' : ''}
+                `;
+            }
+
+            resetOpticsSimulation() {
+                this.contexts.optics.clearRect(0, 0, this.canvases.optics.width, this.canvases.optics.height);
+                document.getElementById('optics-info').textContent = '调整参数观察光线传播规律';
+            }
+
+            setupWavesControls() {
+                const startBtn = document.getElementById('start-waves');
+                const resetBtn = document.getElementById('reset-waves');
+                const pauseBtn = document.getElementById('pause-waves');
+
+                document.getElementById('wave-frequency').addEventListener('input', (e) => {
+                    document.getElementById('frequency-value').textContent = e.target.value;
+                    this.updateWaveInfo();
+                });
+
+                document.getElementById('wave-amplitude').addEventListener('input', (e) => {
+                    document.getElementById('amplitude-value').textContent = e.target.value;
+                });
+
+                document.getElementById('wave-speed').addEventListener('input', (e) => {
+                    document.getElementById('wave-speed-value').textContent = e.target.value;
+                    this.updateWaveInfo();
+                });
+
+                startBtn.addEventListener('click', () => this.startWavesSimulation());
+                resetBtn.addEventListener('click', () => this.resetWavesSimulation());
+                pauseBtn.addEventListener('click', () => this.pauseWavesSimulation());
+
+                this.updateWaveInfo();
+            }
+
+            updateWaveInfo() {
+                const frequency = parseFloat(document.getElementById('wave-frequency').value);
+                const speed = parseFloat(document.getElementById('wave-speed').value);
+                const wavelength = speed / frequency;
+                const period = 1 / frequency;
+
+                document.getElementById('wavelength').textContent = wavelength.toFixed(1) + 'm';
+                document.getElementById('period').textContent = period.toFixed(2) + 's';
+            }
+
+            startWavesSimulation() {
+                this.isRunning.waves = true;
+                this.simulateWaves();
+            }
+
+            simulateWaves() {
+                const canvas = this.canvases.waves;
+                const ctx = this.contexts.waves;
+                
+                const frequency = parseFloat(document.getElementById('wave-frequency').value);
+                const amplitude = parseFloat(document.getElementById('wave-amplitude').value);
+                const speed = parseFloat(document.getElementById('wave-speed').value);
+                const type = document.getElementById('wave-type').value;
+
+                let time = 0;
+
+                const animate = () => {
+                    if (!this.isRunning.waves) return;
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 绘制坐标轴
+                    ctx.strokeStyle = '#ccc';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, canvas.height / 2);
+                    ctx.lineTo(canvas.width, canvas.height / 2);
+                    ctx.stroke();
+
+                    // 绘制波形
+                    ctx.strokeStyle = '#4361ee';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+
+                    for (let x = 0; x < canvas.width; x += 2) {
+                        const k = 2 * Math.PI * frequency / speed; // 波数
+                        const omega = 2 * Math.PI * frequency; // 角频率
+                        
+                        let y;
+                        if (type === 'transverse') {
+                            y = canvas.height / 2 + amplitude * Math.sin(k * x - omega * time);
+                        } else if (type === 'longitudinal') {
+                            const displacement = amplitude * Math.sin(k * x - omega * time);
+                            y = canvas.height / 2 + displacement * 0.5;
+                        }
+
+                        if (x === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+
+                    // 绘制波的传播方向
+                    ctx.fillStyle = '#ff6b35';
+                    ctx.font = '16px Arial';
+                    ctx.fillText('→ 传播方向', canvas.width - 120, 30);
+
+                    time += 0.05;
+                    this.animations.waves = requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            pauseWavesSimulation() {
+                this.isRunning.waves = !this.isRunning.waves;
+                if (this.isRunning.waves) {
+                    this.simulateWaves();
+                }
+            }
+
+            resetWavesSimulation() {
+                this.isRunning.waves = false;
+                if (this.animations.waves) {
+                    cancelAnimationFrame(this.animations.waves);
+                }
+                this.contexts.waves.clearRect(0, 0, this.canvases.waves.width, this.canvases.waves.height);
+            }
+
+            setupThermodynamicsControls() {
+                const startBtn = document.getElementById('start-thermo');
+                const resetBtn = document.getElementById('reset-thermo');
+                const pauseBtn = document.getElementById('pause-thermo');
+
+                document.getElementById('temperature').addEventListener('input', (e) => {
+                    document.getElementById('temperature-value').textContent = e.target.value;
+                });
+
+                document.getElementById('pressure').addEventListener('input', (e) => {
+                    document.getElementById('pressure-value').textContent = e.target.value;
+                });
+
+                document.getElementById('molecule-count').addEventListener('input', (e) => {
+                    document.getElementById('molecule-count-value').textContent = e.target.value;
+                });
+
+                startBtn.addEventListener('click', () => this.startThermoSimulation());
+                resetBtn.addEventListener('click', () => this.resetThermoSimulation());
+                pauseBtn.addEventListener('click', () => this.pauseThermoSimulation());
+            }
+
+            startThermoSimulation() {
+                this.isRunning.thermo = true;
+                this.initializeMolecules();
+                this.simulateGasMolecules();
+            }
+
+            initializeMolecules() {
+                const count = parseInt(document.getElementById('molecule-count').value);
+                const temperature = parseFloat(document.getElementById('temperature').value);
+                
+                this.molecules = [];
+                for (let i = 0; i < count; i++) {
+                    const speed = Math.sqrt(temperature / 100) * 2; // 简化的速度-温度关系
+                    this.molecules.push({
+                        x: Math.random() * (this.canvases.thermo.width - 20) + 10,
+                        y: Math.random() * (this.canvases.thermo.height - 20) + 10,
+                        vx: (Math.random() - 0.5) * speed,
+                        vy: (Math.random() - 0.5) * speed,
+                        radius: 3
+                    });
+                }
+            }
+
+            simulateGasMolecules() {
+                const canvas = this.canvases.thermo;
+                const ctx = this.contexts.thermo;
+
+                const animate = () => {
+                    if (!this.isRunning.thermo) return;
+
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    // 绘制容器
+                    ctx.strokeStyle = '#333';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+                    let totalKineticEnergy = 0;
+
+                    // 更新和绘制分子
+                    this.molecules.forEach(molecule => {
+                        // 更新位置
+                        molecule.x += molecule.vx;
+                        molecule.y += molecule.vy;
+
+                        // 边界碰撞
+                        if (molecule.x <= 10 + molecule.radius || molecule.x >= canvas.width - 10 - molecule.radius) {
+                            molecule.vx = -molecule.vx;
+                            molecule.x = Math.max(10 + molecule.radius, Math.min(canvas.width - 10 - molecule.radius, molecule.x));
+                        }
+                        if (molecule.y <= 10 + molecule.radius || molecule.y >= canvas.height - 10 - molecule.radius) {
+                            molecule.vy = -molecule.vy;
+                            molecule.y = Math.max(10 + molecule.radius, Math.min(canvas.height - 10 - molecule.radius, molecule.y));
+                        }
+
+                        // 计算动能
+                        const speed = Math.sqrt(molecule.vx * molecule.vx + molecule.vy * molecule.vy);
+                        totalKineticEnergy += 0.5 * speed * speed;
+
+                        // 绘制分子
+                        const temperature = parseFloat(document.getElementById('temperature').value);
+                        const colorIntensity = Math.min(255, temperature / 3);
+                        ctx.fillStyle = `rgb(${colorIntensity}, ${100}, ${255 - colorIntensity})`;
+                        ctx.beginPath();
+                        ctx.arc(molecule.x, molecule.y, molecule.radius, 0, 2 * Math.PI);
+                        ctx.fill();
+                    });
+
+                    // 更新信息
+                    const avgKineticEnergy = totalKineticEnergy / this.molecules.length;
+                    const volume = (canvas.width - 20) * (canvas.height - 20);
+                    
+                    document.getElementById('avg-kinetic').textContent = avgKineticEnergy.toFixed(2);
+                    document.getElementById('volume').textContent = volume.toFixed(0) + ' px²';
+
+                    this.animations.thermo = requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            pauseThermoSimulation() {
+                this.isRunning.thermo = !this.isRunning.thermo;
+                if (this.isRunning.thermo) {
+                    this.simulateGasMolecules();
+                }
+            }
+
+            resetThermoSimulation() {
+                this.isRunning.thermo = false;
+                if (this.animations.thermo) {
+                    cancelAnimationFrame(this.animations.thermo);
+                }
+                this.contexts.thermo.clearRect(0, 0, this.canvases.thermo.width, this.canvases.thermo.height);
+                document.getElementById('avg-kinetic').textContent = '--';
+                document.getElementById('volume').textContent = '--';
+            }
+        }
+
+        // 初始化模拟器
+        document.addEventListener('DOMContentLoaded', () => {
+            new PhysicsSimulator();
+        });
+    </script>
+</body>
+</html> 
