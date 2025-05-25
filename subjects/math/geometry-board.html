@@ -356,11 +356,29 @@
                 this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
                 this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
                 this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+                this.canvas.addEventListener('contextmenu', (e) => this.handleRightClick(e));
                 
                 window.addEventListener('resize', () => {
                     this.setupCanvas();
                     this.redraw();
                 });
+
+                window.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && this.currentTool === 'area' && this.tempPoints.length >= 3) {
+                        this.finishAreaMeasurement();
+                    } else if (e.key === 'Escape') {
+                        this.tempPoints = [];
+                        this.redraw();
+                        this.updateShapeInfo();
+                    }
+                });
+            }
+
+            handleRightClick(e) {
+                e.preventDefault();
+                if (this.currentTool === 'area' && this.tempPoints.length >= 3) {
+                    this.finishAreaMeasurement();
+                }
             }
 
             setupToolbar() {
@@ -581,6 +599,21 @@
                         this.addMeasurement('distance', this.tempPoints[0], pos, distance.toFixed(2) + 'px');
                         this.tempPoints = [];
                     }
+                } else if (this.currentTool === 'angle') {
+                    this.tempPoints.push(pos);
+                    if (this.tempPoints.length === 3) {
+                        const angle = this.calculateAngle(this.tempPoints[0], this.tempPoints[1], this.tempPoints[2]);
+                        this.addMeasurement('angle', this.tempPoints[1], this.tempPoints[1], angle.toFixed(1) + '°');
+                        // Draw angle arc
+                        this.addAngleArc(this.tempPoints[0], this.tempPoints[1], this.tempPoints[2]);
+                        this.tempPoints = [];
+                    }
+                } else if (this.currentTool === 'area') {
+                    this.tempPoints.push(pos);
+                    if (this.tempPoints.length >= 3) {
+                        // For now, calculate area when we have at least 3 points
+                        // User can right-click or press Enter to finish
+                    }
                 }
             }
 
@@ -593,6 +626,72 @@
                 };
                 this.measurements.push(measurement);
                 this.redraw();
+            }
+
+            calculateAngle(p1, vertex, p2) {
+                const v1 = { x: p1.x - vertex.x, y: p1.y - vertex.y };
+                const v2 = { x: p2.x - vertex.x, y: p2.y - vertex.y };
+                
+                const dot = v1.x * v2.x + v1.y * v2.y;
+                const mag1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+                const mag2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+                
+                const cosAngle = dot / (mag1 * mag2);
+                const angleRad = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+                return angleRad * (180 / Math.PI);
+            }
+
+            addAngleArc(p1, vertex, p2) {
+                const shape = {
+                    type: 'angle-arc',
+                    p1: p1,
+                    vertex: vertex,
+                    p2: p2,
+                    color: '#ff6b6b',
+                    size: 2
+                };
+                this.shapes.push(shape);
+            }
+
+            calculatePolygonArea(points) {
+                if (points.length < 3) return 0;
+                
+                let area = 0;
+                for (let i = 0; i < points.length; i++) {
+                    const j = (i + 1) % points.length;
+                    area += points[i].x * points[j].y;
+                    area -= points[j].x * points[i].y;
+                }
+                return Math.abs(area) / 2;
+            }
+
+            finishAreaMeasurement() {
+                if (this.tempPoints.length >= 3) {
+                    const area = this.calculatePolygonArea(this.tempPoints);
+                    const centroid = this.calculateCentroid(this.tempPoints);
+                    this.addMeasurement('area', centroid, centroid, area.toFixed(2) + 'px²');
+                    
+                    // Add the polygon outline
+                    const shape = {
+                        type: 'area-polygon',
+                        points: [...this.tempPoints],
+                        color: 'rgba(255, 107, 107, 0.3)',
+                        size: 2
+                    };
+                    this.shapes.push(shape);
+                    this.tempPoints = [];
+                    this.redraw();
+                    this.updateShapeInfo();
+                }
+            }
+
+            calculateCentroid(points) {
+                let cx = 0, cy = 0;
+                points.forEach(p => {
+                    cx += p.x;
+                    cy += p.y;
+                });
+                return { x: cx / points.length, y: cy / points.length };
             }
 
             drawPreview(start, end) {
@@ -652,6 +751,87 @@
                 });
             }
 
+            drawTempArea() {
+                if (this.tempPoints.length < 1) return;
+
+                // Draw temp points
+                this.tempPoints.forEach((point, index) => {
+                    this.ctx.fillStyle = '#ff6b6b';
+                    this.ctx.beginPath();
+                    this.ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    // Draw point number
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText((index + 1).toString(), point.x, point.y + 4);
+                });
+
+                // Draw connecting lines
+                if (this.tempPoints.length >= 2) {
+                    this.ctx.strokeStyle = '#ff6b6b';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([5, 5]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.tempPoints[0].x, this.tempPoints[0].y);
+                    
+                    for (let i = 1; i < this.tempPoints.length; i++) {
+                        this.ctx.lineTo(this.tempPoints[i].x, this.tempPoints[i].y);
+                    }
+                    
+                    // Close the polygon if we have 3+ points
+                    if (this.tempPoints.length >= 3) {
+                        this.ctx.lineTo(this.tempPoints[0].x, this.tempPoints[0].y);
+                    }
+                    
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                }
+            }
+
+            drawTempAngle() {
+                this.tempPoints.forEach((point, index) => {
+                    this.ctx.fillStyle = '#ff6b6b';
+                    this.ctx.beginPath();
+                    this.ctx.arc(point.x, point.y, 4, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    // Draw labels
+                    this.ctx.fillStyle = 'black';
+                    this.ctx.font = '12px Arial';
+                    this.ctx.textAlign = 'center';
+                    const labels = ['边1', '顶点', '边2'];
+                    if (labels[index]) {
+                        this.ctx.fillText(labels[index], point.x, point.y - 10);
+                    }
+                });
+
+                // Draw connecting lines
+                if (this.tempPoints.length >= 2) {
+                    this.ctx.strokeStyle = '#ff6b6b';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.setLineDash([3, 3]);
+                    
+                    if (this.tempPoints.length === 2) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.tempPoints[0].x, this.tempPoints[0].y);
+                        this.ctx.lineTo(this.tempPoints[1].x, this.tempPoints[1].y);
+                        this.ctx.stroke();
+                    } else if (this.tempPoints.length === 3) {
+                        // Draw both lines from vertex
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(this.tempPoints[1].x, this.tempPoints[1].y);
+                        this.ctx.lineTo(this.tempPoints[0].x, this.tempPoints[0].y);
+                        this.ctx.moveTo(this.tempPoints[1].x, this.tempPoints[1].y);
+                        this.ctx.lineTo(this.tempPoints[2].x, this.tempPoints[2].y);
+                        this.ctx.stroke();
+                    }
+                    
+                    this.ctx.setLineDash([]);
+                }
+            }
+
             redraw() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 
@@ -664,6 +844,10 @@
                 
                 if (this.currentTool === 'polygon' && this.tempPoints.length > 0) {
                     this.drawTempPolygon();
+                } else if (this.currentTool === 'area' && this.tempPoints.length > 0) {
+                    this.drawTempArea();
+                } else if (this.currentTool === 'angle' && this.tempPoints.length > 0) {
+                    this.drawTempAngle();
                 }
             }
 
@@ -729,6 +913,12 @@
                         this.ctx.closePath();
                         this.ctx.stroke();
                         break;
+                    case 'angle-arc':
+                        this.drawAngleArc(shape);
+                        break;
+                    case 'area-polygon':
+                        this.drawAreaPolygon(shape);
+                        break;
                 }
             }
 
@@ -771,6 +961,46 @@
                 this.ctx.beginPath();
                 this.ctx.moveTo(start.x, start.y);
                 this.ctx.lineTo(newEnd.x, newEnd.y);
+                this.ctx.stroke();
+            }
+
+            drawAngleArc(shape) {
+                const { p1, vertex, p2 } = shape;
+                const radius = 30;
+                
+                // Calculate angles
+                const angle1 = Math.atan2(p1.y - vertex.y, p1.x - vertex.x);
+                const angle2 = Math.atan2(p2.y - vertex.y, p2.x - vertex.x);
+                
+                this.ctx.strokeStyle = shape.color;
+                this.ctx.lineWidth = shape.size;
+                this.ctx.beginPath();
+                this.ctx.arc(vertex.x, vertex.y, radius, angle1, angle2);
+                this.ctx.stroke();
+                
+                // Draw angle lines
+                this.ctx.beginPath();
+                this.ctx.moveTo(vertex.x, vertex.y);
+                this.ctx.lineTo(vertex.x + Math.cos(angle1) * radius * 1.5, vertex.y + Math.sin(angle1) * radius * 1.5);
+                this.ctx.moveTo(vertex.x, vertex.y);
+                this.ctx.lineTo(vertex.x + Math.cos(angle2) * radius * 1.5, vertex.y + Math.sin(angle2) * radius * 1.5);
+                this.ctx.stroke();
+            }
+
+            drawAreaPolygon(shape) {
+                if (shape.points.length < 3) return;
+                
+                this.ctx.fillStyle = shape.color;
+                this.ctx.strokeStyle = shape.color.replace('0.3', '1');
+                this.ctx.lineWidth = shape.size;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(shape.points[0].x, shape.points[0].y);
+                for (let i = 1; i < shape.points.length; i++) {
+                    this.ctx.lineTo(shape.points[i].x, shape.points[i].y);
+                }
+                this.ctx.closePath();
+                this.ctx.fill();
                 this.ctx.stroke();
             }
 
@@ -955,6 +1185,20 @@
                     html += `多边形绘制: 已选择 ${this.tempPoints.length} 个点，双击完成`;
                 } else if (this.currentTool === 'distance') {
                     html += this.tempPoints.length === 0 ? '点击第一个点开始测量距离' : '点击第二个点完成距离测量';
+                } else if (this.currentTool === 'angle') {
+                    if (this.tempPoints.length === 0) {
+                        html += '角度测量: 点击第一个点（角的一边）';
+                    } else if (this.tempPoints.length === 1) {
+                        html += '角度测量: 点击顶点（角的顶点）';
+                    } else if (this.tempPoints.length === 2) {
+                        html += '角度测量: 点击第三个点（角的另一边）';
+                    }
+                } else if (this.currentTool === 'area') {
+                    if (this.tempPoints.length < 3) {
+                        html += `面积测量: 已选择 ${this.tempPoints.length} 个点，至少需要3个点`;
+                    } else {
+                        html += `面积测量: 已选择 ${this.tempPoints.length} 个点，右键或按Enter完成`;
+                    }
                 } else {
                     html += '选择工具后在画布上绘制图形';
                 }
