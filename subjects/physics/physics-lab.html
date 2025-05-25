@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>虚拟实验室 - 物理学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .lab-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .lab-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1400px;
+        }
+
+        .lab-header {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .lab-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .lab-header p {
+            margin: 1rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .experiment-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .experiment-tab {
+            flex: 1;
+            min-width: 150px;
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .experiment-tab.active {
+            background: white;
+            color: #4361ee;
+            border-bottom: 3px solid #4361ee;
+        }
+
+        .experiment-tab:hover {
+            background: rgba(67, 97, 238, 0.1);
+            color: #4361ee;
+        }
+
+        .lab-content {
+            padding: 2rem;
+            min-height: 600px;
+        }
+
+        .experiment-panel {
+            display: none;
+        }
+
+        .experiment-panel.active {
+            display: block;
+        }
+
+        .experiment-workspace {
+            display: grid;
+            grid-template-columns: 300px 1fr 300px;
+            gap: 2rem;
+            height: 600px;
+        }
+
+        .experiment-controls, .data-analysis {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .experiment-display {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .experiment-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #f8f9fa;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .coming-soon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #6c757d;
+        }
+
+        .coming-soon i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #4361ee;
+        }
+
+        @media (max-width: 768px) {
+            .experiment-workspace {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .experiment-controls, .data-analysis {
+                order: 2;
+            }
+            
+            .experiment-display {
+                height: 400px;
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">物理</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="lab-page">
+        <div class="container">
+            <div class="lab-container">
+                <div class="lab-header">
+                    <h1><i class="fas fa-flask"></i> 虚拟物理实验室</h1>
+                    <p>在安全的虚拟环境中进行物理实验，学习科学方法和数据分析</p>
+                </div>
+
+                <div class="experiment-tabs">
+                    <button class="experiment-tab active" data-tab="pendulum">
+                        <i class="fas fa-clock"></i> 单摆实验
+                    </button>
+                    <button class="experiment-tab" data-tab="optics">
+                        <i class="fas fa-eye"></i> 光学实验
+                    </button>
+                    <button class="experiment-tab" data-tab="circuits">
+                        <i class="fas fa-bolt"></i> 电路实验
+                    </button>
+                    <button class="experiment-tab" data-tab="mechanics">
+                        <i class="fas fa-cogs"></i> 力学实验
+                    </button>
+                    <button class="experiment-tab" data-tab="thermodynamics">
+                        <i class="fas fa-thermometer-half"></i> 热学实验
+                    </button>
+                </div>
+
+                <div class="lab-content">
+                    <!-- 单摆实验 -->
+                    <div class="experiment-panel active" id="pendulum-panel">
+                        <div class="experiment-workspace">
+                            <div class="experiment-controls">
+                                <h3><i class="fas fa-clock"></i> 单摆周期测量</h3>
+                                
+                                <div class="control-group">
+                                    <label>摆长 (cm)</label>
+                                    <input type="number" class="control-input" id="pendulum-length" value="100" min="20" max="200">
+                                </div>
+
+                                <div class="control-group">
+                                    <label>摆球质量 (g)</label>
+                                    <input type="number" class="control-input" id="pendulum-mass" value="50" min="10" max="200">
+                                </div>
+
+                                <div class="control-group">
+                                    <label>初始角度 (°)</label>
+                                    <input type="number" class="control-input" id="pendulum-angle" value="15" min="5" max="30">
+                                </div>
+
+                                <button class="control-button" id="start-pendulum">开始实验</button>
+                                <button class="control-button" id="record-data">记录数据</button>
+                                <button class="control-button" id="reset-pendulum">重置实验</button>
+
+                                <div class="control-group">
+                                    <label>实验说明</label>
+                                    <p style="font-size: 0.9rem; color: #666;">
+                                        调整摆长和质量，观察对周期的影响。点击"记录数据"保存测量结果。
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div class="experiment-display">
+                                <canvas class="experiment-canvas" id="pendulum-canvas" width="600" height="600"></canvas>
+                            </div>
+                            
+                            <div class="data-analysis">
+                                <h3><i class="fas fa-chart-line"></i> 数据分析</h3>
+                                
+                                <div class="control-group">
+                                    <label>当前周期: <span id="current-period">--</span> s</label>
+                                </div>
+                                
+                                <div class="control-group">
+                                    <label>理论周期: <span id="theoretical-period">--</span> s</label>
+                                </div>
+                                
+                                <div class="control-group">
+                                    <label>误差: <span id="period-error">--</span> %</label>
+                                </div>
+
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>摆长(cm)</th>
+                                            <th>周期(s)</th>
+                                            <th>T²(s²)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pendulum-data">
+                                    </tbody>
+                                </table>
+
+                                <button class="control-button" id="analyze-pendulum">分析数据</button>
+                                <button class="control-button" id="export-data">导出数据</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 其他实验面板 -->
+                    <div class="experiment-panel" id="optics-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-eye"></i>
+                            <h3>光学实验</h3>
+                            <p>即将推出：折射率测量、透镜成像等实验</p>
+                        </div>
+                    </div>
+
+                    <div class="experiment-panel" id="circuits-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-bolt"></i>
+                            <h3>电路实验</h3>
+                            <p>即将推出：欧姆定律验证、RC电路等实验</p>
+                        </div>
+                    </div>
+
+                    <div class="experiment-panel" id="mechanics-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-cogs"></i>
+                            <h3>力学实验</h3>
+                            <p>即将推出：自由落体、弹簧振动等实验</p>
+                        </div>
+                    </div>
+
+                    <div class="experiment-panel" id="thermodynamics-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-thermometer-half"></i>
+                            <h3>热学实验</h3>
+                            <p>即将推出：比热容测量、气体定律等实验</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // 虚拟实验室功能
+        class PhysicsLab {
+            constructor() {
+                this.currentTab = 'pendulum';
+                this.pendulumData = [];
+                this.isRunning = false;
+                this.initializeEventListeners();
+                this.initializeCanvas();
+            }
+
+            initializeEventListeners() {
+                // 标签切换
+                document.querySelectorAll('.experiment-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        this.switchTab(e.target.dataset.tab);
+                    });
+                });
+
+                // 单摆实验控制
+                document.getElementById('start-pendulum').addEventListener('click', () => this.startPendulum());
+                document.getElementById('record-data').addEventListener('click', () => this.recordData());
+                document.getElementById('reset-pendulum').addEventListener('click', () => this.resetPendulum());
+                document.getElementById('analyze-pendulum').addEventListener('click', () => this.analyzeData());
+                document.getElementById('export-data').addEventListener('click', () => this.exportData());
+
+                // 参数变化监听
+                ['pendulum-length', 'pendulum-mass', 'pendulum-angle'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => this.updateTheoretical());
+                });
+            }
+
+            initializeCanvas() {
+                this.canvas = document.getElementById('pendulum-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.updateTheoretical();
+            }
+
+            switchTab(tabName) {
+                // 停止当前实验
+                this.isRunning = false;
+
+                // 更新标签状态
+                document.querySelectorAll('.experiment-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // 更新面板显示
+                document.querySelectorAll('.experiment-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-panel`).classList.add('active');
+
+                this.currentTab = tabName;
+            }
+
+            startPendulum() {
+                this.isRunning = true;
+                this.simulatePendulum();
+            }
+
+            simulatePendulum() {
+                const length = parseFloat(document.getElementById('pendulum-length').value) / 100; // 转换为米
+                const angle = parseFloat(document.getElementById('pendulum-angle').value) * Math.PI / 180;
+                
+                let currentAngle = angle;
+                let angularVelocity = 0;
+                const gravity = 9.8;
+                const dt = 0.02;
+                let time = 0;
+                let lastZeroCrossing = 0;
+                let period = 0;
+
+                const centerX = this.canvas.width / 2;
+                const centerY = 100;
+                const scale = 200;
+
+                const animate = () => {
+                    if (!this.isRunning) return;
+
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                    // 物理计算
+                    const angularAcceleration = -(gravity / length) * Math.sin(currentAngle);
+                    angularVelocity += angularAcceleration * dt;
+                    currentAngle += angularVelocity * dt;
+
+                    // 检测周期
+                    if (Math.abs(currentAngle) < 0.01 && angularVelocity > 0 && time > 0.5) {
+                        if (lastZeroCrossing > 0) {
+                            period = (time - lastZeroCrossing) * 2; // 完整周期
+                            document.getElementById('current-period').textContent = period.toFixed(3);
+                            this.updateError();
+                        }
+                        lastZeroCrossing = time;
+                    }
+
+                    // 绘制摆
+                    const bobX = centerX + length * scale * Math.sin(currentAngle);
+                    const bobY = centerY + length * scale * Math.cos(currentAngle);
+
+                    // 绘制摆线
+                    this.ctx.strokeStyle = '#333';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX, centerY);
+                    this.ctx.lineTo(bobX, bobY);
+                    this.ctx.stroke();
+
+                    // 绘制固定点
+                    this.ctx.fillStyle = '#666';
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY, 8, 0, 2 * Math.PI);
+                    this.ctx.fill();
+
+                    // 绘制摆球
+                    this.ctx.fillStyle = '#4361ee';
+                    this.ctx.beginPath();
+                    this.ctx.arc(bobX, bobY, 15, 0, 2 * Math.PI);
+                    this.ctx.fill();
+
+                    // 绘制轨迹
+                    this.ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
+                    this.ctx.lineWidth = 1;
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY, length * scale, 0, 2 * Math.PI);
+                    this.ctx.stroke();
+
+                    time += dt;
+                    requestAnimationFrame(animate);
+                };
+
+                animate();
+            }
+
+            updateTheoretical() {
+                const length = parseFloat(document.getElementById('pendulum-length').value) / 100;
+                const theoretical = 2 * Math.PI * Math.sqrt(length / 9.8);
+                document.getElementById('theoretical-period').textContent = theoretical.toFixed(3);
+                this.updateError();
+            }
+
+            updateError() {
+                const current = parseFloat(document.getElementById('current-period').textContent);
+                const theoretical = parseFloat(document.getElementById('theoretical-period').textContent);
+                
+                if (current && theoretical) {
+                    const error = Math.abs((current - theoretical) / theoretical * 100);
+                    document.getElementById('period-error').textContent = error.toFixed(2);
+                }
+            }
+
+            recordData() {
+                const length = parseFloat(document.getElementById('pendulum-length').value);
+                const period = parseFloat(document.getElementById('current-period').textContent);
+                
+                if (period) {
+                    this.pendulumData.push({
+                        length: length,
+                        period: period,
+                        periodSquared: period * period
+                    });
+
+                    this.updateDataTable();
+                }
+            }
+
+            updateDataTable() {
+                const tbody = document.getElementById('pendulum-data');
+                tbody.innerHTML = '';
+
+                this.pendulumData.forEach(data => {
+                    const row = tbody.insertRow();
+                    row.insertCell(0).textContent = data.length.toFixed(1);
+                    row.insertCell(1).textContent = data.period.toFixed(3);
+                    row.insertCell(2).textContent = data.periodSquared.toFixed(3);
+                });
+            }
+
+            analyzeData() {
+                if (this.pendulumData.length < 3) {
+                    alert('需要至少3组数据进行分析');
+                    return;
+                }
+
+                // 简单的线性回归分析 T² vs L
+                let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+                const n = this.pendulumData.length;
+
+                this.pendulumData.forEach(data => {
+                    const x = data.length / 100; // 转换为米
+                    const y = data.periodSquared;
+                    sumX += x;
+                    sumY += y;
+                    sumXY += x * y;
+                    sumX2 += x * x;
+                });
+
+                const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                const intercept = (sumY - slope * sumX) / n;
+
+                // 理论斜率应该是 4π²/g
+                const theoreticalSlope = 4 * Math.PI * Math.PI / 9.8;
+                const calculatedG = 4 * Math.PI * Math.PI / slope;
+
+                alert(`分析结果：
+斜率: ${slope.toFixed(3)} s²/m
+理论斜率: ${theoreticalSlope.toFixed(3)} s²/m
+计算得到的g: ${calculatedG.toFixed(2)} m/s²
+误差: ${Math.abs((calculatedG - 9.8) / 9.8 * 100).toFixed(2)}%`);
+            }
+
+            exportData() {
+                if (this.pendulumData.length === 0) {
+                    alert('没有数据可导出');
+                    return;
+                }
+
+                let csv = '摆长(cm),周期(s),T²(s²)\n';
+                this.pendulumData.forEach(data => {
+                    csv += `${data.length},${data.period},${data.periodSquared}\n`;
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '单摆实验数据.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            resetPendulum() {
+                this.isRunning = false;
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                document.getElementById('current-period').textContent = '--';
+                document.getElementById('period-error').textContent = '--';
+            }
+        }
+
+        // 初始化实验室
+        document.addEventListener('DOMContentLoaded', () => {
+            new PhysicsLab();
+        });
+    </script>
+</body>
+</html> 

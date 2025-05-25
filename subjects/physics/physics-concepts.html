@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理概念图谱 - 学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .concepts-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .concepts-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1400px;
+        }
+
+        .concepts-header {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .concepts-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .concepts-header p {
+            margin: 1rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .concept-tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            overflow-x: auto;
+        }
+
+        .concept-tab {
+            flex: 1;
+            min-width: 150px;
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .concept-tab.active {
+            background: white;
+            color: #4361ee;
+            border-bottom: 3px solid #4361ee;
+        }
+
+        .concept-tab:hover {
+            background: rgba(67, 97, 238, 0.1);
+            color: #4361ee;
+        }
+
+        .concepts-content {
+            padding: 2rem;
+            min-height: 600px;
+        }
+
+        .concept-panel {
+            display: none;
+        }
+
+        .concept-panel.active {
+            display: block;
+        }
+
+        .concept-workspace {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            height: 600px;
+        }
+
+        .concept-controls {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .concept-display {
+            background: #fff;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .concept-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #f8f9fa;
+        }
+
+        .concept-node {
+            position: absolute;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            padding: 0.8rem 1.2rem;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+            user-select: none;
+        }
+
+        .concept-node:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+        }
+
+        .concept-node.selected {
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+
+        .concept-connection {
+            position: absolute;
+            background: #4361ee;
+            height: 2px;
+            transform-origin: left center;
+            pointer-events: none;
+        }
+
+        .concept-info {
+            background: #e3f2fd;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .concept-info h4 {
+            margin: 0 0 0.5rem 0;
+            color: #1976d2;
+        }
+
+        .concept-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-button {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 0.5rem;
+        }
+
+        .control-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .coming-soon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #6c757d;
+        }
+
+        .coming-soon i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: #4361ee;
+        }
+
+        @media (max-width: 768px) {
+            .concept-workspace {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .concept-controls {
+                order: 2;
+            }
+            
+            .concept-display {
+                height: 400px;
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">物理</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="concepts-page">
+        <div class="container">
+            <div class="concepts-container">
+                <div class="concepts-header">
+                    <h1><i class="fas fa-project-diagram"></i> 物理概念图谱</h1>
+                    <p>可视化物理概念之间的关系，构建系统性的知识网络</p>
+                </div>
+
+                <div class="concept-tabs">
+                    <button class="concept-tab active" data-tab="mechanics">
+                        <i class="fas fa-cogs"></i> 力学
+                    </button>
+                    <button class="concept-tab" data-tab="thermodynamics">
+                        <i class="fas fa-temperature-high"></i> 热力学
+                    </button>
+                    <button class="concept-tab" data-tab="electromagnetism">
+                        <i class="fas fa-bolt"></i> 电磁学
+                    </button>
+                    <button class="concept-tab" data-tab="optics">
+                        <i class="fas fa-glasses"></i> 光学
+                    </button>
+                    <button class="concept-tab" data-tab="modern">
+                        <i class="fas fa-atom"></i> 现代物理
+                    </button>
+                </div>
+
+                <div class="concepts-content">
+                    <!-- 力学概念图谱 -->
+                    <div class="concept-panel active" id="mechanics-panel">
+                        <div class="concept-workspace">
+                            <div class="concept-controls">
+                                <h3><i class="fas fa-cogs"></i> 力学概念</h3>
+                                
+                                <div class="control-group">
+                                    <label>显示层级</label>
+                                    <select class="control-input" id="mechanics-level">
+                                        <option value="basic">基础概念</option>
+                                        <option value="intermediate" selected>中级概念</option>
+                                        <option value="advanced">高级概念</option>
+                                        <option value="all">所有概念</option>
+                                    </select>
+                                </div>
+
+                                <div class="control-group">
+                                    <label>布局方式</label>
+                                    <select class="control-input" id="mechanics-layout">
+                                        <option value="hierarchical" selected>层次布局</option>
+                                        <option value="circular">环形布局</option>
+                                        <option value="force">力导向布局</option>
+                                    </select>
+                                </div>
+
+                                <button class="control-button" id="update-mechanics">更新图谱</button>
+                                <button class="control-button" id="reset-mechanics">重置视图</button>
+
+                                <div class="concept-info" id="concept-info">
+                                    <h4>概念详情</h4>
+                                    <p>点击概念节点查看详细信息和相关概念</p>
+                                </div>
+                            </div>
+                            
+                            <div class="concept-display" id="mechanics-display">
+                                <!-- 概念节点将在这里动态生成 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 其他概念面板 -->
+                    <div class="concept-panel" id="thermodynamics-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-temperature-high"></i>
+                            <h3>热力学概念图谱</h3>
+                            <p>即将推出：热力学定律、熵、相变等概念关系</p>
+                        </div>
+                    </div>
+
+                    <div class="concept-panel" id="electromagnetism-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-bolt"></i>
+                            <h3>电磁学概念图谱</h3>
+                            <p>即将推出：电场、磁场、电磁感应等概念关系</p>
+                        </div>
+                    </div>
+
+                    <div class="concept-panel" id="optics-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-glasses"></i>
+                            <h3>光学概念图谱</h3>
+                            <p>即将推出：光的性质、反射、折射等概念关系</p>
+                        </div>
+                    </div>
+
+                    <div class="concept-panel" id="modern-panel">
+                        <div class="coming-soon">
+                            <i class="fas fa-atom"></i>
+                            <h3>现代物理概念图谱</h3>
+                            <p>即将推出：量子力学、相对论等概念关系</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // 物理概念图谱功能
+        class PhysicsConcepts {
+            constructor() {
+                this.currentTab = 'mechanics';
+                this.selectedNode = null;
+                this.concepts = this.initializeConcepts();
+                this.initializeEventListeners();
+                this.renderMechanicsConcepts();
+            }
+
+            initializeConcepts() {
+                return {
+                    mechanics: {
+                        basic: [
+                            { id: 'force', name: '力', x: 200, y: 100, description: '物体间的相互作用，能改变物体的运动状态' },
+                            { id: 'motion', name: '运动', x: 400, y: 100, description: '物体位置随时间的变化' },
+                            { id: 'mass', name: '质量', x: 300, y: 200, description: '物体所含物质的量，惯性的量度' },
+                            { id: 'acceleration', name: '加速度', x: 500, y: 200, description: '速度变化的快慢程度' }
+                        ],
+                        intermediate: [
+                            { id: 'newton1', name: '牛顿第一定律', x: 150, y: 300, description: '惯性定律：物体保持静止或匀速直线运动状态' },
+                            { id: 'newton2', name: '牛顿第二定律', x: 350, y: 300, description: 'F=ma：力等于质量乘以加速度' },
+                            { id: 'newton3', name: '牛顿第三定律', x: 550, y: 300, description: '作用力与反作用力：力的作用是相互的' },
+                            { id: 'energy', name: '能量', x: 100, y: 400, description: '物体做功的能力，包括动能和势能' },
+                            { id: 'momentum', name: '动量', x: 300, y: 400, description: '物体质量与速度的乘积' },
+                            { id: 'work', name: '功', x: 500, y: 400, description: '力在位移方向上的分量与位移的乘积' }
+                        ],
+                        advanced: [
+                            { id: 'lagrangian', name: '拉格朗日力学', x: 200, y: 500, description: '基于能量的力学表述方法' },
+                            { id: 'hamiltonian', name: '哈密顿力学', x: 400, y: 500, description: '基于相空间的力学表述方法' }
+                        ],
+                        connections: [
+                            { from: 'force', to: 'newton2' },
+                            { from: 'mass', to: 'newton2' },
+                            { from: 'acceleration', to: 'newton2' },
+                            { from: 'motion', to: 'newton1' },
+                            { from: 'force', to: 'newton3' },
+                            { from: 'force', to: 'work' },
+                            { from: 'work', to: 'energy' },
+                            { from: 'mass', to: 'momentum' },
+                            { from: 'energy', to: 'lagrangian' },
+                            { from: 'momentum', to: 'hamiltonian' }
+                        ]
+                    }
+                };
+            }
+
+            initializeEventListeners() {
+                // 标签切换
+                document.querySelectorAll('.concept-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        this.switchTab(e.target.dataset.tab);
+                    });
+                });
+
+                // 力学控制
+                document.getElementById('update-mechanics').addEventListener('click', () => this.renderMechanicsConcepts());
+                document.getElementById('reset-mechanics').addEventListener('click', () => this.resetView());
+            }
+
+            switchTab(tabName) {
+                // 更新标签状态
+                document.querySelectorAll('.concept-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // 更新面板显示
+                document.querySelectorAll('.concept-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-panel`).classList.add('active');
+
+                this.currentTab = tabName;
+            }
+
+            renderMechanicsConcepts() {
+                const display = document.getElementById('mechanics-display');
+                const level = document.getElementById('mechanics-level').value;
+                const layout = document.getElementById('mechanics-layout').value;
+
+                // 清空显示区域
+                display.innerHTML = '';
+
+                // 获取要显示的概念
+                let conceptsToShow = [];
+                if (level === 'basic') {
+                    conceptsToShow = this.concepts.mechanics.basic;
+                } else if (level === 'intermediate') {
+                    conceptsToShow = [...this.concepts.mechanics.basic, ...this.concepts.mechanics.intermediate];
+                } else if (level === 'advanced') {
+                    conceptsToShow = [...this.concepts.mechanics.basic, ...this.concepts.mechanics.intermediate, ...this.concepts.mechanics.advanced];
+                } else {
+                    conceptsToShow = [...this.concepts.mechanics.basic, ...this.concepts.mechanics.intermediate, ...this.concepts.mechanics.advanced];
+                }
+
+                // 应用布局
+                if (layout === 'circular') {
+                    this.applyCircularLayout(conceptsToShow);
+                } else if (layout === 'force') {
+                    this.applyForceLayout(conceptsToShow);
+                }
+
+                // 绘制连接线
+                this.drawConnections(display, conceptsToShow);
+
+                // 创建概念节点
+                conceptsToShow.forEach(concept => {
+                    const node = document.createElement('div');
+                    node.className = 'concept-node';
+                    node.textContent = concept.name;
+                    node.style.left = concept.x + 'px';
+                    node.style.top = concept.y + 'px';
+                    
+                    node.addEventListener('click', () => this.selectConcept(concept, node));
+                    
+                    display.appendChild(node);
+                });
+            }
+
+            applyCircularLayout(concepts) {
+                const centerX = 300;
+                const centerY = 250;
+                const radius = 150;
+                const angleStep = (2 * Math.PI) / concepts.length;
+
+                concepts.forEach((concept, index) => {
+                    const angle = index * angleStep;
+                    concept.x = centerX + radius * Math.cos(angle);
+                    concept.y = centerY + radius * Math.sin(angle);
+                });
+            }
+
+            applyForceLayout(concepts) {
+                // 简化的力导向布局
+                const iterations = 50;
+                const k = 100; // 弹簧常数
+                const repulsion = 5000; // 排斥力
+
+                for (let iter = 0; iter < iterations; iter++) {
+                    concepts.forEach(concept => {
+                        let fx = 0, fy = 0;
+
+                        // 排斥力
+                        concepts.forEach(other => {
+                            if (concept !== other) {
+                                const dx = concept.x - other.x;
+                                const dy = concept.y - other.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                                const force = repulsion / (distance * distance);
+                                fx += force * dx / distance;
+                                fy += force * dy / distance;
+                            }
+                        });
+
+                        // 吸引力（连接的概念）
+                        this.concepts.mechanics.connections.forEach(conn => {
+                            if (conn.from === concept.id || conn.to === concept.id) {
+                                const otherId = conn.from === concept.id ? conn.to : conn.from;
+                                const other = concepts.find(c => c.id === otherId);
+                                if (other) {
+                                    const dx = other.x - concept.x;
+                                    const dy = other.y - concept.y;
+                                    const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+                                    const force = distance / k;
+                                    fx += force * dx / distance;
+                                    fy += force * dy / distance;
+                                }
+                            }
+                        });
+
+                        // 更新位置
+                        concept.x += fx * 0.01;
+                        concept.y += fy * 0.01;
+
+                        // 边界约束
+                        concept.x = Math.max(50, Math.min(550, concept.x));
+                        concept.y = Math.max(50, Math.min(450, concept.y));
+                    });
+                }
+            }
+
+            drawConnections(display, concepts) {
+                this.concepts.mechanics.connections.forEach(conn => {
+                    const fromConcept = concepts.find(c => c.id === conn.from);
+                    const toConcept = concepts.find(c => c.id === conn.to);
+                    
+                    if (fromConcept && toConcept) {
+                        const line = document.createElement('div');
+                        line.className = 'concept-connection';
+                        
+                        const dx = toConcept.x - fromConcept.x;
+                        const dy = toConcept.y - fromConcept.y;
+                        const length = Math.sqrt(dx * dx + dy * dy);
+                        const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                        
+                        line.style.left = fromConcept.x + 'px';
+                        line.style.top = fromConcept.y + 'px';
+                        line.style.width = length + 'px';
+                        line.style.transform = `rotate(${angle}deg)`;
+                        
+                        display.appendChild(line);
+                    }
+                });
+            }
+
+            selectConcept(concept, node) {
+                // 取消之前的选择
+                if (this.selectedNode) {
+                    this.selectedNode.classList.remove('selected');
+                }
+
+                // 选择新节点
+                node.classList.add('selected');
+                this.selectedNode = node;
+
+                // 更新信息面板
+                const infoPanel = document.getElementById('concept-info');
+                infoPanel.innerHTML = `
+                    <h4>${concept.name}</h4>
+                    <p>${concept.description}</p>
+                `;
+
+                // 高亮相关连接
+                this.highlightConnections(concept.id);
+            }
+
+            highlightConnections(conceptId) {
+                const connections = document.querySelectorAll('.concept-connection');
+                connections.forEach(conn => {
+                    conn.style.background = '#4361ee';
+                    conn.style.opacity = '0.3';
+                });
+
+                // 这里可以添加高亮相关连接的逻辑
+            }
+
+            resetView() {
+                this.selectedNode = null;
+                document.getElementById('concept-info').innerHTML = `
+                    <h4>概念详情</h4>
+                    <p>点击概念节点查看详细信息和相关概念</p>
+                `;
+                this.renderMechanicsConcepts();
+            }
+        }
+
+        // 初始化概念图谱
+        document.addEventListener('DOMContentLoaded', () => {
+            new PhysicsConcepts();
+        });
+    </script>
+</body>
+</html> 
