@@ -28,7 +28,7 @@
             padding: 2rem;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
-            height: fit-content;
+            height: calc(100vh - 320px);
             max-height: calc(100vh - 320px);
             overflow-y: auto;
         }
@@ -39,7 +39,7 @@
             padding: 1rem;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             backdrop-filter: blur(10px);
-            height: 100%;
+            height: calc(100vh - 320px);
             min-height: 600px;
             max-height: calc(100vh - 320px);
             position: relative;
@@ -333,6 +333,12 @@
                 padding: 0.6rem 1rem;
                 font-size: 0.9rem;
             }
+
+            .animation-controls {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
         }
 
         @media (max-width: 480px) {
@@ -443,6 +449,9 @@
                             </button>
                             <button class="animation-btn" onclick="testPlotLinear()" style="background: #27ae60;">
                                 <i class="fas fa-chart-line"></i> 测试绘图
+                            </button>
+                            <button class="animation-btn" onclick="forceDrawSimpleFunction()" style="background: #9b59b6;">
+                                <i class="fas fa-magic"></i> 强制绘制
                             </button>
                         </div>
 
@@ -705,7 +714,10 @@
                     a: { value: 1, min: -5, max: 5, step: 0.1, label: '斜率 (a)' },
                     b: { value: 0, min: -10, max: 10, step: 0.1, label: 'y轴截距 (b)' }
                 },
-                calculate: (x, params) => params.a * x + params.b
+                calculate: (x, params) => {
+                    const result = params.a * x + params.b;
+                    return isFinite(result) ? result : null;
+                }
             },
             quadratic: {
                 name: '二次函数',
@@ -727,7 +739,14 @@
                     b: { value: 2, min: 0.1, max: 3, step: 0.1, label: '底数 (b)' },
                     c: { value: 0, min: -5, max: 5, step: 0.1, label: '垂直偏移 (c)' }
                 },
-                calculate: (x, params) => params.a * Math.pow(params.b, x) + params.c
+                calculate: (x, params) => {
+                    // Prevent overflow for large exponents
+                    if (Math.abs(x) > 10) return null;
+                    const result = params.a * Math.pow(params.b, x) + params.c;
+                    // Check for overflow/underflow
+                    if (!isFinite(result) || Math.abs(result) > 1000) return null;
+                    return result;
+                }
             },
             power: {
                 name: '幂函数',
@@ -1134,6 +1153,8 @@
             } else if (currentFunction === 'radical') {
                 const h = func.parameters.h.value;
                 chartBounds = { xMin: h - 1, xMax: h + 20, yMin: -10, yMax: 10 };
+            } else if (currentFunction === 'exponential') {
+                chartBounds = { xMin: -5, xMax: 5, yMin: -5, yMax: 20 };
             } else {
                 chartBounds = { xMin: -10, xMax: 10, yMin: -10, yMax: 10 };
             }
@@ -1281,12 +1302,10 @@
                 return;
             }
             
-            console.log('Drawing function with parameters:', func.parameters);
-            
-            ctx.strokeStyle = '#4361ee';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
+            console.log('=== DRAWING FUNCTION ===');
+            console.log('Function name:', func.name);
+            console.log('Function parameters:', func.parameters);
+            console.log('Chart bounds:', chartBounds);
             
             const plotWidth = canvasWidth - padding.left - padding.right;
             const plotHeight = canvasHeight - padding.top - padding.bottom;
@@ -1296,40 +1315,73 @@
                 return;
             }
             
-            // Simple direct plotting approach
-            ctx.beginPath();
-            let started = false;
-            const numPoints = 800; // Reduce points for better performance
+            console.log('Plot dimensions:', plotWidth, 'x', plotHeight);
             
-            console.log('Chart bounds:', chartBounds);
+            // Test function calculation first
+            const testX = (chartBounds.xMin + chartBounds.xMax) / 2;
+            let testY;
+            try {
+                testY = func.calculate(testX, func.parameters);
+                console.log(`Test calculation: f(${testX}) = ${testY}`);
+            } catch (error) {
+                console.error('Error in test calculation:', error);
+                return;
+            }
+            
+            if (testY === null || testY === undefined || !isFinite(testY)) {
+                console.error('Test calculation returned invalid value:', testY);
+                return;
+            }
+            
+            // Set up drawing style
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Calculate step size
+            const numPoints = 1000;
+            const xStep = (chartBounds.xMax - chartBounds.xMin) / numPoints;
+            
+            console.log('Drawing with', numPoints, 'points, step size:', xStep);
+            
+            // Start drawing
+            ctx.beginPath();
+            let pathStarted = false;
+            let pointsDrawn = 0;
             
             for (let i = 0; i <= numPoints; i++) {
-                const x = chartBounds.xMin + i * (chartBounds.xMax - chartBounds.xMin) / numPoints;
+                const x = chartBounds.xMin + i * xStep;
                 let y;
                 
                 try {
                     y = func.calculate(x, func.parameters);
                 } catch (error) {
-                    console.error('Error calculating function value:', error);
-                    continue;
-                }
-                
-                // Skip invalid values
-                if (y === null || y === undefined || !isFinite(y)) {
-                    if (started) {
+                    // Skip this point and continue
+                    if (pathStarted) {
                         ctx.stroke();
                         ctx.beginPath();
-                        started = false;
+                        pathStarted = false;
                     }
                     continue;
                 }
                 
-                // Skip values outside reasonable bounds
-                if (y < chartBounds.yMin - 100 || y > chartBounds.yMax + 100) {
-                    if (started) {
+                // Check if y is valid
+                if (y === null || y === undefined || !isFinite(y)) {
+                    if (pathStarted) {
                         ctx.stroke();
                         ctx.beginPath();
-                        started = false;
+                        pathStarted = false;
+                    }
+                    continue;
+                }
+                
+                // Clamp y to reasonable bounds for display
+                if (y < chartBounds.yMin - 50 || y > chartBounds.yMax + 50) {
+                    if (pathStarted) {
+                        ctx.stroke();
+                        ctx.beginPath();
+                        pathStarted = false;
                     }
                     continue;
                 }
@@ -1338,19 +1390,37 @@
                 const pixelX = padding.left + (x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
                 const pixelY = canvasHeight - padding.bottom - (y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
                 
-                if (!started) {
+                // Check if pixel coordinates are valid
+                if (!isFinite(pixelX) || !isFinite(pixelY)) {
+                    continue;
+                }
+                
+                if (!pathStarted) {
                     ctx.moveTo(pixelX, pixelY);
-                    started = true;
+                    pathStarted = true;
                 } else {
                     ctx.lineTo(pixelX, pixelY);
                 }
+                pointsDrawn++;
             }
             
-            if (started) {
+            // Finish drawing
+            if (pathStarted) {
                 ctx.stroke();
             }
             
-            console.log('Function drawing completed');
+            console.log('Function drawing completed. Points drawn:', pointsDrawn);
+            
+            // Draw a simple test line if no points were drawn
+            if (pointsDrawn === 0) {
+                console.warn('No points drawn, drawing test line...');
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(padding.left, canvasHeight/2);
+                ctx.lineTo(canvasWidth - padding.right, canvasHeight/2);
+                ctx.stroke();
+            }
         }
 
         // Simple function to test if plotting is working
@@ -1529,6 +1599,78 @@
             } else {
                 alert('Canvas test failed! Check console for errors.');
             }
+        }
+
+        // Force draw a simple function to test plotting system
+        function forceDrawSimpleFunction() {
+            console.log('=== FORCE DRAWING TEST ===');
+            
+            if (!ctx) {
+                console.error('No canvas context available');
+                return;
+            }
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Set up simple bounds
+            const bounds = { xMin: -5, xMax: 5, yMin: -5, yMax: 5 };
+            const plotWidth = canvasWidth - padding.left - padding.right;
+            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            console.log('Using bounds:', bounds);
+            console.log('Plot area:', plotWidth, 'x', plotHeight);
+            
+            // Draw simple axes
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            
+            // X-axis
+            const y0 = canvasHeight - padding.bottom - (0 - bounds.yMin) * plotHeight / (bounds.yMax - bounds.yMin);
+            ctx.beginPath();
+            ctx.moveTo(padding.left, y0);
+            ctx.lineTo(canvasWidth - padding.right, y0);
+            ctx.stroke();
+            
+            // Y-axis
+            const x0 = padding.left + (0 - bounds.xMin) * plotWidth / (bounds.xMax - bounds.xMin);
+            ctx.beginPath();
+            ctx.moveTo(x0, padding.top);
+            ctx.lineTo(x0, canvasHeight - padding.bottom);
+            ctx.stroke();
+            
+            // Draw a simple function: y = x
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            let pointsDrawn = 0;
+            for (let i = 0; i <= 100; i++) {
+                const x = bounds.xMin + i * (bounds.xMax - bounds.xMin) / 100;
+                const y = x; // Simple linear function
+                
+                const pixelX = padding.left + (x - bounds.xMin) * plotWidth / (bounds.xMax - bounds.xMin);
+                const pixelY = canvasHeight - padding.bottom - (y - bounds.yMin) * plotHeight / (bounds.yMax - bounds.yMin);
+                
+                if (i === 0) {
+                    ctx.moveTo(pixelX, pixelY);
+                } else {
+                    ctx.lineTo(pixelX, pixelY);
+                }
+                pointsDrawn++;
+            }
+            
+            ctx.stroke();
+            
+            // Add title
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Force Draw Test: y = x', canvasWidth / 2, 30);
+            
+            console.log('Force draw completed. Points drawn:', pointsDrawn);
         }
 
         // Simplified plotting for debugging
