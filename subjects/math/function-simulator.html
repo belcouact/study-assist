@@ -147,10 +147,12 @@
             background: rgba(67, 97, 238, 0.2);
             outline: none;
             -webkit-appearance: none;
+            appearance: none;
         }
 
         .parameter-input input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
+            appearance: none;
             width: 20px;
             height: 20px;
             border-radius: 50%;
@@ -379,6 +381,9 @@
                             <button class="animation-btn" onclick="resetParameters()">
                                 <i class="fas fa-refresh"></i> 重置
                             </button>
+                            <button class="animation-btn" onclick="debugCanvas()" style="background: #e74c3c;">
+                                <i class="fas fa-bug"></i> 测试画布
+                            </button>
                         </div>
 
                         <div id="parametersContainer">
@@ -549,11 +554,47 @@
         let animationId = null;
         let isAnimating = false;
 
+        // Test function to verify canvas is working
+        function testCanvas() {
+            if (!ctx) return false;
+            
+            // Clear and draw a simple test
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw a test line
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(50, 50);
+            ctx.lineTo(canvasWidth - 50, canvasHeight - 50);
+            ctx.stroke();
+            
+            // Draw test text
+            ctx.fillStyle = '#333';
+            ctx.font = '16px Arial';
+            ctx.fillText('Canvas Test - If you see this, canvas is working', 50, 100);
+            
+            console.log('Canvas test completed');
+            return true;
+        }
+
         // Initialize the simulator
         function initSimulator() {
+            console.log('Initializing simulator...');
             initCanvas();
-            setupFunctionTabs();
-            switchFunction('linear');
+            
+            // Test canvas functionality
+            setTimeout(() => {
+                if (testCanvas()) {
+                    console.log('Canvas test passed, setting up function simulator');
+                    setupFunctionTabs();
+                    switchFunction('linear');
+                } else {
+                    console.error('Canvas test failed');
+                }
+            }, 200);
         }
 
         // Setup function tab event listeners
@@ -571,6 +612,7 @@
             if (isAnimating) toggleAnimation();
             
             currentFunction = functionType;
+            console.log(`Switching to function: ${functionType}`);
             
             // Update active tab
             document.querySelectorAll('.function-tab').forEach(tab => {
@@ -590,8 +632,10 @@
             // Generate parameter controls
             generateParameterControls(functionType);
             
-            // Plot the function
-            plotFunction();
+            // Plot the function with a small delay to ensure everything is ready
+            setTimeout(() => {
+                plotFunction();
+            }, 50);
         }
 
         // Generate parameter control sliders
@@ -662,10 +706,27 @@
         // Initialize canvas
         function initCanvas() {
             canvas = document.getElementById('functionChart');
+            if (!canvas) {
+                console.error('Canvas element not found');
+                return;
+            }
+            
             ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Could not get canvas context');
+                return;
+            }
+            
+            // Set initial canvas size
+            canvas.width = 800;
+            canvas.height = 600;
+            canvasWidth = 800;
+            canvasHeight = 600;
             
             // Set up responsive canvas
-            resizeCanvas();
+            setTimeout(() => {
+                resizeCanvas();
+            }, 100);
             
             // Add mouse move event for coordinates display
             canvas.addEventListener('mousemove', showCoordinates);
@@ -674,19 +735,25 @@
             window.addEventListener('resize', () => {
                 setTimeout(resizeCanvas, 100);
             });
+            
+            console.log('Canvas initialized successfully');
         }
 
         function resizeCanvas() {
+            if (!canvas || !ctx) return;
+            
             const container = canvas.parentElement;
+            if (!container) return;
+            
             const containerWidth = container.offsetWidth - 40; // Account for padding
             const containerHeight = container.offsetHeight - 40;
             
             // Calculate appropriate size while maintaining aspect ratio
             const aspectRatio = 4/3;
-            let newWidth = Math.min(containerWidth, 800);
+            let newWidth = Math.min(Math.max(containerWidth, 400), 800);
             let newHeight = newWidth / aspectRatio;
             
-            if (newHeight > containerHeight) {
+            if (newHeight > containerHeight && containerHeight > 200) {
                 newHeight = containerHeight;
                 newWidth = newHeight * aspectRatio;
             }
@@ -699,8 +766,10 @@
             canvasWidth = newWidth;
             canvasHeight = newHeight;
             
+            console.log(`Canvas resized to: ${newWidth}x${newHeight}`);
+            
             // Replot after resize
-            if (currentFunction) {
+            if (currentFunction && functions[currentFunction]) {
                 plotFunction();
             }
         }
@@ -722,9 +791,18 @@
 
         // Plot the function using Canvas
         function plotFunction() {
-            if (!ctx) return;
+            if (!ctx || !canvas) {
+                console.error('Canvas or context not available');
+                return;
+            }
+            
+            if (!currentFunction || !functions[currentFunction]) {
+                console.error('No current function to plot');
+                return;
+            }
             
             const func = functions[currentFunction];
+            console.log(`Plotting function: ${currentFunction}`);
             
             // Set chart bounds based on function type
             if (currentFunction === 'logarithmic') {
@@ -752,6 +830,8 @@
             
             // Draw title
             drawTitle(func);
+            
+            console.log('Function plotted successfully');
         }
 
         function drawGrid() {
@@ -849,6 +929,11 @@
         }
 
         function drawFunction(func) {
+            if (!func || !func.calculate) {
+                console.error('Invalid function object');
+                return;
+            }
+            
             ctx.strokeStyle = '#4361ee';
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
@@ -856,6 +941,11 @@
             
             const plotWidth = canvasWidth - padding.left - padding.right;
             const plotHeight = canvasHeight - padding.top - padding.bottom;
+            
+            if (plotWidth <= 0 || plotHeight <= 0) {
+                console.error('Invalid plot dimensions');
+                return;
+            }
             
             // Generate points for the function
             let points = [];
@@ -1014,6 +1104,92 @@
             });
             
             plotFunction();
+        }
+
+        // Debug function for testing
+        function debugCanvas() {
+            console.log('Debug canvas called');
+            console.log('Canvas:', canvas);
+            console.log('Context:', ctx);
+            console.log('Canvas dimensions:', canvasWidth, 'x', canvasHeight);
+            console.log('Current function:', currentFunction);
+            
+            if (testCanvas()) {
+                alert('Canvas is working! Check console for details.');
+            } else {
+                alert('Canvas test failed! Check console for errors.');
+            }
+        }
+
+        // Simplified plotting for debugging
+        function plotSimpleLinear() {
+            if (!ctx) return;
+            
+            console.log('Plotting simple linear function');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw simple grid
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvasWidth; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvasHeight);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvasHeight; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvasWidth, y);
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvasWidth, centerY);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvasHeight);
+            ctx.stroke();
+            
+            // Draw simple linear function y = x
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            const scale = 20;
+            for (let px = 0; px <= canvasWidth; px += 2) {
+                const x = (px - centerX) / scale;
+                const y = x; // Simple linear function
+                const py = centerY - y * scale;
+                
+                if (px === 0) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw title
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Simple Linear Function: y = x', canvasWidth / 2, 30);
+            
+            console.log('Simple linear function plotted');
         }
 
         // Initialize when page loads
