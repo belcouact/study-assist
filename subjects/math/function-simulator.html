@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>函数模拟器 - 数学学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .simulator-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin: 2rem 0;
+            height: calc(100vh - 200px);
+        }
+
+        .control-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            height: fit-content;
+            max-height: 100%;
+            overflow-y: auto;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 1rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            height: 100%;
+            min-height: 600px;
+        }
+
+        .function-selector {
+            margin-bottom: 2rem;
+        }
+
+        .function-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .function-tab {
+            padding: 0.8rem 1.2rem;
+            border: none;
+            border-radius: 12px;
+            background: rgba(67, 97, 238, 0.1);
+            color: #4361ee;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .function-tab.active {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .function-tab:hover:not(.active) {
+            background: rgba(67, 97, 238, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .parameter-group {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            border-radius: 12px;
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .parameter-group h4 {
+            margin: 0 0 1rem 0;
+            color: #4361ee;
+            font-size: 1.1rem;
+        }
+
+        .parameter-control {
+            margin-bottom: 1rem;
+        }
+
+        .parameter-control label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .parameter-input {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .parameter-input input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(67, 97, 238, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .parameter-input input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(67, 97, 238, 0.3);
+        }
+
+        .parameter-value {
+            min-width: 60px;
+            padding: 0.5rem;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+            border-radius: 8px;
+            text-align: center;
+            background: white;
+            color: #333;
+        }
+
+        .function-equation {
+            background: rgba(67, 97, 238, 0.1);
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-size: 1.2rem;
+            color: #4361ee;
+            font-weight: 600;
+            font-family: 'Times New Roman', serif;
+        }
+
+        .animation-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .animation-btn {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .animation-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .animation-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .function-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .function-info h5 {
+            margin: 0 0 0.5rem 0;
+            color: #856404;
+        }
+
+        .function-info p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #856404;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .simulator-container {
+                grid-template-columns: 1fr;
+                height: auto;
+                gap: 1rem;
+            }
+
+            .control-panel {
+                order: 2;
+                max-height: none;
+            }
+
+            .chart-container {
+                order: 1;
+                min-height: 400px;
+                height: 400px;
+            }
+
+            .function-tabs {
+                justify-content: center;
+            }
+
+            .function-tab {
+                flex: 1;
+                min-width: 0;
+                padding: 0.6rem 0.8rem;
+                font-size: 0.8rem;
+            }
+
+            .animation-controls {
+                flex-direction: column;
+            }
+
+            .animation-btn {
+                flex: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .parameter-input {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.5rem;
+            }
+
+            .parameter-value {
+                min-width: auto;
+            }
+
+            .function-tabs {
+                gap: 0.3rem;
+            }
+
+            .function-tab {
+                padding: 0.5rem 0.6rem;
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span class="gradient-text">Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">数学</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="subject-hero">
+            <div class="container">
+                <div class="subject-hero-content">
+                    <h1>函数<span class="gradient-text">模拟器</span></h1>
+                    <p class="subject-description">探索从小学到高中的各种数学函数，通过交互式参数控制和动画图表来理解函数的性质和变化。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <div class="container">
+                <div class="simulator-container">
+                    <div class="control-panel">
+                        <div class="function-selector">
+                            <h3>选择函数类型</h3>
+                            <div class="function-tabs">
+                                <button class="function-tab active" data-function="linear">一次函数</button>
+                                <button class="function-tab" data-function="quadratic">二次函数</button>
+                                <button class="function-tab" data-function="exponential">指数函数</button>
+                                <button class="function-tab" data-function="power">幂函数</button>
+                                <button class="function-tab" data-function="logarithmic">对数函数</button>
+                                <button class="function-tab" data-function="trigonometric">三角函数</button>
+                                <button class="function-tab" data-function="rational">有理函数</button>
+                                <button class="function-tab" data-function="absolute">绝对值函数</button>
+                                <button class="function-tab" data-function="inverse">反比例函数</button>
+                                <button class="function-tab" data-function="radical">根式函数</button>
+                            </div>
+                        </div>
+
+                        <div class="function-equation" id="functionEquation">
+                            y = ax + b
+                        </div>
+
+                        <div class="animation-controls">
+                            <button class="animation-btn" id="playBtn" onclick="toggleAnimation()">
+                                <i class="fas fa-play"></i> 播放动画
+                            </button>
+                            <button class="animation-btn" onclick="resetParameters()">
+                                <i class="fas fa-refresh"></i> 重置
+                            </button>
+                        </div>
+
+                        <div id="parametersContainer">
+                            <!-- Parameters will be dynamically generated -->
+                        </div>
+
+                        <div class="function-info" id="functionInfo">
+                            <h5>一次函数</h5>
+                            <p>形如 y = ax + b 的函数，其中 a 是斜率，b 是 y 轴截距。当 a > 0 时函数递增，当 a < 0 时函数递减。</p>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <div id="functionChart"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">&copy; 2024 Alex的学习助手. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="../../libs/plotly/plotly.min.js"></script>
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // Function definitions and parameters
+        const functions = {
+            linear: {
+                name: '一次函数',
+                equation: 'y = ax + b',
+                description: '形如 y = ax + b 的函数，其中 a 是斜率，b 是 y 轴截距。当 a > 0 时函数递增，当 a < 0 时函数递减。',
+                parameters: {
+                    a: { value: 1, min: -5, max: 5, step: 0.1, label: '斜率 (a)' },
+                    b: { value: 0, min: -10, max: 10, step: 0.1, label: 'y轴截距 (b)' }
+                },
+                calculate: (x, params) => params.a * x + params.b
+            },
+            quadratic: {
+                name: '二次函数',
+                equation: 'y = ax² + bx + c',
+                description: '形如 y = ax² + bx + c 的函数。a 决定开口方向和大小，顶点坐标为 (-b/2a, c-b²/4a)。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '二次项系数 (a)' },
+                    b: { value: 0, min: -5, max: 5, step: 0.1, label: '一次项系数 (b)' },
+                    c: { value: 0, min: -10, max: 10, step: 0.1, label: '常数项 (c)' }
+                },
+                calculate: (x, params) => params.a * x * x + params.b * x + params.c
+            },
+            exponential: {
+                name: '指数函数',
+                equation: 'y = a·bˣ + c',
+                description: '形如 y = a·bˣ + c 的函数。当 b > 1 时函数递增，当 0 < b < 1 时函数递减。',
+                parameters: {
+                    a: { value: 1, min: 0.1, max: 3, step: 0.1, label: '系数 (a)' },
+                    b: { value: 2, min: 0.1, max: 3, step: 0.1, label: '底数 (b)' },
+                    c: { value: 0, min: -5, max: 5, step: 0.1, label: '垂直偏移 (c)' }
+                },
+                calculate: (x, params) => params.a * Math.pow(params.b, x) + params.c
+            },
+            power: {
+                name: '幂函数',
+                equation: 'y = axⁿ',
+                description: '形如 y = axⁿ 的函数。n 的值决定函数的形状特征。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '系数 (a)' },
+                    n: { value: 2, min: -3, max: 3, step: 0.1, label: '指数 (n)' }
+                },
+                calculate: (x, params) => {
+                    if (params.n % 2 === 0 && x < 0) return params.a * Math.pow(-x, params.n);
+                    return params.a * Math.pow(x, params.n);
+                }
+            },
+            logarithmic: {
+                name: '对数函数',
+                equation: 'y = a·log_b(x) + c',
+                description: '形如 y = a·log_b(x) + c 的函数。定义域为 x > 0，当 a > 0 时函数递增。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '系数 (a)' },
+                    b: { value: 10, min: 2, max: 10, step: 0.1, label: '底数 (b)' },
+                    c: { value: 0, min: -5, max: 5, step: 0.1, label: '垂直偏移 (c)' }
+                },
+                calculate: (x, params) => {
+                    if (x <= 0) return null;
+                    return params.a * Math.log(x) / Math.log(params.b) + params.c;
+                }
+            },
+            trigonometric: {
+                name: '三角函数',
+                equation: 'y = a·sin(bx + c) + d',
+                description: '形如 y = a·sin(bx + c) + d 的函数。a 是振幅，b 影响周期，c 是相位偏移，d 是垂直偏移。',
+                parameters: {
+                    a: { value: 1, min: 0.1, max: 3, step: 0.1, label: '振幅 (a)' },
+                    b: { value: 1, min: 0.1, max: 3, step: 0.1, label: '频率 (b)' },
+                    c: { value: 0, min: -Math.PI, max: Math.PI, step: 0.1, label: '相位 (c)' },
+                    d: { value: 0, min: -3, max: 3, step: 0.1, label: '偏移 (d)' }
+                },
+                calculate: (x, params) => params.a * Math.sin(params.b * x + params.c) + params.d
+            },
+            rational: {
+                name: '有理函数',
+                equation: 'y = (ax + b)/(cx + d)',
+                description: '形如 y = (ax + b)/(cx + d) 的函数。当 cx + d = 0 时函数不存在，存在渐近线。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '分子一次项 (a)' },
+                    b: { value: 0, min: -5, max: 5, step: 0.1, label: '分子常数项 (b)' },
+                    c: { value: 1, min: -3, max: 3, step: 0.1, label: '分母一次项 (c)' },
+                    d: { value: 1, min: -3, max: 3, step: 0.1, label: '分母常数项 (d)' }
+                },
+                calculate: (x, params) => {
+                    const denominator = params.c * x + params.d;
+                    if (Math.abs(denominator) < 0.001) return null;
+                    return (params.a * x + params.b) / denominator;
+                }
+            },
+            absolute: {
+                name: '绝对值函数',
+                equation: 'y = a|x - h| + k',
+                description: '形如 y = a|x - h| + k 的函数。图形呈V字型，顶点在 (h, k)。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '系数 (a)' },
+                    h: { value: 0, min: -5, max: 5, step: 0.1, label: '水平偏移 (h)' },
+                    k: { value: 0, min: -5, max: 5, step: 0.1, label: '垂直偏移 (k)' }
+                },
+                calculate: (x, params) => params.a * Math.abs(x - params.h) + params.k
+            },
+            inverse: {
+                name: '反比例函数',
+                equation: 'y = k/x + b',
+                description: '形如 y = k/x + b 的函数。当 k > 0 时，图形在第一、三象限；当 k < 0 时，图形在第二、四象限。',
+                parameters: {
+                    k: { value: 1, min: -5, max: 5, step: 0.1, label: '比例系数 (k)' },
+                    b: { value: 0, min: -3, max: 3, step: 0.1, label: '垂直偏移 (b)' }
+                },
+                calculate: (x, params) => {
+                    if (Math.abs(x) < 0.001) return null;
+                    return params.k / x + params.b;
+                }
+            },
+            radical: {
+                name: '根式函数',
+                equation: 'y = a√(x - h) + k',
+                description: '形如 y = a√(x - h) + k 的函数。定义域为 x ≥ h，当 a > 0 时函数递增。',
+                parameters: {
+                    a: { value: 1, min: -3, max: 3, step: 0.1, label: '系数 (a)' },
+                    h: { value: 0, min: -5, max: 5, step: 0.1, label: '水平偏移 (h)' },
+                    k: { value: 0, min: -5, max: 5, step: 0.1, label: '垂直偏移 (k)' }
+                },
+                calculate: (x, params) => {
+                    const inside = x - params.h;
+                    if (inside < 0) return null;
+                    return params.a * Math.sqrt(inside) + params.k;
+                }
+            }
+        };
+
+        let currentFunction = 'linear';
+        let animationId = null;
+        let isAnimating = false;
+
+        // Initialize the simulator
+        function initSimulator() {
+            setupFunctionTabs();
+            switchFunction('linear');
+            plotFunction();
+        }
+
+        // Setup function tab event listeners
+        function setupFunctionTabs() {
+            document.querySelectorAll('.function-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const functionType = tab.dataset.function;
+                    switchFunction(functionType);
+                });
+            });
+        }
+
+        // Switch to a different function
+        function switchFunction(functionType) {
+            if (isAnimating) toggleAnimation();
+            
+            currentFunction = functionType;
+            
+            // Update active tab
+            document.querySelectorAll('.function-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.function === functionType);
+            });
+
+            // Update equation display
+            document.getElementById('functionEquation').textContent = functions[functionType].equation;
+            
+            // Update function info
+            const infoElement = document.getElementById('functionInfo');
+            infoElement.innerHTML = `
+                <h5>${functions[functionType].name}</h5>
+                <p>${functions[functionType].description}</p>
+            `;
+
+            // Generate parameter controls
+            generateParameterControls(functionType);
+            
+            // Plot the function
+            plotFunction();
+        }
+
+        // Generate parameter control sliders
+        function generateParameterControls(functionType) {
+            const container = document.getElementById('parametersContainer');
+            const func = functions[functionType];
+            
+            container.innerHTML = '';
+            
+            const group = document.createElement('div');
+            group.className = 'parameter-group';
+            group.innerHTML = '<h4>参数调节</h4>';
+            
+            Object.entries(func.parameters).forEach(([param, config]) => {
+                const control = document.createElement('div');
+                control.className = 'parameter-control';
+                
+                control.innerHTML = `
+                    <label>${config.label}</label>
+                    <div class="parameter-input">
+                        <input type="range" 
+                               id="${param}Slider" 
+                               min="${config.min}" 
+                               max="${config.max}" 
+                               step="${config.step}" 
+                               value="${config.value}">
+                        <input type="number" 
+                               id="${param}Value" 
+                               class="parameter-value" 
+                               min="${config.min}" 
+                               max="${config.max}" 
+                               step="${config.step}" 
+                               value="${config.value}">
+                    </div>
+                `;
+                
+                group.appendChild(control);
+            });
+            
+            container.appendChild(group);
+            
+            // Add event listeners for parameter changes
+            Object.keys(func.parameters).forEach(param => {
+                const slider = document.getElementById(`${param}Slider`);
+                const valueInput = document.getElementById(`${param}Value`);
+                
+                slider.addEventListener('input', () => {
+                    valueInput.value = slider.value;
+                    func.parameters[param].value = parseFloat(slider.value);
+                    plotFunction();
+                });
+                
+                valueInput.addEventListener('input', () => {
+                    slider.value = valueInput.value;
+                    func.parameters[param].value = parseFloat(valueInput.value);
+                    plotFunction();
+                });
+            });
+        }
+
+        // Plot the function using Plotly
+        function plotFunction() {
+            const func = functions[currentFunction];
+            let xRange;
+            
+            if (currentFunction === 'logarithmic') {
+                xRange = Array.from({length: 200}, (_, i) => 0.1 + i * 0.1);
+            } else if (currentFunction === 'inverse') {
+                // For inverse functions, avoid x = 0 by creating two ranges
+                const range1 = Array.from({length: 100}, (_, i) => -10 + i * 0.099);
+                const range2 = Array.from({length: 100}, (_, i) => 0.01 + i * 0.099);
+                xRange = [...range1, ...range2];
+            } else if (currentFunction === 'radical') {
+                // For radical functions, start from h (the minimum x value)
+                const h = func.parameters.h.value;
+                xRange = Array.from({length: 200}, (_, i) => h + i * 0.1);
+            } else {
+                xRange = Array.from({length: 200}, (_, i) => -10 + i * 0.1);
+            }
+            
+            const yValues = xRange.map(x => func.calculate(x, func.parameters)).filter(y => y !== null && isFinite(y));
+            const xValues = xRange.slice(0, yValues.length);
+            
+            const trace = {
+                x: xValues,
+                y: yValues,
+                type: 'scatter',
+                mode: 'lines',
+                line: {
+                    color: '#4361ee',
+                    width: 3
+                },
+                name: func.equation
+            };
+
+            const layout = {
+                title: {
+                    text: `${func.name}: ${func.equation}`,
+                    font: { size: 18, color: '#333' }
+                },
+                xaxis: {
+                    title: 'x',
+                    gridcolor: '#e5e5e5',
+                    zerolinecolor: '#999',
+                    range: currentFunction === 'logarithmic' ? [0, 20] : 
+                           currentFunction === 'radical' ? [func.parameters.h.value, func.parameters.h.value + 20] : 
+                           [-10, 10]
+                },
+                yaxis: {
+                    title: 'y',
+                    gridcolor: '#e5e5e5',
+                    zerolinecolor: '#999',
+                    range: [-10, 10]
+                },
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 60, r: 20, b: 60, l: 60 },
+                showlegend: false,
+                responsive: true
+            };
+
+            const config = {
+                displayModeBar: false,
+                responsive: true
+            };
+
+            Plotly.newPlot('functionChart', [trace], layout, config);
+        }
+
+        // Animation functions
+        function toggleAnimation() {
+            const btn = document.getElementById('playBtn');
+            
+            if (isAnimating) {
+                stopAnimation();
+                btn.innerHTML = '<i class="fas fa-play"></i> 播放动画';
+            } else {
+                startAnimation();
+                btn.innerHTML = '<i class="fas fa-pause"></i> 停止动画';
+            }
+        }
+
+        function startAnimation() {
+            isAnimating = true;
+            const func = functions[currentFunction];
+            const paramKeys = Object.keys(func.parameters);
+            let paramIndex = 0;
+            let direction = 1;
+            
+            function animate() {
+                if (!isAnimating) return;
+                
+                const param = paramKeys[paramIndex];
+                const config = func.parameters[param];
+                const step = (config.max - config.min) / 100;
+                
+                config.value += direction * step;
+                
+                if (config.value >= config.max || config.value <= config.min) {
+                    direction *= -1;
+                    config.value = Math.max(config.min, Math.min(config.max, config.value));
+                }
+                
+                // Update UI
+                document.getElementById(`${param}Slider`).value = config.value;
+                document.getElementById(`${param}Value`).value = config.value.toFixed(1);
+                
+                plotFunction();
+                
+                animationId = setTimeout(animate, 50);
+            }
+            
+            animate();
+        }
+
+        function stopAnimation() {
+            isAnimating = false;
+            if (animationId) {
+                clearTimeout(animationId);
+                animationId = null;
+            }
+        }
+
+        // Reset all parameters to default values
+        function resetParameters() {
+            if (isAnimating) toggleAnimation();
+            
+            const func = functions[currentFunction];
+            Object.entries(func.parameters).forEach(([param, config]) => {
+                // Reset to default value (middle of range)
+                const defaultValue = (config.max + config.min) / 2;
+                config.value = defaultValue;
+                
+                document.getElementById(`${param}Slider`).value = defaultValue;
+                document.getElementById(`${param}Value`).value = defaultValue.toFixed(1);
+            });
+            
+            plotFunction();
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initSimulator);
+    </script>
+</body>
+</html> 
