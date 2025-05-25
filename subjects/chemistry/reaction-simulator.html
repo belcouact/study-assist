@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化学反应模拟器 - 化学学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .reaction-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem 0;
+        }
+
+        .reaction-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin: 2rem auto;
+            max-width: 1600px;
+        }
+
+        .reaction-header {
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .reaction-header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .reaction-header p {
+            margin: 1rem 0 0 0;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .reaction-tabs {
+            background: #f8f9fa;
+            padding: 0;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .reaction-tab {
+            padding: 1rem 2rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            white-space: nowrap;
+        }
+
+        .reaction-tab.active {
+            color: #dc3545;
+            border-bottom-color: #dc3545;
+            background: white;
+        }
+
+        .reaction-tab:hover {
+            color: #dc3545;
+            background: #f0f8ff;
+        }
+
+        .reaction-content {
+            padding: 2rem;
+            min-height: 600px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .reaction-workspace {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+            height: 600px;
+        }
+
+        .reaction-display {
+            background: #f8f9fa;
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e9ecef;
+        }
+
+        .reaction-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        }
+
+        .reaction-controls {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            height: fit-content;
+            border: 1px solid #e9ecef;
+        }
+
+        .reaction-controls h3 {
+            margin: 0 0 1rem 0;
+            color: #dc3545;
+            font-size: 1.2rem;
+        }
+
+        .reaction-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .reaction-btn {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .reaction-btn:hover {
+            border-color: #dc3545;
+            background: #f0f8ff;
+        }
+
+        .reaction-btn.selected {
+            border-color: #dc3545;
+            background: #fff5f5;
+            color: #c82333;
+        }
+
+        .parameter-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .parameter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .parameter-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .parameter-input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .parameter-slider {
+            width: 100%;
+            margin: 0.5rem 0;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .action-btn.secondary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+        }
+
+        .kinetics-analyzer {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+        }
+
+        .kinetics-chart {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e9ecef;
+            height: 400px;
+            position: relative;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .kinetics-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .data-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+
+        .data-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #dc3545;
+            margin-bottom: 0.5rem;
+        }
+
+        .data-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .equilibrium-calculator {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+        }
+
+        .equilibrium-setup {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .concentration-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .concentration-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .concentration-input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .equilibrium-results {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border: 1px solid #e9ecef;
+        }
+
+        .mechanism-viewer {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+        }
+
+        .mechanism-steps {
+            display: grid;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .mechanism-step {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            border-left: 4px solid #dc3545;
+            transition: all 0.3s ease;
+        }
+
+        .mechanism-step:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.15);
+        }
+
+        .mechanism-step h4 {
+            margin: 0 0 0.5rem 0;
+            color: #dc3545;
+        }
+
+        .mechanism-step p {
+            margin: 0;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .reaction-equation {
+            background: #fff5f5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            text-align: center;
+            border: 1px solid #dc3545;
+        }
+
+        @media (max-width: 768px) {
+            .reaction-workspace {
+                grid-template-columns: 1fr;
+            }
+            
+            .reaction-tabs {
+                flex-direction: column;
+            }
+            
+            .reaction-tab {
+                text-align: center;
+            }
+            
+            .kinetics-data {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">化学</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="reaction-page">
+        <div class="container">
+            <div class="reaction-container">
+                <div class="reaction-header">
+                    <h1><i class="fas fa-exchange-alt"></i> 化学反应模拟器</h1>
+                    <p>模拟化学反应过程，学习反应机理和动力学</p>
+                </div>
+
+                <div class="reaction-tabs">
+                    <button class="reaction-tab active" data-tab="simulator">反应模拟</button>
+                    <button class="reaction-tab" data-tab="kinetics">反应动力学</button>
+                    <button class="reaction-tab" data-tab="equilibrium">化学平衡</button>
+                    <button class="reaction-tab" data-tab="mechanism">反应机理</button>
+                </div>
+
+                <div class="reaction-content">
+                    <!-- 反应模拟标签页 -->
+                    <div class="tab-panel active" id="simulator-panel">
+                        <div class="reaction-workspace">
+                            <div class="reaction-display">
+                                <canvas class="reaction-canvas" id="reaction-canvas" width="800" height="600"></canvas>
+                            </div>
+                            
+                            <div class="reaction-controls">
+                                <h3><i class="fas fa-flask"></i> 反应控制</h3>
+                                
+                                <div class="reaction-selector">
+                                    <button class="reaction-btn selected" data-reaction="combustion">燃烧反应</button>
+                                    <button class="reaction-btn" data-reaction="acid-base">酸碱反应</button>
+                                    <button class="reaction-btn" data-reaction="precipitation">沉淀反应</button>
+                                    <button class="reaction-btn" data-reaction="redox">氧化还原反应</button>
+                                    <button class="reaction-btn" data-reaction="synthesis">合成反应</button>
+                                </div>
+
+                                <div class="parameter-controls">
+                                    <div class="parameter-group">
+                                        <label>温度 (K)</label>
+                                        <input type="range" class="parameter-slider" id="temperature" min="273" max="773" value="298">
+                                        <input type="number" class="parameter-input" id="temp-value" value="298" min="273" max="773">
+                                    </div>
+                                    
+                                    <div class="parameter-group">
+                                        <label>压力 (atm)</label>
+                                        <input type="range" class="parameter-slider" id="pressure" min="0.1" max="10" step="0.1" value="1">
+                                        <input type="number" class="parameter-input" id="pressure-value" value="1" min="0.1" max="10" step="0.1">
+                                    </div>
+                                    
+                                    <div class="parameter-group">
+                                        <label>催化剂</label>
+                                        <select class="parameter-input" id="catalyst">
+                                            <option value="none">无催化剂</option>
+                                            <option value="enzyme">酶催化</option>
+                                            <option value="metal">金属催化</option>
+                                            <option value="acid">酸催化</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="action-buttons">
+                                    <button class="action-btn" id="start-reaction">开始反应</button>
+                                    <button class="action-btn" id="pause-reaction">暂停反应</button>
+                                    <button class="action-btn secondary" id="reset-reaction">重置反应</button>
+                                </div>
+
+                                <div class="reaction-equation" id="reaction-equation">
+                                    CH₄ + 2O₂ → CO₂ + 2H₂O
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 反应动力学标签页 -->
+                    <div class="tab-panel" id="kinetics-panel">
+                        <h2>反应动力学分析</h2>
+                        <div class="kinetics-analyzer">
+                            <div class="kinetics-chart">
+                                <canvas class="chart-canvas" id="kinetics-chart" width="600" height="300"></canvas>
+                            </div>
+                            
+                            <div class="kinetics-data">
+                                <div class="data-card">
+                                    <div class="data-value" id="reaction-rate">0.05</div>
+                                    <div class="data-label">反应速率 (mol/L·s)</div>
+                                </div>
+                                <div class="data-card">
+                                    <div class="data-value" id="activation-energy">85.2</div>
+                                    <div class="data-label">活化能 (kJ/mol)</div>
+                                </div>
+                                <div class="data-card">
+                                    <div class="data-value" id="half-life">13.9</div>
+                                    <div class="data-label">半衰期 (s)</div>
+                                </div>
+                                <div class="data-card">
+                                    <div class="data-value" id="rate-constant">0.025</div>
+                                    <div class="data-label">速率常数 (s⁻¹)</div>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="action-btn" id="start-kinetics">开始动力学分析</button>
+                                <button class="action-btn secondary" id="export-data">导出数据</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 化学平衡标签页 -->
+                    <div class="tab-panel" id="equilibrium-panel">
+                        <h2>化学平衡计算</h2>
+                        <div class="equilibrium-calculator">
+                            <div class="equilibrium-setup">
+                                <h4>平衡反应: A + B ⇌ C + D</h4>
+                                
+                                <div class="concentration-inputs">
+                                    <div class="concentration-group">
+                                        <label>[A]₀ (mol/L)</label>
+                                        <input type="number" class="concentration-input" id="conc-a" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="concentration-group">
+                                        <label>[B]₀ (mol/L)</label>
+                                        <input type="number" class="concentration-input" id="conc-b" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="concentration-group">
+                                        <label>[C]₀ (mol/L)</label>
+                                        <input type="number" class="concentration-input" id="conc-c" value="0.0" step="0.1">
+                                    </div>
+                                    <div class="concentration-group">
+                                        <label>[D]₀ (mol/L)</label>
+                                        <input type="number" class="concentration-input" id="conc-d" value="0.0" step="0.1">
+                                    </div>
+                                </div>
+
+                                <div class="parameter-group">
+                                    <label>平衡常数 (Kc)</label>
+                                    <input type="number" class="parameter-input" id="equilibrium-constant" value="4.0" step="0.1">
+                                </div>
+
+                                <div class="action-buttons">
+                                    <button class="action-btn" id="calculate-equilibrium">计算平衡</button>
+                                    <button class="action-btn secondary" id="reset-equilibrium">重置</button>
+                                </div>
+                            </div>
+
+                            <div class="equilibrium-results" id="equilibrium-results">
+                                <h4>平衡结果</h4>
+                                <p>点击"计算平衡"按钮开始计算</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 反应机理标签页 -->
+                    <div class="tab-panel" id="mechanism-panel">
+                        <h2>反应机理探索</h2>
+                        <div class="mechanism-viewer">
+                            <div class="mechanism-steps" id="mechanism-steps">
+                                <div class="mechanism-step">
+                                    <h4>步骤1: 反应物活化</h4>
+                                    <p>反应物分子获得足够的能量，达到活化态，形成活化络合物。</p>
+                                </div>
+                                <div class="mechanism-step">
+                                    <h4>步骤2: 过渡态形成</h4>
+                                    <p>活化络合物经过过渡态，此时化学键处于断裂和形成的临界状态。</p>
+                                </div>
+                                <div class="mechanism-step">
+                                    <h4>步骤3: 产物生成</h4>
+                                    <p>过渡态分解，形成最终产物，释放反应能量。</p>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <button class="action-btn" id="show-sn1">SN1机理</button>
+                                <button class="action-btn" id="show-sn2">SN2机理</button>
+                                <button class="action-btn" id="show-e1">E1机理</button>
+                                <button class="action-btn" id="show-e2">E2机理</button>
+                                <button class="action-btn secondary" id="reset-mechanism">重置</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+    <script>
+        // 化学反应模拟器功能
+        class ReactionSimulator {
+            constructor() {
+                this.canvas = document.getElementById('reaction-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.kineticChart = document.getElementById('kinetics-chart');
+                this.kineticCtx = this.kineticChart.getContext('2d');
+                
+                this.currentReaction = 'combustion';
+                this.isRunning = false;
+                this.animationId = null;
+                this.time = 0;
+                this.particles = [];
+                
+                this.reactions = this.initializeReactions();
+                this.initializeEventListeners();
+                this.drawReactionSetup();
+                this.drawKineticsChart();
+            }
+
+            initializeReactions() {
+                return {
+                    'combustion': {
+                        equation: 'CH₄ + 2O₂ → CO₂ + 2H₂O',
+                        reactants: ['CH₄', 'O₂'],
+                        products: ['CO₂', 'H₂O'],
+                        activationEnergy: 85.2,
+                        enthalpy: -890.3
+                    },
+                    'acid-base': {
+                        equation: 'HCl + NaOH → NaCl + H₂O',
+                        reactants: ['HCl', 'NaOH'],
+                        products: ['NaCl', 'H₂O'],
+                        activationEnergy: 15.5,
+                        enthalpy: -57.3
+                    },
+                    'precipitation': {
+                        equation: 'AgNO₃ + NaCl → AgCl↓ + NaNO₃',
+                        reactants: ['AgNO₃', 'NaCl'],
+                        products: ['AgCl', 'NaNO₃'],
+                        activationEnergy: 8.2,
+                        enthalpy: -65.5
+                    },
+                    'redox': {
+                        equation: 'Zn + CuSO₄ → ZnSO₄ + Cu',
+                        reactants: ['Zn', 'CuSO₄'],
+                        products: ['ZnSO₄', 'Cu'],
+                        activationEnergy: 25.8,
+                        enthalpy: -216.8
+                    },
+                    'synthesis': {
+                        equation: 'N₂ + 3H₂ → 2NH₃',
+                        reactants: ['N₂', 'H₂'],
+                        products: ['NH₃'],
+                        activationEnergy: 150.0,
+                        enthalpy: -92.4
+                    }
+                };
+            }
+
+            initializeEventListeners() {
+                // 标签页切换
+                document.querySelectorAll('.reaction-tab').forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        this.switchTab(e.target.dataset.tab);
+                    });
+                });
+
+                // 反应选择
+                document.querySelectorAll('.reaction-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.selectReaction(e.target.dataset.reaction);
+                    });
+                });
+
+                // 参数控制
+                document.getElementById('temperature').addEventListener('input', (e) => {
+                    document.getElementById('temp-value').value = e.target.value;
+                    this.updateReactionParameters();
+                });
+
+                document.getElementById('temp-value').addEventListener('input', (e) => {
+                    document.getElementById('temperature').value = e.target.value;
+                    this.updateReactionParameters();
+                });
+
+                document.getElementById('pressure').addEventListener('input', (e) => {
+                    document.getElementById('pressure-value').value = e.target.value;
+                    this.updateReactionParameters();
+                });
+
+                document.getElementById('pressure-value').addEventListener('input', (e) => {
+                    document.getElementById('pressure').value = e.target.value;
+                    this.updateReactionParameters();
+                });
+
+                // 反应控制
+                document.getElementById('start-reaction').addEventListener('click', () => {
+                    this.startReaction();
+                });
+
+                document.getElementById('pause-reaction').addEventListener('click', () => {
+                    this.pauseReaction();
+                });
+
+                document.getElementById('reset-reaction').addEventListener('click', () => {
+                    this.resetReaction();
+                });
+
+                // 动力学分析
+                document.getElementById('start-kinetics').addEventListener('click', () => {
+                    this.startKineticsAnalysis();
+                });
+
+                document.getElementById('export-data').addEventListener('click', () => {
+                    this.exportKineticsData();
+                });
+
+                // 平衡计算
+                document.getElementById('calculate-equilibrium').addEventListener('click', () => {
+                    this.calculateEquilibrium();
+                });
+
+                document.getElementById('reset-equilibrium').addEventListener('click', () => {
+                    this.resetEquilibrium();
+                });
+
+                // 反应机理
+                document.getElementById('show-sn1').addEventListener('click', () => {
+                    this.showMechanism('sn1');
+                });
+
+                document.getElementById('show-sn2').addEventListener('click', () => {
+                    this.showMechanism('sn2');
+                });
+
+                document.getElementById('show-e1').addEventListener('click', () => {
+                    this.showMechanism('e1');
+                });
+
+                document.getElementById('show-e2').addEventListener('click', () => {
+                    this.showMechanism('e2');
+                });
+
+                document.getElementById('reset-mechanism').addEventListener('click', () => {
+                    this.resetMechanism();
+                });
+            }
+
+            switchTab(tabName) {
+                // 更新标签页状态
+                document.querySelectorAll('.reaction-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                // 显示对应面板
+                document.querySelectorAll('.tab-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+                document.getElementById(`${tabName}-panel`).classList.add('active');
+            }
+
+            selectReaction(reactionType) {
+                // 更新按钮状态
+                document.querySelectorAll('.reaction-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                document.querySelector(`[data-reaction="${reactionType}"]`).classList.add('selected');
+
+                this.currentReaction = reactionType;
+                this.updateReactionDisplay();
+            }
+
+            updateReactionDisplay() {
+                const reaction = this.reactions[this.currentReaction];
+                document.getElementById('reaction-equation').textContent = reaction.equation;
+                
+                // 更新活化能显示
+                document.getElementById('activation-energy').textContent = reaction.activationEnergy;
+                
+                this.resetReaction();
+                this.drawReactionSetup();
+            }
+
+            drawReactionSetup() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 绘制反应容器
+                this.ctx.strokeStyle = '#333';
+                this.ctx.lineWidth = 3;
+                this.ctx.strokeRect(50, 50, this.canvas.width - 100, this.canvas.height - 100);
+
+                // 绘制反应物和产物
+                const reaction = this.reactions[this.currentReaction];
+                
+                // 反应物
+                this.ctx.fillStyle = '#4ecdc4';
+                this.ctx.font = '16px Arial';
+                this.ctx.textAlign = 'center';
+                reaction.reactants.forEach((reactant, index) => {
+                    const x = 150 + index * 100;
+                    const y = 200;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 30, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillText(reactant, x, y + 5);
+                    this.ctx.fillStyle = '#4ecdc4';
+                });
+
+                // 箭头
+                this.ctx.strokeStyle = '#dc3545';
+                this.ctx.lineWidth = 3;
+                this.ctx.beginPath();
+                this.ctx.moveTo(350, 200);
+                this.ctx.lineTo(450, 200);
+                this.ctx.stroke();
+                
+                // 箭头头部
+                this.ctx.beginPath();
+                this.ctx.moveTo(440, 190);
+                this.ctx.lineTo(450, 200);
+                this.ctx.lineTo(440, 210);
+                this.ctx.stroke();
+
+                // 产物
+                this.ctx.fillStyle = '#ff6b6b';
+                reaction.products.forEach((product, index) => {
+                    const x = 550 + index * 100;
+                    const y = 200;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, 30, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    this.ctx.fillStyle = '#333';
+                    this.ctx.fillText(product, x, y + 5);
+                    this.ctx.fillStyle = '#ff6b6b';
+                });
+
+                // 温度和压力显示
+                this.ctx.fillStyle = '#333';
+                this.ctx.font = '14px Arial';
+                this.ctx.textAlign = 'left';
+                const temp = document.getElementById('temp-value').value;
+                const pressure = document.getElementById('pressure-value').value;
+                this.ctx.fillText(`温度: ${temp} K`, 60, 80);
+                this.ctx.fillText(`压力: ${pressure} atm`, 60, 100);
+            }
+
+            startReaction() {
+                if (this.isRunning) return;
+                
+                this.isRunning = true;
+                this.time = 0;
+                this.particles = [];
+                
+                // 创建粒子
+                for (let i = 0; i < 20; i++) {
+                    this.particles.push({
+                        x: 100 + Math.random() * 200,
+                        y: 150 + Math.random() * 100,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        type: 'reactant',
+                        energy: Math.random() * 100
+                    });
+                }
+                
+                this.animateReaction();
+            }
+
+            animateReaction() {
+                if (!this.isRunning) return;
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.drawReactionSetup();
+
+                // 更新和绘制粒子
+                this.particles.forEach(particle => {
+                    particle.x += particle.vx;
+                    particle.y += particle.vy;
+                    
+                    // 边界反弹
+                    if (particle.x < 60 || particle.x > this.canvas.width - 60) particle.vx *= -1;
+                    if (particle.y < 60 || particle.y > this.canvas.height - 60) particle.vy *= -1;
+                    
+                    // 绘制粒子
+                    this.ctx.fillStyle = particle.type === 'reactant' ? '#4ecdc4' : '#ff6b6b';
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, 5, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                });
+
+                // 模拟反应进程
+                this.time += 0.1;
+                if (this.time > 5) {
+                    // 转换一些反应物为产物
+                    this.particles.forEach(particle => {
+                        if (particle.type === 'reactant' && Math.random() < 0.02) {
+                            particle.type = 'product';
+                        }
+                    });
+                }
+
+                this.animationId = requestAnimationFrame(() => this.animateReaction());
+            }
+
+            pauseReaction() {
+                this.isRunning = false;
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+            }
+
+            resetReaction() {
+                this.pauseReaction();
+                this.time = 0;
+                this.particles = [];
+                this.drawReactionSetup();
+            }
+
+            updateReactionParameters() {
+                const temp = parseFloat(document.getElementById('temp-value').value);
+                const pressure = parseFloat(document.getElementById('pressure-value').value);
+                
+                // 根据温度和压力更新反应速率
+                const baseRate = 0.05;
+                const tempFactor = Math.exp((temp - 298) / 100);
+                const pressureFactor = pressure;
+                const newRate = baseRate * tempFactor * pressureFactor;
+                
+                document.getElementById('reaction-rate').textContent = newRate.toFixed(3);
+                
+                // 更新半衰期
+                const halfLife = Math.log(2) / newRate;
+                document.getElementById('half-life').textContent = halfLife.toFixed(1);
+                
+                // 更新速率常数
+                document.getElementById('rate-constant').textContent = (newRate / 2).toFixed(3);
+            }
+
+            drawKineticsChart() {
+                this.kineticCtx.clearRect(0, 0, this.kineticChart.width, this.kineticChart.height);
+                
+                // 绘制坐标轴
+                this.kineticCtx.strokeStyle = '#333';
+                this.kineticCtx.lineWidth = 2;
+                this.kineticCtx.beginPath();
+                this.kineticCtx.moveTo(50, 250);
+                this.kineticCtx.lineTo(550, 250);
+                this.kineticCtx.moveTo(50, 250);
+                this.kineticCtx.lineTo(50, 50);
+                this.kineticCtx.stroke();
+                
+                // 标签
+                this.kineticCtx.fillStyle = '#333';
+                this.kineticCtx.font = '12px Arial';
+                this.kineticCtx.fillText('时间 (s)', 300, 280);
+                this.kineticCtx.save();
+                this.kineticCtx.translate(20, 150);
+                this.kineticCtx.rotate(-Math.PI / 2);
+                this.kineticCtx.fillText('浓度 (mol/L)', 0, 0);
+                this.kineticCtx.restore();
+                
+                // 绘制反应曲线
+                this.kineticCtx.strokeStyle = '#dc3545';
+                this.kineticCtx.lineWidth = 3;
+                this.kineticCtx.beginPath();
+                for (let x = 50; x <= 550; x += 5) {
+                    const t = (x - 50) / 10;
+                    const concentration = Math.exp(-0.1 * t);
+                    const y = 250 - concentration * 150;
+                    if (x === 50) {
+                        this.kineticCtx.moveTo(x, y);
+                    } else {
+                        this.kineticCtx.lineTo(x, y);
+                    }
+                }
+                this.kineticCtx.stroke();
+            }
+
+            startKineticsAnalysis() {
+                // 模拟动力学数据更新
+                const intervals = [1000, 2000, 3000, 4000, 5000];
+                let index = 0;
+                
+                const updateData = () => {
+                    if (index < intervals.length) {
+                        const rate = 0.05 * (1 + Math.random() * 0.2);
+                        const energy = 85.2 + (Math.random() - 0.5) * 10;
+                        const halfLife = Math.log(2) / rate;
+                        const rateConstant = rate / 2;
+                        
+                        document.getElementById('reaction-rate').textContent = rate.toFixed(3);
+                        document.getElementById('activation-energy').textContent = energy.toFixed(1);
+                        document.getElementById('half-life').textContent = halfLife.toFixed(1);
+                        document.getElementById('rate-constant').textContent = rateConstant.toFixed(3);
+                        
+                        index++;
+                        setTimeout(updateData, intervals[index - 1]);
+                    }
+                };
+                
+                updateData();
+            }
+
+            exportKineticsData() {
+                const data = {
+                    reactionRate: document.getElementById('reaction-rate').textContent,
+                    activationEnergy: document.getElementById('activation-energy').textContent,
+                    halfLife: document.getElementById('half-life').textContent,
+                    rateConstant: document.getElementById('rate-constant').textContent,
+                    temperature: document.getElementById('temp-value').value,
+                    pressure: document.getElementById('pressure-value').value
+                };
+                
+                const dataStr = JSON.stringify(data, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'kinetics_data.json';
+                link.click();
+            }
+
+            calculateEquilibrium() {
+                const concA = parseFloat(document.getElementById('conc-a').value);
+                const concB = parseFloat(document.getElementById('conc-b').value);
+                const concC = parseFloat(document.getElementById('conc-c').value);
+                const concD = parseFloat(document.getElementById('conc-d').value);
+                const Kc = parseFloat(document.getElementById('equilibrium-constant').value);
+                
+                // 简化的平衡计算 (假设化学计量系数为1)
+                // A + B ⇌ C + D
+                // Kc = [C][D] / [A][B]
+                
+                let x = 0;
+                let iterations = 0;
+                const maxIterations = 100;
+                
+                // 牛顿法求解
+                while (iterations < maxIterations) {
+                    const f = ((concC + x) * (concD + x)) / ((concA - x) * (concB - x)) - Kc;
+                    const df = (2 * x + concC + concD) / ((concA - x) * (concB - x)) + 
+                              ((concC + x) * (concD + x)) / Math.pow((concA - x) * (concB - x), 2);
+                    
+                    const newX = x - f / df;
+                    
+                    if (Math.abs(newX - x) < 0.001) break;
+                    x = newX;
+                    iterations++;
+                }
+                
+                const equilibriumA = concA - x;
+                const equilibriumB = concB - x;
+                const equilibriumC = concC + x;
+                const equilibriumD = concD + x;
+                
+                document.getElementById('equilibrium-results').innerHTML = `
+                    <h4>平衡结果</h4>
+                    <p><strong>平衡浓度:</strong></p>
+                    <p>[A] = ${equilibriumA.toFixed(3)} mol/L</p>
+                    <p>[B] = ${equilibriumB.toFixed(3)} mol/L</p>
+                    <p>[C] = ${equilibriumC.toFixed(3)} mol/L</p>
+                    <p>[D] = ${equilibriumD.toFixed(3)} mol/L</p>
+                    <p><strong>反应进度:</strong> ${x.toFixed(3)} mol/L</p>
+                    <p><strong>转化率:</strong> ${((x / concA) * 100).toFixed(1)}%</p>
+                `;
+            }
+
+            resetEquilibrium() {
+                document.getElementById('conc-a').value = '1.0';
+                document.getElementById('conc-b').value = '1.0';
+                document.getElementById('conc-c').value = '0.0';
+                document.getElementById('conc-d').value = '0.0';
+                document.getElementById('equilibrium-constant').value = '4.0';
+                
+                document.getElementById('equilibrium-results').innerHTML = `
+                    <h4>平衡结果</h4>
+                    <p>点击"计算平衡"按钮开始计算</p>
+                `;
+            }
+
+            showMechanism(mechanismType) {
+                const mechanisms = {
+                    'sn1': [
+                        { title: '步骤1: 离去基团离开', description: 'C-X键断裂，形成碳正离子中间体，这是决速步骤。' },
+                        { title: '步骤2: 亲核试剂进攻', description: '亲核试剂从任意方向进攻碳正离子，形成产物。' }
+                    ],
+                    'sn2': [
+                        { title: '一步反应', description: '亲核试剂从背面进攻，同时离去基团离开，发生构型翻转。' }
+                    ],
+                    'e1': [
+                        { title: '步骤1: 离去基团离开', description: 'C-X键断裂，形成碳正离子中间体。' },
+                        { title: '步骤2: 质子消除', description: '碱夺取β-氢，形成双键，产生烯烃。' }
+                    ],
+                    'e2': [
+                        { title: '一步反应', description: '碱夺取β-氢的同时，离去基团离开，形成双键。' }
+                    ]
+                };
+                
+                const steps = mechanisms[mechanismType];
+                const container = document.getElementById('mechanism-steps');
+                container.innerHTML = '';
+                
+                steps.forEach(step => {
+                    const stepDiv = document.createElement('div');
+                    stepDiv.className = 'mechanism-step';
+                    stepDiv.innerHTML = `
+                        <h4>${step.title}</h4>
+                        <p>${step.description}</p>
+                    `;
+                    container.appendChild(stepDiv);
+                });
+            }
+
+            resetMechanism() {
+                const container = document.getElementById('mechanism-steps');
+                container.innerHTML = `
+                    <div class="mechanism-step">
+                        <h4>步骤1: 反应物活化</h4>
+                        <p>反应物分子获得足够的能量，达到活化态，形成活化络合物。</p>
+                    </div>
+                    <div class="mechanism-step">
+                        <h4>步骤2: 过渡态形成</h4>
+                        <p>活化络合物经过过渡态，此时化学键处于断裂和形成的临界状态。</p>
+                    </div>
+                    <div class="mechanism-step">
+                        <h4>步骤3: 产物生成</h4>
+                        <p>过渡态分解，形成最终产物，释放反应能量。</p>
+                    </div>
+                `;
+            }
+        }
+
+        // 初始化反应模拟器
+        let reactionSimulator;
+        document.addEventListener('DOMContentLoaded', () => {
+            reactionSimulator = new ReactionSimulator();
+        });
+    </script>
+</body>
+</html> 
