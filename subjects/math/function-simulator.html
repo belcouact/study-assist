@@ -271,10 +271,13 @@
 
             .animation-controls {
                 flex-direction: column;
+                gap: 0.5rem;
             }
 
             .animation-btn {
                 flex: none;
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
             }
         }
 
@@ -383,6 +386,9 @@
                             </button>
                             <button class="animation-btn" onclick="debugCanvas()" style="background: #e74c3c;">
                                 <i class="fas fa-bug"></i> 测试画布
+                            </button>
+                            <button class="animation-btn" onclick="testPlotLinear()" style="background: #27ae60;">
+                                <i class="fas fa-chart-line"></i> 测试绘图
                             </button>
                         </div>
 
@@ -934,6 +940,8 @@
                 return;
             }
             
+            console.log('Drawing function with parameters:', func.parameters);
+            
             ctx.strokeStyle = '#4361ee';
             ctx.lineWidth = 3;
             ctx.lineCap = 'round';
@@ -943,89 +951,122 @@
             const plotHeight = canvasHeight - padding.top - padding.bottom;
             
             if (plotWidth <= 0 || plotHeight <= 0) {
-                console.error('Invalid plot dimensions');
+                console.error('Invalid plot dimensions:', plotWidth, plotHeight);
                 return;
             }
             
-            // Generate points for the function
-            let points = [];
-            const numPoints = 1000;
+            // Simple direct plotting approach
+            ctx.beginPath();
+            let started = false;
+            const numPoints = 800; // Reduce points for better performance
             
-            if (currentFunction === 'inverse') {
-                // Handle inverse functions by splitting around x = 0
-                // Negative x values
-                for (let i = 0; i <= numPoints / 2; i++) {
-                    const x = chartBounds.xMin + i * (0 - chartBounds.xMin) / (numPoints / 2);
-                    if (Math.abs(x) > 0.001) {
-                        const y = func.calculate(x, func.parameters);
-                        if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
-                            points.push({ x, y });
-                        }
+            console.log('Chart bounds:', chartBounds);
+            
+            for (let i = 0; i <= numPoints; i++) {
+                const x = chartBounds.xMin + i * (chartBounds.xMax - chartBounds.xMin) / numPoints;
+                let y;
+                
+                try {
+                    y = func.calculate(x, func.parameters);
+                } catch (error) {
+                    console.error('Error calculating function value:', error);
+                    continue;
+                }
+                
+                // Skip invalid values
+                if (y === null || y === undefined || !isFinite(y)) {
+                    if (started) {
+                        ctx.stroke();
+                        ctx.beginPath();
+                        started = false;
                     }
+                    continue;
                 }
                 
-                // Draw negative side
-                if (points.length > 1) {
-                    drawCurve(points);
-                }
-                
-                // Positive x values
-                points = [];
-                for (let i = 0; i <= numPoints / 2; i++) {
-                    const x = 0.001 + i * (chartBounds.xMax - 0.001) / (numPoints / 2);
-                    const y = func.calculate(x, func.parameters);
-                    if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
-                        points.push({ x, y });
+                // Skip values outside reasonable bounds
+                if (y < chartBounds.yMin - 100 || y > chartBounds.yMax + 100) {
+                    if (started) {
+                        ctx.stroke();
+                        ctx.beginPath();
+                        started = false;
                     }
+                    continue;
                 }
                 
-                // Draw positive side
-                if (points.length > 1) {
-                    drawCurve(points);
-                }
-            } else {
-                // Regular function plotting
-                for (let i = 0; i <= numPoints; i++) {
-                    const x = chartBounds.xMin + i * (chartBounds.xMax - chartBounds.xMin) / numPoints;
-                    const y = func.calculate(x, func.parameters);
-                    
-                    if (y !== null && isFinite(y) && y >= chartBounds.yMin && y <= chartBounds.yMax) {
-                        points.push({ x, y });
-                    } else if (points.length > 1) {
-                        // Draw the current segment and start a new one
-                        drawCurve(points);
-                        points = [];
-                    }
-                }
+                // Convert to pixel coordinates
+                const pixelX = padding.left + (x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
+                const pixelY = canvasHeight - padding.bottom - (y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
                 
-                // Draw the final segment
-                if (points.length > 1) {
-                    drawCurve(points);
+                if (!started) {
+                    ctx.moveTo(pixelX, pixelY);
+                    started = true;
+                } else {
+                    ctx.lineTo(pixelX, pixelY);
                 }
             }
+            
+            if (started) {
+                ctx.stroke();
+            }
+            
+            console.log('Function drawing completed');
         }
 
-        function drawCurve(points) {
-            if (points.length < 2) return;
+        // Simple function to test if plotting is working
+        function testPlotLinear() {
+            if (!ctx) return;
             
-            const plotWidth = canvasWidth - padding.left - padding.right;
-            const plotHeight = canvasHeight - padding.top - padding.bottom;
+            console.log('Testing linear plot');
             
+            // Clear canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Draw simple axes
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(padding.left, centerY);
+            ctx.lineTo(canvasWidth - padding.right, centerY);
+            ctx.stroke();
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(centerX, padding.top);
+            ctx.lineTo(centerX, canvasHeight - padding.bottom);
+            ctx.stroke();
+            
+            // Draw y = x line
+            ctx.strokeStyle = '#4361ee';
+            ctx.lineWidth = 3;
             ctx.beginPath();
             
-            // Convert first point to pixels
-            const startX = padding.left + (points[0].x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
-            const startY = canvasHeight - padding.bottom - (points[0].y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
-            ctx.moveTo(startX, startY);
-            
-            // Draw lines to subsequent points
-            for (let i = 1; i < points.length; i++) {
-                const pixelX = padding.left + (points[i].x - chartBounds.xMin) * plotWidth / (chartBounds.xMax - chartBounds.xMin);
-                const pixelY = canvasHeight - padding.bottom - (points[i].y - chartBounds.yMin) * plotHeight / (chartBounds.yMax - chartBounds.yMin);
-                ctx.lineTo(pixelX, pixelY);
+            const scale = 20;
+            for (let px = padding.left; px <= canvasWidth - padding.right; px += 2) {
+                const x = (px - centerX) / scale;
+                const y = x; // y = x
+                const py = centerY - y * scale;
+                
+                if (px === padding.left) {
+                    ctx.moveTo(px, py);
+                } else {
+                    ctx.lineTo(px, py);
+                }
             }
-            
             ctx.stroke();
+            
+            // Add title
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Test Plot: y = x', canvasWidth / 2, 30);
+            
+            console.log('Test plot completed');
         }
 
         function drawTitle(func) {
@@ -1055,27 +1096,36 @@
             let paramIndex = 0;
             let direction = 1;
             
+            console.log('Starting animation for function:', currentFunction);
+            console.log('Parameters to animate:', paramKeys);
+            
             function animate() {
                 if (!isAnimating) return;
                 
                 const param = paramKeys[paramIndex];
                 const config = func.parameters[param];
-                const step = (config.max - config.min) / 100;
+                const step = (config.max - config.min) / 200; // Slower animation
                 
                 config.value += direction * step;
                 
                 if (config.value >= config.max || config.value <= config.min) {
                     direction *= -1;
                     config.value = Math.max(config.min, Math.min(config.max, config.value));
+                    
+                    // Move to next parameter
+                    paramIndex = (paramIndex + 1) % paramKeys.length;
                 }
                 
                 // Update UI
-                document.getElementById(`${param}Slider`).value = config.value;
-                document.getElementById(`${param}Value`).value = config.value.toFixed(1);
+                const slider = document.getElementById(`${param}Slider`);
+                const valueInput = document.getElementById(`${param}Value`);
+                
+                if (slider) slider.value = config.value;
+                if (valueInput) valueInput.value = config.value.toFixed(2);
                 
                 plotFunction();
                 
-                animationId = setTimeout(animate, 50);
+                animationId = setTimeout(animate, 100); // Slower animation speed
             }
             
             animate();
@@ -1108,14 +1158,33 @@
 
         // Debug function for testing
         function debugCanvas() {
-            console.log('Debug canvas called');
-            console.log('Canvas:', canvas);
-            console.log('Context:', ctx);
+            console.log('=== CANVAS DEBUG INFO ===');
+            console.log('Canvas element:', canvas);
+            console.log('Canvas context:', ctx);
             console.log('Canvas dimensions:', canvasWidth, 'x', canvasHeight);
             console.log('Current function:', currentFunction);
+            console.log('Function object:', functions[currentFunction]);
+            console.log('Chart bounds:', chartBounds);
+            console.log('Padding:', padding);
+            
+            if (functions[currentFunction]) {
+                console.log('Function parameters:', functions[currentFunction].parameters);
+                
+                // Test function calculation
+                try {
+                    const testX = 1;
+                    const testY = functions[currentFunction].calculate(testX, functions[currentFunction].parameters);
+                    console.log(`Test calculation: f(${testX}) = ${testY}`);
+                } catch (error) {
+                    console.error('Error in function calculation:', error);
+                }
+            }
             
             if (testCanvas()) {
-                alert('Canvas is working! Check console for details.');
+                alert('Canvas is working! Check console for details. Now try plotting...');
+                setTimeout(() => {
+                    plotFunction();
+                }, 500);
             } else {
                 alert('Canvas test failed! Check console for errors.');
             }
