@@ -37,11 +37,20 @@
             overflow: hidden;
             cursor: crosshair;
         }
+        
+        /* 确保星星可见 */
+        .star-map .star {
+            display: block !important;
+            visibility: visible !important;
+        }
 
         .constellation {
             position: absolute;
             opacity: 0.8;
             transition: all 0.3s ease;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
         }
 
         .constellation:hover {
@@ -56,11 +65,13 @@
             box-shadow: 0 0 10px rgba(255,255,255,0.8);
             cursor: pointer;
             transition: all 0.3s ease;
+            z-index: 3;
         }
 
         .star:hover {
             transform: scale(1.5);
             box-shadow: 0 0 20px rgba(255,255,255,1);
+            z-index: 10;
         }
 
         .star-line {
@@ -68,6 +79,7 @@
             background: rgba(255,255,255,0.3);
             height: 1px;
             transform-origin: left center;
+            z-index: 1;
         }
 
         .constellation-grid {
@@ -224,6 +236,7 @@
             border-radius: 50%;
             transition: all 0.3s ease;
             animation: planet-glow 3s ease-in-out infinite alternate;
+            z-index: 4;
         }
 
         .planet:hover {
@@ -237,16 +250,12 @@
         }
 
         .planet-display {
-            position: relative;
-            z-index: 5;
-        }
-
-        .season-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-            border-radius: 15px;
-            padding: 1.5rem;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.1);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 4;
         }
 
         /* 页面布局修复 */
@@ -380,7 +389,7 @@
                     </div>
                     
                     <!-- 银河系 -->
-                    <div class="milky-way" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.1) 30%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.1) 70%, transparent 100%); pointer-events: none; opacity: 0.3;"></div>
+                    <div class="milky-way" style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: linear-gradient(45deg, transparent 0%, rgba(255,255,255,0.05) 30%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 70%, transparent 100%); pointer-events: none; opacity: 0.2; z-index: 0;"></div>
                 </div>
                 
                 <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; justify-content: center;">
@@ -723,9 +732,6 @@
                     const name = this.dataset.name;
                     showConstellationInfo(name);
                 });
-                
-                // 添加连线
-                addConstellationLines(constellation);
             });
             
             // 为行星添加点击事件
@@ -742,6 +748,13 @@
                 star.style.animationDelay = Math.random() * 3 + 's';
                 star.classList.add('twinkle');
             });
+            
+            // 延迟添加连线以确保DOM完全渲染
+            setTimeout(() => {
+                constellations.forEach(constellation => {
+                    addConstellationLines(constellation);
+                });
+            }, 100);
         });
         
         function addConstellationLines(constellation) {
@@ -772,24 +785,30 @@
         }
         
         function connectStars(star1, star2, container) {
-            const rect1 = star1.getBoundingClientRect();
-            const rect2 = star2.getBoundingClientRect();
-            const containerRect = container.getBoundingClientRect();
+            // 获取星星的位置百分比
+            const star1Left = parseFloat(star1.style.left.replace('%', ''));
+            const star1Top = parseFloat(star1.style.top.replace('%', ''));
+            const star2Left = parseFloat(star2.style.left.replace('%', ''));
+            const star2Top = parseFloat(star2.style.top.replace('%', ''));
             
-            const x1 = rect1.left - containerRect.left + rect1.width / 2;
-            const y1 = rect1.top - containerRect.top + rect1.height / 2;
-            const x2 = rect2.left - containerRect.left + rect2.width / 2;
-            const y2 = rect2.top - containerRect.top + rect2.height / 2;
-            
-            const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            // 直接使用百分比创建连线
+            const deltaX = star2Left - star1Left;
+            const deltaY = star2Top - star1Top;
+            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
             
             const line = document.createElement('div');
             line.className = 'star-line';
-            line.style.left = x1 + 'px';
-            line.style.top = y1 + 'px';
-            line.style.width = length + 'px';
+            line.style.position = 'absolute';
+            line.style.left = star1Left + '%';
+            line.style.top = star1Top + '%';
+            line.style.width = length + '%';
+            line.style.height = '1px';
+            line.style.background = 'rgba(255,255,255,0.4)';
+            line.style.transformOrigin = 'left center';
             line.style.transform = `rotate(${angle}deg)`;
+            line.style.zIndex = '1';
+            line.style.pointerEvents = 'none';
             
             container.appendChild(line);
         }
