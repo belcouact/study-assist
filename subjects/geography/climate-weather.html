@@ -26,6 +26,7 @@
             overflow: hidden;
             margin: 2rem auto;
             max-width: 1600px;
+            width: 100%;
         }
 
         .climate-header {
@@ -95,7 +96,8 @@
             display: grid;
             grid-template-columns: 1fr 350px;
             gap: 2rem;
-            height: 600px;
+            min-height: 400px;
+            height: auto;
         }
 
         .weather-display {
@@ -104,6 +106,7 @@
             position: relative;
             overflow: hidden;
             border: 2px solid #e9ecef;
+            min-height: 400px;
         }
 
         .weather-canvas {
@@ -111,6 +114,7 @@
             height: 100%;
             display: block;
             background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            min-height: 400px;
         }
 
         .weather-controls {
@@ -119,6 +123,8 @@
             padding: 1.5rem;
             height: fit-content;
             border: 1px solid #e9ecef;
+            overflow-y: auto;
+            max-height: 80vh;
         }
 
         .weather-controls h3 {
@@ -378,25 +384,151 @@
             margin-top: 0.5rem;
         }
 
+        @media (max-width: 1024px) {
+            .weather-workspace {
+                grid-template-columns: 1fr 280px;
+                gap: 1rem;
+            }
+            
+            .weather-controls {
+                padding: 1rem;
+            }
+        }
+
         @media (max-width: 768px) {
+            .climate-page {
+                padding: 1rem 0;
+            }
+            
+            .climate-container {
+                margin: 1rem;
+                border-radius: 15px;
+            }
+            
+            .climate-header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .climate-header h1 {
+                font-size: 2rem;
+            }
+            
+            .climate-content {
+                padding: 1rem;
+            }
+            
             .weather-workspace {
                 grid-template-columns: 1fr;
+                gap: 1rem;
+                min-height: auto;
+            }
+            
+            .weather-display {
+                min-height: 300px;
+                order: 2;
+            }
+            
+            .weather-canvas {
+                min-height: 300px;
+            }
+            
+            .weather-controls {
+                order: 1;
+                max-height: none;
+                overflow-y: visible;
             }
             
             .climate-tabs {
-                flex-direction: column;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            
+            .climate-tabs::-webkit-scrollbar {
+                display: none;
             }
             
             .climate-tab {
                 text-align: center;
+                padding: 0.75rem 1.5rem;
+                font-size: 0.9rem;
+            }
+            
+            .weather-data {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            
+            .data-card {
+                padding: 1rem;
+            }
+            
+            .data-icon {
+                font-size: 1.5rem;
+                margin-bottom: 0.5rem;
+            }
+            
+            .data-value {
+                font-size: 1.4rem;
+            }
+            
+            .zone-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .zone-card {
+                padding: 1rem;
+            }
+            
+            .pattern-selector {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .pattern-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
+                flex: 1;
+                min-width: 120px;
+            }
+            
+            .forecast-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+                gap: 0.75rem;
+            }
+            
+            .forecast-card {
+                padding: 0.75rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .climate-header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .climate-header p {
+                font-size: 1rem;
             }
             
             .weather-data {
                 grid-template-columns: 1fr;
             }
             
-            .zone-grid {
-                grid-template-columns: 1fr;
+            .data-card {
+                padding: 0.75rem;
+            }
+            
+            .pattern-btn {
+                min-width: 100px;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.85rem;
+            }
+            
+            .forecast-grid {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             }
         }
     </style>
@@ -449,7 +581,7 @@
                     <div class="tab-panel active" id="weather-panel">
                         <div class="weather-workspace">
                             <div class="weather-display">
-                                <canvas class="weather-canvas" id="weather-canvas" width="800" height="600"></canvas>
+                                <canvas class="weather-canvas" id="weather-canvas"></canvas>
                             </div>
                             
                             <div class="weather-controls">
@@ -676,8 +808,45 @@
                 this.weatherData = this.initializeWeatherData();
                 
                 this.initializeEventListeners();
+                this.setupCanvasResponsiveness();
                 this.drawWeatherMap();
                 this.startWeatherAnimation();
+            }
+
+            setupCanvasResponsiveness() {
+                const resizeCanvas = () => {
+                    const container = this.canvas.parentElement;
+                    const rect = container.getBoundingClientRect();
+                    
+                    // Set canvas size to match container
+                    this.canvas.width = rect.width;
+                    this.canvas.height = rect.height;
+                    
+                    // Redraw after resize
+                    this.drawWeatherMap();
+                };
+
+                // Initial resize
+                resizeCanvas();
+
+                // Resize on window resize
+                window.addEventListener('resize', resizeCanvas);
+
+                // Resize when tab becomes active
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.type === 'attributes' && 
+                            mutation.attributeName === 'class' &&
+                            mutation.target.classList.contains('active')) {
+                            setTimeout(resizeCanvas, 100);
+                        }
+                    });
+                });
+
+                observer.observe(document.getElementById('weather-panel'), {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
             }
 
             initializeWeatherData() {
