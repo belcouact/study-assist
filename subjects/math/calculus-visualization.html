@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微积分可视化 - 数学学习助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .calculus-workspace {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .tool-tabs {
+            background: #f8f9fa;
+            padding: 0;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 15px 25px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tab-btn:hover {
+            background: #e9ecef;
+            color: #007bff;
+        }
+
+        .tab-btn.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+            background: white;
+        }
+
+        .tool-content {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        .tool-section {
+            display: none;
+        }
+
+        .tool-section.active {
+            display: block;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .back-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        /* Learning Section Styles */
+        .learning-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+        }
+
+        .learning-section h3 {
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .concept-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .concept-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .concept-card:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .concept-card h4 {
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .concept-card p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Interactive Demo Styles */
+        .interactive-demo {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border: 2px solid #e9ecef;
+        }
+
+        .demo-controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .demo-slider {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .demo-slider label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .demo-slider input[type="range"] {
+            width: 100%;
+            margin-bottom: 0.5rem;
+        }
+
+        .demo-value {
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .visual-equation {
+            background: white;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-family: 'Times New Roman', serif;
+            margin: 1rem 0;
+        }
+
+        .graph-container {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 2px solid #e9ecef;
+            min-height: 400px;
+            position: relative;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 350px;
+            position: relative;
+        }
+
+        #calculusCanvas {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Real World Examples */
+        .real-world-examples {
+            background: #e8f5e8;
+            border: 2px solid #c3e6cb;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .real-world-examples h4 {
+            color: #155724;
+            margin-bottom: 1rem;
+        }
+
+        .example-scenario {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #28a745;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .scenario-title {
+            font-weight: 600;
+            color: #155724;
+            margin-bottom: 0.8rem;
+            font-size: 1.1rem;
+        }
+
+        .scenario-description {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .scenario-math {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            border-left: 3px solid #007bff;
+            margin: 0.5rem 0;
+        }
+
+        .scenario-result {
+            background: #d4edda;
+            padding: 0.8rem;
+            border-radius: 6px;
+            color: #155724;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        /* Application Cards */
+        .application-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .application-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+            transition: all 0.3s ease;
+        }
+
+        .application-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+
+        .application-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .application-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 0.8rem;
+        }
+
+        .application-description {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #666;
+        }
+
+        /* Input Controls */
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+
+        /* Tips Section */
+        .tips-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .tips-section h4 {
+            color: #856404;
+            margin-bottom: 1rem;
+        }
+
+        .tip-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 0.8rem;
+            gap: 0.5rem;
+        }
+
+        .tip-icon {
+            background: #ffc107;
+            color: #856404;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tool-tabs {
+                flex-direction: column;
+            }
+
+            .tab-btn {
+                text-align: center;
+                border-bottom: 1px solid #e9ecef;
+                border-right: none;
+            }
+
+            .tab-btn.active {
+                border-bottom: 1px solid #007bff;
+                border-right: none;
+            }
+
+            .tool-content {
+                padding: 20px;
+            }
+
+            .concept-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .demo-controls {
+                flex-direction: column;
+            }
+
+            .demo-slider {
+                min-width: auto;
+            }
+
+            .visual-equation {
+                font-size: 1.2rem;
+            }
+
+            .learning-section {
+                padding: 1.5rem;
+            }
+
+            .application-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .header p {
+                font-size: 0.9rem;
+            }
+
+            .visual-equation {
+                font-size: 1rem;
+                padding: 1rem;
+            }
+
+            .learning-section {
+                padding: 1rem;
+            }
+
+            .concept-card {
+                padding: 1rem;
+            }
+
+            .interactive-demo {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='main.html'">← 返回数学主页</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>∞ 微积分可视化</h1>
+            <p>探索导数和积分的奥秘 - 发现微积分在生活和工作中的实际应用</p>
+        </div>
+
+        <div class="calculus-workspace">
+            <div class="tool-tabs">
+                <button class="tab-btn active" data-tab="derivatives">
+                    <span>📈</span> 导数可视化
+                </button>
+                <button class="tab-btn" data-tab="integrals">
+                    <span>📊</span> 积分可视化
+                </button>
+                <button class="tab-btn" data-tab="applications">
+                    <span>🌍</span> 实际应用
+                </button>
+                <button class="tab-btn" data-tab="interactive">
+                    <span>🎮</span> 交互式探索
+                </button>
+            </div>
+
+            <div class="tool-content">
+                <!-- 导数可视化 -->
+                <div class="tool-section active" id="derivatives">
+                    <h3>导数：变化率的可视化</h3>
+                    
+                    <!-- Learning Section -->
+                    <div class="learning-section">
+                        <h3>🎓 导数基础概念</h3>
+                        <p>导数描述函数在某一点的瞬时变化率，是微积分的核心概念之一。</p>
+                        <div class="concept-cards">
+                            <div class="concept-card">
+                                <h4>几何意义</h4>
+                                <p>导数表示函数图像在某点的切线斜率，反映函数在该点的变化趋势。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>物理意义</h4>
+                                <p>位移对时间的导数是速度，速度对时间的导数是加速度。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>经济意义</h4>
+                                <p>成本函数的导数是边际成本，收益函数的导数是边际收益。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>优化应用</h4>
+                                <p>通过求导数为零的点，可以找到函数的极值，解决最优化问题。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Demo -->
+                    <div class="interactive-demo">
+                        <h4>🎮 导数交互演示</h4>
+                        <p>调整参数观察函数 f(x) = ax³ + bx² + cx + d 及其导数的变化</p>
+                        <div class="demo-controls">
+                            <div class="demo-slider">
+                                <label>系数 a:</label>
+                                <input type="range" id="deriv-a" min="-2" max="2" value="1" step="0.1" oninput="updateDerivativeDemo()">
+                                <div class="demo-value" id="deriv-value-a">1</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>系数 b:</label>
+                                <input type="range" id="deriv-b" min="-5" max="5" value="0" step="0.1" oninput="updateDerivativeDemo()">
+                                <div class="demo-value" id="deriv-value-b">0</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>系数 c:</label>
+                                <input type="range" id="deriv-c" min="-5" max="5" value="0" step="0.1" oninput="updateDerivativeDemo()">
+                                <div class="demo-value" id="deriv-value-c">0</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>系数 d:</label>
+                                <input type="range" id="deriv-d" min="-5" max="5" value="0" step="0.1" oninput="updateDerivativeDemo()">
+                                <div class="demo-value" id="deriv-value-d">0</div>
+                            </div>
+                        </div>
+                        <div class="visual-equation" id="deriv-function">f(x) = x³</div>
+                        <div class="visual-equation" id="deriv-derivative">f'(x) = 3x²</div>
+                        <div class="graph-container">
+                            <div class="canvas-container">
+                                <canvas id="derivativeCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real World Examples -->
+                    <div class="real-world-examples">
+                        <h4>🌍 导数在生活中的应用</h4>
+                        
+                        <div class="example-scenario">
+                            <div class="scenario-title">🚗 汽车行驶分析</div>
+                            <div class="scenario-description">
+                                一辆汽车的位移函数为 s(t) = 2t³ - 9t² + 12t，其中 t 是时间（秒），s 是位移（米）。
+                            </div>
+                            <div class="scenario-math">
+                                速度函数：v(t) = s'(t) = 6t² - 18t + 12<br>
+                                加速度函数：a(t) = v'(t) = 12t - 18
+                            </div>
+                            <div class="scenario-result">
+                                应用：通过导数可以分析汽车在任意时刻的速度和加速度，帮助优化驾驶策略。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">💰 利润最大化</div>
+                            <div class="scenario-description">
+                                某公司的利润函数为 P(x) = -2x² + 100x - 800，其中 x 是产量（件）。
+                            </div>
+                            <div class="scenario-math">
+                                边际利润：P'(x) = -4x + 100<br>
+                                令 P'(x) = 0：-4x + 100 = 0，解得 x = 25
+                            </div>
+                            <div class="scenario-result">
+                                结论：当产量为25件时，利润达到最大值1450元。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">🌡️ 温度变化率</div>
+                            <div class="scenario-description">
+                                某地一天的温度函数为 T(t) = -0.5t² + 6t + 10，其中 t 是时间（小时），T 是温度（°C）。
+                            </div>
+                            <div class="scenario-math">
+                                温度变化率：T'(t) = -t + 6<br>
+                                最高温度时刻：T'(t) = 0，得 t = 6小时
+                            </div>
+                            <div class="scenario-result">
+                                应用：预测温度变化趋势，为农业生产和日常生活提供指导。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tips Section -->
+                    <div class="tips-section">
+                        <h4>💡 导数学习技巧</h4>
+                        <div class="tip-item">
+                            <div class="tip-icon">1</div>
+                            <div>理解导数的几何意义：切线斜率反映函数的变化趋势</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">2</div>
+                            <div>掌握基本求导法则：幂函数、指数函数、对数函数的导数公式</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">3</div>
+                            <div>学会链式法则：复合函数求导的关键工具</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">4</div>
+                            <div>应用导数解决实际问题：最值问题、变化率问题</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">5</div>
+                            <div>通过图像理解：观察函数图像与导数图像的关系</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 积分可视化 -->
+                <div class="tool-section" id="integrals">
+                    <h3>积分：面积与累积的可视化</h3>
+                    
+                    <!-- Learning Section -->
+                    <div class="learning-section">
+                        <h3>🎓 积分基础概念</h3>
+                        <p>积分是导数的逆运算，用于计算曲线下的面积和累积量。</p>
+                        <div class="concept-cards">
+                            <div class="concept-card">
+                                <h4>几何意义</h4>
+                                <p>定积分表示函数图像与x轴之间的有向面积。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>物理意义</h4>
+                                <p>速度的积分是位移，加速度的积分是速度变化量。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>经济意义</h4>
+                                <p>边际成本的积分是总成本增量，边际收益的积分是总收益增量。</p>
+                            </div>
+                            <div class="concept-card">
+                                <h4>累积应用</h4>
+                                <p>计算总量、平均值、概率等累积性质的问题。</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Demo -->
+                    <div class="interactive-demo">
+                        <h4>🎮 积分交互演示</h4>
+                        <p>观察函数 f(x) = ax² + bx + c 在区间 [m, n] 上的定积分</p>
+                        <div class="demo-controls">
+                            <div class="demo-slider">
+                                <label>系数 a:</label>
+                                <input type="range" id="int-a" min="0.1" max="3" value="1" step="0.1" oninput="updateIntegralDemo()">
+                                <div class="demo-value" id="int-value-a">1</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>系数 b:</label>
+                                <input type="range" id="int-b" min="-3" max="3" value="0" step="0.1" oninput="updateIntegralDemo()">
+                                <div class="demo-value" id="int-value-b">0</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>系数 c:</label>
+                                <input type="range" id="int-c" min="-3" max="3" value="0" step="0.1" oninput="updateIntegralDemo()">
+                                <div class="demo-value" id="int-value-c">0</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>积分下限:</label>
+                                <input type="range" id="int-lower" min="-3" max="1" value="-1" step="0.1" oninput="updateIntegralDemo()">
+                                <div class="demo-value" id="int-value-lower">-1</div>
+                            </div>
+                            <div class="demo-slider">
+                                <label>积分上限:</label>
+                                <input type="range" id="int-upper" min="1" max="3" value="2" step="0.1" oninput="updateIntegralDemo()">
+                                <div class="demo-value" id="int-value-upper">2</div>
+                            </div>
+                        </div>
+                        <div class="visual-equation" id="int-function">f(x) = x²</div>
+                        <div class="visual-equation" id="int-result">∫₋₁² x² dx = 3</div>
+                        <div class="graph-container">
+                            <div class="canvas-container">
+                                <canvas id="integralCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Real World Examples -->
+                    <div class="real-world-examples">
+                        <h4>🌍 积分在生活中的应用</h4>
+                        
+                        <div class="example-scenario">
+                            <div class="scenario-title">⚡ 电力消耗计算</div>
+                            <div class="scenario-description">
+                                某工厂的功率消耗函数为 P(t) = 100 + 50sin(πt/12)，其中 t 是时间（小时），P 是功率（千瓦）。
+                            </div>
+                            <div class="scenario-math">
+                                24小时总耗电量：∫₀²⁴ P(t) dt = ∫₀²⁴ (100 + 50sin(πt/12)) dt<br>
+                                = [100t - (600/π)cos(πt/12)]₀²⁴ = 2400 千瓦时
+                            </div>
+                            <div class="scenario-result">
+                                应用：计算总电力消耗，制定用电计划和成本预算。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">🌊 水流量计算</div>
+                            <div class="scenario-description">
+                                河流的流速函数为 v(x) = 4 - x²/25，其中 x 是距离河岸的距离（米），河宽为10米。
+                            </div>
+                            <div class="scenario-math">
+                                总流量：Q = ∫₀¹⁰ v(x) dx = ∫₀¹⁰ (4 - x²/25) dx<br>
+                                = [4x - x³/75]₀¹⁰ = 40 - 1000/75 ≈ 26.67 立方米/秒
+                            </div>
+                            <div class="scenario-result">
+                                应用：水利工程设计、洪水预警、水资源管理。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">📈 投资收益累积</div>
+                            <div class="scenario-description">
+                                某投资的收益率函数为 r(t) = 0.05 + 0.02t，其中 t 是投资年数。
+                            </div>
+                            <div class="scenario-math">
+                                5年总收益率：∫₀⁵ r(t) dt = ∫₀⁵ (0.05 + 0.02t) dt<br>
+                                = [0.05t + 0.01t²]₀⁵ = 0.25 + 0.25 = 0.5 (50%)
+                            </div>
+                            <div class="scenario-result">
+                                应用：投资规划、风险评估、财务预测。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tips Section -->
+                    <div class="tips-section">
+                        <h4>💡 积分学习技巧</h4>
+                        <div class="tip-item">
+                            <div class="tip-icon">1</div>
+                            <div>理解积分的几何意义：面积的累积</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">2</div>
+                            <div>掌握基本积分公式：幂函数、三角函数、指数函数的积分</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">3</div>
+                            <div>学会换元积分法和分部积分法</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">4</div>
+                            <div>理解定积分与不定积分的区别和联系</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">5</div>
+                            <div>应用积分解决实际问题：面积、体积、物理量计算</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 实际应用 -->
+                <div class="tool-section" id="applications">
+                    <h3>微积分在各行业的实际应用</h3>
+                    
+                    <div class="learning-section">
+                        <h3>🌟 微积分改变世界</h3>
+                        <p>微积分不仅是数学工具，更是现代科技和工业发展的基石。从手机到火箭，从经济预测到医学诊断，微积分无处不在。</p>
+                    </div>
+
+                    <div class="application-grid">
+                        <div class="application-card">
+                            <div class="application-icon">🚀</div>
+                            <div class="application-title">航空航天工程</div>
+                            <div class="application-description">
+                                <strong>轨道计算：</strong>使用微分方程计算卫星轨道和火箭发射轨迹。<br>
+                                <strong>燃料优化：</strong>通过积分计算最优燃料消耗策略。<br>
+                                <strong>实例：</strong>SpaceX使用微积分优化火箭回收着陆轨迹。
+                            </div>
+                        </div>
+
+                        <div class="application-card">
+                            <div class="application-icon">🏥</div>
+                            <div class="application-title">医学与生物学</div>
+                            <div class="application-description">
+                                <strong>药物浓度：</strong>用微分方程模拟药物在体内的代谢过程。<br>
+                                <strong>心电图分析：</strong>通过导数分析心率变化。<br>
+                                <strong>实例：</strong>胰岛素泵使用微积分控制血糖水平。
+                            </div>
+                        </div>
+
+                        <div class="application-card">
+                            <div class="application-icon">💹</div>
+                            <div class="application-title">金融与经济</div>
+                            <div class="application-description">
+                                <strong>期权定价：</strong>Black-Scholes模型使用偏微分方程。<br>
+                                <strong>风险管理：</strong>通过积分计算投资组合风险。<br>
+                                <strong>实例：</strong>高频交易算法使用微积分预测价格变化。
+                            </div>
+                        </div>
+
+                        <div class="application-card">
+                            <div class="application-icon">🤖</div>
+                            <div class="application-title">人工智能</div>
+                            <div class="application-description">
+                                <strong>神经网络：</strong>反向传播算法基于链式法则。<br>
+                                <strong>优化算法：</strong>梯度下降使用导数寻找最优解。<br>
+                                <strong>实例：</strong>ChatGPT的训练过程大量使用微积分优化。
+                            </div>
+                        </div>
+
+                        <div class="application-card">
+                            <div class="application-icon">🏗️</div>
+                            <div class="application-title">建筑与工程</div>
+                            <div class="application-description">
+                                <strong>结构分析：</strong>使用微分方程分析建筑物受力。<br>
+                                <strong>材料优化：</strong>通过积分计算最优材料分布。<br>
+                                <strong>实例：</strong>桥梁设计中的悬索曲线计算。
+                            </div>
+                        </div>
+
+                        <div class="application-card">
+                            <div class="application-icon">🌍</div>
+                            <div class="application-title">环境科学</div>
+                            <div class="application-description">
+                                <strong>污染扩散：</strong>用微分方程模拟污染物传播。<br>
+                                <strong>气候建模：</strong>通过积分计算全球温度变化。<br>
+                                <strong>实例：</strong>碳排放量的累积计算和预测。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Case Studies -->
+                    <div class="real-world-examples">
+                        <h4>📋 详细案例分析</h4>
+                        
+                        <div class="example-scenario">
+                            <div class="scenario-title">📱 智能手机电池优化</div>
+                            <div class="scenario-description">
+                                现代智能手机使用微积分优化电池使用效率。电池电量消耗函数为 P(t) = P₀e^(-kt)，其中 k 取决于使用强度。
+                            </div>
+                            <div class="scenario-math">
+                                剩余电量：Q(t) = ∫₀ᵗ P(τ) dτ = P₀/k (1 - e^(-kt))<br>
+                                优化策略：通过调整 k 值（降低CPU频率、调暗屏幕）延长使用时间
+                            </div>
+                            <div class="scenario-result">
+                                实际应用：iPhone的低电量模式、Android的自适应电池管理都基于这些数学模型。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">🚗 自动驾驶汽车</div>
+                            <div class="scenario-description">
+                                自动驾驶汽车需要实时计算最优行驶路径。路径规划使用变分法（微积分的高级应用）。
+                            </div>
+                            <div class="scenario-math">
+                                最优路径：最小化 ∫ᵗ¹ᵗ² [½m(dx/dt)² + V(x)] dt<br>
+                                其中 V(x) 是势能函数，包含障碍物、交通规则等约束
+                            </div>
+                            <div class="scenario-result">
+                                实际应用：特斯拉Autopilot、百度Apollo等自动驾驶系统的核心算法。
+                            </div>
+                        </div>
+
+                        <div class="example-scenario">
+                            <div class="scenario-title">🎬 电影特效制作</div>
+                            <div class="scenario-description">
+                                电影中的水流、爆炸、烟雾等特效都使用流体力学方程（Navier-Stokes方程）模拟。
+                            </div>
+                            <div class="scenario-math">
+                                流体运动：∂v/∂t + (v·∇)v = -∇p/ρ + ν∇²v<br>
+                                通过数值积分求解，生成逼真的流体动画
+                            </div>
+                            <div class="scenario-result">
+                                实际应用：《阿凡达》的海洋场景、《复仇者联盟》的爆炸特效都依赖这些计算。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 交互式探索 -->
+                <div class="tool-section" id="interactive">
+                    <h3>交互式微积分探索</h3>
+                    
+                    <div class="learning-section">
+                        <h3>🎮 动手实践</h3>
+                        <p>通过交互式工具深入理解微积分概念，自己动手探索数学的奥秘。</p>
+                    </div>
+
+                    <!-- Function Explorer -->
+                    <div class="interactive-demo">
+                        <h4>🔍 函数探索器</h4>
+                        <p>输入自定义函数，观察其导数和积分</p>
+                        
+                        <div class="input-group">
+                            <label for="custom-function">输入函数 f(x) (支持: x^2, sin(x), cos(x), exp(x), log(x))</label>
+                            <input type="text" id="custom-function" class="input-field" placeholder="x^2 + 2*x + 1" value="x^2">
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary" onclick="plotCustomFunction()">
+                                📈 绘制函数
+                            </button>
+                            <button class="btn btn-secondary" onclick="showDerivative()">
+                                📊 显示导数
+                            </button>
+                            <button class="btn btn-secondary" onclick="showIntegral()">
+                                📋 计算积分
+                            </button>
+                        </div>
+                        
+                        <div class="graph-container">
+                            <div class="canvas-container">
+                                <canvas id="explorerCanvas"></canvas>
+                            </div>
+                        </div>
+                        
+                        <div id="function-info" class="visual-equation">
+                            输入函数开始探索
+                        </div>
+                    </div>
+
+                    <!-- Optimization Problem Solver -->
+                    <div class="interactive-demo">
+                        <h4>🎯 优化问题求解器</h4>
+                        <p>解决实际的最优化问题</p>
+                        
+                        <div class="input-group">
+                            <label for="optimization-problem">选择优化问题类型</label>
+                            <select id="optimization-problem" class="input-field" onchange="loadOptimizationProblem()">
+                                <option value="box">纸盒最大体积问题</option>
+                                <option value="fence">围栏最大面积问题</option>
+                                <option value="profit">利润最大化问题</option>
+                                <option value="distance">最短距离问题</option>
+                            </select>
+                        </div>
+                        
+                        <div id="problem-description" class="scenario-description">
+                            选择一个问题类型查看详细描述
+                        </div>
+                        
+                        <div class="demo-controls">
+                            <button class="btn btn-primary" onclick="solveOptimization()">
+                                🧮 求解
+                            </button>
+                            <button class="btn btn-secondary" onclick="showOptimizationSteps()">
+                                📝 显示步骤
+                            </button>
+                        </div>
+                        
+                        <div id="optimization-result" class="visual-equation">
+                            点击求解按钮开始计算
+                        </div>
+                        
+                        <div class="graph-container">
+                            <div class="canvas-container">
+                                <canvas id="optimizationCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Calculus Calculator -->
+                    <div class="interactive-demo">
+                        <h4>🧮 微积分计算器</h4>
+                        <p>计算导数和定积分</p>
+                        
+                        <div class="demo-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div>
+                                <div class="input-group">
+                                    <label for="calc-function">函数 f(x)</label>
+                                    <input type="text" id="calc-function" class="input-field" placeholder="x^3 + 2*x^2 - x + 1">
+                                </div>
+                                <button class="btn btn-primary" onclick="calculateDerivative()" style="width: 100%; margin-bottom: 0.5rem;">
+                                    📈 计算导数
+                                </button>
+                                <div id="derivative-result" class="visual-equation" style="font-size: 1rem; padding: 0.5rem;">
+                                    导数结果将显示在这里
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <div class="input-group">
+                                    <label>定积分区间</label>
+                                    <div style="display: flex; gap: 0.5rem;">
+                                        <input type="number" id="integral-lower" class="input-field" placeholder="下限" value="0" style="flex: 1;">
+                                        <input type="number" id="integral-upper" class="input-field" placeholder="上限" value="1" style="flex: 1;">
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" onclick="calculateIntegral()" style="width: 100%; margin-bottom: 0.5rem;">
+                                    📊 计算积分
+                                </button>
+                                <div id="integral-result" class="visual-equation" style="font-size: 1rem; padding: 0.5rem;">
+                                    积分结果将显示在这里
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tips for Interactive Learning -->
+                    <div class="tips-section">
+                        <h4>💡 交互学习建议</h4>
+                        <div class="tip-item">
+                            <div class="tip-icon">1</div>
+                            <div>从简单函数开始：先尝试 x², x³ 等基本函数</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">2</div>
+                            <div>观察图像变化：调整参数时注意函数形状的改变</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">3</div>
+                            <div>验证计算结果：用已知公式检验计算器的结果</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">4</div>
+                            <div>联系实际问题：思考这些数学概念在现实中的应用</div>
+                        </div>
+                        <div class="tip-item">
+                            <div class="tip-icon">5</div>
+                            <div>多做练习：通过不同类型的问题加深理解</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // Remove active class from all tabs and sections
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tool-section').forEach(s => s.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                btn.classList.add('active');
+                
+                // Show corresponding section
+                const tabId = btn.dataset.tab;
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Canvas setup and drawing functions
+        function setupCanvas(canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return null;
+            
+            const ctx = canvas.getContext('2d');
+            const container = canvas.parentElement;
+            
+            // Set canvas size
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            return { canvas, ctx };
+        }
+
+        function drawAxes(ctx, width, height) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            
+            // Draw axes
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(width, centerY);
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, height);
+            ctx.stroke();
+            
+            // Draw grid
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 0.5;
+            
+            for (let i = 0; i < width; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, height);
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i < height; i += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(width, i);
+                ctx.stroke();
+            }
+        }
+
+        function plotFunction(ctx, width, height, func, color = '#007bff', lineWidth = 2) {
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const scale = 20; // pixels per unit
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.beginPath();
+            
+            let firstPoint = true;
+            for (let px = 0; px < width; px += 1) {
+                const x = (px - centerX) / scale;
+                try {
+                    const y = func(x);
+                    const py = centerY - y * scale;
+                    
+                    if (isFinite(y) && py >= 0 && py <= height) {
+                        if (firstPoint) {
+                            ctx.moveTo(px, py);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    } else {
+                        firstPoint = true;
+                    }
+                } catch (e) {
+                    firstPoint = true;
+                }
+            }
+            ctx.stroke();
+        }
+
+        // Derivative demo functions
+        function updateDerivativeDemo() {
+            const a = parseFloat(document.getElementById('deriv-a').value);
+            const b = parseFloat(document.getElementById('deriv-b').value);
+            const c = parseFloat(document.getElementById('deriv-c').value);
+            const d = parseFloat(document.getElementById('deriv-d').value);
+            
+            // Update value displays
+            document.getElementById('deriv-value-a').textContent = a;
+            document.getElementById('deriv-value-b').textContent = b;
+            document.getElementById('deriv-value-c').textContent = c;
+            document.getElementById('deriv-value-d').textContent = d;
+            
+            // Update function display
+            let funcStr = '';
+            if (a !== 0) funcStr += `${a}x³`;
+            if (b !== 0) funcStr += (funcStr ? (b > 0 ? ' + ' : ' - ') : (b < 0 ? '-' : '')) + `${Math.abs(b)}x²`;
+            if (c !== 0) funcStr += (funcStr ? (c > 0 ? ' + ' : ' - ') : (c < 0 ? '-' : '')) + `${Math.abs(c)}x`;
+            if (d !== 0) funcStr += (funcStr ? (d > 0 ? ' + ' : ' - ') : (d < 0 ? '-' : '')) + `${Math.abs(d)}`;
+            if (!funcStr) funcStr = '0';
+            
+            document.getElementById('deriv-function').textContent = `f(x) = ${funcStr}`;
+            
+            // Update derivative display
+            let derivStr = '';
+            if (a !== 0) derivStr += `${3*a}x²`;
+            if (b !== 0) derivStr += (derivStr ? (2*b > 0 ? ' + ' : ' - ') : (2*b < 0 ? '-' : '')) + `${Math.abs(2*b)}x`;
+            if (c !== 0) derivStr += (derivStr ? (c > 0 ? ' + ' : ' - ') : (c < 0 ? '-' : '')) + `${Math.abs(c)}`;
+            if (!derivStr) derivStr = '0';
+            
+            document.getElementById('deriv-derivative').textContent = `f'(x) = ${derivStr}`;
+            
+            // Draw the graph
+            const setup = setupCanvas('derivativeCanvas');
+            if (!setup) return;
+            
+            const { ctx, canvas } = setup;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawAxes(ctx, canvas.width, canvas.height);
+            
+            // Plot original function
+            plotFunction(ctx, canvas.width, canvas.height, 
+                x => a*x*x*x + b*x*x + c*x + d, '#007bff', 3);
+            
+            // Plot derivative
+            plotFunction(ctx, canvas.width, canvas.height, 
+                x => 3*a*x*x + 2*b*x + c, '#dc3545', 2);
+            
+            // Add legend
+            ctx.fillStyle = '#007bff';
+            ctx.font = '14px Arial';
+            ctx.fillText('f(x)', 10, 20);
+            ctx.fillStyle = '#dc3545';
+            ctx.fillText("f'(x)", 10, 40);
+        }
+
+        // Integral demo functions
+        function updateIntegralDemo() {
+            const a = parseFloat(document.getElementById('int-a').value);
+            const b = parseFloat(document.getElementById('int-b').value);
+            const c = parseFloat(document.getElementById('int-c').value);
+            const lower = parseFloat(document.getElementById('int-lower').value);
+            const upper = parseFloat(document.getElementById('int-upper').value);
+            
+            // Update value displays
+            document.getElementById('int-value-a').textContent = a;
+            document.getElementById('int-value-b').textContent = b;
+            document.getElementById('int-value-c').textContent = c;
+            document.getElementById('int-value-lower').textContent = lower;
+            document.getElementById('int-value-upper').textContent = upper;
+            
+            // Update function display
+            let funcStr = '';
+            if (a !== 0) funcStr += `${a}x²`;
+            if (b !== 0) funcStr += (funcStr ? (b > 0 ? ' + ' : ' - ') : (b < 0 ? '-' : '')) + `${Math.abs(b)}x`;
+            if (c !== 0) funcStr += (funcStr ? (c > 0 ? ' + ' : ' - ') : (c < 0 ? '-' : '')) + `${Math.abs(c)}`;
+            if (!funcStr) funcStr = '0';
+            
+            document.getElementById('int-function').textContent = `f(x) = ${funcStr}`;
+            
+            // Calculate integral
+            const integral = (a/3) * (upper*upper*upper - lower*lower*lower) + 
+                           (b/2) * (upper*upper - lower*lower) + 
+                           c * (upper - lower);
+            
+            document.getElementById('int-result').textContent = 
+                `∫${lower}${upper} (${funcStr}) dx = ${integral.toFixed(3)}`;
+            
+            // Draw the graph
+            const setup = setupCanvas('integralCanvas');
+            if (!setup) return;
+            
+            const { ctx, canvas } = setup;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawAxes(ctx, canvas.width, canvas.height);
+            
+            // Plot function
+            plotFunction(ctx, canvas.width, canvas.height, 
+                x => a*x*x + b*x + c, '#007bff', 3);
+            
+            // Fill area under curve
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scale = 20;
+            
+            ctx.fillStyle = 'rgba(0, 123, 255, 0.3)';
+            ctx.beginPath();
+            
+            const lowerPx = centerX + lower * scale;
+            const upperPx = centerX + upper * scale;
+            
+            ctx.moveTo(lowerPx, centerY);
+            for (let px = lowerPx; px <= upperPx; px += 1) {
+                const x = (px - centerX) / scale;
+                const y = a*x*x + b*x + c;
+                const py = centerY - y * scale;
+                ctx.lineTo(px, py);
+            }
+            ctx.lineTo(upperPx, centerY);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw integration bounds
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            ctx.beginPath();
+            ctx.moveTo(lowerPx, 0);
+            ctx.lineTo(lowerPx, canvas.height);
+            ctx.moveTo(upperPx, 0);
+            ctx.lineTo(upperPx, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Interactive functions
+        function plotCustomFunction() {
+            const funcStr = document.getElementById('custom-function').value;
+            const info = document.getElementById('function-info');
+            
+            try {
+                // Simple function parser (basic implementation)
+                const func = new Function('x', `return ${funcStr.replace(/\^/g, '**')}`);
+                
+                const setup = setupCanvas('explorerCanvas');
+                if (!setup) return;
+                
+                const { ctx, canvas } = setup;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawAxes(ctx, canvas.width, canvas.height);
+                
+                plotFunction(ctx, canvas.width, canvas.height, func, '#007bff', 3);
+                
+                info.textContent = `函数 f(x) = ${funcStr} 已绘制`;
+            } catch (e) {
+                info.textContent = `函数格式错误：${e.message}`;
+            }
+        }
+
+        function showDerivative() {
+            const info = document.getElementById('function-info');
+            info.textContent = '导数计算功能需要更高级的符号计算库支持';
+        }
+
+        function showIntegral() {
+            const info = document.getElementById('function-info');
+            info.textContent = '积分计算功能需要更高级的符号计算库支持';
+        }
+
+        // Optimization problems
+        const optimizationProblems = {
+            box: {
+                title: '纸盒最大体积问题',
+                description: '从边长为20cm的正方形纸片四角切去边长为x的小正方形，然后折成无盖纸盒。求x为多少时体积最大？',
+                solution: 'V(x) = x(20-2x)² = 4x³ - 80x² + 400x\nV\'(x) = 12x² - 160x + 400 = 0\n解得 x = 10/3 ≈ 3.33cm\n最大体积 ≈ 592.59 cm³'
+            },
+            fence: {
+                title: '围栏最大面积问题',
+                description: '用100米长的篱笆围成矩形菜园，一边靠墙不需要篱笆。求矩形的长和宽各为多少时面积最大？',
+                solution: '设宽为x，则长为100-2x\nA(x) = x(100-2x) = 100x - 2x²\nA\'(x) = 100 - 4x = 0\n解得 x = 25米，长 = 50米\n最大面积 = 1250 m²'
+            },
+            profit: {
+                title: '利润最大化问题',
+                description: '某公司生产产品的成本函数为C(x) = 100 + 2x + 0.01x²，售价为每件10元。求产量为多少时利润最大？',
+                solution: '利润函数 P(x) = 10x - (100 + 2x + 0.01x²) = 8x - 100 - 0.01x²\nP\'(x) = 8 - 0.02x = 0\n解得 x = 400件\n最大利润 = 1500元'
+            },
+            distance: {
+                title: '最短距离问题',
+                description: '点P(3,4)到直线y = x的最短距离是多少？',
+                solution: '设直线上的点为(t,t)\n距离函数 d(t) = √[(t-3)² + (t-4)²]\nd\'(t) = (2t-7)/√[(t-3)² + (t-4)²] = 0\n解得 t = 3.5\n最短距离 = √2/2 ≈ 0.707'
+            }
+        };
+
+        function loadOptimizationProblem() {
+            const problemType = document.getElementById('optimization-problem').value;
+            const problem = optimizationProblems[problemType];
+            
+            document.getElementById('problem-description').textContent = problem.description;
+            document.getElementById('optimization-result').textContent = '点击求解按钮开始计算';
+        }
+
+        function solveOptimization() {
+            const problemType = document.getElementById('optimization-problem').value;
+            const problem = optimizationProblems[problemType];
+            
+            document.getElementById('optimization-result').innerHTML = 
+                `<strong>${problem.title}</strong><br><pre style="white-space: pre-wrap; font-family: monospace; margin-top: 10px;">${problem.solution}</pre>`;
+        }
+
+        function showOptimizationSteps() {
+            const result = document.getElementById('optimization-result');
+            result.innerHTML += '<br><em>详细求解步骤已显示在上方结果中</em>';
+        }
+
+        function calculateDerivative() {
+            const funcStr = document.getElementById('calc-function').value;
+            const result = document.getElementById('derivative-result');
+            
+            // Simple derivative calculation (basic cases only)
+            if (funcStr.includes('x^3')) {
+                result.textContent = "f'(x) = 3x² (基于 x³ 的导数)";
+            } else if (funcStr.includes('x^2')) {
+                result.textContent = "f'(x) = 2x (基于 x² 的导数)";
+            } else if (funcStr.includes('x')) {
+                result.textContent = "f'(x) = 1 (基于 x 的导数)";
+            } else {
+                result.textContent = '需要更高级的符号计算库来计算复杂函数的导数';
+            }
+        }
+
+        function calculateIntegral() {
+            const funcStr = document.getElementById('calc-function').value;
+            const lower = parseFloat(document.getElementById('integral-lower').value);
+            const upper = parseFloat(document.getElementById('integral-upper').value);
+            const result = document.getElementById('integral-result');
+            
+            // Simple integral calculation (basic cases only)
+            if (funcStr === 'x^2') {
+                const integral = (upper**3 - lower**3) / 3;
+                result.textContent = `∫${lower}${upper} x² dx = ${integral.toFixed(3)}`;
+            } else if (funcStr === 'x') {
+                const integral = (upper**2 - lower**2) / 2;
+                result.textContent = `∫${lower}${upper} x dx = ${integral.toFixed(3)}`;
+            } else {
+                result.textContent = '需要更高级的符号计算库来计算复杂函数的积分';
+            }
+        }
+
+        // Initialize demos when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDerivativeDemo();
+            updateIntegralDemo();
+            loadOptimizationProblem();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            setTimeout(() => {
+                updateDerivativeDemo();
+                updateIntegralDemo();
+            }, 100);
+        });
+    </script>
+</body>
+</html> 
