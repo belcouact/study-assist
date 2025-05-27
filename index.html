@@ -537,147 +537,174 @@
             });
         });
 
-        // Quote functionality
-        let quotes = [];
-        let quoteTypes = [];
-        let currentQuoteIndex = -1;
-        let filteredQuotes = [];
-
-        async function loadQuotes() {
-            try {
-                const response = await fetch('/api/db/query/quote');
-                const result = await response.json();
-                if (result.success && result.data) {
-                    quotes = result.data;
-                    filteredQuotes = [...quotes];
-                    
-                    // Extract unique quote types
-                    quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
-                    
-                    // Populate the dropdown
-                    const typeSelect = document.getElementById('quote-type-select');
-                    typeSelect.innerHTML = '';
-                    
-                    // Add all options
-                    if (quoteTypes.length > 0) {
-                        quoteTypes.forEach(type => {
-                            const option = document.createElement('option');
-                            option.value = type;
-                            option.textContent = type;
-                            typeSelect.appendChild(option);
-                        });
-                        
-                        // Filter quotes by the first type initially
-                        filterQuotesByType(quoteTypes[0]);
-                    } else {
-                        showRandomQuote();
-                    }
+        // Override the showRandomQuote function to work with modal
+        function showRandomQuoteInModal() {
+            // Use the global variables from quote.js if they exist
+            if (typeof window.filteredQuotes === 'undefined' || window.filteredQuotes.length === 0) {
+                if (typeof window.quotes !== 'undefined' && window.quotes.length > 0) {
+                    window.filteredQuotes = [...window.quotes];
+                } else {
+                    return;
                 }
-            } catch (error) {
-                console.error('Error loading quotes:', error);
             }
-        }
-        
-        function filterQuotesByType(type) {
-            if (!type) {
-                filteredQuotes = [...quotes];
-            } else {
-                filteredQuotes = quotes.filter(quote => quote.Type === type);
-            }
-            
-            // Reset current index and show a quote from filtered list
-            currentQuoteIndex = -1;
-            showRandomQuote();
-        }
-
-        function showRandomQuote() {
-            if (filteredQuotes.length === 0) return;
 
             let newIndex;
             do {
-                newIndex = Math.floor(Math.random() * filteredQuotes.length);
-            } while (newIndex === currentQuoteIndex && filteredQuotes.length > 1);
+                newIndex = Math.floor(Math.random() * window.filteredQuotes.length);
+            } while (newIndex === window.currentQuoteIndex && window.filteredQuotes.length > 1);
 
-            currentQuoteIndex = newIndex;
-            const quote = filteredQuotes[currentQuoteIndex];
+            window.currentQuoteIndex = newIndex;
+            const quote = window.filteredQuotes[window.currentQuoteIndex];
 
             // Target the modal elements specifically
             const modalChineseQuote = document.querySelector('.quotes-modal .chinese-quote');
             const modalEnglishQuote = document.querySelector('.quotes-modal .english-quote');
             
-            if (modalChineseQuote && modalEnglishQuote) {
+            if (modalChineseQuote && modalEnglishQuote && quote) {
                 modalChineseQuote.textContent = quote.Chinese || '';
                 modalEnglishQuote.textContent = quote.English || '';
             }
         }
 
-        // Initialize quotes and modal functionality
+        // Filter quotes by type for modal
+        function filterQuotesByTypeInModal(type) {
+            if (typeof window.quotes === 'undefined') return;
+            
+            if (!type) {
+                window.filteredQuotes = [...window.quotes];
+            } else {
+                window.filteredQuotes = window.quotes.filter(quote => quote.Type === type);
+            }
+            
+            // Reset current index and show a quote from filtered list
+            window.currentQuoteIndex = -1;
+            showRandomQuoteInModal();
+        }
+
+        // Initialize modal functionality
         document.addEventListener('DOMContentLoaded', () => {
-            loadQuotes();
-            
-            // Modal functionality
-            const quotesBtn = document.getElementById('quotes-btn');
-            const quotesModal = document.getElementById('quotes-modal');
-            const quotesModalClose = document.getElementById('quotes-modal-close');
-            const quotesModalOverlay = document.querySelector('.quotes-modal-overlay');
-            const nextQuoteBtn = document.getElementById('next-quote-btn');
-            
-            // Show modal when quotes button is clicked
-            quotesBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                quotesModal.style.display = 'block';
-                document.body.style.overflow = 'hidden';
-            });
-            
-            // Close modal when close button is clicked
-            quotesModalClose.addEventListener('click', () => {
-                quotesModal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            });
-            
-            // Close modal when overlay is clicked
-            quotesModalOverlay.addEventListener('click', () => {
-                quotesModal.style.display = 'none';
-                document.body.style.overflow = 'auto';
-            });
-            
-            // Close modal when Escape key is pressed
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && quotesModal.style.display === 'block') {
-                    quotesModal.style.display = 'none';
-                    document.body.style.overflow = 'auto';
-                }
-            });
-            
-            // Next quote button functionality
-            nextQuoteBtn.addEventListener('click', () => {
-                showRandomQuote();
-            });
-            
-            // Add event listener for type selection in modal
-            const typeSelect = document.getElementById('quote-type-select');
-            typeSelect.addEventListener('change', (e) => {
-                filterQuotesByType(e.target.value);
-            });
-            
-            // Add click handler for quote card in modal
-            const quoteCard = document.querySelector('.quote-card');
-            let isFlipping = false;
-
-            quoteCard.addEventListener('click', function() {
-                if (isFlipping) return;
-                isFlipping = true;
-
-                this.style.transform = 'scale(0.95)';
+            // Wait for quotes to be loaded by quote.js, then setup modal
+            const initializeModal = () => {
+                const quotesBtn = document.getElementById('quotes-btn');
+                const quotesModal = document.getElementById('quotes-modal');
+                const quotesModalClose = document.getElementById('quotes-modal-close');
+                const quotesModalOverlay = document.querySelector('.quotes-modal-overlay');
+                const nextQuoteBtn = document.getElementById('next-quote-btn');
                 
-                setTimeout(() => {
-                    showRandomQuote();
-                    this.style.transform = 'scale(1)';
-                    setTimeout(() => {
-                        isFlipping = false;
-                    }, 300);
-                }, 200);
-            });
+                if (!quotesBtn || !quotesModal) return;
+                
+                // Show modal when quotes button is clicked
+                quotesBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    // Populate dropdown when modal opens
+                    populateModalDropdown();
+                    // Show initial quote
+                    showRandomQuoteInModal();
+                    quotesModal.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                });
+                
+                // Close modal when close button is clicked
+                if (quotesModalClose) {
+                    quotesModalClose.addEventListener('click', () => {
+                        quotesModal.style.display = 'none';
+                        document.body.style.overflow = 'auto';
+                    });
+                }
+                
+                // Close modal when overlay is clicked
+                if (quotesModalOverlay) {
+                    quotesModalOverlay.addEventListener('click', () => {
+                        quotesModal.style.display = 'none';
+                        document.body.style.overflow = 'auto';
+                    });
+                }
+                
+                // Close modal when Escape key is pressed
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && quotesModal.style.display === 'block') {
+                        quotesModal.style.display = 'none';
+                        document.body.style.overflow = 'auto';
+                    }
+                });
+                
+                // Next quote button functionality
+                if (nextQuoteBtn) {
+                    nextQuoteBtn.addEventListener('click', () => {
+                        showRandomQuoteInModal();
+                    });
+                }
+                
+                // Add event listener for type selection in modal
+                const typeSelect = document.getElementById('quote-type-select');
+                if (typeSelect) {
+                    typeSelect.addEventListener('change', (e) => {
+                        filterQuotesByTypeInModal(e.target.value);
+                    });
+                }
+                
+                // Add click handler for quote card in modal
+                const quoteCard = document.querySelector('.quotes-modal .quote-card');
+                if (quoteCard) {
+                    let isFlipping = false;
+
+                    quoteCard.addEventListener('click', function() {
+                        if (isFlipping) return;
+                        isFlipping = true;
+
+                        this.style.transform = 'scale(0.95)';
+                        
+                        setTimeout(() => {
+                            showRandomQuoteInModal();
+                            this.style.transform = 'scale(1)';
+                            setTimeout(() => {
+                                isFlipping = false;
+                            }, 300);
+                        }, 200);
+                    });
+                }
+            };
+
+            // Populate dropdown with quote types
+            function populateModalDropdown() {
+                if (typeof window.quotes === 'undefined' || !window.quotes.length) return;
+                
+                const typeSelect = document.getElementById('quote-type-select');
+                if (!typeSelect) return;
+                
+                // Extract unique quote types
+                const quoteTypes = [...new Set(window.quotes.map(quote => quote.Type))].filter(Boolean);
+                
+                typeSelect.innerHTML = '';
+                
+                if (quoteTypes.length > 0) {
+                    quoteTypes.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type;
+                        option.textContent = type;
+                        typeSelect.appendChild(option);
+                    });
+                    
+                    // Filter quotes by the first type initially
+                    filterQuotesByTypeInModal(quoteTypes[0]);
+                } else {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '无可用类型';
+                    typeSelect.appendChild(option);
+                }
+            }
+
+            // Try to initialize immediately, or wait for quotes to load
+            if (typeof window.quotes !== 'undefined' && window.quotes.length > 0) {
+                initializeModal();
+            } else {
+                // Wait a bit for quotes to load, then initialize
+                setTimeout(initializeModal, 1000);
+                
+                // Also listen for a custom event if quote.js dispatches one
+                window.addEventListener('quotesLoaded', initializeModal);
+            }
         });
 
         // Handle mobile dropdown menus

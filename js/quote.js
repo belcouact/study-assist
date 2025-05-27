@@ -55,11 +55,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.head.appendChild(styleEl);
 });
 
-// Global variables
-let quotes = [];
-let quoteTypes = [];
-let currentQuoteIndex = -1;
-let filteredQuotes = [];
+// Global variables - exposed to window for modal access
+window.quotes = [];
+window.quoteTypes = [];
+window.currentQuoteIndex = -1;
+window.filteredQuotes = [];
+
+// Local references for backward compatibility
+let quotes = window.quotes;
+let quoteTypes = window.quoteTypes;
+let currentQuoteIndex = window.currentQuoteIndex;
+let filteredQuotes = window.filteredQuotes;
 
 // Sample default quotes in case API fails
 const defaultQuotes = [
@@ -87,16 +93,16 @@ async function loadQuotes() {
         const result = await response.json();
         
         if (result.success && result.data && result.data.length > 0) {
-            quotes = result.data;
+            window.quotes = quotes = result.data;
         } else {
             console.log('Using default quotes as API returned no data');
-            quotes = defaultQuotes;
+            window.quotes = quotes = defaultQuotes;
         }
         
-        filteredQuotes = [...quotes];
+        window.filteredQuotes = filteredQuotes = [...quotes];
         
         // Extract unique quote types
-        quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
+        window.quoteTypes = quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
         
         // Populate the dropdown
         const typeSelect = document.getElementById('quote-type-select');
@@ -122,13 +128,16 @@ async function loadQuotes() {
         
         // Show an initial quote
         showRandomQuote();
+        
+        // Dispatch event to notify modal that quotes are loaded
+        window.dispatchEvent(new CustomEvent('quotesLoaded'));
     } catch (error) {
         console.error('Error loading quotes:', error);
-        quotes = defaultQuotes;
-        filteredQuotes = [...quotes];
+        window.quotes = quotes = defaultQuotes;
+        window.filteredQuotes = filteredQuotes = [...quotes];
         
         // Extract types from default quotes
-        quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
+        window.quoteTypes = quoteTypes = [...new Set(quotes.map(quote => quote.Type))].filter(Boolean);
         
         // Populate dropdown with default types
         const typeSelect = document.getElementById('quote-type-select');
@@ -152,19 +161,22 @@ async function loadQuotes() {
         
         // Show a default quote
         showRandomQuote();
+        
+        // Dispatch event to notify modal that quotes are loaded
+        window.dispatchEvent(new CustomEvent('quotesLoaded'));
     }
 }
 
 // Filter quotes by type
 function filterQuotesByType(type) {
     if (!type) {
-        filteredQuotes = [...quotes];
+        window.filteredQuotes = filteredQuotes = [...quotes];
     } else {
-        filteredQuotes = quotes.filter(quote => quote.Type === type);
+        window.filteredQuotes = filteredQuotes = quotes.filter(quote => quote.Type === type);
     }
     
     // Reset current index and show a quote from filtered list
-    currentQuoteIndex = -1;
+    window.currentQuoteIndex = currentQuoteIndex = -1;
     showRandomQuote();
 }
 
@@ -177,7 +189,7 @@ function showRandomQuote() {
         newIndex = Math.floor(Math.random() * filteredQuotes.length);
     } while (newIndex === currentQuoteIndex && filteredQuotes.length > 1);
 
-    currentQuoteIndex = newIndex;
+    window.currentQuoteIndex = currentQuoteIndex = newIndex;
     const quote = filteredQuotes[currentQuoteIndex];
 
     const chineseQuoteEl = document.querySelector('.quote-card-front .chinese-quote');
