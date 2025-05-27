@@ -192,14 +192,23 @@ function showRandomQuote() {
     window.currentQuoteIndex = currentQuoteIndex = newIndex;
     const quote = filteredQuotes[currentQuoteIndex];
 
-    const chineseQuoteEl = document.querySelector('.quote-card-front .chinese-quote');
-    const englishQuoteEl = document.querySelector('.quote-card-front .english-quote');
+    // Try both old and new selectors for compatibility
+    let chineseQuoteEl = document.querySelector('.chinese-quote');
+    let englishQuoteEl = document.querySelector('.english-quote');
     
-    if (chineseQuoteEl) {
+    // Fallback to old selectors if new ones don't exist
+    if (!chineseQuoteEl) {
+        chineseQuoteEl = document.querySelector('.quote-card-front .chinese-quote');
+    }
+    if (!englishQuoteEl) {
+        englishQuoteEl = document.querySelector('.quote-card-front .english-quote');
+    }
+    
+    if (chineseQuoteEl && quote) {
         chineseQuoteEl.textContent = quote.Chinese || '';
     }
     
-    if (englishQuoteEl) {
+    if (englishQuoteEl && quote) {
         englishQuoteEl.textContent = quote.English || '';
     }
 } 

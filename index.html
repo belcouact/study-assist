@@ -547,7 +547,14 @@
                 if (typeof window.quotes !== 'undefined' && window.quotes.length > 0) {
                     window.filteredQuotes = [...window.quotes];
                 } else {
-                    return;
+                    // Use default quotes if no quotes are available
+                    window.filteredQuotes = [
+                        {
+                            Chinese: "学而不思则罔，思而不学则殆。",
+                            English: "Learning without thought is labor lost; thought without learning is perilous.",
+                            Type: "学习"
+                        }
+                    ];
                 }
             }
 
@@ -567,11 +574,17 @@
                 modalChineseQuote.textContent = quote.Chinese || '';
                 modalEnglishQuote.textContent = quote.English || '';
             }
+            
+            console.log('Modal quote updated:', quote); // Debug log
         }
 
         // Filter quotes by type for modal
         function filterQuotesByTypeInModal(type) {
-            if (typeof window.quotes === 'undefined') return;
+            // Ensure we have quotes to work with
+            if (typeof window.quotes === 'undefined' || !window.quotes.length) {
+                console.log('No quotes available for filtering');
+                return;
+            }
             
             if (!type) {
                 window.filteredQuotes = [...window.quotes];
@@ -582,6 +595,8 @@
             // Reset current index and show a quote from filtered list
             window.currentQuoteIndex = -1;
             showRandomQuoteInModal();
+            
+            console.log('Filtered quotes:', window.filteredQuotes.length, 'Type:', type); // Debug log
         }
 
         // Initialize modal functionality
@@ -598,6 +613,8 @@
                 // Show modal when quotes button is clicked
                 quotesBtn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    console.log('Opening quotes modal'); // Debug log
+                    console.log('Available quotes:', window.quotes); // Debug log
                     // Populate dropdown when modal opens
                     populateModalDropdown();
                     // Show initial quote
@@ -666,15 +683,38 @@
 
             // Populate dropdown with quote types
             function populateModalDropdown() {
-                if (typeof window.quotes === 'undefined' || !window.quotes.length) return;
-                
                 const typeSelect = document.getElementById('quote-type-select');
                 if (!typeSelect) return;
                 
+                // Use available quotes or defaults
+                let quotesToUse = window.quotes;
+                if (!quotesToUse || quotesToUse.length === 0) {
+                    quotesToUse = [
+                        {
+                            Chinese: "学而不思则罔，思而不学则殆。",
+                            English: "Learning without thought is labor lost; thought without learning is perilous.",
+                            Type: "学习"
+                        },
+                        {
+                            Chinese: "知之为知之，不知为不知，是知也。",
+                            English: "To know what you know and what you do not know, that is true knowledge.",
+                            Type: "知识"
+                        }
+                    ];
+                    window.quotes = quotesToUse;
+                    window.filteredQuotes = [...quotesToUse];
+                }
+                
                 // Extract unique quote types
-                const quoteTypes = [...new Set(window.quotes.map(quote => quote.Type))].filter(Boolean);
+                const quoteTypes = [...new Set(quotesToUse.map(quote => quote.Type))].filter(Boolean);
                 
                 typeSelect.innerHTML = '';
+                
+                // Add "所有类型" option first
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = '所有类型';
+                typeSelect.appendChild(allOption);
                 
                 if (quoteTypes.length > 0) {
                     quoteTypes.forEach(type => {
@@ -683,15 +723,14 @@
                         option.textContent = type;
                         typeSelect.appendChild(option);
                     });
-                    
-                    // Filter quotes by the first type initially
-                    filterQuotesByTypeInModal(quoteTypes[0]);
                 } else {
                     const option = document.createElement('option');
                     option.value = '';
                     option.textContent = '无可用类型';
                     typeSelect.appendChild(option);
                 }
+                
+                console.log('Dropdown populated with types:', quoteTypes); // Debug log
             }
 
             // Try to initialize immediately, or wait for quotes to load
