@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>坐标几何 - 数学学习助手</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            animation: pulse 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.9);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .back-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .coordinate-area {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .coordinate-canvas {
+            border: 2px solid #45b7d1;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .controls-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .tab-btn {
+            padding: 10px 15px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab-btn:hover {
+            background: #e9ecef;
+            color: #45b7d1;
+        }
+
+        .tab-btn.active {
+            color: #45b7d1;
+            border-bottom-color: #45b7d1;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .control-group h4 {
+            color: #45b7d1;
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #45b7d1;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #45b7d1, #4ecdc4);
+            color: white;
+            box-shadow: 0 2px 8px rgba(69, 183, 209, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(69, 183, 209, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #a55eea, #8b5cf6);
+            color: white;
+            box-shadow: 0 2px 8px rgba(165, 94, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
+        }
+
+        .point-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+
+        .point-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .point-coords {
+            font-weight: 600;
+            color: #45b7d1;
+        }
+
+        .delete-point {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 2px 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .info-panel {
+            background: #e3f2fd;
+            border-left: 4px solid #45b7d1;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .info-panel h5 {
+            color: #1976d2;
+            margin-bottom: 8px;
+        }
+
+        .info-panel p {
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 5px;
+        }
+
+        .transformation-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .slider-control {
+            margin-bottom: 15px;
+        }
+
+        .slider-control label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e9ecef;
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #45b7d1;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #45b7d1;
+            cursor: pointer;
+            border: none;
+        }
+
+        .coordinate-display {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto 1fr;
+            }
+            
+            .controls-panel {
+                order: -1;
+                max-height: 300px;
+            }
+            
+            .coordinate-area {
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .tab-btn {
+                border-bottom: 1px solid #e9ecef;
+                border-right: none;
+            }
+
+            .transformation-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .input-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="window.location.href='main.html'">← 返回数学主页</button>
+    
+    <div class="container">
+        <div class="header">
+            <h1>📐 坐标几何</h1>
+            <p>探索平面直角坐标系，学习点、线、图形的坐标表示和变换</p>
+        </div>
+
+        <div class="main-content">
+            <div class="coordinate-area">
+                <canvas id="coordinateCanvas" class="coordinate-canvas" width="600" height="600"></canvas>
+                <div id="coordinateDisplay" class="coordinate-display" style="display: none;"></div>
+            </div>
+
+            <div class="controls-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="points">点</button>
+                    <button class="tab-btn" data-tab="lines">线</button>
+                    <button class="tab-btn" data-tab="shapes">图形</button>
+                    <button class="tab-btn" data-tab="transform">变换</button>
+                </div>
+
+                <!-- 点操作 -->
+                <div class="tab-content active" id="points">
+                    <div class="info-panel">
+                        <h5>📍 点的坐标</h5>
+                        <p>在坐标系中，每个点都有唯一的坐标 (x, y)</p>
+                        <p>x 表示横坐标，y 表示纵坐标</p>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>添加点</h4>
+                        <div class="input-row">
+                            <input type="number" id="pointX" class="input-field" placeholder="x坐标" value="0">
+                            <input type="number" id="pointY" class="input-field" placeholder="y坐标" value="0">
+                            <button class="btn btn-primary" onclick="addPoint()">
+                                ➕ 添加
+                            </button>
+                        </div>
+                        <div class="input-row">
+                            <input type="text" id="pointLabel" class="input-field" placeholder="点的标签 (可选)" maxlength="3">
+                            <button class="btn btn-secondary" onclick="addRandomPoint()">
+                                🎲 随机点
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>已添加的点</h4>
+                        <div id="pointsList" class="point-list">
+                            <p style="text-align: center; color: #666;">暂无点</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="clearPoints()" style="width: 100%; margin-top: 10px;">
+                            🗑️ 清除所有点
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 线操作 -->
+                <div class="tab-content" id="lines">
+                    <div class="info-panel">
+                        <h5>📏 直线和线段</h5>
+                        <p>两点确定一条直线</p>
+                        <p>直线方程：y = kx + b</p>
+                        <p>其中 k 是斜率，b 是 y 轴截距</p>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>绘制直线</h4>
+                        <div class="input-row">
+                            <input type="number" id="lineK" class="input-field" placeholder="斜率 k" value="1" step="0.1">
+                            <input type="number" id="lineB" class="input-field" placeholder="截距 b" value="0" step="0.1">
+                            <button class="btn btn-primary" onclick="addLine()">
+                                📏 绘制
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>连接点</h4>
+                        <p style="font-size: 14px; color: #666; margin-bottom: 10px;">选择两个已存在的点来绘制线段</p>
+                        <div class="input-row">
+                            <select id="point1Select" class="input-field">
+                                <option value="">选择第一个点</option>
+                            </select>
+                            <select id="point2Select" class="input-field">
+                                <option value="">选择第二个点</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success" onclick="connectPoints()" style="width: 100%; margin-top: 10px;">
+                            🔗 连接点
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>线段信息</h4>
+                        <div id="lineInfo" style="font-size: 14px; color: #666;">
+                            选择两个点查看线段信息
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图形操作 -->
+                <div class="tab-content" id="shapes">
+                    <div class="info-panel">
+                        <h5>🔷 几何图形</h5>
+                        <p>使用坐标绘制各种几何图形</p>
+                        <p>圆的方程：(x-a)² + (y-b)² = r²</p>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>绘制圆</h4>
+                        <div class="input-row">
+                            <input type="number" id="circleX" class="input-field" placeholder="圆心 x" value="0">
+                            <input type="number" id="circleY" class="input-field" placeholder="圆心 y" value="0">
+                        </div>
+                        <div class="input-row">
+                            <input type="number" id="circleR" class="input-field" placeholder="半径 r" value="5" min="1">
+                            <button class="btn btn-primary" onclick="addCircle()">
+                                ⭕ 绘制圆
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>绘制矩形</h4>
+                        <div class="input-row">
+                            <input type="number" id="rectX" class="input-field" placeholder="左上角 x" value="-3">
+                            <input type="number" id="rectY" class="input-field" placeholder="左上角 y" value="3">
+                        </div>
+                        <div class="input-row">
+                            <input type="number" id="rectW" class="input-field" placeholder="宽度" value="6" min="1">
+                            <input type="number" id="rectH" class="input-field" placeholder="高度" value="4" min="1">
+                        </div>
+                        <button class="btn btn-primary" onclick="addRectangle()" style="width: 100%; margin-top: 10px;">
+                            ⬜ 绘制矩形
+                        </button>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>预设图形</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <button class="btn btn-secondary" onclick="drawTriangle()">
+                                🔺 三角形
+                            </button>
+                            <button class="btn btn-secondary" onclick="drawSquare()">
+                                🔲 正方形
+                            </button>
+                            <button class="btn btn-secondary" onclick="drawPentagon()">
+                                ⬟ 五边形
+                            </button>
+                            <button class="btn btn-secondary" onclick="drawStar()">
+                                ⭐ 五角星
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 变换操作 -->
+                <div class="tab-content" id="transform">
+                    <div class="info-panel">
+                        <h5>🔄 几何变换</h5>
+                        <p>平移、旋转、缩放、反射</p>
+                        <p>观察图形在变换下的坐标变化</p>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>平移变换</h4>
+                        <div class="slider-control">
+                            <label>水平平移: <span id="translateXValue">0</span></label>
+                            <input type="range" id="translateX" class="slider" min="-10" max="10" value="0" step="0.5">
+                        </div>
+                        <div class="slider-control">
+                            <label>垂直平移: <span id="translateYValue">0</span></label>
+                            <input type="range" id="translateY" class="slider" min="-10" max="10" value="0" step="0.5">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>旋转变换</h4>
+                        <div class="slider-control">
+                            <label>旋转角度: <span id="rotateValue">0</span>°</label>
+                            <input type="range" id="rotate" class="slider" min="0" max="360" value="0" step="5">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>缩放变换</h4>
+                        <div class="slider-control">
+                            <label>缩放比例: <span id="scaleValue">1</span></label>
+                            <input type="range" id="scale" class="slider" min="0.1" max="3" value="1" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <h4>反射变换</h4>
+                        <div class="transformation-controls">
+                            <button class="btn btn-secondary" onclick="reflectX()">
+                                ↕️ x轴反射
+                            </button>
+                            <button class="btn btn-secondary" onclick="reflectY()">
+                                ↔️ y轴反射
+                            </button>
+                            <button class="btn btn-secondary" onclick="reflectOrigin()">
+                                🔄 原点反射
+                            </button>
+                            <button class="btn btn-danger" onclick="resetTransform()">
+                                🔄 重置变换
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-group" style="margin-top: 20px;">
+                    <button class="btn btn-danger" onclick="clearAll()" style="width: 100%;">
+                        🗑️ 清除画布
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('coordinateCanvas');
+        const ctx = canvas.getContext('2d');
+        const coordinateDisplay = document.getElementById('coordinateDisplay');
+
+        // Drawing state
+        let points = [];
+        let lines = [];
+        let shapes = [];
+        let transform = {
+            translateX: 0,
+            translateY: 0,
+            rotate: 0,
+            scale: 1
+        };
+
+        // Canvas settings
+        const GRID_SIZE = 20;
+        const ORIGIN_X = canvas.width / 2;
+        const ORIGIN_Y = canvas.height / 2;
+        const MAX_COORD = 15;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupCanvas();
+            setupEventListeners();
+            drawCoordinateSystem();
+        });
+
+        function setupCanvas() {
+            // Mouse move event for coordinate display
+            canvas.addEventListener('mousemove', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const coordX = Math.round((x - ORIGIN_X) / GRID_SIZE);
+                const coordY = Math.round((ORIGIN_Y - y) / GRID_SIZE);
+                
+                coordinateDisplay.textContent = `(${coordX}, ${coordY})`;
+                coordinateDisplay.style.left = (e.clientX + 10) + 'px';
+                coordinateDisplay.style.top = (e.clientY - 30) + 'px';
+                coordinateDisplay.style.display = 'block';
+            });
+
+            canvas.addEventListener('mouseleave', function() {
+                coordinateDisplay.style.display = 'none';
+            });
+
+            // Click to add point
+            canvas.addEventListener('click', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                const coordX = Math.round((x - ORIGIN_X) / GRID_SIZE);
+                const coordY = Math.round((ORIGIN_Y - y) / GRID_SIZE);
+                
+                if (Math.abs(coordX) <= MAX_COORD && Math.abs(coordY) <= MAX_COORD) {
+                    document.getElementById('pointX').value = coordX;
+                    document.getElementById('pointY').value = coordY;
+                    addPoint();
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    
+                    btn.classList.add('active');
+                    document.getElementById(btn.dataset.tab).classList.add('active');
+                    
+                    if (btn.dataset.tab === 'lines') {
+                        updatePointSelectors();
+                    }
+                });
+            });
+
+            // Transform sliders
+            document.getElementById('translateX').addEventListener('input', function() {
+                transform.translateX = parseFloat(this.value);
+                document.getElementById('translateXValue').textContent = this.value;
+                redraw();
+            });
+
+            document.getElementById('translateY').addEventListener('input', function() {
+                transform.translateY = parseFloat(this.value);
+                document.getElementById('translateYValue').textContent = this.value;
+                redraw();
+            });
+
+            document.getElementById('rotate').addEventListener('input', function() {
+                transform.rotate = parseFloat(this.value);
+                document.getElementById('rotateValue').textContent = this.value;
+                redraw();
+            });
+
+            document.getElementById('scale').addEventListener('input', function() {
+                transform.scale = parseFloat(this.value);
+                document.getElementById('scaleValue').textContent = this.value;
+                redraw();
+            });
+
+            // Point selectors change event
+            document.getElementById('point1Select').addEventListener('change', updateLineInfo);
+            document.getElementById('point2Select').addEventListener('change', updateLineInfo);
+        }
+
+        function drawCoordinateSystem() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Grid
+            ctx.strokeStyle = '#f0f0f0';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= canvas.width; i += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let i = 0; i <= canvas.height; i += GRID_SIZE) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+            
+            // Axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(0, ORIGIN_Y);
+            ctx.lineTo(canvas.width, ORIGIN_Y);
+            ctx.stroke();
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(ORIGIN_X, 0);
+            ctx.lineTo(ORIGIN_X, canvas.height);
+            ctx.stroke();
+            
+            // Axis labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            
+            // X-axis numbers
+            for (let i = -MAX_COORD; i <= MAX_COORD; i++) {
+                if (i !== 0) {
+                    const x = ORIGIN_X + i * GRID_SIZE;
+                    ctx.fillText(i.toString(), x, ORIGIN_Y + 15);
+                }
+            }
+            
+            // Y-axis numbers
+            ctx.textAlign = 'right';
+            for (let i = -MAX_COORD; i <= MAX_COORD; i++) {
+                if (i !== 0) {
+                    const y = ORIGIN_Y - i * GRID_SIZE;
+                    ctx.fillText(i.toString(), ORIGIN_X - 5, y + 4);
+                }
+            }
+            
+            // Origin
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'right';
+            ctx.fillText('O', ORIGIN_X - 5, ORIGIN_Y + 15);
+            
+            // Axis arrows
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            // X-axis arrow
+            ctx.beginPath();
+            ctx.moveTo(canvas.width - 10, ORIGIN_Y - 5);
+            ctx.lineTo(canvas.width, ORIGIN_Y);
+            ctx.lineTo(canvas.width - 10, ORIGIN_Y + 5);
+            ctx.stroke();
+            
+            // Y-axis arrow
+            ctx.beginPath();
+            ctx.moveTo(ORIGIN_X - 5, 10);
+            ctx.lineTo(ORIGIN_X, 0);
+            ctx.lineTo(ORIGIN_X + 5, 10);
+            ctx.stroke();
+            
+            // Axis labels
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('x', canvas.width - 15, ORIGIN_Y - 10);
+            ctx.fillText('y', ORIGIN_X + 15, 15);
+        }
+
+        function canvasToCoord(canvasX, canvasY) {
+            return {
+                x: (canvasX - ORIGIN_X) / GRID_SIZE,
+                y: (ORIGIN_Y - canvasY) / GRID_SIZE
+            };
+        }
+
+        function coordToCanvas(x, y) {
+            return {
+                x: ORIGIN_X + x * GRID_SIZE,
+                y: ORIGIN_Y - y * GRID_SIZE
+            };
+        }
+
+        function applyTransform(x, y) {
+            // Apply transformations in order: scale, rotate, translate
+            let newX = x * transform.scale;
+            let newY = y * transform.scale;
+            
+            // Rotation
+            const angle = transform.rotate * Math.PI / 180;
+            const rotatedX = newX * Math.cos(angle) - newY * Math.sin(angle);
+            const rotatedY = newX * Math.sin(angle) + newY * Math.cos(angle);
+            
+            // Translation
+            return {
+                x: rotatedX + transform.translateX,
+                y: rotatedY + transform.translateY
+            };
+        }
+
+        function addPoint() {
+            const x = parseFloat(document.getElementById('pointX').value) || 0;
+            const y = parseFloat(document.getElementById('pointY').value) || 0;
+            const label = document.getElementById('pointLabel').value || `P${points.length + 1}`;
+            
+            if (Math.abs(x) > MAX_COORD || Math.abs(y) > MAX_COORD) {
+                alert(`坐标范围应在 -${MAX_COORD} 到 ${MAX_COORD} 之间`);
+                return;
+            }
+            
+            const point = { x, y, label, id: Date.now() };
+            points.push(point);
+            
+            // Clear inputs
+            document.getElementById('pointX').value = '';
+            document.getElementById('pointY').value = '';
+            document.getElementById('pointLabel').value = '';
+            
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function addRandomPoint() {
+            const x = Math.floor(Math.random() * (MAX_COORD * 2 + 1)) - MAX_COORD;
+            const y = Math.floor(Math.random() * (MAX_COORD * 2 + 1)) - MAX_COORD;
+            const label = `R${points.length + 1}`;
+            
+            const point = { x, y, label, id: Date.now() };
+            points.push(point);
+            
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function removePoint(id) {
+            points = points.filter(p => p.id !== id);
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function clearPoints() {
+            points = [];
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function updatePointsList() {
+            const list = document.getElementById('pointsList');
+            
+            if (points.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #666;">暂无点</p>';
+                return;
+            }
+            
+            list.innerHTML = points.map(point => `
+                <div class="point-item">
+                    <span class="point-coords">${point.label}: (${point.x}, ${point.y})</span>
+                    <button class="delete-point" onclick="removePoint(${point.id})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function updatePointSelectors() {
+            const select1 = document.getElementById('point1Select');
+            const select2 = document.getElementById('point2Select');
+            
+            const options = '<option value="">选择点</option>' + 
+                points.map(point => `<option value="${point.id}">${point.label}: (${point.x}, ${point.y})</option>`).join('');
+            
+            select1.innerHTML = options;
+            select2.innerHTML = options;
+        }
+
+        function addLine() {
+            const k = parseFloat(document.getElementById('lineK').value) || 0;
+            const b = parseFloat(document.getElementById('lineB').value) || 0;
+            
+            const line = { type: 'function', k, b, id: Date.now() };
+            lines.push(line);
+            
+            redraw();
+        }
+
+        function connectPoints() {
+            const point1Id = document.getElementById('point1Select').value;
+            const point2Id = document.getElementById('point2Select').value;
+            
+            if (!point1Id || !point2Id || point1Id === point2Id) {
+                alert('请选择两个不同的点');
+                return;
+            }
+            
+            const point1 = points.find(p => p.id == point1Id);
+            const point2 = points.find(p => p.id == point2Id);
+            
+            const line = { type: 'segment', point1, point2, id: Date.now() };
+            lines.push(line);
+            
+            redraw();
+        }
+
+        function updateLineInfo() {
+            const point1Id = document.getElementById('point1Select').value;
+            const point2Id = document.getElementById('point2Select').value;
+            const infoDiv = document.getElementById('lineInfo');
+            
+            if (!point1Id || !point2Id || point1Id === point2Id) {
+                infoDiv.innerHTML = '选择两个不同的点查看线段信息';
+                return;
+            }
+            
+            const point1 = points.find(p => p.id == point1Id);
+            const point2 = points.find(p => p.id == point2Id);
+            
+            const dx = point2.x - point1.x;
+            const dy = point2.y - point1.y;
+            const distance = Math.sqrt(dx * dx + dy * dy).toFixed(2);
+            const slope = dx !== 0 ? (dy / dx).toFixed(2) : '无穷大';
+            
+            infoDiv.innerHTML = `
+                <p><strong>线段长度:</strong> ${distance}</p>
+                <p><strong>斜率:</strong> ${slope}</p>
+                <p><strong>中点:</strong> (${((point1.x + point2.x) / 2).toFixed(1)}, ${((point1.y + point2.y) / 2).toFixed(1)})</p>
+            `;
+        }
+
+        function addCircle() {
+            const x = parseFloat(document.getElementById('circleX').value) || 0;
+            const y = parseFloat(document.getElementById('circleY').value) || 0;
+            const r = parseFloat(document.getElementById('circleR').value) || 5;
+            
+            if (r <= 0) {
+                alert('半径必须大于0');
+                return;
+            }
+            
+            const circle = { type: 'circle', x, y, r, id: Date.now() };
+            shapes.push(circle);
+            
+            redraw();
+        }
+
+        function addRectangle() {
+            const x = parseFloat(document.getElementById('rectX').value) || -3;
+            const y = parseFloat(document.getElementById('rectY').value) || 3;
+            const w = parseFloat(document.getElementById('rectW').value) || 6;
+            const h = parseFloat(document.getElementById('rectH').value) || 4;
+            
+            if (w <= 0 || h <= 0) {
+                alert('宽度和高度必须大于0');
+                return;
+            }
+            
+            const rect = { type: 'rectangle', x, y, w, h, id: Date.now() };
+            shapes.push(rect);
+            
+            redraw();
+        }
+
+        function drawTriangle() {
+            const triangle = {
+                type: 'polygon',
+                points: [
+                    { x: 0, y: 5 },
+                    { x: -4, y: -2 },
+                    { x: 4, y: -2 }
+                ],
+                id: Date.now()
+            };
+            shapes.push(triangle);
+            redraw();
+        }
+
+        function drawSquare() {
+            const square = {
+                type: 'polygon',
+                points: [
+                    { x: -3, y: 3 },
+                    { x: 3, y: 3 },
+                    { x: 3, y: -3 },
+                    { x: -3, y: -3 }
+                ],
+                id: Date.now()
+            };
+            shapes.push(square);
+            redraw();
+        }
+
+        function drawPentagon() {
+            const points = [];
+            const radius = 4;
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                points.push({
+                    x: radius * Math.cos(angle),
+                    y: radius * Math.sin(angle)
+                });
+            }
+            
+            const pentagon = { type: 'polygon', points, id: Date.now() };
+            shapes.push(pentagon);
+            redraw();
+        }
+
+        function drawStar() {
+            const points = [];
+            const outerRadius = 5;
+            const innerRadius = 2;
+            
+            for (let i = 0; i < 10; i++) {
+                const angle = (i * Math.PI / 5) - Math.PI / 2;
+                const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                points.push({
+                    x: radius * Math.cos(angle),
+                    y: radius * Math.sin(angle)
+                });
+            }
+            
+            const star = { type: 'polygon', points, id: Date.now() };
+            shapes.push(star);
+            redraw();
+        }
+
+        function reflectX() {
+            points.forEach(point => {
+                point.y = -point.y;
+            });
+            shapes.forEach(shape => {
+                if (shape.type === 'circle') {
+                    shape.y = -shape.y;
+                } else if (shape.type === 'rectangle') {
+                    shape.y = -shape.y - shape.h;
+                } else if (shape.type === 'polygon') {
+                    shape.points.forEach(p => {
+                        p.y = -p.y;
+                    });
+                }
+            });
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function reflectY() {
+            points.forEach(point => {
+                point.x = -point.x;
+            });
+            shapes.forEach(shape => {
+                if (shape.type === 'circle') {
+                    shape.x = -shape.x;
+                } else if (shape.type === 'rectangle') {
+                    shape.x = -shape.x - shape.w;
+                } else if (shape.type === 'polygon') {
+                    shape.points.forEach(p => {
+                        p.x = -p.x;
+                    });
+                }
+            });
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function reflectOrigin() {
+            points.forEach(point => {
+                point.x = -point.x;
+                point.y = -point.y;
+            });
+            shapes.forEach(shape => {
+                if (shape.type === 'circle') {
+                    shape.x = -shape.x;
+                    shape.y = -shape.y;
+                } else if (shape.type === 'rectangle') {
+                    shape.x = -shape.x - shape.w;
+                    shape.y = -shape.y - shape.h;
+                } else if (shape.type === 'polygon') {
+                    shape.points.forEach(p => {
+                        p.x = -p.x;
+                        p.y = -p.y;
+                    });
+                }
+            });
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function resetTransform() {
+            transform = { translateX: 0, translateY: 0, rotate: 0, scale: 1 };
+            
+            document.getElementById('translateX').value = 0;
+            document.getElementById('translateY').value = 0;
+            document.getElementById('rotate').value = 0;
+            document.getElementById('scale').value = 1;
+            
+            document.getElementById('translateXValue').textContent = '0';
+            document.getElementById('translateYValue').textContent = '0';
+            document.getElementById('rotateValue').textContent = '0';
+            document.getElementById('scaleValue').textContent = '1';
+            
+            redraw();
+        }
+
+        function clearAll() {
+            points = [];
+            lines = [];
+            shapes = [];
+            updatePointsList();
+            updatePointSelectors();
+            redraw();
+        }
+
+        function redraw() {
+            drawCoordinateSystem();
+            
+            // Draw lines
+            lines.forEach(line => {
+                ctx.strokeStyle = '#ff6b6b';
+                ctx.lineWidth = 2;
+                
+                if (line.type === 'function') {
+                    ctx.beginPath();
+                    const startX = -MAX_COORD;
+                    const endX = MAX_COORD;
+                    const startY = line.k * startX + line.b;
+                    const endY = line.k * endX + line.b;
+                    
+                    const start = coordToCanvas(startX, startY);
+                    const end = coordToCanvas(endX, endY);
+                    
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                } else if (line.type === 'segment') {
+                    const start = coordToCanvas(line.point1.x, line.point1.y);
+                    const end = coordToCanvas(line.point2.x, line.point2.y);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    ctx.lineTo(end.x, end.y);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw shapes
+            shapes.forEach(shape => {
+                ctx.strokeStyle = '#45b7d1';
+                ctx.fillStyle = 'rgba(69, 183, 209, 0.2)';
+                ctx.lineWidth = 2;
+                
+                if (shape.type === 'circle') {
+                    const transformed = applyTransform(shape.x, shape.y);
+                    const center = coordToCanvas(transformed.x, transformed.y);
+                    const radius = shape.r * GRID_SIZE * transform.scale;
+                    
+                    ctx.beginPath();
+                    ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (shape.type === 'rectangle') {
+                    const transformed = applyTransform(shape.x, shape.y);
+                    const topLeft = coordToCanvas(transformed.x, transformed.y);
+                    const width = shape.w * GRID_SIZE * transform.scale;
+                    const height = shape.h * GRID_SIZE * transform.scale;
+                    
+                    ctx.fillRect(topLeft.x, topLeft.y, width, height);
+                    ctx.strokeRect(topLeft.x, topLeft.y, width, height);
+                } else if (shape.type === 'polygon') {
+                    ctx.beginPath();
+                    shape.points.forEach((point, index) => {
+                        const transformed = applyTransform(point.x, point.y);
+                        const canvasPoint = coordToCanvas(transformed.x, transformed.y);
+                        
+                        if (index === 0) {
+                            ctx.moveTo(canvasPoint.x, canvasPoint.y);
+                        } else {
+                            ctx.lineTo(canvasPoint.x, canvasPoint.y);
+                        }
+                    });
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw points
+            points.forEach(point => {
+                const transformed = applyTransform(point.x, point.y);
+                const canvasPoint = coordToCanvas(transformed.x, transformed.y);
+                
+                // Point circle
+                ctx.fillStyle = '#ff6b6b';
+                ctx.beginPath();
+                ctx.arc(canvasPoint.x, canvasPoint.y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // Point label
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(point.label, canvasPoint.x + 8, canvasPoint.y - 8);
+                
+                // Coordinates
+                ctx.fillStyle = '#666';
+                ctx.font = '10px Arial';
+                ctx.fillText(`(${transformed.x.toFixed(1)}, ${transformed.y.toFixed(1)})`, canvasPoint.x + 8, canvasPoint.y + 15);
+            });
+        }
+    </script>
+</body>
+</html> 
