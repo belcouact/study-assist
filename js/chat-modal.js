@@ -23,28 +23,32 @@ function createChatModal() {
         prismCSS.href = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/themes/prism.min.css';
         document.head.appendChild(prismCSS);
         
-        // Add Prism JS
+        // Add Prism JS with proper loading order
         const prismJS = document.createElement('script');
         prismJS.id = 'prism-js';
         prismJS.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/prism.min.js';
+        
+        // Load components only after main Prism.js loads
+        prismJS.onload = function() {
+            // Add common language components
+            const prismJavaScript = document.createElement('script');
+            prismJavaScript.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-javascript.min.js';
+            document.head.appendChild(prismJavaScript);
+            
+            const prismHTML = document.createElement('script');
+            prismHTML.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-markup.min.js';
+            document.head.appendChild(prismHTML);
+            
+            const prismCSS2 = document.createElement('script');
+            prismCSS2.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-css.min.js';
+            document.head.appendChild(prismCSS2);
+            
+            const prismPython = document.createElement('script');
+            prismPython.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-python.min.js';
+            document.head.appendChild(prismPython);
+        };
+        
         document.head.appendChild(prismJS);
-        
-        // Add common language components
-        const prismComponents = document.createElement('script');
-        prismComponents.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-javascript.min.js';
-        document.head.appendChild(prismComponents);
-        
-        const prismHTML = document.createElement('script');
-        prismHTML.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-markup.min.js';
-        document.head.appendChild(prismHTML);
-        
-        const prismCSS2 = document.createElement('script');
-        prismCSS2.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-css.min.js';
-        document.head.appendChild(prismCSS2);
-        
-        const prismPython = document.createElement('script');
-        prismPython.src = 'https://cdn.jsdelivr.net/npm/prismjs@1.24.1/components/prism-python.min.js';
-        document.head.appendChild(prismPython);
     }
 
     const modalHTML = `
