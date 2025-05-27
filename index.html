@@ -185,6 +185,7 @@
                             </ul>
                         </li>
                         <li><a href="draw.html">绘图</a></li>
+                        <li><a href="#" id="quotes-btn">名言</a></li>
                     </ul>
                 </nav>
                 <button class="mobile-menu-toggle" aria-label="切换菜单">
@@ -210,31 +211,6 @@
                     <div class="hero-buttons">
                         <a href="#subjects" class="hero-btn hero-btn-primary">开始学习</a>
                         <a href="#about" class="hero-btn hero-btn-secondary">了解更多</a>
-                    </div>
-                </div>
-                <div class="quote-card-container" id="quote">
-                <div class="quote-type-filter">
-                    <select id="quote-type-select" class="form-control">
-                        <option value="">加载中...</option>
-                    </select>
-                </div>
-                    <div class="quote-card">
-                        <div class="quote-card-inner">
-                            <div class="quote-card-front">
-                                <div class="quote-content">
-                                    <div class="quote-decoration top-left"></div>
-                                    <div class="quote-decoration top-right"></div>
-                                    <i class="fas fa-quote-left quote-icon"></i>
-                                    <div class="quote-text">
-                                        <p class="chinese-quote">加载中...</p>
-                                        <p class="english-quote">Loading...</p>
-                                    </div>
-                                    <i class="fas fa-quote-right quote-icon"></i>
-                                    <div class="quote-decoration bottom-left"></div>
-                                    <div class="quote-decoration bottom-right"></div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -625,38 +601,83 @@
             currentQuoteIndex = newIndex;
             const quote = filteredQuotes[currentQuoteIndex];
 
-            document.querySelector('.quote-card-front .chinese-quote').textContent = quote.Chinese || '';
-            document.querySelector('.quote-card-front .english-quote').textContent = quote.English || '';
+            // Target the modal elements specifically
+            const modalChineseQuote = document.querySelector('.quotes-modal .chinese-quote');
+            const modalEnglishQuote = document.querySelector('.quotes-modal .english-quote');
+            
+            if (modalChineseQuote && modalEnglishQuote) {
+                modalChineseQuote.textContent = quote.Chinese || '';
+                modalEnglishQuote.textContent = quote.English || '';
+            }
         }
 
-        // Initialize quotes
+        // Initialize quotes and modal functionality
         document.addEventListener('DOMContentLoaded', () => {
             loadQuotes();
             
-            // Add event listener for type selection
+            // Modal functionality
+            const quotesBtn = document.getElementById('quotes-btn');
+            const quotesModal = document.getElementById('quotes-modal');
+            const quotesModalClose = document.getElementById('quotes-modal-close');
+            const quotesModalOverlay = document.querySelector('.quotes-modal-overlay');
+            const nextQuoteBtn = document.getElementById('next-quote-btn');
+            
+            // Show modal when quotes button is clicked
+            quotesBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                quotesModal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            });
+            
+            // Close modal when close button is clicked
+            quotesModalClose.addEventListener('click', () => {
+                quotesModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            });
+            
+            // Close modal when overlay is clicked
+            quotesModalOverlay.addEventListener('click', () => {
+                quotesModal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            });
+            
+            // Close modal when Escape key is pressed
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && quotesModal.style.display === 'block') {
+                    quotesModal.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+            
+            // Next quote button functionality
+            nextQuoteBtn.addEventListener('click', () => {
+                showRandomQuote();
+            });
+            
+            // Add event listener for type selection in modal
             const typeSelect = document.getElementById('quote-type-select');
             typeSelect.addEventListener('change', (e) => {
                 filterQuotesByType(e.target.value);
             });
-        });
-
-        // Add click handler for quote card
-        const quoteCard = document.querySelector('.quote-card');
-        let isFlipping = false;
-
-        quoteCard.addEventListener('click', function() {
-            if (isFlipping) return;
-            isFlipping = true;
-
-            this.classList.add('flipped');
             
-            setTimeout(() => {
-                showRandomQuote();
-                this.classList.remove('flipped');
+            // Add click handler for quote card in modal
+            const quoteCard = document.querySelector('.quote-card');
+            let isFlipping = false;
+
+            quoteCard.addEventListener('click', function() {
+                if (isFlipping) return;
+                isFlipping = true;
+
+                this.style.transform = 'scale(0.95)';
+                
                 setTimeout(() => {
-                    isFlipping = false;
-                }, 800);
-            }, 500);
+                    showRandomQuote();
+                    this.style.transform = 'scale(1)';
+                    setTimeout(() => {
+                        isFlipping = false;
+                    }, 300);
+                }, 200);
+            });
         });
 
         // Handle mobile dropdown menus
@@ -703,21 +724,7 @@
     </script>
 
     <style>
-        /* Center the quote dropdown control */
-        .hero-section .quote-type-filter {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 1rem;
-            width: 100%;
-            text-align: center;
-        }
-        
-        .hero-section .quote-type-filter select {
-            margin: 0 auto;
-            text-align-last: center;
-            text-align: center;
-        }
+
         
         /* Modern Navigation Styles */
         .main-header {
@@ -1048,59 +1055,7 @@
             }
         }
 
-        /* Quote Card in Hero Section */
-        .hero-section .quote-card-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            max-width: 67%;
-            padding: 2rem 0;
-            position: relative;
-            width: 100%;
-            box-sizing: border-box;
-            opacity: 0;
-            transform: translateY(30px);
-            animation: fadeInUp 0.8s ease forwards 0.6s;
-        }
 
-        .hero-section .quote-card {
-            width: 100%;
-            height: auto;
-            cursor: pointer;
-            position: relative;
-            margin: 0 auto;
-            transition: all 0.3s ease;
-            box-sizing: border-box;
-        }
-
-        .hero-section .quote-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .hero-section .quote-card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            min-height: 350px;
-            display: flex;
-        }
-
-        .hero-section .quote-card-front {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            min-height: 350px;
-            transition: all 0.3s ease;
-        }
         
         /* Quote content styles */
         .hero-section .quote-content {
@@ -1823,28 +1778,7 @@
                 height: auto !important;
             }
             
-            .hero-section .quote-card-front,
-            .hero-section .quote-card-back {
-                width: 100% !important;
-                max-width: none !important;
-                height: auto !important;
-                min-height: auto !important;
-                position: relative !important;
-                border-radius: 15px !important;
-        }
 
-            .hero-section .quote-content {
-                width: 100% !important;
-                max-width: none !important;
-                padding: 15px !important;
-                display: block !important;
-                height: auto !important;
-        }
-
-            .hero-section .quote-text {
-                width: 100% !important;
-                display: block !important;
-            }
         }
 
         .subject-hover {
@@ -1938,6 +1872,358 @@
             .about-card-icon {
                 margin-bottom: 0;
                 margin-right: 1rem;
+            }
+        }
+    </style>
+
+    <!-- Quotes Popup Modal -->
+    <div id="quotes-modal" class="quotes-modal">
+        <div class="quotes-modal-overlay"></div>
+        <div class="quotes-modal-content">
+            <div class="quotes-modal-header">
+                <h3><i class="fas fa-quote-left"></i> 每日名言</h3>
+                <button class="quotes-modal-close" id="quotes-modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="quotes-modal-body">
+                <div class="quote-type-filter">
+                    <select id="quote-type-select" class="form-control">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div class="quote-card" id="quote-card">
+                    <div class="quote-card-inner">
+                        <div class="quote-card-front">
+                            <div class="quote-content">
+                                <div class="quote-decoration top-left"></div>
+                                <div class="quote-decoration top-right"></div>
+                                <i class="fas fa-quote-left quote-icon"></i>
+                                <div class="quote-text">
+                                    <p class="chinese-quote">加载中...</p>
+                                    <p class="english-quote">Loading...</p>
+                                </div>
+                                <i class="fas fa-quote-right quote-icon"></i>
+                                <div class="quote-decoration bottom-left"></div>
+                                <div class="quote-decoration bottom-right"></div>
+                            </div>
+                            <div class="quote-next-btn">
+                                <button id="next-quote-btn" class="btn-next-quote">
+                                    <i class="fas fa-chevron-right"></i> 下一句
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Quotes Modal Styles */
+        .quotes-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+        }
+
+        .quotes-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+        }
+
+        .quotes-modal-content {
+            position: relative;
+            background: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 20px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: modalSlideIn 0.4s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px) scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .quotes-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .quotes-modal-header h3 {
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+
+        .quotes-modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .quotes-modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .quotes-modal-body {
+            padding: 2rem;
+        }
+
+        .quotes-modal .quote-type-filter {
+            margin-bottom: 1.5rem;
+        }
+
+        .quotes-modal .quote-type-filter select {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: white;
+            color: #4a5568;
+            transition: border-color 0.3s ease;
+        }
+
+        .quotes-modal .quote-type-filter select:focus {
+            outline: none;
+            border-color: #4361ee;
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .quotes-modal .quote-card {
+            width: 100%;
+            margin: 0;
+            perspective: 1000px;
+        }
+
+        .quotes-modal .quote-card-inner {
+            position: relative;
+            width: 100%;
+            min-height: 300px;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .quotes-modal .quote-card-front {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quotes-modal .quote-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .quotes-modal .quote-decoration {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            z-index: 1;
+        }
+
+        .quotes-modal .quote-decoration.top-left {
+            top: 15px;
+            left: 15px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .quotes-modal .quote-decoration.top-right {
+            top: 15px;
+            right: 15px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .quotes-modal .quote-decoration.bottom-left {
+            bottom: 15px;
+            left: 15px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .quotes-modal .quote-decoration.bottom-right {
+            bottom: 15px;
+            right: 15px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .quotes-modal .quote-icon {
+            font-size: 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin: 0.5rem 0;
+        }
+
+        .quotes-modal .quote-text {
+            margin: 1rem 0;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .quotes-modal .chinese-quote {
+            font-size: 1.3rem;
+            font-weight: 500;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .quotes-modal .english-quote {
+            font-size: 1rem;
+            font-style: italic;
+            opacity: 0.9;
+            margin-bottom: 0;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        .quote-next-btn {
+            margin-top: 1.5rem;
+        }
+
+        .btn-next-quote {
+            background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+
+        .btn-next-quote:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(67, 97, 238, 0.4);
+        }
+
+        .btn-next-quote:active {
+            transform: translateY(0);
+        }
+
+        /* Mobile responsiveness for modal */
+        @media (max-width: 768px) {
+            .quotes-modal-content {
+                margin: 10% auto;
+                width: 95%;
+                max-height: 90vh;
+            }
+
+            .quotes-modal-header {
+                padding: 1rem 1.5rem;
+            }
+
+            .quotes-modal-header h3 {
+                font-size: 1.2rem;
+            }
+
+            .quotes-modal-body {
+                padding: 1.5rem;
+            }
+
+            .quotes-modal .quote-card-front {
+                padding: 1.5rem;
+                min-height: 250px;
+            }
+
+            .quotes-modal .chinese-quote {
+                font-size: 1.1rem;
+            }
+
+            .quotes-modal .english-quote {
+                font-size: 0.9rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .quotes-modal-content {
+                margin: 5% auto;
+                width: 98%;
+            }
+
+            .quotes-modal-header {
+                padding: 1rem;
+            }
+
+            .quotes-modal-body {
+                padding: 1rem;
+            }
+
+            .quotes-modal .quote-card-front {
+                padding: 1rem;
+                min-height: 200px;
+            }
+
+            .quotes-modal .chinese-quote {
+                font-size: 1rem;
+            }
+
+            .quotes-modal .english-quote {
+                font-size: 0.85rem;
             }
         }
     </style>
