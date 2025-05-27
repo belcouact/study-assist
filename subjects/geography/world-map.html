@@ -119,6 +119,43 @@
             position: relative;
             overflow: hidden;
             border: 2px solid #e9ecef;
+            cursor: grab;
+        }
+
+        .map-display.panning {
+            cursor: grabbing;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .zoom-btn:hover {
+            background: white;
+            transform: scale(1.05);
         }
 
         .world-map-svg {
@@ -263,13 +300,19 @@
         }
 
         .continent-legend {
+            position: absolute;
+            top: 10px;
+            right: 10px;
             display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            flex-direction: column;
+            gap: 0.5rem;
             padding: 1rem;
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
             border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
         }
 
         .legend-item {
@@ -386,9 +429,14 @@
             }
             
             .continent-legend {
+                position: relative;
+                top: auto;
+                right: auto;
+                flex-direction: row;
                 flex-wrap: wrap;
                 gap: 0.5rem;
                 padding: 0.75rem;
+                margin-bottom: 1rem;
             }
             
             .legend-item {
@@ -489,8 +537,14 @@
                 </div>
 
                 <div class="map-workspace">
-                    <div class="map-display">
-                        <div class="continent-legend">
+                    <div class="map-display" id="map-display">
+                        <div class="zoom-controls">
+                            <button class="zoom-btn" id="zoom-in" title="放大">+</button>
+                            <button class="zoom-btn" id="zoom-out" title="缩小">−</button>
+                            <button class="zoom-btn" id="zoom-reset" title="重置视图">⌂</button>
+                        </div>
+                        
+                        <div class="continent-legend" id="map-legend">
                             <div class="legend-item">
                                 <div class="legend-color" style="background: #ff6b6b;"></div>
                                 <span>亚洲</span>
@@ -563,6 +617,12 @@
                 this.selectedCountry = null;
                 this.currentMapType = 'political';
                 this.countries = this.initializeCountries();
+                this.scale = 1;
+                this.translateX = 0;
+                this.translateY = 0;
+                this.isPanning = false;
+                this.lastMouseX = 0;
+                this.lastMouseY = 0;
                 this.loadWorldMap();
             }
 
@@ -591,6 +651,7 @@
                     // Add event listeners to countries
                     this.setupCountryInteractions();
                     this.initializeEventListeners();
+                    this.setupZoomAndPan();
                     this.updateMapDisplay();
                     
                 } catch (error) {
@@ -616,26 +677,30 @@
 
             setupCountryInteractions() {
                 // Add event listeners to all country paths
-                const countries = document.querySelectorAll('#world-map path');
+                const countries = document.querySelectorAll('#world-map path, #world-map g[id]');
                 countries.forEach(country => {
                     const countryId = country.id;
-                    if (countryId && countryId.length === 2) {
+                    if (countryId && countryId.length >= 2) {
+                        // Get clean country code (first 2 letters)
+                        const countryCode = countryId.substring(0, 2).toLowerCase();
+                        
                         // Add CSS classes and event listeners
                         country.classList.add('country');
-                        country.setAttribute('data-country', countryId.toLowerCase());
+                        country.setAttribute('data-country', countryCode);
                         
                         // Set continent based on country code
-                        const continent = this.getContinent(countryId);
+                        const continent = this.getContinent(countryCode);
                         country.setAttribute('data-continent', continent);
                         country.classList.add(`continent-${continent}`);
                         
                         // Add click events
                         country.addEventListener('click', (e) => {
-                            this.selectCountry(countryId.toLowerCase());
+                            e.stopPropagation();
+                            this.selectCountry(countryCode);
                         });
                         
                         country.addEventListener('mouseenter', (e) => {
-                            this.showCountryTooltip(e, countryId);
+                            this.showCountryTooltip(e, countryCode);
                         });
                         
                         country.addEventListener('mouseleave', (e) => {
@@ -643,6 +708,24 @@
                         });
                     }
                 });
+
+                // Also handle any missed countries that might have different structure
+                setTimeout(() => {
+                    const allPaths = document.querySelectorAll('#world-map path:not(.country)');
+                    allPaths.forEach(path => {
+                        if (path.getBBox && path.getBBox().width > 10) { // Only handle significant paths
+                            path.classList.add('country');
+                            const randomId = 'country_' + Math.random().toString(36).substr(2, 2);
+                            path.setAttribute('data-country', randomId);
+                            path.setAttribute('data-continent', 'unknown');
+                            
+                            path.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                this.selectCountry(randomId);
+                            });
+                        }
+                    });
+                }, 1000);
             }
 
             getContinent(countryCode) {
@@ -743,9 +826,123 @@
                 }
             }
 
+            setupZoomAndPan() {
+                const mapContainer = document.getElementById('world-map-container');
+                const svg = document.getElementById('world-map');
+                const mapDisplay = document.getElementById('map-display');
+
+                // Zoom controls
+                document.getElementById('zoom-in').addEventListener('click', () => {
+                    this.zoom(1.2);
+                });
+                
+                document.getElementById('zoom-out').addEventListener('click', () => {
+                    this.zoom(0.8);
+                });
+                
+                document.getElementById('zoom-reset').addEventListener('click', () => {
+                    this.resetView();
+                });
+
+                // Mouse wheel zoom
+                mapContainer.addEventListener('wheel', (e) => {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                    this.zoom(zoomFactor, e.clientX, e.clientY);
+                });
+
+                // Pan functionality
+                mapContainer.addEventListener('mousedown', (e) => {
+                    this.isPanning = true;
+                    this.lastMouseX = e.clientX;
+                    this.lastMouseY = e.clientY;
+                    mapDisplay.classList.add('panning');
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (this.isPanning) {
+                        const deltaX = e.clientX - this.lastMouseX;
+                        const deltaY = e.clientY - this.lastMouseY;
+                        this.translateX += deltaX;
+                        this.translateY += deltaY;
+                        this.updateTransform();
+                        this.lastMouseX = e.clientX;
+                        this.lastMouseY = e.clientY;
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    this.isPanning = false;
+                    mapDisplay.classList.remove('panning');
+                });
+
+                // Touch support for mobile
+                let touchStartX, touchStartY;
+                mapContainer.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        this.isPanning = true;
+                        touchStartX = e.touches[0].clientX;
+                        touchStartY = e.touches[0].clientY;
+                        this.lastMouseX = touchStartX;
+                        this.lastMouseY = touchStartY;
+                    }
+                });
+
+                mapContainer.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    if (e.touches.length === 1 && this.isPanning) {
+                        const deltaX = e.touches[0].clientX - this.lastMouseX;
+                        const deltaY = e.touches[0].clientY - this.lastMouseY;
+                        this.translateX += deltaX;
+                        this.translateY += deltaY;
+                        this.updateTransform();
+                        this.lastMouseX = e.touches[0].clientX;
+                        this.lastMouseY = e.touches[0].clientY;
+                    }
+                });
+
+                mapContainer.addEventListener('touchend', () => {
+                    this.isPanning = false;
+                });
+            }
+
+            zoom(factor, centerX = null, centerY = null) {
+                const newScale = Math.max(0.5, Math.min(5, this.scale * factor));
+                
+                if (centerX !== null && centerY !== null) {
+                    // Zoom towards mouse position
+                    const mapContainer = document.getElementById('world-map-container');
+                    const rect = mapContainer.getBoundingClientRect();
+                    const offsetX = centerX - rect.left;
+                    const offsetY = centerY - rect.top;
+                    
+                    this.translateX = offsetX - (offsetX - this.translateX) * (newScale / this.scale);
+                    this.translateY = offsetY - (offsetY - this.translateY) * (newScale / this.scale);
+                }
+                
+                this.scale = newScale;
+                this.updateTransform();
+            }
+
+            resetView() {
+                this.scale = 1;
+                this.translateX = 0;
+                this.translateY = 0;
+                this.updateTransform();
+            }
+
+            updateTransform() {
+                const svg = document.getElementById('world-map');
+                if (svg) {
+                    svg.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
+                    svg.style.transformOrigin = '0 0';
+                }
+            }
+
             initializeCountries() {
                 // 扩展的国家数据库 - 支持更多国家
                 return {
+                    // 亚洲国家
                     'cn': {
                         name: '中华人民共和国',
                         capital: '北京',
@@ -756,39 +953,6 @@
                         language: '中文',
                         flag: '🇨🇳',
                         description: '世界上人口最多的国家，拥有悠久的历史和丰富的文化遗产。'
-                    },
-                    'us': {
-                        name: '美利坚合众国',
-                        capital: '华盛顿特区',
-                        population: '3.3亿',
-                        area: '983万平方公里',
-                        continent: '北美洲',
-                        currency: '美元',
-                        language: '英语',
-                        flag: '🇺🇸',
-                        description: '世界最大的经济体，由50个州组成的联邦共和国。'
-                    },
-                    'ru': {
-                        name: '俄罗斯联邦',
-                        capital: '莫斯科',
-                        population: '1.46亿',
-                        area: '1710万平方公里',
-                        continent: '亚洲/欧洲',
-                        currency: '卢布',
-                        language: '俄语',
-                        flag: '🇷🇺',
-                        description: '世界上面积最大的国家，横跨欧亚大陆。'
-                    },
-                    'br': {
-                        name: '巴西联邦共和国',
-                        capital: '巴西利亚',
-                        population: '2.15亿',
-                        area: '851万平方公里',
-                        continent: '南美洲',
-                        currency: '雷亚尔',
-                        language: '葡萄牙语',
-                        flag: '🇧🇷',
-                        description: '南美洲最大的国家，拥有亚马逊雨林的大部分区域。'
                     },
                     'in': {
                         name: '印度共和国',
@@ -801,6 +965,174 @@
                         flag: '🇮🇳',
                         description: '世界第二人口大国，拥有丰富的文化多样性。'
                     },
+                    'jp': {
+                        name: '日本国',
+                        capital: '东京',
+                        population: '1.25亿',
+                        area: '37.8万平方公里',
+                        continent: '亚洲',
+                        currency: '日元',
+                        language: '日语',
+                        flag: '🇯🇵',
+                        description: '岛国，以先进技术和独特文化闻名于世。'
+                    },
+                    'kr': {
+                        name: '大韩民国',
+                        capital: '首尔',
+                        population: '5200万',
+                        area: '10万平方公里',
+                        continent: '亚洲',
+                        currency: '韩元',
+                        language: '韩语',
+                        flag: '🇰🇷',
+                        description: '东亚发达国家，以电子工业和文化输出著称。'
+                    },
+                    'id': {
+                        name: '印度尼西亚共和国',
+                        capital: '雅加达',
+                        population: '2.7亿',
+                        area: '191万平方公里',
+                        continent: '亚洲',
+                        currency: '印尼盾',
+                        language: '印尼语',
+                        flag: '🇮🇩',
+                        description: '世界最大的群岛国家，拥有丰富的自然资源。'
+                    },
+                    'pk': {
+                        name: '巴基斯坦伊斯兰共和国',
+                        capital: '伊斯兰堡',
+                        population: '2.3亿',
+                        area: '88万平方公里',
+                        continent: '亚洲',
+                        currency: '巴基斯坦卢比',
+                        language: '乌尔都语、英语',
+                        flag: '🇵🇰',
+                        description: '南亚国家，拥有丰富的历史文化遗产。'
+                    },
+                    'bd': {
+                        name: '孟加拉人民共和国',
+                        capital: '达卡',
+                        population: '1.65亿',
+                        area: '14.8万平方公里',
+                        continent: '亚洲',
+                        currency: '塔卡',
+                        language: '孟加拉语',
+                        flag: '🇧🇩',
+                        description: '南亚国家，以纺织工业和文化遗产闻名。'
+                    },
+                    'ru': {
+                        name: '俄罗斯联邦',
+                        capital: '莫斯科',
+                        population: '1.46亿',
+                        area: '1710万平方公里',
+                        continent: '亚洲',
+                        currency: '卢布',
+                        language: '俄语',
+                        flag: '🇷🇺',
+                        description: '世界上面积最大的国家，横跨欧亚大陆。'
+                    },
+                    'ir': {
+                        name: '伊朗伊斯兰共和国',
+                        capital: '德黑兰',
+                        population: '8500万',
+                        area: '164万平方公里',
+                        continent: '亚洲',
+                        currency: '里亚尔',
+                        language: '波斯语',
+                        flag: '🇮🇷',
+                        description: '中东重要国家，拥有悠久的波斯文明历史。'
+                    },
+                    'tr': {
+                        name: '土耳其共和国',
+                        capital: '安卡拉',
+                        population: '8500万',
+                        area: '78万平方公里',
+                        continent: '亚洲',
+                        currency: '土耳其里拉',
+                        language: '土耳其语',
+                        flag: '🇹🇷',
+                        description: '横跨欧亚两洲的国家，连接东西方文明。'
+                    },
+                    // 北美洲国家
+                    'us': {
+                        name: '美利坚合众国',
+                        capital: '华盛顿特区',
+                        population: '3.3亿',
+                        area: '983万平方公里',
+                        continent: '北美洲',
+                        currency: '美元',
+                        language: '英语',
+                        flag: '🇺🇸',
+                        description: '世界最大的经济体，由50个州组成的联邦共和国。'
+                    },
+                    'ca': {
+                        name: '加拿大',
+                        capital: '渥太华',
+                        population: '3800万',
+                        area: '998万平方公里',
+                        continent: '北美洲',
+                        currency: '加元',
+                        language: '英语、法语',
+                        flag: '🇨🇦',
+                        description: '世界第二大国家，以自然风光和多元文化著称。'
+                    },
+                    'mx': {
+                        name: '墨西哥合众国',
+                        capital: '墨西哥城',
+                        population: '1.3亿',
+                        area: '196万平方公里',
+                        continent: '北美洲',
+                        currency: '比索',
+                        language: '西班牙语',
+                        flag: '🇲🇽',
+                        description: '北美洲南部国家，拥有丰富的古代文明遗产。'
+                    },
+                    // 南美洲国家
+                    'br': {
+                        name: '巴西联邦共和国',
+                        capital: '巴西利亚',
+                        population: '2.15亿',
+                        area: '851万平方公里',
+                        continent: '南美洲',
+                        currency: '雷亚尔',
+                        language: '葡萄牙语',
+                        flag: '🇧🇷',
+                        description: '南美洲最大的国家，拥有亚马逊雨林的大部分区域。'
+                    },
+                    'ar': {
+                        name: '阿根廷共和国',
+                        capital: '布宜诺斯艾利斯',
+                        population: '4500万',
+                        area: '278万平方公里',
+                        continent: '南美洲',
+                        currency: '比索',
+                        language: '西班牙语',
+                        flag: '🇦🇷',
+                        description: '南美洲南部国家，以探戈舞和牛肉闻名。'
+                    },
+                    'co': {
+                        name: '哥伦比亚共和国',
+                        capital: '波哥大',
+                        population: '5100万',
+                        area: '114万平方公里',
+                        continent: '南美洲',
+                        currency: '比索',
+                        language: '西班牙语',
+                        flag: '🇨🇴',
+                        description: '南美洲西北部国家，拥有丰富的生物多样性。'
+                    },
+                    'pe': {
+                        name: '秘鲁共和国',
+                        capital: '利马',
+                        population: '3300万',
+                        area: '128万平方公里',
+                        continent: '南美洲',
+                        currency: '索尔',
+                        language: '西班牙语',
+                        flag: '🇵🇪',
+                        description: '南美洲西部国家，拥有马丘比丘等印加文明遗址。'
+                    },
+                    // 欧洲国家
                     'de': {
                         name: '德意志联邦共和国',
                         capital: '柏林',
@@ -812,38 +1144,16 @@
                         flag: '🇩🇪',
                         description: '欧洲经济强国，以工程技术和制造业闻名。'
                     },
-                    'au': {
-                        name: '澳大利亚联邦',
-                        capital: '堪培拉',
-                        population: '2500万',
-                        area: '769万平方公里',
-                        continent: '大洋洲',
-                        currency: '澳元',
-                        language: '英语',
-                        flag: '🇦🇺',
-                        description: '世界第六大国家，以独特的野生动物和自然景观著称。'
-                    },
-                    'eg': {
-                        name: '阿拉伯埃及共和国',
-                        capital: '开罗',
-                        population: '1.02亿',
-                        area: '100万平方公里',
-                        continent: '非洲',
-                        currency: '埃及镑',
-                        language: '阿拉伯语',
-                        flag: '🇪🇬',
-                        description: '古代文明的发源地，拥有金字塔等世界著名古迹。'
-                    },
-                    'jp': {
-                        name: '日本国',
-                        capital: '东京',
-                        population: '1.25亿',
-                        area: '37.8万平方公里',
-                        continent: '亚洲',
-                        currency: '日元',
-                        language: '日语',
-                        flag: '🇯🇵',
-                        description: '岛国，以先进技术和独特文化闻名于世。'
+                    'fr': {
+                        name: '法兰西共和国',
+                        capital: '巴黎',
+                        population: '6800万',
+                        area: '67.2万平方公里',
+                        continent: '欧洲',
+                        currency: '欧元',
+                        language: '法语',
+                        flag: '🇫🇷',
+                        description: '欧洲重要国家，以文化、艺术和美食闻名。'
                     },
                     'gb': {
                         name: '大不列颠及北爱尔兰联合王国',
@@ -856,18 +1166,6 @@
                         flag: '🇬🇧',
                         description: '由英格兰、苏格兰、威尔士和北爱尔兰组成的岛国。'
                     },
-                    // 添加更多国家数据
-                    'fr': {
-                        name: '法兰西共和国',
-                        capital: '巴黎',
-                        population: '6800万',
-                        area: '67.2万平方公里',
-                        continent: '欧洲',
-                        currency: '欧元',
-                        language: '法语',
-                        flag: '🇫🇷',
-                        description: '欧洲重要国家，以文化、艺术和美食闻名。'
-                    },
                     'it': {
                         name: '意大利共和国',
                         capital: '罗马',
@@ -879,16 +1177,96 @@
                         flag: '🇮🇹',
                         description: '文艺复兴发源地，拥有丰富的历史文化遗产。'
                     },
-                    'ca': {
-                        name: '加拿大',
-                        capital: '渥太华',
-                        population: '3800万',
-                        area: '998万平方公里',
-                        continent: '北美洲',
-                        currency: '加元',
-                        language: '英语、法语',
-                        flag: '🇨🇦',
-                        description: '世界第二大国家，以自然风光和多元文化著称。'
+                    'es': {
+                        name: '西班牙王国',
+                        capital: '马德里',
+                        population: '4700万',
+                        area: '50.6万平方公里',
+                        continent: '欧洲',
+                        currency: '欧元',
+                        language: '西班牙语',
+                        flag: '🇪🇸',
+                        description: '伊比利亚半岛国家，拥有丰富的历史和文化传统。'
+                    },
+                    // 非洲国家
+                    'ng': {
+                        name: '尼日利亚联邦共和国',
+                        capital: '阿布贾',
+                        population: '2.2亿',
+                        area: '92.4万平方公里',
+                        continent: '非洲',
+                        currency: '奈拉',
+                        language: '英语',
+                        flag: '🇳🇬',
+                        description: '非洲人口最多的国家，石油资源丰富。'
+                    },
+                    'et': {
+                        name: '埃塞俄比亚联邦民主共和国',
+                        capital: '亚的斯亚贝巴',
+                        population: '1.2亿',
+                        area: '110万平方公里',
+                        continent: '非洲',
+                        currency: '比尔',
+                        language: '阿姆哈拉语',
+                        flag: '🇪🇹',
+                        description: '非洲古老文明国家，从未被完全殖民。'
+                    },
+                    'eg': {
+                        name: '阿拉伯埃及共和国',
+                        capital: '开罗',
+                        population: '1.02亿',
+                        area: '100万平方公里',
+                        continent: '非洲',
+                        currency: '埃及镑',
+                        language: '阿拉伯语',
+                        flag: '🇪🇬',
+                        description: '古代文明的发源地，拥有金字塔等世界著名古迹。'
+                    },
+                    'za': {
+                        name: '南非共和国',
+                        capital: '开普敦',
+                        population: '6000万',
+                        area: '122万平方公里',
+                        continent: '非洲',
+                        currency: '兰特',
+                        language: '英语、南非语',
+                        flag: '🇿🇦',
+                        description: '非洲南端国家，拥有丰富的矿物资源。'
+                    },
+                    // 大洋洲国家
+                    'au': {
+                        name: '澳大利亚联邦',
+                        capital: '堪培拉',
+                        population: '2500万',
+                        area: '769万平方公里',
+                        continent: '大洋洲',
+                        currency: '澳元',
+                        language: '英语',
+                        flag: '🇦🇺',
+                        description: '世界第六大国家，以独特的野生动物和自然景观著称。'
+                    },
+                    'nz': {
+                        name: '新西兰',
+                        capital: '惠灵顿',
+                        population: '500万',
+                        area: '26.8万平方公里',
+                        continent: '大洋洲',
+                        currency: '新西兰元',
+                        language: '英语、毛利语',
+                        flag: '🇳🇿',
+                        description: '太平洋岛国，以美丽的自然风光和电影取景地闻名。'
+                    },
+                    // 默认国家数据（为没有详细信息的国家提供基本信息）
+                    'default': {
+                        name: '未知国家',
+                        capital: '未知',
+                        population: '未知',
+                        area: '未知',
+                        continent: '未知',
+                        currency: '未知',
+                        language: '未知',
+                        flag: '🌍',
+                        description: '暂无详细信息。'
                     }
                 };
             }
@@ -937,8 +1315,23 @@
             }
 
             displayCountryInfo(countryCode) {
-                const country = this.countries[countryCode];
-                if (!country) return;
+                let country = this.countries[countryCode];
+                
+                // If country data doesn't exist, create basic info
+                if (!country) {
+                    const continent = this.getContinent(countryCode);
+                    country = {
+                        name: this.getCountryNameFromCode(countryCode),
+                        capital: '未知',
+                        population: '未知',
+                        area: '未知',
+                        continent: continent === 'unknown' ? '未知' : this.getContinentName(continent),
+                        currency: '未知',
+                        language: '未知',
+                        flag: this.getCountryFlag(countryCode),
+                        description: '暂无详细信息，点击可查看该国基本地理位置。'
+                    };
+                }
 
                 const infoDiv = document.getElementById('country-info');
                 
@@ -978,6 +1371,111 @@
                         <p>${country.description}</p>
                     </div>
                 `;
+            }
+
+            getCountryNameFromCode(code) {
+                const countryNames = {
+                    'af': '阿富汗', 'al': '阿尔巴尼亚', 'dz': '阿尔及利亚', 'ad': '安道尔', 'ao': '安哥拉',
+                    'ai': '安圭拉', 'aq': '南极洲', 'ag': '安提瓜和巴布达', 'ar': '阿根廷', 'am': '亚美尼亚',
+                    'aw': '阿鲁巴', 'au': '澳大利亚', 'at': '奥地利', 'az': '阿塞拜疆', 'bs': '巴哈马',
+                    'bh': '巴林', 'bd': '孟加拉国', 'bb': '巴巴多斯', 'by': '白俄罗斯', 'be': '比利时',
+                    'bz': '伯利兹', 'bj': '贝宁', 'bm': '百慕大', 'bt': '不丹', 'bo': '玻利维亚',
+                    'ba': '波斯尼亚和黑塞哥维那', 'bw': '博茨瓦纳', 'br': '巴西', 'bn': '文莱', 'bg': '保加利亚',
+                    'bf': '布基纳法索', 'bi': '布隆迪', 'kh': '柬埔寨', 'cm': '喀麦隆', 'ca': '加拿大',
+                    'cv': '佛得角', 'ky': '开曼群岛', 'cf': '中非共和国', 'td': '乍得', 'cl': '智利',
+                    'cn': '中华人民共和国', 'co': '哥伦比亚', 'km': '科摩罗', 'cg': '刚果', 'cd': '刚果民主共和国',
+                    'ck': '库克群岛', 'cr': '哥斯达黎加', 'ci': '科特迪瓦', 'hr': '克罗地亚', 'cu': '古巴',
+                    'cy': '塞浦路斯', 'cz': '捷克', 'dk': '丹麦', 'dj': '吉布提', 'dm': '多米尼克',
+                    'do': '多米尼加共和国', 'ec': '厄瓜多尔', 'eg': '埃及', 'sv': '萨尔瓦多', 'gq': '赤道几内亚',
+                    'er': '厄立特里亚', 'ee': '爱沙尼亚', 'et': '埃塞俄比亚', 'fk': '福克兰群岛', 'fo': '法罗群岛',
+                    'fj': '斐济', 'fi': '芬兰', 'fr': '法国', 'gf': '法属圭亚那', 'pf': '法属波利尼西亚',
+                    'ga': '加蓬', 'gm': '冈比亚', 'ge': '格鲁吉亚', 'de': '德国', 'gh': '加纳',
+                    'gi': '直布罗陀', 'gr': '希腊', 'gl': '格陵兰', 'gd': '格林纳达', 'gp': '瓜德罗普',
+                    'gu': '关岛', 'gt': '危地马拉', 'gn': '几内亚', 'gw': '几内亚比绍', 'gy': '圭亚那',
+                    'ht': '海地', 'hn': '洪都拉斯', 'hk': '香港', 'hu': '匈牙利', 'is': '冰岛',
+                    'in': '印度', 'id': '印度尼西亚', 'ir': '伊朗', 'iq': '伊拉克', 'ie': '爱尔兰',
+                    'il': '以色列', 'it': '意大利', 'jm': '牙买加', 'jp': '日本', 'jo': '约旦',
+                    'kz': '哈萨克斯坦', 'ke': '肯尼亚', 'ki': '基里巴斯', 'kp': '朝鲜', 'kr': '韩国',
+                    'kw': '科威特', 'kg': '吉尔吉斯斯坦', 'la': '老挝', 'lv': '拉脱维亚', 'lb': '黎巴嫩',
+                    'ls': '莱索托', 'lr': '利比里亚', 'ly': '利比亚', 'li': '列支敦士登', 'lt': '立陶宛',
+                    'lu': '卢森堡', 'mo': '澳门', 'mk': '马其顿', 'mg': '马达加斯加', 'mw': '马拉维',
+                    'my': '马来西亚', 'mv': '马尔代夫', 'ml': '马里', 'mt': '马耳他', 'mh': '马绍尔群岛',
+                    'mq': '马提尼克', 'mr': '毛里塔尼亚', 'mu': '毛里求斯', 'mx': '墨西哥', 'fm': '密克罗尼西亚',
+                    'md': '摩尔多瓦', 'mc': '摩纳哥', 'mn': '蒙古', 'me': '黑山', 'ms': '蒙特塞拉特',
+                    'ma': '摩洛哥', 'mz': '莫桑比克', 'mm': '缅甸', 'na': '纳米比亚', 'nr': '瑙鲁',
+                    'np': '尼泊尔', 'nl': '荷兰', 'nc': '新喀里多尼亚', 'nz': '新西兰', 'ni': '尼加拉瓜',
+                    'ne': '尼日尔', 'ng': '尼日利亚', 'nu': '纽埃', 'nf': '诺福克岛', 'mp': '北马里亚纳群岛',
+                    'no': '挪威', 'om': '阿曼', 'pk': '巴基斯坦', 'pw': '帕劳', 'ps': '巴勒斯坦',
+                    'pa': '巴拿马', 'pg': '巴布亚新几内亚', 'py': '巴拉圭', 'pe': '秘鲁', 'ph': '菲律宾',
+                    'pn': '皮特凯恩', 'pl': '波兰', 'pt': '葡萄牙', 'pr': '波多黎各', 'qa': '卡塔尔',
+                    're': '留尼汪', 'ro': '罗马尼亚', 'ru': '俄罗斯', 'rw': '卢旺达', 'sh': '圣赫勒拿',
+                    'kn': '圣基茨和尼维斯', 'lc': '圣卢西亚', 'pm': '圣皮埃尔和密克隆', 'vc': '圣文森特和格林纳丁斯',
+                    'ws': '萨摩亚', 'sm': '圣马力诺', 'st': '圣多美和普林西比', 'sa': '沙特阿拉伯', 'sn': '塞内加尔',
+                    'rs': '塞尔维亚', 'sc': '塞舌尔', 'sl': '塞拉利昂', 'sg': '新加坡', 'sk': '斯洛伐克',
+                    'si': '斯洛文尼亚', 'sb': '所罗门群岛', 'so': '索马里', 'za': '南非', 'gs': '南乔治亚和南桑威奇群岛',
+                    'ss': '南苏丹', 'es': '西班牙', 'lk': '斯里兰卡', 'sd': '苏丹', 'sr': '苏里南',
+                    'sj': '斯瓦尔巴群岛和扬马延岛', 'sz': '斯威士兰', 'se': '瑞典', 'ch': '瑞士', 'sy': '叙利亚',
+                    'tw': '台湾', 'tj': '塔吉克斯坦', 'tz': '坦桑尼亚', 'th': '泰国', 'tl': '东帝汶',
+                    'tg': '多哥', 'tk': '托克劳', 'to': '汤加', 'tt': '特立尼达和多巴哥', 'tn': '突尼斯',
+                    'tr': '土耳其', 'tm': '土库曼斯坦', 'tc': '特克斯和凯科斯群岛', 'tv': '图瓦卢', 'ug': '乌干达',
+                    'ua': '乌克兰', 'ae': '阿联酋', 'gb': '英国', 'us': '美国', 'uy': '乌拉圭',
+                    'uz': '乌兹别克斯坦', 'vu': '瓦努阿图', 'va': '梵蒂冈', 've': '委内瑞拉', 'vn': '越南',
+                    'vg': '英属维京群岛', 'vi': '美属维京群岛', 'wf': '瓦利斯和富图纳', 'eh': '西撒哈拉',
+                    'ye': '也门', 'zm': '赞比亚', 'zw': '津巴布韦'
+                };
+                return countryNames[code] || `未知国家 (${code.toUpperCase()})`;
+            }
+
+            getCountryFlag(code) {
+                const flags = {
+                    'af': '🇦🇫', 'al': '🇦🇱', 'dz': '🇩🇿', 'ad': '🇦🇩', 'ao': '🇦🇴', 'ai': '🇦🇮', 'aq': '🇦🇶',
+                    'ag': '🇦🇬', 'ar': '🇦🇷', 'am': '🇦🇲', 'aw': '🇦🇼', 'au': '🇦🇺', 'at': '🇦🇹', 'az': '🇦🇿',
+                    'bs': '🇧🇸', 'bh': '🇧🇭', 'bd': '🇧🇩', 'bb': '🇧🇧', 'by': '🇧🇾', 'be': '🇧🇪', 'bz': '🇧🇿',
+                    'bj': '🇧🇯', 'bm': '🇧🇲', 'bt': '🇧🇹', 'bo': '🇧🇴', 'ba': '🇧🇦', 'bw': '🇧🇼', 'br': '🇧🇷',
+                    'bn': '🇧🇳', 'bg': '🇧🇬', 'bf': '🇧🇫', 'bi': '🇧🇮', 'kh': '🇰🇭', 'cm': '🇨🇲', 'ca': '🇨🇦',
+                    'cv': '🇨🇻', 'ky': '🇰🇾', 'cf': '🇨🇫', 'td': '🇹🇩', 'cl': '🇨🇱', 'cn': '🇨🇳', 'co': '🇨🇴',
+                    'km': '🇰🇲', 'cg': '🇨🇬', 'cd': '🇨🇩', 'ck': '🇨🇰', 'cr': '🇨🇷', 'ci': '🇨🇮', 'hr': '🇭🇷',
+                    'cu': '🇨🇺', 'cy': '🇨🇾', 'cz': '🇨🇿', 'dk': '🇩🇰', 'dj': '🇩🇯', 'dm': '🇩🇲', 'do': '🇩🇴',
+                    'ec': '🇪🇨', 'eg': '🇪🇬', 'sv': '🇸🇻', 'gq': '🇬🇶', 'er': '🇪🇷', 'ee': '🇪🇪', 'et': '🇪🇹',
+                    'fk': '🇫🇰', 'fo': '🇫🇴', 'fj': '🇫🇯', 'fi': '🇫🇮', 'fr': '🇫🇷', 'gf': '🇬🇫', 'pf': '🇵🇫',
+                    'ga': '🇬🇦', 'gm': '🇬🇲', 'ge': '🇬🇪', 'de': '🇩🇪', 'gh': '🇬🇭', 'gi': '🇬🇮', 'gr': '🇬🇷',
+                    'gl': '🇬🇱', 'gd': '🇬🇩', 'gp': '🇬🇵', 'gu': '🇬🇺', 'gt': '🇬🇹', 'gn': '🇬🇳', 'gw': '🇬🇼',
+                    'gy': '🇬🇾', 'ht': '🇭🇹', 'hn': '🇭🇳', 'hk': '🇭🇰', 'hu': '🇭🇺', 'is': '🇮🇸', 'in': '🇮🇳',
+                    'id': '🇮🇩', 'ir': '🇮🇷', 'iq': '🇮🇶', 'ie': '🇮🇪', 'il': '🇮🇱', 'it': '🇮🇹', 'jm': '🇯🇲',
+                    'jp': '🇯🇵', 'jo': '🇯🇴', 'kz': '🇰🇿', 'ke': '🇰🇪', 'ki': '🇰🇮', 'kp': '🇰🇵', 'kr': '🇰🇷',
+                    'kw': '🇰🇼', 'kg': '🇰🇬', 'la': '🇱🇦', 'lv': '🇱🇻', 'lb': '🇱🇧', 'ls': '🇱🇸', 'lr': '🇱🇷',
+                    'ly': '🇱🇾', 'li': '🇱🇮', 'lt': '🇱🇹', 'lu': '🇱🇺', 'mo': '🇲🇴', 'mk': '🇲🇰', 'mg': '🇲🇬',
+                    'mw': '🇲🇼', 'my': '🇲🇾', 'mv': '🇲🇻', 'ml': '🇲🇱', 'mt': '🇲🇹', 'mh': '🇲🇭', 'mq': '🇲🇶',
+                    'mr': '🇲🇷', 'mu': '🇲🇺', 'mx': '🇲🇽', 'fm': '🇫🇲', 'md': '🇲🇩', 'mc': '🇲🇨', 'mn': '🇲🇳',
+                    'me': '🇲🇪', 'ms': '🇲🇸', 'ma': '🇲🇦', 'mz': '🇲🇿', 'mm': '🇲🇲', 'na': '🇳🇦', 'nr': '🇳🇷',
+                    'np': '🇳🇵', 'nl': '🇳🇱', 'nc': '🇳🇨', 'nz': '🇳🇿', 'ni': '🇳🇮', 'ne': '🇳🇪', 'ng': '🇳🇬',
+                    'nu': '🇳🇺', 'nf': '🇳🇫', 'mp': '🇲🇵', 'no': '🇳🇴', 'om': '🇴🇲', 'pk': '🇵🇰', 'pw': '🇵🇼',
+                    'ps': '🇵🇸', 'pa': '🇵🇦', 'pg': '🇵🇬', 'py': '🇵🇾', 'pe': '🇵🇪', 'ph': '🇵🇭', 'pn': '🇵🇳',
+                    'pl': '🇵🇱', 'pt': '🇵🇹', 'pr': '🇵🇷', 'qa': '🇶🇦', 're': '🇷🇪', 'ro': '🇷🇴', 'ru': '🇷🇺',
+                    'rw': '🇷🇼', 'sh': '🇸🇭', 'kn': '🇰🇳', 'lc': '🇱🇨', 'pm': '🇵🇲', 'vc': '🇻🇨', 'ws': '🇼🇸',
+                    'sm': '🇸🇲', 'st': '🇸🇹', 'sa': '🇸🇦', 'sn': '🇸🇳', 'rs': '🇷🇸', 'sc': '🇸🇨', 'sl': '🇸🇱',
+                    'sg': '🇸🇬', 'sk': '🇸🇰', 'si': '🇸🇮', 'sb': '🇸🇧', 'so': '🇸🇴', 'za': '🇿🇦', 'gs': '🇬🇸',
+                    'ss': '🇸🇸', 'es': '🇪🇸', 'lk': '🇱🇰', 'sd': '🇸🇩', 'sr': '🇸🇷', 'sj': '🇸🇯', 'sz': '🇸🇿',
+                    'se': '🇸🇪', 'ch': '🇨🇭', 'sy': '🇸🇾', 'tw': '🇹🇼', 'tj': '🇹🇯', 'tz': '🇹🇿', 'th': '🇹🇭',
+                    'tl': '🇹🇱', 'tg': '🇹🇬', 'tk': '🇹🇰', 'to': '🇹🇴', 'tt': '🇹🇹', 'tn': '🇹🇳', 'tr': '🇹🇷',
+                    'tm': '🇹🇲', 'tc': '🇹🇨', 'tv': '🇹🇻', 'ug': '🇺🇬', 'ua': '🇺🇦', 'ae': '🇦🇪', 'gb': '🇬🇧',
+                    'us': '🇺🇸', 'uy': '🇺🇾', 'uz': '🇺🇿', 'vu': '🇻🇺', 'va': '🇻🇦', 've': '🇻🇪', 'vn': '🇻🇳',
+                    'vg': '🇻🇬', 'vi': '🇻🇮', 'wf': '🇼🇫', 'eh': '🇪🇭', 'ye': '🇾🇪', 'zm': '🇿🇲', 'zw': '🇿🇼'
+                };
+                return flags[code] || '🌍';
+            }
+
+            getContinentName(continent) {
+                const continentNames = {
+                    'asia': '亚洲',
+                    'europe': '欧洲', 
+                    'africa': '非洲',
+                    'north-america': '北美洲',
+                    'south-america': '南美洲',
+                    'oceania': '大洋洲',
+                    'antarctica': '南极洲'
+                };
+                return continentNames[continent] || '未知';
             }
 
             searchCountries(query) {
