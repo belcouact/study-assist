@@ -989,6 +989,7 @@
                                 <option value="fence">围栏最大面积问题</option>
                                 <option value="profit">利润最大化问题</option>
                                 <option value="distance">最短距离问题</option>
+                                <option value="custom">自定义优化问题</option>
                             </select>
                         </div>
                         
@@ -1019,36 +1020,74 @@
                     <!-- Calculus Calculator -->
                     <div class="interactive-demo">
                         <h4>🧮 微积分计算器</h4>
-                        <p>计算导数和定积分</p>
+                        <p>计算导数和定积分，支持符号计算和数值计算</p>
+                        
+                        <div class="input-group">
+                            <label for="calc-function">函数 f(x)</label>
+                            <input type="text" id="calc-function" class="input-field" placeholder="x^3 + 2*x^2 - x + 1" value="x^2">
+                            <small style="color: #666; margin-top: 0.5rem; display: block;">
+                                支持: x^n, sin(x), cos(x), tan(x), exp(x), ln(x), sqrt(x), abs(x) 等
+                            </small>
+                        </div>
                         
                         <div class="demo-controls" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                             <div>
-                                <div class="input-group">
-                                    <label for="calc-function">函数 f(x)</label>
-                                    <input type="text" id="calc-function" class="input-field" placeholder="x^3 + 2*x^2 - x + 1">
+                                <h5 style="margin-bottom: 1rem; color: #007bff;">📈 导数计算</h5>
+                                <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                    <button class="btn btn-primary" onclick="calculateDerivative()" style="flex: 1;">
+                                        计算导数
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="evaluateDerivativeAtPoint()" style="flex: 1;">
+                                        特定点导数
+                                    </button>
                                 </div>
-                                <button class="btn btn-primary" onclick="calculateDerivative()" style="width: 100%; margin-bottom: 0.5rem;">
-                                    📈 计算导数
-                                </button>
-                                <div id="derivative-result" class="visual-equation" style="font-size: 1rem; padding: 0.5rem;">
+                                <div id="derivative-result" class="visual-equation" style="font-size: 0.9rem; padding: 0.8rem; min-height: 120px;">
                                     导数结果将显示在这里
                                 </div>
                             </div>
                             
                             <div>
-                                <div class="input-group">
+                                <h5 style="margin-bottom: 1rem; color: #28a745;">📊 积分计算</h5>
+                                <div class="input-group" style="margin-bottom: 0.5rem;">
                                     <label>定积分区间</label>
                                     <div style="display: flex; gap: 0.5rem;">
                                         <input type="number" id="integral-lower" class="input-field" placeholder="下限" value="0" style="flex: 1;">
-                                        <input type="number" id="integral-upper" class="input-field" placeholder="上限" value="1" style="flex: 1;">
+                                        <input type="number" id="integral-upper" class="input-field" placeholder="上限" value="2" style="flex: 1;">
                                     </div>
                                 </div>
                                 <button class="btn btn-primary" onclick="calculateIntegral()" style="width: 100%; margin-bottom: 0.5rem;">
-                                    📊 计算积分
+                                    计算定积分
                                 </button>
-                                <div id="integral-result" class="visual-equation" style="font-size: 1rem; padding: 0.5rem;">
+                                <div id="integral-result" class="visual-equation" style="font-size: 0.9rem; padding: 0.8rem; min-height: 120px;">
                                     积分结果将显示在这里
                                 </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Examples -->
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                            <h6 style="margin-bottom: 0.5rem; color: #495057;">🚀 快速示例 (点击填入):</h6>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <button class="btn" style="background: #e9ecef; color: #495057; padding: 0.3rem 0.6rem; font-size: 0.8rem;" 
+                                        onclick="document.getElementById('calc-function').value = 'x^3 - 3*x^2 + 2*x'">
+                                    x³ - 3x² + 2x
+                                </button>
+                                <button class="btn" style="background: #e9ecef; color: #495057; padding: 0.3rem 0.6rem; font-size: 0.8rem;" 
+                                        onclick="document.getElementById('calc-function').value = 'sin(x) + cos(x)'">
+                                    sin(x) + cos(x)
+                                </button>
+                                <button class="btn" style="background: #e9ecef; color: #495057; padding: 0.3rem 0.6rem; font-size: 0.8rem;" 
+                                        onclick="document.getElementById('calc-function').value = 'exp(x) - x^2'">
+                                    e^x - x²
+                                </button>
+                                <button class="btn" style="background: #e9ecef; color: #495057; padding: 0.3rem 0.6rem; font-size: 0.8rem;" 
+                                        onclick="document.getElementById('calc-function').value = 'ln(x) + sqrt(x)'">
+                                    ln(x) + √x
+                                </button>
+                                <button class="btn" style="background: #e9ecef; color: #495057; padding: 0.3rem 0.6rem; font-size: 0.8rem;" 
+                                        onclick="document.getElementById('calc-function').value = '1/(1+x^2)'">
+                                    1/(1+x²)
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1317,14 +1356,123 @@
             ctx.setLineDash([]);
         }
 
+        // Enhanced function parser and evaluator
+        class MathParser {
+            constructor() {
+                this.functions = {
+                    'sin': Math.sin,
+                    'cos': Math.cos,
+                    'tan': Math.tan,
+                    'exp': Math.exp,
+                    'log': Math.log,
+                    'ln': Math.log,
+                    'sqrt': Math.sqrt,
+                    'abs': Math.abs,
+                    'floor': Math.floor,
+                    'ceil': Math.ceil,
+                    'round': Math.round
+                };
+            }
+
+            parseFunction(expression) {
+                // Clean and prepare expression
+                let expr = expression.toLowerCase()
+                    .replace(/\s+/g, '')
+                    .replace(/\^/g, '**')
+                    .replace(/(\d)([a-z])/g, '$1*$2')
+                    .replace(/([a-z])(\d)/g, '$1*$2')
+                    .replace(/(\))(\()/g, '$1*$2')
+                    .replace(/(\d)(\()/g, '$1*$2')
+                    .replace(/(\))(\d)/g, '$1*$2');
+
+                // Replace function names
+                Object.keys(this.functions).forEach(func => {
+                    const regex = new RegExp(`\\b${func}\\b`, 'g');
+                    expr = expr.replace(regex, `Math.${func}`);
+                });
+
+                // Replace constants
+                expr = expr.replace(/\be\b/g, 'Math.E')
+                          .replace(/\bpi\b/g, 'Math.PI');
+
+                return new Function('x', `
+                    try {
+                        return ${expr};
+                    } catch (e) {
+                        return NaN;
+                    }
+                `);
+            }
+
+            // Numerical derivative calculation
+            derivative(func, x, h = 0.0001) {
+                return (func(x + h) - func(x - h)) / (2 * h);
+            }
+
+            // Numerical integration using Simpson's rule
+            integrate(func, a, b, n = 1000) {
+                if (n % 2 === 1) n++;
+                const h = (b - a) / n;
+                let sum = func(a) + func(b);
+                
+                for (let i = 1; i < n; i++) {
+                    const x = a + i * h;
+                    sum += (i % 2 === 0 ? 2 : 4) * func(x);
+                }
+                
+                return (h / 3) * sum;
+            }
+
+            // Symbolic derivative for common functions
+            getSymbolicDerivative(expression) {
+                const expr = expression.toLowerCase().replace(/\s+/g, '');
+                
+                // Simple polynomial derivatives
+                if (/^[\d\.\-\+\*x\^]+$/.test(expr)) {
+                    return this.polynomialDerivative(expr);
+                }
+                
+                // Trigonometric functions
+                if (expr.includes('sin(x)')) return expr.replace(/sin\(x\)/g, 'cos(x)');
+                if (expr.includes('cos(x)')) return expr.replace(/cos\(x\)/g, '-sin(x)');
+                if (expr.includes('tan(x)')) return expr.replace(/tan\(x\)/g, 'sec²(x)');
+                
+                // Exponential and logarithmic
+                if (expr.includes('exp(x)') || expr.includes('e^x')) return 'exp(x)';
+                if (expr.includes('ln(x)') || expr.includes('log(x)')) return '1/x';
+                
+                return '数值导数';
+            }
+
+            polynomialDerivative(expr) {
+                // Handle simple polynomials like x^3, 2*x^2, etc.
+                return expr.replace(/(\d*)\*?x\^(\d+)/g, (match, coeff, power) => {
+                    const c = coeff === '' ? 1 : parseFloat(coeff);
+                    const p = parseInt(power);
+                    if (p === 1) return c.toString();
+                    return `${c * p}*x^${p - 1}`;
+                }).replace(/(\d*)\*?x(?!\^)/g, (match, coeff) => {
+                    const c = coeff === '' ? 1 : parseFloat(coeff);
+                    return c.toString();
+                }).replace(/^\d+$/, '0');
+            }
+        }
+
+        const mathParser = new MathParser();
+        let currentFunction = null;
+
         // Interactive functions
         function plotCustomFunction() {
             const funcStr = document.getElementById('custom-function').value;
             const info = document.getElementById('function-info');
             
+            if (!funcStr.trim()) {
+                info.textContent = '请输入一个函数';
+                return;
+            }
+            
             try {
-                // Simple function parser (basic implementation)
-                const func = new Function('x', `return ${funcStr.replace(/\^/g, '**')}`);
+                currentFunction = mathParser.parseFunction(funcStr);
                 
                 const setup = setupCanvas('explorerCanvas');
                 if (!setup) return;
@@ -1333,82 +1481,598 @@
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 drawAxes(ctx, canvas.width, canvas.height);
                 
-                plotFunction(ctx, canvas.width, canvas.height, func, '#007bff', 3);
+                // Plot original function
+                plotFunction(ctx, canvas.width, canvas.height, currentFunction, '#007bff', 3);
                 
-                info.textContent = `函数 f(x) = ${funcStr} 已绘制`;
+                // Add function label
+                ctx.fillStyle = '#007bff';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(`f(x) = ${funcStr}`, 10, 25);
+                
+                info.innerHTML = `
+                    <strong>函数已绘制:</strong> f(x) = ${funcStr}<br>
+                    <small>支持的函数: sin, cos, tan, exp, ln, sqrt, abs 等</small>
+                `;
             } catch (e) {
-                info.textContent = `函数格式错误：${e.message}`;
+                info.innerHTML = `
+                    <span style="color: #dc3545;">函数格式错误:</span> ${e.message}<br>
+                    <small>示例: x^2, sin(x), exp(x), 2*x^3 + x - 1</small>
+                `;
             }
         }
 
         function showDerivative() {
+            if (!currentFunction) {
+                document.getElementById('function-info').innerHTML = 
+                    '<span style="color: #dc3545;">请先绘制一个函数</span>';
+                return;
+            }
+
+            const funcStr = document.getElementById('custom-function').value;
             const info = document.getElementById('function-info');
-            info.textContent = '导数计算功能需要更高级的符号计算库支持';
+            
+            try {
+                const setup = setupCanvas('explorerCanvas');
+                if (!setup) return;
+                
+                const { ctx, canvas } = setup;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawAxes(ctx, canvas.width, canvas.height);
+                
+                // Plot original function
+                plotFunction(ctx, canvas.width, canvas.height, currentFunction, '#007bff', 3);
+                
+                // Plot derivative
+                const derivativeFunc = (x) => mathParser.derivative(currentFunction, x);
+                plotFunction(ctx, canvas.width, canvas.height, derivativeFunc, '#dc3545', 2);
+                
+                // Add labels
+                ctx.fillStyle = '#007bff';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(`f(x) = ${funcStr}`, 10, 25);
+                ctx.fillStyle = '#dc3545';
+                ctx.fillText(`f'(x) (导数)`, 10, 45);
+                
+                const symbolicDeriv = mathParser.getSymbolicDerivative(funcStr);
+                info.innerHTML = `
+                    <strong>原函数:</strong> f(x) = ${funcStr}<br>
+                    <strong>导数:</strong> f'(x) = ${symbolicDeriv}<br>
+                    <small>蓝线: 原函数, 红线: 导数</small>
+                `;
+            } catch (e) {
+                info.innerHTML = `<span style="color: #dc3545;">计算导数时出错: ${e.message}</span>`;
+            }
         }
 
         function showIntegral() {
+            if (!currentFunction) {
+                document.getElementById('function-info').innerHTML = 
+                    '<span style="color: #dc3545;">请先绘制一个函数</span>';
+                return;
+            }
+
+            const funcStr = document.getElementById('custom-function').value;
             const info = document.getElementById('function-info');
-            info.textContent = '积分计算功能需要更高级的符号计算库支持';
+            
+            try {
+                const setup = setupCanvas('explorerCanvas');
+                if (!setup) return;
+                
+                const { ctx, canvas } = setup;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawAxes(ctx, canvas.width, canvas.height);
+                
+                // Plot function
+                plotFunction(ctx, canvas.width, canvas.height, currentFunction, '#007bff', 3);
+                
+                // Fill area under curve (from -2 to 2)
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scale = 20;
+                const lowerBound = -2;
+                const upperBound = 2;
+                
+                ctx.fillStyle = 'rgba(0, 123, 255, 0.3)';
+                ctx.beginPath();
+                
+                const lowerPx = centerX + lowerBound * scale;
+                const upperPx = centerX + upperBound * scale;
+                
+                ctx.moveTo(lowerPx, centerY);
+                for (let px = lowerPx; px <= upperPx; px += 2) {
+                    const x = (px - centerX) / scale;
+                    const y = currentFunction(x);
+                    if (isFinite(y)) {
+                        const py = centerY - y * scale;
+                        ctx.lineTo(px, py);
+                    }
+                }
+                ctx.lineTo(upperPx, centerY);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Calculate integral
+                const integralValue = mathParser.integrate(currentFunction, lowerBound, upperBound);
+                
+                // Add labels
+                ctx.fillStyle = '#007bff';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText(`f(x) = ${funcStr}`, 10, 25);
+                ctx.fillStyle = '#28a745';
+                ctx.fillText(`∫₋₂² f(x)dx ≈ ${integralValue.toFixed(4)}`, 10, 45);
+                
+                info.innerHTML = `
+                    <strong>函数:</strong> f(x) = ${funcStr}<br>
+                    <strong>定积分:</strong> ∫₋₂² f(x)dx ≈ ${integralValue.toFixed(4)}<br>
+                    <small>蓝色区域表示积分面积</small>
+                `;
+            } catch (e) {
+                info.innerHTML = `<span style="color: #dc3545;">计算积分时出错: ${e.message}</span>`;
+            }
         }
 
-        // Optimization problems
-        const optimizationProblems = {
-            box: {
-                title: '纸盒最大体积问题',
-                description: '从边长为20cm的正方形纸片四角切去边长为x的小正方形，然后折成无盖纸盒。求x为多少时体积最大？',
-                solution: 'V(x) = x(20-2x)² = 4x³ - 80x² + 400x\nV\'(x) = 12x² - 160x + 400 = 0\n解得 x = 10/3 ≈ 3.33cm\n最大体积 ≈ 592.59 cm³'
-            },
-            fence: {
-                title: '围栏最大面积问题',
-                description: '用100米长的篱笆围成矩形菜园，一边靠墙不需要篱笆。求矩形的长和宽各为多少时面积最大？',
-                solution: '设宽为x，则长为100-2x\nA(x) = x(100-2x) = 100x - 2x²\nA\'(x) = 100 - 4x = 0\n解得 x = 25米，长 = 50米\n最大面积 = 1250 m²'
-            },
-            profit: {
-                title: '利润最大化问题',
-                description: '某公司生产产品的成本函数为C(x) = 100 + 2x + 0.01x²，售价为每件10元。求产量为多少时利润最大？',
-                solution: '利润函数 P(x) = 10x - (100 + 2x + 0.01x²) = 8x - 100 - 0.01x²\nP\'(x) = 8 - 0.02x = 0\n解得 x = 400件\n最大利润 = 1500元'
-            },
-            distance: {
-                title: '最短距离问题',
-                description: '点P(3,4)到直线y = x的最短距离是多少？',
-                solution: '设直线上的点为(t,t)\n距离函数 d(t) = √[(t-3)² + (t-4)²]\nd\'(t) = (2t-7)/√[(t-3)² + (t-4)²] = 0\n解得 t = 3.5\n最短距离 = √2/2 ≈ 0.707'
+        // Enhanced optimization solver
+        class OptimizationSolver {
+            constructor() {
+                this.predefinedProblems = {
+                    box: {
+                        title: '纸盒最大体积问题',
+                        description: '从边长为20cm的正方形纸片四角切去边长为x的小正方形，然后折成无盖纸盒。求x为多少时体积最大？',
+                        func: 'x*(20-2*x)^2',
+                        domain: [0, 10],
+                        variable: 'x',
+                        unit: 'cm',
+                        type: 'maximize'
+                    },
+                    fence: {
+                        title: '围栏最大面积问题',
+                        description: '用100米长的篱笆围成矩形菜园，一边靠墙不需要篱笆。求矩形的长和宽各为多少时面积最大？',
+                        func: 'x*(100-2*x)',
+                        domain: [0, 50],
+                        variable: 'x',
+                        unit: '米',
+                        type: 'maximize'
+                    },
+                    profit: {
+                        title: '利润最大化问题',
+                        description: '某公司生产产品的成本函数为C(x) = 100 + 2x + 0.01x²，售价为每件10元。求产量为多少时利润最大？',
+                        func: '8*x - 100 - 0.01*x^2',
+                        domain: [0, 800],
+                        variable: 'x',
+                        unit: '件',
+                        type: 'maximize'
+                    },
+                    distance: {
+                        title: '最短距离问题',
+                        description: '点P(3,4)到直线y = x的最短距离是多少？',
+                        func: 'sqrt((x-3)^2 + (x-4)^2)',
+                        domain: [0, 8],
+                        variable: 'x',
+                        unit: '',
+                        type: 'minimize'
+                    },
+                    custom: {
+                        title: '自定义优化问题',
+                        description: '输入您自己的函数进行优化分析',
+                        func: '',
+                        domain: [-10, 10],
+                        variable: 'x',
+                        unit: '',
+                        type: 'maximize'
+                    }
+                };
             }
-        };
+
+            // Find critical points using numerical methods
+            findCriticalPoints(func, domain, step = 0.01) {
+                const [a, b] = domain;
+                const criticalPoints = [];
+                
+                for (let x = a + step; x < b - step; x += step) {
+                    const derivative = mathParser.derivative(func, x);
+                    const prevDerivative = mathParser.derivative(func, x - step);
+                    
+                    // Check for sign change in derivative (critical point)
+                    if (Math.sign(derivative) !== Math.sign(prevDerivative)) {
+                        criticalPoints.push({
+                            x: x,
+                            y: func(x),
+                            type: derivative > prevDerivative ? 'minimum' : 'maximum'
+                        });
+                    }
+                }
+                
+                // Add endpoints
+                criticalPoints.push(
+                    { x: a, y: func(a), type: 'endpoint' },
+                    { x: b, y: func(b), type: 'endpoint' }
+                );
+                
+                return criticalPoints;
+            }
+
+            // Visualize optimization problem
+            visualizeOptimization(func, domain, criticalPoints, canvasId) {
+                const setup = setupCanvas(canvasId);
+                if (!setup) return;
+                
+                const { ctx, canvas } = setup;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawAxes(ctx, canvas.width, canvas.height);
+                
+                // Plot function
+                plotFunction(ctx, canvas.width, canvas.height, func, '#007bff', 3);
+                
+                // Mark critical points
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const scale = Math.min(canvas.width, canvas.height) / (domain[1] - domain[0] + 4);
+                
+                criticalPoints.forEach(point => {
+                    const px = centerX + (point.x - (domain[0] + domain[1]) / 2) * scale;
+                    const py = centerY - point.y * scale;
+                    
+                    if (px >= 0 && px <= canvas.width && py >= 0 && py <= canvas.height) {
+                        ctx.fillStyle = point.type === 'maximum' ? '#28a745' : 
+                                       point.type === 'minimum' ? '#dc3545' : '#ffc107';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 6, 0, 2 * Math.PI);
+                        ctx.fill();
+                        
+                        // Add label
+                        ctx.fillStyle = '#000';
+                        ctx.font = '12px Arial';
+                        ctx.fillText(`(${point.x.toFixed(2)}, ${point.y.toFixed(2)})`, px + 10, py - 10);
+                    }
+                });
+                
+                // Add legend
+                ctx.fillStyle = '#007bff';
+                ctx.font = 'bold 14px Arial';
+                ctx.fillText('函数图像', 10, 25);
+                ctx.fillStyle = '#28a745';
+                ctx.fillText('● 最大值', 10, 45);
+                ctx.fillStyle = '#dc3545';
+                ctx.fillText('● 最小值', 10, 65);
+                ctx.fillStyle = '#ffc107';
+                ctx.fillText('● 端点', 10, 85);
+            }
+        }
+
+        const optimizationSolver = new OptimizationSolver();
+        let currentOptimizationFunc = null;
 
         function loadOptimizationProblem() {
             const problemType = document.getElementById('optimization-problem').value;
-            const problem = optimizationProblems[problemType];
+            const problem = optimizationSolver.predefinedProblems[problemType];
             
             document.getElementById('problem-description').textContent = problem.description;
             document.getElementById('optimization-result').textContent = '点击求解按钮开始计算';
+            
+            // Show custom input fields for custom problems
+            const customInputs = document.getElementById('custom-optimization-inputs');
+            if (problemType === 'custom') {
+                if (!customInputs) {
+                    const inputsHtml = `
+                        <div id="custom-optimization-inputs" style="margin: 1rem 0; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                            <div class="input-group">
+                                <label for="custom-opt-function">目标函数 f(x):</label>
+                                <input type="text" id="custom-opt-function" class="input-field" placeholder="x^2 - 4*x + 3" value="x^2 - 4*x + 3">
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <div class="input-group" style="flex: 1;">
+                                    <label for="custom-opt-min">定义域最小值:</label>
+                                    <input type="number" id="custom-opt-min" class="input-field" value="-5">
+                                </div>
+                                <div class="input-group" style="flex: 1;">
+                                    <label for="custom-opt-max">定义域最大值:</label>
+                                    <input type="number" id="custom-opt-max" class="input-field" value="5">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="custom-opt-type">优化类型:</label>
+                                <select id="custom-opt-type" class="input-field">
+                                    <option value="maximize">求最大值</option>
+                                    <option value="minimize">求最小值</option>
+                                    <option value="both">求极值</option>
+                                </select>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('problem-description').insertAdjacentHTML('afterend', inputsHtml);
+                }
+            } else {
+                if (customInputs) {
+                    customInputs.remove();
+                }
+            }
         }
 
         function solveOptimization() {
             const problemType = document.getElementById('optimization-problem').value;
-            const problem = optimizationProblems[problemType];
+            let problem = optimizationSolver.predefinedProblems[problemType];
             
-            document.getElementById('optimization-result').innerHTML = 
-                `<strong>${problem.title}</strong><br><pre style="white-space: pre-wrap; font-family: monospace; margin-top: 10px;">${problem.solution}</pre>`;
+            // Handle custom optimization
+            if (problemType === 'custom') {
+                const funcStr = document.getElementById('custom-opt-function').value;
+                const minVal = parseFloat(document.getElementById('custom-opt-min').value);
+                const maxVal = parseFloat(document.getElementById('custom-opt-max').value);
+                const optType = document.getElementById('custom-opt-type').value;
+                
+                if (!funcStr.trim()) {
+                    document.getElementById('optimization-result').innerHTML = 
+                        '<span style="color: #dc3545;">请输入目标函数</span>';
+                    return;
+                }
+                
+                problem = {
+                    title: '自定义优化问题',
+                    func: funcStr,
+                    domain: [minVal, maxVal],
+                    type: optType
+                };
+            }
+            
+            try {
+                currentOptimizationFunc = mathParser.parseFunction(problem.func);
+                const criticalPoints = optimizationSolver.findCriticalPoints(
+                    currentOptimizationFunc, 
+                    problem.domain
+                );
+                
+                // Find optimal points
+                let optimal = null;
+                if (problem.type === 'maximize' || problem.type === 'both') {
+                    optimal = criticalPoints.reduce((max, point) => 
+                        point.y > max.y ? point : max
+                    );
+                } else if (problem.type === 'minimize') {
+                    optimal = criticalPoints.reduce((min, point) => 
+                        point.y < min.y ? point : min
+                    );
+                }
+                
+                // Display results
+                let resultHtml = `<strong>${problem.title}</strong><br>`;
+                resultHtml += `<strong>目标函数:</strong> f(x) = ${problem.func}<br>`;
+                resultHtml += `<strong>定义域:</strong> [${problem.domain[0]}, ${problem.domain[1]}]<br><br>`;
+                
+                if (problem.type === 'both') {
+                    const maximum = criticalPoints.filter(p => p.type === 'maximum' || p.type === 'endpoint')
+                        .reduce((max, point) => point.y > max.y ? point : max);
+                    const minimum = criticalPoints.filter(p => p.type === 'minimum' || p.type === 'endpoint')
+                        .reduce((min, point) => point.y < min.y ? point : min);
+                    
+                    resultHtml += `<strong>最大值:</strong> f(${maximum.x.toFixed(4)}) = ${maximum.y.toFixed(4)}<br>`;
+                    resultHtml += `<strong>最小值:</strong> f(${minimum.x.toFixed(4)}) = ${minimum.y.toFixed(4)}<br>`;
+                } else {
+                    const optimalType = problem.type === 'maximize' ? '最大值' : '最小值';
+                    resultHtml += `<strong>${optimalType}:</strong> f(${optimal.x.toFixed(4)}) = ${optimal.y.toFixed(4)}<br>`;
+                }
+                
+                resultHtml += `<br><strong>所有关键点:</strong><br>`;
+                criticalPoints.forEach(point => {
+                    const typeText = point.type === 'maximum' ? '极大值' : 
+                                   point.type === 'minimum' ? '极小值' : '端点';
+                    resultHtml += `• ${typeText}: (${point.x.toFixed(4)}, ${point.y.toFixed(4)})<br>`;
+                });
+                
+                document.getElementById('optimization-result').innerHTML = resultHtml;
+                
+                // Visualize
+                optimizationSolver.visualizeOptimization(
+                    currentOptimizationFunc, 
+                    problem.domain, 
+                    criticalPoints, 
+                    'optimizationCanvas'
+                );
+                
+            } catch (e) {
+                document.getElementById('optimization-result').innerHTML = 
+                    `<span style="color: #dc3545;">求解错误: ${e.message}</span>`;
+            }
         }
 
         function showOptimizationSteps() {
+            if (!currentOptimizationFunc) {
+                document.getElementById('optimization-result').innerHTML += 
+                    '<br><span style="color: #dc3545;">请先求解优化问题</span>';
+                return;
+            }
+            
             const result = document.getElementById('optimization-result');
-            result.innerHTML += '<br><em>详细求解步骤已显示在上方结果中</em>';
+            result.innerHTML += `
+                <br><br><strong>求解步骤:</strong><br>
+                1. 对目标函数求导数<br>
+                2. 令导数等于零，求解关键点<br>
+                3. 检查定义域端点<br>
+                4. 比较所有候选点的函数值<br>
+                5. 确定最优解<br>
+                <em>图像中的彩色点标示了所有关键点位置</em>
+            `;
         }
+
+        // Enhanced calculus calculator
+        class CalculusCalculator {
+            constructor() {
+                this.derivativeRules = {
+                    // Power rule: x^n -> n*x^(n-1)
+                    power: (expr) => {
+                        return expr.replace(/(\d*\.?\d*)\*?x\^(\d+\.?\d*)/g, (match, coeff, power) => {
+                            const c = coeff === '' || coeff === '1' ? '' : (coeff === '-1' ? '-' : coeff);
+                            const p = parseFloat(power);
+                            const newCoeff = c === '' ? p : (c === '-' ? -p : parseFloat(c) * p);
+                            const newPower = p - 1;
+                            
+                            if (newPower === 0) return newCoeff.toString();
+                            if (newPower === 1) return `${newCoeff}x`;
+                            return `${newCoeff}x^${newPower}`;
+                        });
+                    },
+                    
+                    // Trigonometric functions
+                    trig: (expr) => {
+                        return expr
+                            .replace(/sin\(x\)/g, 'cos(x)')
+                            .replace(/cos\(x\)/g, '-sin(x)')
+                            .replace(/tan\(x\)/g, 'sec²(x)')
+                            .replace(/sec\(x\)/g, 'sec(x)tan(x)')
+                            .replace(/csc\(x\)/g, '-csc(x)cot(x)')
+                            .replace(/cot\(x\)/g, '-csc²(x)');
+                    },
+                    
+                    // Exponential and logarithmic
+                    expLog: (expr) => {
+                        return expr
+                            .replace(/e\^x/g, 'e^x')
+                            .replace(/exp\(x\)/g, 'exp(x)')
+                            .replace(/ln\(x\)/g, '1/x')
+                            .replace(/log\(x\)/g, '1/(x*ln(10))');
+                    }
+                };
+            }
+
+            // Symbolic derivative calculation
+            calculateSymbolicDerivative(expression) {
+                let expr = expression.toLowerCase().replace(/\s+/g, '');
+                
+                // Handle constants
+                if (!/x/.test(expr)) {
+                    return '0';
+                }
+                
+                // Apply derivative rules
+                expr = this.derivativeRules.power(expr);
+                expr = this.derivativeRules.trig(expr);
+                expr = this.derivativeRules.expLog(expr);
+                
+                // Handle linear terms
+                expr = expr.replace(/(\d*\.?\d*)\*?x(?!\^)/g, (match, coeff) => {
+                    return coeff === '' || coeff === '1' ? '1' : coeff;
+                });
+                
+                // Clean up
+                expr = expr.replace(/\+\s*0/g, '').replace(/^0\s*\+\s*/, '');
+                
+                return expr || '0';
+            }
+
+            // Numerical derivative at a point
+            numericalDerivative(func, x, h = 0.0001) {
+                try {
+                    return (func(x + h) - func(x - h)) / (2 * h);
+                } catch (e) {
+                    return NaN;
+                }
+            }
+
+            // Numerical integration
+            numericalIntegral(func, a, b, method = 'simpson') {
+                if (method === 'simpson') {
+                    return this.simpsonRule(func, a, b, 1000);
+                } else if (method === 'trapezoidal') {
+                    return this.trapezoidalRule(func, a, b, 1000);
+                }
+            }
+
+            simpsonRule(func, a, b, n) {
+                if (n % 2 === 1) n++;
+                const h = (b - a) / n;
+                let sum = func(a) + func(b);
+                
+                for (let i = 1; i < n; i++) {
+                    const x = a + i * h;
+                    sum += (i % 2 === 0 ? 2 : 4) * func(x);
+                }
+                
+                return (h / 3) * sum;
+            }
+
+            trapezoidalRule(func, a, b, n) {
+                const h = (b - a) / n;
+                let sum = (func(a) + func(b)) / 2;
+                
+                for (let i = 1; i < n; i++) {
+                    sum += func(a + i * h);
+                }
+                
+                return h * sum;
+            }
+
+            // Get step-by-step derivative explanation
+            getDerivativeSteps(expression) {
+                const steps = [];
+                let expr = expression.toLowerCase().replace(/\s+/g, '');
+                
+                steps.push(`原函数: f(x) = ${expression}`);
+                
+                // Identify terms
+                const terms = expr.split(/(?=[+-])/).filter(term => term.trim());
+                steps.push(`分解为项: ${terms.join(', ')}`);
+                
+                // Apply rules to each term
+                const derivedTerms = terms.map(term => {
+                    if (term.includes('x^')) {
+                        const match = term.match(/(\d*\.?\d*)\*?x\^(\d+\.?\d*)/);
+                        if (match) {
+                            const coeff = match[1] || '1';
+                            const power = match[2];
+                            steps.push(`${term}: 幂函数法则 → ${coeff}×${power}×x^${power-1}`);
+                            return this.derivativeRules.power(term);
+                        }
+                    } else if (term.includes('sin') || term.includes('cos') || term.includes('tan')) {
+                        steps.push(`${term}: 三角函数法则`);
+                        return this.derivativeRules.trig(term);
+                    } else if (term.includes('x')) {
+                        steps.push(`${term}: 线性函数法则 → 常数`);
+                        return term.replace(/(\d*\.?\d*)\*?x/, '$1');
+                    } else {
+                        steps.push(`${term}: 常数法则 → 0`);
+                        return '0';
+                    }
+                });
+                
+                const result = derivedTerms.join(' + ').replace(/\+\s*0/g, '').replace(/^\s*\+\s*/, '');
+                steps.push(`最终结果: f'(x) = ${result || '0'}`);
+                
+                return steps;
+            }
+        }
+
+        const calculusCalculator = new CalculusCalculator();
 
         function calculateDerivative() {
             const funcStr = document.getElementById('calc-function').value;
             const result = document.getElementById('derivative-result');
             
-            // Simple derivative calculation (basic cases only)
-            if (funcStr.includes('x^3')) {
-                result.textContent = "f'(x) = 3x² (基于 x³ 的导数)";
-            } else if (funcStr.includes('x^2')) {
-                result.textContent = "f'(x) = 2x (基于 x² 的导数)";
-            } else if (funcStr.includes('x')) {
-                result.textContent = "f'(x) = 1 (基于 x 的导数)";
-            } else {
-                result.textContent = '需要更高级的符号计算库来计算复杂函数的导数';
+            if (!funcStr.trim()) {
+                result.innerHTML = '<span style="color: #dc3545;">请输入函数</span>';
+                return;
+            }
+            
+            try {
+                // Try symbolic derivative first
+                const symbolicResult = calculusCalculator.calculateSymbolicDerivative(funcStr);
+                
+                // Also calculate numerical derivative at x=1 for verification
+                const func = mathParser.parseFunction(funcStr);
+                const numericalAtOne = calculusCalculator.numericalDerivative(func, 1);
+                
+                // Get step-by-step explanation
+                const steps = calculusCalculator.getDerivativeSteps(funcStr);
+                
+                result.innerHTML = `
+                    <strong>符号导数:</strong> f'(x) = ${symbolicResult}<br>
+                    <strong>在 x=1 处的数值:</strong> f'(1) ≈ ${numericalAtOne.toFixed(6)}<br>
+                    <details style="margin-top: 0.5rem;">
+                        <summary style="cursor: pointer; color: #007bff;">查看求导步骤</summary>
+                        <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                            ${steps.map(step => `<div style="margin: 0.2rem 0;">${step}</div>`).join('')}
+                        </div>
+                    </details>
+                `;
+            } catch (e) {
+                result.innerHTML = `<span style="color: #dc3545;">计算错误: ${e.message}</span>`;
             }
         }
 
@@ -1418,15 +2082,73 @@
             const upper = parseFloat(document.getElementById('integral-upper').value);
             const result = document.getElementById('integral-result');
             
-            // Simple integral calculation (basic cases only)
-            if (funcStr === 'x^2') {
-                const integral = (upper**3 - lower**3) / 3;
-                result.textContent = `∫${lower}${upper} x² dx = ${integral.toFixed(3)}`;
-            } else if (funcStr === 'x') {
-                const integral = (upper**2 - lower**2) / 2;
-                result.textContent = `∫${lower}${upper} x dx = ${integral.toFixed(3)}`;
-            } else {
-                result.textContent = '需要更高级的符号计算库来计算复杂函数的积分';
+            if (!funcStr.trim()) {
+                result.innerHTML = '<span style="color: #dc3545;">请输入函数</span>';
+                return;
+            }
+            
+            if (isNaN(lower) || isNaN(upper)) {
+                result.innerHTML = '<span style="color: #dc3545;">请输入有效的积分区间</span>';
+                return;
+            }
+            
+            try {
+                const func = mathParser.parseFunction(funcStr);
+                
+                // Calculate using different methods
+                const simpsonResult = calculusCalculator.numericalIntegral(func, lower, upper, 'simpson');
+                const trapezoidalResult = calculusCalculator.numericalIntegral(func, lower, upper, 'trapezoidal');
+                
+                // Calculate error estimate
+                const error = Math.abs(simpsonResult - trapezoidalResult);
+                
+                result.innerHTML = `
+                    <strong>定积分结果:</strong><br>
+                    ∫<sub>${lower}</sub><sup>${upper}</sup> (${funcStr}) dx<br><br>
+                    <strong>辛普森法则:</strong> ${simpsonResult.toFixed(6)}<br>
+                    <strong>梯形法则:</strong> ${trapezoidalResult.toFixed(6)}<br>
+                    <strong>误差估计:</strong> ±${error.toFixed(6)}<br>
+                    <small style="color: #666;">推荐使用辛普森法则结果，精度更高</small>
+                `;
+                
+                // Add geometric interpretation for simple cases
+                if (upper > lower) {
+                    const avgValue = simpsonResult / (upper - lower);
+                    result.innerHTML += `<br><br><strong>几何意义:</strong><br>`;
+                    result.innerHTML += `曲线下面积: ${Math.abs(simpsonResult).toFixed(4)}<br>`;
+                    result.innerHTML += `平均函数值: ${avgValue.toFixed(4)}`;
+                }
+                
+            } catch (e) {
+                result.innerHTML = `<span style="color: #dc3545;">计算错误: ${e.message}</span>`;
+            }
+        }
+
+        // Add function to evaluate derivative at specific point
+        function evaluateDerivativeAtPoint() {
+            const funcStr = document.getElementById('calc-function').value;
+            const point = prompt('请输入要计算导数的点 x =', '1');
+            
+            if (point === null || point.trim() === '') return;
+            
+            const x = parseFloat(point);
+            if (isNaN(x)) {
+                alert('请输入有效的数值');
+                return;
+            }
+            
+            try {
+                const func = mathParser.parseFunction(funcStr);
+                const derivativeValue = calculusCalculator.numericalDerivative(func, x);
+                const functionValue = func(x);
+                
+                const result = document.getElementById('derivative-result');
+                result.innerHTML += `<br><br><strong>在 x = ${x} 处:</strong><br>`;
+                result.innerHTML += `f(${x}) = ${functionValue.toFixed(6)}<br>`;
+                result.innerHTML += `f'(${x}) = ${derivativeValue.toFixed(6)}<br>`;
+                result.innerHTML += `<small>切线斜率为 ${derivativeValue.toFixed(6)}</small>`;
+            } catch (e) {
+                alert(`计算错误: ${e.message}`);
             }
         }
 
