@@ -902,66 +902,7 @@
             setupScene() {
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x000011);
-                this.createEnhancedStarField();
-            }
-
-            createEnhancedStarField() {
-                // 创建更加真实的星空背景
-                const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ 
-                    size: 2, 
-                    sizeAttenuation: false,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                
-                const starsVertices = [];
-                const starsColors = [];
-                
-                for (let i = 0; i < 15000; i++) {
-                    // 随机位置
-                    const x = (Math.random() - 0.5) * 2000;
-                    const y = (Math.random() - 0.5) * 2000;
-                    const z = (Math.random() - 0.5) * 2000;
-                    starsVertices.push(x, y, z);
-                    
-                    // 不同颜色的恒星
-                    const starType = Math.random();
-                    if (starType < 0.7) {
-                        // 白色恒星
-                        starsColors.push(1, 1, 1);
-                    } else if (starType < 0.9) {
-                        // 黄色恒星
-                        starsColors.push(1, 1, 0.8);
-                    } else {
-                        // 红色恒星
-                        starsColors.push(1, 0.8, 0.6);
-                    }
-                }
-                
-                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-                starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starsColors, 3));
-                
-                starsMaterial.vertexColors = true;
-                const stars = new THREE.Points(starsGeometry, starsMaterial);
-                this.scene.add(stars);
-                
-                // 添加银河系背景效果
-                this.createGalaxyBackground();
-            }
-
-            createGalaxyBackground() {
-                // 创建银河系盘状结构的视觉效果
-                const galaxyGeometry = new THREE.RingGeometry(400, 800, 64);
-                const galaxyMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x443366,
-                    transparent: true,
-                    opacity: 0.05,
-                    side: THREE.DoubleSide
-                });
-                const galaxy = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
-                galaxy.rotation.x = Math.PI / 2;
-                this.scene.add(galaxy);
+                // Removed star field for cleaner view
             }
 
             setupCamera() {
@@ -1046,86 +987,243 @@
             }
 
             async createPlanet(name, data) {
-                const geometry = new THREE.SphereGeometry(data.size, 32, 32);
+                // Create high-detail geometry for realistic planets
+                const segments = name === 'sun' ? 128 : 64; // Higher detail for important planets
+                const geometry = new THREE.SphereGeometry(data.size, segments, segments);
                 
-                // Load planet texture
-                const texture = await this.loadPlanetTexture(name);
-                const material = new THREE.MeshPhongMaterial({ 
-                    map: texture,
-                    color: texture ? 0xffffff : data.color, // Use color as fallback
-                    shininess: name === 'sun' ? 0 : 30,
-                    transparent: name === 'sun',
-                    opacity: name === 'sun' ? 0.9 : 1.0,
-                    emissive: name === 'sun' ? 0xFFAA00 : 0x000000,
-                    emissiveIntensity: name === 'sun' ? 0.8 : 0
-                });
-                
-                const planet = new THREE.Mesh(geometry, material);
+                // Create realistic planet based on type
+                let planetMesh;
+                switch(name) {
+                    case 'sun':
+                        planetMesh = await this.createRealisticSun(data.size);
+                        break;
+                    case 'earth':
+                        planetMesh = await this.createRealisticEarth(data.size);
+                        break;
+                    case 'mars':
+                        planetMesh = await this.createRealisticMars(data.size);
+                        break;
+                    case 'jupiter':
+                        planetMesh = await this.createRealisticJupiter(data.size);
+                        break;
+                    case 'saturn':
+                        planetMesh = await this.createRealisticSaturn(data.size);
+                        break;
+                    default:
+                        planetMesh = await this.createGenericPlanet(name, data);
+                }
                 
                 if (name === 'sun') {
-                    // Enhanced 3D Sun at center with multiple glow layers
-                    planet.position.set(0, 0, 0);
-                    
-                    // Add multiple glow layers for realistic sun effect
-                    const glowGeometry1 = new THREE.SphereGeometry(data.size * 1.15, 32, 32);
-                    const glowMaterial1 = new THREE.MeshBasicMaterial({
-                        color: 0xFFD700,
-                        transparent: true,
-                        opacity: 0.4,
-                        side: THREE.BackSide
-                    });
-                    const glow1 = new THREE.Mesh(glowGeometry1, glowMaterial1);
-                    planet.add(glow1);
-                    
-                    const glowGeometry2 = new THREE.SphereGeometry(data.size * 1.4, 32, 32);
-                    const glowMaterial2 = new THREE.MeshBasicMaterial({
-                        color: 0xFF6600,
-                        transparent: true,
-                        opacity: 0.2,
-                        side: THREE.BackSide
-                    });
-                    const glow2 = new THREE.Mesh(glowGeometry2, glowMaterial2);
-                    planet.add(glow2);
-                    
-                    // Add corona effect
-                    const coronaGeometry = new THREE.SphereGeometry(data.size * 1.8, 32, 32);
-                    const coronaMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFDD44,
-                        transparent: true,
-                        opacity: 0.1,
-                        side: THREE.BackSide
-                    });
-                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-                    planet.add(corona);
-                    
-                    // Add solar flares (particle system)
-                    this.createSolarFlares(planet);
+                    // Sun stays at center
+                    planetMesh.position.set(0, 0, 0);
                 } else {
                     // Planets start at their orbital distance
-                    planet.position.set(data.distance, 0, 0);
-                    planet.castShadow = true;
-                    planet.receiveShadow = true;
+                    planetMesh.position.set(data.distance, 0, 0);
+                    planetMesh.castShadow = true;
+                    planetMesh.receiveShadow = true;
+                    
+                    // Apply realistic axial tilt
+                    if (data.tilt) {
+                        planetMesh.rotation.z = THREE.MathUtils.degToRad(data.tilt);
+                    }
                 }
                 
                 // Add to scene and store reference
-                this.scene.add(planet);
+                this.scene.add(planetMesh);
                 this.planets[name] = {
-                    mesh: planet,
+                    mesh: planetMesh,
                     data: data,
-                    angle: Math.random() * Math.PI * 2, // Random starting position
+                    angle: Math.random() * Math.PI * 2,
                     group: new THREE.Group()
                 };
                 
                 // Create planet group for orbital motion
                 if (name !== 'sun') {
-                    this.planets[name].group.add(planet);
+                    this.planets[name].group.add(planetMesh);
                     this.scene.add(this.planets[name].group);
                 }
+            }
+
+            // Create realistic Sun with enhanced surface detail and corona
+            async createRealisticSun(size) {
+                const sunGroup = new THREE.Group();
                 
-                // Special handling for Saturn's rings
-                if (name === 'saturn') {
-                    this.createSaturnRings(planet);
-                }
+                // Sun core with high-detail surface
+                const sunGeometry = new THREE.SphereGeometry(size, 128, 128);
+                const sunTexture = this.createAdvancedSunTexture();
+                
+                const sunMaterial = new THREE.MeshBasicMaterial({
+                    map: sunTexture,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 0.8,
+                    emissiveMap: sunTexture
+                });
+                
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sunGroup.add(sun);
+                
+                // Multiple corona layers for realistic glow
+                const coronaLayers = [
+                    { size: size * 1.08, color: 0xFFD700, opacity: 0.6 },
+                    { size: size * 1.15, color: 0xFF8800, opacity: 0.4 },
+                    { size: size * 1.25, color: 0xFF6600, opacity: 0.2 },
+                    { size: size * 1.4, color: 0xFFDD44, opacity: 0.1 }
+                ];
+                
+                coronaLayers.forEach(layer => {
+                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
+                    const coronaMaterial = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: layer.opacity,
+                        side: THREE.BackSide
+                    });
+                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+                    sunGroup.add(corona);
+                });
+                
+                return sunGroup;
+            }
+
+            // Create realistic Earth with continents, oceans, atmosphere and clouds
+            async createRealisticEarth(size) {
+                const earthGroup = new THREE.Group();
+                
+                // Earth main body with high detail
+                const earthGeometry = new THREE.SphereGeometry(size, 128, 128);
+                const earthTexture = this.createAdvancedEarthTexture();
+                const earthBumpTexture = this.createEarthBumpMap();
+                
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    map: earthTexture,
+                    bumpMap: earthBumpTexture,
+                    bumpScale: 0.05,
+                    shininess: 100,
+                    specular: new THREE.Color(0x222222)
+                });
+                
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.castShadow = true;
+                earth.receiveShadow = true;
+                earthGroup.add(earth);
+                
+                // Atmosphere layer
+                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.05, 32, 32);
+                const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x87CEEB,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.BackSide
+                });
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                earthGroup.add(atmosphere);
+                
+                // Cloud layer with realistic patterns
+                const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
+                const cloudTexture = this.createAdvancedCloudTexture();
+                const cloudMaterial = new THREE.MeshPhongMaterial({
+                    map: cloudTexture,
+                    transparent: true,
+                    opacity: 0.4,
+                    alphaMap: cloudTexture
+                });
+                const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                earthGroup.add(clouds);
+                earthGroup.clouds = clouds; // Store for animation
+                
+                return earthGroup;
+            }
+
+            // Create realistic Mars with polar ice caps and terrain
+            async createRealisticMars(size) {
+                const marsGroup = new THREE.Group();
+                
+                const marsGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const marsTexture = this.createAdvancedMarsTexture();
+                const marsBumpTexture = this.createMarsBumpMap();
+                
+                const marsMaterial = new THREE.MeshPhongMaterial({
+                    map: marsTexture,
+                    bumpMap: marsBumpTexture,
+                    bumpScale: 0.08,
+                    shininess: 5
+                });
+                
+                const mars = new THREE.Mesh(marsGeometry, marsMaterial);
+                mars.castShadow = true;
+                mars.receiveShadow = true;
+                marsGroup.add(mars);
+                
+                // Polar ice caps
+                this.addMarsIceCaps(marsGroup, size);
+                
+                return marsGroup;
+            }
+
+            // Create realistic Jupiter with bands and Great Red Spot
+            async createRealisticJupiter(size) {
+                const jupiterGroup = new THREE.Group();
+                
+                const jupiterGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const jupiterTexture = this.createAdvancedJupiterTexture();
+                
+                const jupiterMaterial = new THREE.MeshPhongMaterial({
+                    map: jupiterTexture,
+                    shininess: 10
+                });
+                
+                const jupiter = new THREE.Mesh(jupiterGeometry, jupiterMaterial);
+                jupiter.castShadow = true;
+                jupiter.receiveShadow = true;
+                jupiterGroup.add(jupiter);
+                
+                // Great Red Spot as separate geometry
+                this.addGreatRedSpot(jupiter, size);
+                
+                return jupiterGroup;
+            }
+
+            // Create realistic Saturn with detailed rings
+            async createRealisticSaturn(size) {
+                const saturnGroup = new THREE.Group();
+                
+                const saturnGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const saturnTexture = this.createAdvancedSaturnTexture();
+                
+                const saturnMaterial = new THREE.MeshPhongMaterial({
+                    map: saturnTexture,
+                    shininess: 5
+                });
+                
+                const saturn = new THREE.Mesh(saturnGeometry, saturnMaterial);
+                saturn.castShadow = true;
+                saturn.receiveShadow = true;
+                saturnGroup.add(saturn);
+                
+                // Detailed ring system
+                this.createDetailedSaturnRings(saturnGroup, size);
+                
+                return saturnGroup;
+            }
+
+            // Create generic planet with appropriate textures
+            async createGenericPlanet(name, data) {
+                const planetGroup = new THREE.Group();
+                
+                const planetGeometry = new THREE.SphereGeometry(data.size, 64, 64);
+                const planetTexture = this.createAdvancedPlanetTexture(name);
+                
+                const planetMaterial = new THREE.MeshPhongMaterial({
+                    map: planetTexture,
+                    shininess: 20
+                });
+                
+                const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+                planet.castShadow = true;
+                planet.receiveShadow = true;
+                planetGroup.add(planet);
+                
+                return planetGroup;
             }
 
             createSolarFlares(sun) {
@@ -1211,9 +1309,9 @@
 
             createAsteroidBelt() {
                 // Create asteroid belt between Mars and Jupiter
-                const asteroidCount = 200;
-                const innerRadius = 22; // Between Mars (20) and Jupiter (28)
-                const outerRadius = 26;
+                const asteroidCount = 500;
+                const innerRadius = 35; // Between Mars and Jupiter
+                const outerRadius = 45;
                 
                 this.asteroids = [];
                 
@@ -2096,17 +2194,11 @@
                 requestAnimationFrame(() => this.animate());
                 
                 if (this.isPlaying) {
-                    // Update planet positions
+                    // Update planet positions and rotations
                     Object.entries(this.planets).forEach(([name, planet]) => {
                         if (name === 'sun') {
                             // Rotate sun
                             planet.mesh.rotation.y += 0.01 * this.speed;
-                            
-                            // Animate solar flares
-                            if (this.solarFlares) {
-                                this.solarFlares.rotation.y += 0.02 * this.speed;
-                                this.solarFlares.rotation.z += 0.01 * this.speed;
-                            }
                             return;
                         }
                         
@@ -2123,10 +2215,14 @@
                         // Planet rotation
                         planet.mesh.rotation.y += 0.02 * this.speed;
                         
+                        // Special handling for Earth clouds
+                        if (name === 'earth' && planet.mesh.clouds) {
+                            planet.mesh.clouds.rotation.y += 0.015 * this.speed; // Clouds rotate slightly faster
+                        }
+                        
                         // Update focused planet camera if needed
                         if (this.focusedPlanet === name) {
                             const position = planet.mesh.position.clone();
-                            const distance = planet.data.size * 8;
                             this.controls.target.copy(position);
                         }
                     });
@@ -2253,7 +2349,7 @@
                 canvas.height = 256;
                 const context = canvas.getContext('2d');
                 
-                const imageData = context.createImageData(512, 256);
+                const imageData = context.createImageData(1024, 512);
                 
                 for (let y = 0; y < 256; y++) {
                     for (let x = 0; x < 512; x++) {
@@ -2340,6 +2436,689 @@
                 }
                 
                 return new THREE.CanvasTexture(canvas);
+            }
+
+            // Advanced texture creation methods for realistic planets
+            createAdvancedSunTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Base solar surface gradient
+                const gradient = context.createRadialGradient(512, 256, 0, 512, 256, 400);
+                gradient.addColorStop(0, '#FFFF99');
+                gradient.addColorStop(0.4, '#FFCC00');
+                gradient.addColorStop(0.7, '#FF9900');
+                gradient.addColorStop(1, '#FF6600');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 1024, 512);
+                
+                // Solar granulation (convection cells)
+                for (let i = 0; i < 2000; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 512;
+                    const size = Math.random() * 12 + 4;
+                    const intensity = Math.random() * 0.4 + 0.6;
+                    
+                    context.fillStyle = `rgba(255, 255, 100, ${intensity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                // Solar prominences and active regions
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 512;
+                    const size = Math.random() * 20 + 10;
+                    const intensity = Math.random() * 0.6 + 0.4;
+                    
+                    context.fillStyle = `rgba(255, 150, 0, ${intensity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createAdvancedEarthTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2048;
+                canvas.height = 1024;
+                const context = canvas.getContext('2d');
+                
+                // Ocean base
+                context.fillStyle = '#1e3a8a';
+                context.fillRect(0, 0, 2048, 1024);
+                
+                // Continents with realistic shapes
+                this.drawDetailedContinents(context);
+                
+                // Add terrain variation
+                this.addEarthTerrainDetails(context);
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            drawDetailedContinents(context) {
+                // Africa
+                context.fillStyle = '#22c55e';
+                context.beginPath();
+                context.moveTo(1100, 300);
+                context.bezierCurveTo(1150, 280, 1200, 320, 1180, 400);
+                context.bezierCurveTo(1190, 500, 1160, 580, 1120, 620);
+                context.bezierCurveTo(1080, 600, 1060, 520, 1070, 450);
+                context.bezierCurveTo(1050, 380, 1080, 320, 1100, 300);
+                context.fill();
+                
+                // Eurasia
+                context.fillStyle = '#16a34a';
+                context.beginPath();
+                context.moveTo(1000, 200);
+                context.bezierCurveTo(1300, 180, 1600, 220, 1800, 280);
+                context.bezierCurveTo(1850, 320, 1800, 360, 1700, 340);
+                context.bezierCurveTo(1400, 350, 1200, 320, 1000, 300);
+                context.bezierCurveTo(980, 260, 990, 220, 1000, 200);
+                context.fill();
+                
+                // North America
+                context.fillStyle = '#15803d';
+                context.beginPath();
+                context.moveTo(400, 250);
+                context.bezierCurveTo(500, 200, 600, 240, 650, 300);
+                context.bezierCurveTo(680, 380, 620, 420, 550, 400);
+                context.bezierCurveTo(450, 390, 380, 340, 380, 290);
+                context.bezierCurveTo(390, 260, 400, 250, 400, 250);
+                context.fill();
+                
+                // South America
+                context.fillStyle = '#166534';
+                context.beginPath();
+                context.moveTo(450, 450);
+                context.bezierCurveTo(500, 430, 520, 480, 510, 550);
+                context.bezierCurveTo(500, 650, 480, 750, 460, 800);
+                context.bezierCurveTo(440, 780, 430, 720, 440, 650);
+                context.bezierCurveTo(430, 550, 440, 480, 450, 450);
+                context.fill();
+                
+                // Australia
+                context.fillStyle = '#14532d';
+                context.ellipse(1600, 600, 80, 40, 0, 0, Math.PI * 2);
+                context.fill();
+                
+                // Antarctica
+                context.fillStyle = '#ffffff';
+                context.fillRect(0, 900, 2048, 124);
+            }
+
+            addEarthTerrainDetails(context) {
+                // Mountain ranges
+                const mountains = [
+                    {x: 1150, y: 250, w: 100, h: 30}, // Himalayas
+                    {x: 450, y: 300, w: 80, h: 20},   // Rockies
+                    {x: 480, y: 500, w: 40, h: 150},  // Andes
+                ];
+                
+                mountains.forEach(mountain => {
+                    context.fillStyle = '#8b5a3c';
+                    context.fillRect(mountain.x, mountain.y, mountain.w, mountain.h);
+                });
+                
+                // Deserts
+                const deserts = [
+                    {x: 1050, y: 280, w: 120, h: 80}, // Sahara
+                    {x: 1400, y: 300, w: 100, h: 60}, // Gobi
+                ];
+                
+                deserts.forEach(desert => {
+                    context.fillStyle = '#d4a574';
+                    context.fillRect(desert.x, desert.y, desert.w, desert.h);
+                });
+            }
+
+            createEarthBumpMap() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                const imageData = context.createImageData(1024, 512);
+                
+                for (let y = 0; y < 512; y++) {
+                    for (let x = 0; x < 1024; x++) {
+                        const index = (y * 1024 + x) * 4;
+                        
+                        // Generate terrain height based on position
+                        let height = 128; // Base sea level
+                        
+                        // Add continental elevation
+                        if (this.isLandArea(x / 1024, y / 512)) {
+                            height += 50;
+                            
+                            // Add mountain ranges
+                            height += this.getMountainHeight(x / 1024, y / 512) * 80;
+                        }
+                        
+                        // Add noise for surface details
+                        height += (Math.random() - 0.5) * 20;
+                        
+                        // Clamp values
+                        height = Math.max(0, Math.min(255, height));
+                        
+                        imageData.data[index] = height;
+                        imageData.data[index + 1] = height;
+                        imageData.data[index + 2] = height;
+                        imageData.data[index + 3] = 255;
+                    }
+                }
+                
+                context.putImageData(imageData, 0, 0);
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            isLandArea(x, y) {
+                // Simplified land detection based on major continents
+                // Africa
+                if (x > 0.5 && x < 0.6 && y > 0.3 && y < 0.7) return true;
+                // Eurasia
+                if (x > 0.4 && x < 0.9 && y > 0.15 && y < 0.45) return true;
+                // Americas
+                if (x > 0.1 && x < 0.35 && y > 0.2 && y < 0.8) return true;
+                // Australia
+                if (x > 0.75 && x < 0.85 && y > 0.55 && y < 0.65) return true;
+                
+                return false;
+            }
+
+            getMountainHeight(x, y) {
+                let height = 0;
+                
+                // Himalayas
+                const himalayaDist = Math.sqrt(Math.pow(x - 0.6, 2) + Math.pow(y - 0.25, 2));
+                if (himalayaDist < 0.05) {
+                    height += (1 - himalayaDist / 0.05) * 0.8;
+                }
+                
+                // Andes
+                if (x > 0.22 && x < 0.26 && y > 0.4 && y < 0.8) {
+                    height += 0.6;
+                }
+                
+                // Rockies
+                if (x > 0.18 && x < 0.22 && y > 0.25 && y < 0.4) {
+                    height += 0.4;
+                }
+                
+                return height;
+            }
+
+            createAdvancedCloudTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Clear background
+                context.clearRect(0, 0, 1024, 512);
+                
+                // Create realistic cloud patterns
+                const cloudSystems = [
+                    // Tropical storms
+                    {x: 200, y: 256, size: 80, type: 'spiral'},
+                    {x: 600, y: 200, size: 60, type: 'spiral'},
+                    
+                    // Cloud bands
+                    {x: 0, y: 150, w: 1024, h: 30, type: 'band'},
+                    {x: 0, y: 300, w: 1024, h: 40, type: 'band'},
+                    
+                    // Scattered clouds
+                    ...Array.from({length: 200}, () => ({
+                        x: Math.random() * 1024,
+                        y: Math.random() * 512,
+                        size: Math.random() * 30 + 10,
+                        type: 'scattered'
+                    }))
+                ];
+                
+                cloudSystems.forEach(cloud => {
+                    const opacity = Math.random() * 0.6 + 0.4;
+                    
+                    switch(cloud.type) {
+                        case 'spiral':
+                            this.drawSpiralCloud(context, cloud.x, cloud.y, cloud.size, opacity);
+                            break;
+                        case 'band':
+                            context.fillStyle = `rgba(255, 255, 255, ${opacity * 0.5})`;
+                            context.fillRect(cloud.x, cloud.y, cloud.w, cloud.h);
+                            break;
+                        case 'scattered':
+                            context.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                            context.beginPath();
+                            context.arc(cloud.x, cloud.y, cloud.size, 0, Math.PI * 2);
+                            context.fill();
+                            break;
+                    }
+                });
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            drawSpiralCloud(context, centerX, centerY, size, opacity) {
+                context.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+                context.lineWidth = 8;
+                
+                for (let i = 0; i < 100; i++) {
+                    const angle = i * 0.2;
+                    const radius = (i / 100) * size;
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    
+                    if (i === 0) {
+                        context.beginPath();
+                        context.moveTo(x, y);
+                    } else {
+                        context.lineTo(x, y);
+                    }
+                }
+                context.stroke();
+            }
+
+            createAdvancedMarsTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Mars base color (rusty red)
+                const gradient = context.createLinearGradient(0, 0, 1024, 512);
+                gradient.addColorStop(0, '#cd853f');
+                gradient.addColorStop(0.3, '#d2691e');
+                gradient.addColorStop(0.7, '#a0522d');
+                gradient.addColorStop(1, '#8b4513');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 1024, 512);
+                
+                // Polar ice caps
+                context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                context.fillRect(0, 0, 1024, 40); // North pole
+                context.fillRect(0, 472, 1024, 40); // South pole
+                
+                // Olympus Mons (largest volcano)
+                context.fillStyle = '#8b4513';
+                context.beginPath();
+                context.arc(300, 200, 25, 0, Math.PI * 2);
+                context.fill();
+                
+                // Valles Marineris (giant canyon)
+                context.strokeStyle = '#654321';
+                context.lineWidth = 15;
+                context.beginPath();
+                context.moveTo(200, 250);
+                context.bezierCurveTo(400, 240, 600, 260, 800, 250);
+                context.stroke();
+                
+                // Impact craters
+                for (let i = 0; i < 150; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 512;
+                    const size = Math.random() * 15 + 3;
+                    
+                    context.fillStyle = '#654321';
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                    
+                    // Crater rim
+                    context.strokeStyle = '#8b7355';
+                    context.lineWidth = 1;
+                    context.beginPath();
+                    context.arc(x, y, size * 1.2, 0, Math.PI * 2);
+                    context.stroke();
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createMarsBumpMap() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                const imageData = context.createImageData(1024, 512);
+                
+                for (let y = 0; y < 512; y++) {
+                    for (let x = 0; x < 1024; x++) {
+                        const index = (y * 1024 + x) * 4;
+                        
+                        let height = 128; // Base level
+                        
+                        // Olympus Mons elevation
+                        const olympusDist = Math.sqrt(Math.pow(x - 300, 2) + Math.pow(y - 200, 2));
+                        if (olympusDist < 50) {
+                            height += (1 - olympusDist / 50) * 100;
+                        }
+                        
+                        // Valles Marineris depression
+                        if (Math.abs(y - 250) < 15 && x > 200 && x < 800) {
+                            height -= 60;
+                        }
+                        
+                        // Random terrain variation
+                        height += (Math.random() - 0.5) * 30;
+                        
+                        height = Math.max(0, Math.min(255, height));
+                        
+                        imageData.data[index] = height;
+                        imageData.data[index + 1] = height;
+                        imageData.data[index + 2] = height;
+                        imageData.data[index + 3] = 255;
+                    }
+                }
+                
+                context.putImageData(imageData, 0, 0);
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            addMarsIceCaps(marsGroup, size) {
+                // North polar ice cap
+                const northCapGeometry = new THREE.SphereGeometry(size * 0.2, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.25);
+                const iceCapMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.8,
+                    shininess: 200
+                });
+                
+                const northCap = new THREE.Mesh(northCapGeometry, iceCapMaterial);
+                northCap.position.y = size * 0.9;
+                marsGroup.add(northCap);
+                
+                // South polar ice cap
+                const southCapGeometry = new THREE.SphereGeometry(size * 0.15, 16, 8, 0, Math.PI * 2, Math.PI * 0.75, Math.PI * 0.25);
+                const southCap = new THREE.Mesh(southCapGeometry, iceCapMaterial);
+                southCap.position.y = -size * 0.9;
+                marsGroup.add(southCap);
+            }
+
+            createAdvancedJupiterTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Create Jupiter's bands
+                const bands = 12;
+                const bandHeight = 512 / bands;
+                
+                for (let i = 0; i < bands; i++) {
+                    const intensity = 0.3 + Math.sin(i * 0.5) * 0.3;
+                    const hue = 25 + Math.sin(i * 0.3) * 15;
+                    
+                    let color;
+                    if (i % 2 === 0) {
+                        color = `hsl(${hue}, 70%, ${50 + intensity * 20}%)`;
+                    } else {
+                        color = `hsl(${hue + 10}, 60%, ${40 + intensity * 15}%)`;
+                    }
+                    
+                    context.fillStyle = color;
+                    context.fillRect(0, i * bandHeight, 1024, bandHeight);
+                }
+                
+                // Add turbulence and storm systems
+                for (let i = 0; i < 300; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 512;
+                    const size = Math.random() * 20 + 5;
+                    const opacity = Math.random() * 0.5 + 0.3;
+                    
+                    context.fillStyle = `rgba(139, 69, 19, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            addGreatRedSpot(jupiter, size) {
+                // Great Red Spot geometry
+                const spotGeometry = new THREE.SphereGeometry(size * 0.12, 16, 16);
+                const spotMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x8b0000,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const spot = new THREE.Mesh(spotGeometry, spotMaterial);
+                spot.position.set(0, -size * 0.2, size * 0.95);
+                jupiter.add(spot);
+            }
+
+            createAdvancedSaturnTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1024;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Saturn's more subtle bands
+                const bands = 8;
+                const bandHeight = 512 / bands;
+                
+                for (let i = 0; i < bands; i++) {
+                    const intensity = 0.8 + Math.sin(i * 0.4) * 0.2;
+                    const hue = 45 + Math.sin(i * 0.2) * 5;
+                    
+                    context.fillStyle = `hsl(${hue}, 30%, ${intensity * 75}%)`;
+                    context.fillRect(0, i * bandHeight, 1024, bandHeight);
+                }
+                
+                // Add subtle atmospheric features
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * 1024;
+                    const y = Math.random() * 512;
+                    const size = Math.random() * 15 + 5;
+                    const opacity = Math.random() * 0.3 + 0.2;
+                    
+                    context.fillStyle = `rgba(222, 184, 135, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createDetailedSaturnRings(saturnGroup, planetSize) {
+                const ringData = [
+                    { inner: planetSize * 1.15, outer: planetSize * 1.3, color: 0xcccccc, opacity: 0.9, name: 'D Ring' },
+                    { inner: planetSize * 1.32, outer: planetSize * 1.52, color: 0xaaaaaa, opacity: 0.95, name: 'C Ring' },
+                    { inner: planetSize * 1.52, outer: planetSize * 1.95, color: 0xdddddd, opacity: 1.0, name: 'B Ring' },
+                    { inner: planetSize * 1.95, outer: planetSize * 2.02, color: 0x999999, opacity: 0.6, name: 'Cassini Division' },
+                    { inner: planetSize * 2.02, outer: planetSize * 2.27, color: 0xbbbbbb, opacity: 0.9, name: 'A Ring' },
+                    { inner: planetSize * 2.45, outer: planetSize * 2.51, color: 0x888888, opacity: 0.7, name: 'F Ring' },
+                ];
+                
+                ringData.forEach(ring => {
+                    const ringGeometry = new THREE.RingGeometry(ring.inner, ring.outer, 128);
+                    const ringMaterial = new THREE.MeshPhongMaterial({
+                        color: ring.color,
+                        transparent: true,
+                        opacity: ring.opacity,
+                        side: THREE.DoubleSide,
+                        shininess: 50
+                    });
+                    
+                    const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                    ringMesh.rotation.x = Math.PI / 2;
+                    ringMesh.castShadow = true;
+                    ringMesh.receiveShadow = true;
+                    saturnGroup.add(ringMesh);
+                });
+            }
+
+            createAdvancedPlanetTexture(planetName) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                switch(planetName) {
+                    case 'mercury':
+                        this.createMercuryTexture(context);
+                        break;
+                    case 'venus':
+                        this.createVenusTexture(context);
+                        break;
+                    case 'uranus':
+                        this.createUranusTexture(context);
+                        break;
+                    case 'neptune':
+                        this.createNeptuneTexture(context);
+                        break;
+                    default:
+                        this.createDefaultPlanetTexture(context);
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createMercuryTexture(context) {
+                // Mercury base color
+                context.fillStyle = '#8c7853';
+                context.fillRect(0, 0, 512, 256);
+                
+                // Heavy cratering
+                for (let i = 0; i < 400; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 12 + 2;
+                    
+                    // Crater
+                    context.fillStyle = '#666644';
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                    
+                    // Crater rim
+                    context.fillStyle = '#aa9977';
+                    context.beginPath();
+                    context.arc(x, y, size * 0.6, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                // Caloris Basin (large impact crater)
+                context.fillStyle = '#554433';
+                context.beginPath();
+                context.arc(200, 128, 30, 0, Math.PI * 2);
+                context.fill();
+            }
+
+            createVenusTexture(context) {
+                // Venus thick atmosphere
+                const gradient = context.createRadialGradient(256, 128, 0, 256, 128, 200);
+                gradient.addColorStop(0, '#ffeb3b');
+                gradient.addColorStop(0.5, '#ffc107');
+                gradient.addColorStop(1, '#ff9800');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 512, 256);
+                
+                // Atmospheric swirls and cloud patterns
+                for (let i = 0; i < 80; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 25 + 10;
+                    const opacity = Math.random() * 0.4 + 0.3;
+                    
+                    context.fillStyle = `rgba(255, 255, 200, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                // Add spiral storm patterns
+                this.drawSpiralCloud(context, 150, 100, 40, 0.5);
+                this.drawSpiralCloud(context, 350, 180, 35, 0.4);
+            }
+
+            createUranusTexture(context) {
+                // Uranus blue-green with subtle banding
+                const gradient = context.createLinearGradient(0, 0, 0, 256);
+                gradient.addColorStop(0, '#4fd0e7');
+                gradient.addColorStop(0.3, '#3cb371');
+                gradient.addColorStop(0.7, '#20b2aa');
+                gradient.addColorStop(1, '#008b8b');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 512, 256);
+                
+                // Subtle atmospheric features
+                for (let i = 0; i < 30; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 20 + 5;
+                    const opacity = Math.random() * 0.2 + 0.1;
+                    
+                    context.fillStyle = `rgba(100, 200, 255, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+            }
+
+            createNeptuneTexture(context) {
+                // Neptune deep blue with storm systems
+                const gradient = context.createRadialGradient(256, 128, 0, 256, 128, 200);
+                gradient.addColorStop(0, '#4169e1');
+                gradient.addColorStop(0.5, '#0000cd');
+                gradient.addColorStop(1, '#191970');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 512, 256);
+                
+                // Great Dark Spot
+                context.fillStyle = 'rgba(25, 25, 112, 0.8)';
+                context.beginPath();
+                context.ellipse(300, 150, 25, 15, 0, 0, Math.PI * 2);
+                context.fill();
+                
+                // Storm systems and cloud bands
+                for (let i = 0; i < 60; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 15 + 5;
+                    const opacity = Math.random() * 0.4 + 0.3;
+                    
+                    context.fillStyle = `rgba(173, 216, 230, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+            }
+
+            createDefaultPlanetTexture(context) {
+                // Default rocky planet texture
+                context.fillStyle = '#808080';
+                context.fillRect(0, 0, 512, 256);
+                
+                // Add some surface variation
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 10 + 3;
+                    const opacity = Math.random() * 0.5 + 0.3;
+                    
+                    context.fillStyle = `rgba(100, 100, 100, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
             }
         }
 
