@@ -1397,7 +1397,9 @@
                     color: texture ? 0xffffff : data.color, // Use color as fallback
                     shininess: name === 'sun' ? 0 : 30,
                     transparent: name === 'sun',
-                    opacity: name === 'sun' ? 0.9 : 1.0
+                    opacity: name === 'sun' ? 0.9 : 1.0,
+                    emissive: name === 'sun' ? 0xFFAA00 : 0x000000,
+                    emissiveIntensity: name === 'sun' ? 0.8 : 0
                 });
                 
                 const planet = new THREE.Mesh(geometry, material);
@@ -1633,29 +1635,74 @@
             }
 
             async loadPlanetTexture(planetName) {
+                // Use multiple fallback sources for planet textures
                 const textureUrls = {
-                    sun: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/sun.jpg',
-                    mercury: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/mercury.jpg',
-                    venus: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/venus_surface.jpg',
-                    earth: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg',
-                    mars: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/mars_1k_color.jpg',
-                    jupiter: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/jupiter_2k.jpg',
-                    saturn: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/saturn_2k.jpg',
-                    uranus: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/uranus_2k.jpg',
-                    neptune: 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/neptune_2k.jpg'
+                    sun: [
+                        'https://threejs.org/examples/textures/planets/sun.jpg',
+                        'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/sun.jpg',
+                        'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/textures/planets/sun.jpg'
+                    ],
+                    mercury: [
+                        'https://threejs.org/examples/textures/planets/mercury.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2266_mercury_messenger_globe_1024.jpg'
+                    ],
+                    venus: [
+                        'https://threejs.org/examples/textures/planets/venus_surface.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2267_venus_magellan_globe_1024.jpg'
+                    ],
+                    earth: [
+                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+                        'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg'
+                    ],
+                    mars: [
+                        'https://threejs.org/examples/textures/planets/mars_1k_color.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2268_mars_viking_globe_1024.jpg'
+                    ],
+                    jupiter: [
+                        'https://threejs.org/examples/textures/planets/jupiter_2k.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2269_jupiter_cassini_globe_1024.jpg'
+                    ],
+                    saturn: [
+                        'https://threejs.org/examples/textures/planets/saturn_2k.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2270_saturn_cassini_globe_1024.jpg'
+                    ],
+                    uranus: [
+                        'https://threejs.org/examples/textures/planets/uranus_2k.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2271_uranus_voyager_globe_1024.jpg'
+                    ],
+                    neptune: [
+                        'https://threejs.org/examples/textures/planets/neptune_2k.jpg',
+                        'https://solarsystem.nasa.gov/system/resources/detail_files/2272_neptune_voyager_globe_1024.jpg'
+                    ]
                 };
                 
-                return new Promise((resolve, reject) => {
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
                     const loader = new THREE.TextureLoader();
-                    loader.load(
-                        textureUrls[planetName] || textureUrls.earth,
-                        resolve,
-                        undefined,
-                        () => {
-                            // Fallback to colored material
+                    
+                    const tryLoadTexture = (urlIndex = 0) => {
+                        if (urlIndex >= urls.length) {
+                            console.log(`Failed to load texture for ${planetName}, using fallback color`);
                             resolve(null);
+                            return;
                         }
-                    );
+                        
+                        loader.load(
+                            urls[urlIndex],
+                            (texture) => {
+                                console.log(`Successfully loaded texture for ${planetName} from source ${urlIndex + 1}`);
+                                resolve(texture);
+                            },
+                            undefined,
+                            (error) => {
+                                console.log(`Failed to load texture for ${planetName} from source ${urlIndex + 1}, trying next...`);
+                                tryLoadTexture(urlIndex + 1);
+                            }
+                        );
+                    };
+                    
+                    tryLoadTexture();
                 });
             }
 
@@ -2097,7 +2144,7 @@
             createObjects() {
                 // Create Sun at center with glow effect
                 const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
-                const sunMaterial = new THREE.MeshBasicMaterial({ 
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
                     color: 0xFFD700,
                     emissive: 0xFFAA00,
                     emissiveIntensity: 1
@@ -2201,7 +2248,7 @@
                 seasonData.forEach((season, index) => {
                     // Create marker sphere
                     const geometry = new THREE.SphereGeometry(0.3, 16, 16);
-                    const material = new THREE.MeshBasicMaterial({ 
+                    const material = new THREE.MeshPhongMaterial({ 
                         color: season.color,
                         emissive: season.color,
                         emissiveIntensity: 0.3
@@ -2414,7 +2461,7 @@
             createObjects() {
                 // Create Sun (light source) with glow
                 const sunGeometry = new THREE.SphereGeometry(0.8, 32, 32);
-                const sunMaterial = new THREE.MeshBasicMaterial({ 
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
                     color: 0xFFD700,
                     emissive: 0xFFAA00,
                     emissiveIntensity: 1
@@ -2517,7 +2564,7 @@
                     const y = (2.05 * Math.cos(phi));
                     
                     const lightGeometry = new THREE.SphereGeometry(0.02, 8, 8);
-                    const lightMaterial = new THREE.MeshBasicMaterial({
+                    const lightMaterial = new THREE.MeshPhongMaterial({
                         color: 0xFFFF88,
                         emissive: 0xFFFF88,
                         emissiveIntensity: 0.8
@@ -2739,7 +2786,7 @@
 
                 // Create distant Sun
                 const sunGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-                const sunMaterial = new THREE.MeshBasicMaterial({ 
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
                     color: 0xFFD700,
                     emissive: 0xFFAA00,
                     emissiveIntensity: 1
