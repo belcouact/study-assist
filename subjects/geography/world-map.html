@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         .map-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -111,10 +113,11 @@
             gap: 2rem;
             padding: 2rem;
             min-height: 700px;
+            position: relative;
         }
 
         .map-display {
-            background: #f8f9fa;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             border-radius: 15px;
             position: relative;
             overflow: hidden;
@@ -126,9 +129,15 @@
             cursor: grabbing;
         }
 
-        .zoom-controls {
+        #globe-container {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+        }
+
+        .globe-controls {
             position: absolute;
-            top: 50px;
+            top: 10px;
             left: 10px;
             display: flex;
             flex-direction: column;
@@ -136,7 +145,7 @@
             z-index: 100;
         }
 
-        .zoom-btn {
+        .globe-btn {
             width: 40px;
             height: 40px;
             background: rgba(255, 255, 255, 0.95);
@@ -146,16 +155,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             color: #333;
             transition: all 0.2s ease;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .zoom-btn:hover {
+        .globe-btn:hover {
             background: white;
             transform: scale(1.05);
+        }
+
+        .globe-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #333;
+            backdrop-filter: blur(5px);
+            z-index: 100;
         }
 
         .world-map-svg {
@@ -301,8 +323,8 @@
 
         .continent-legend {
             position: absolute;
-            top: 10px;
-            right: 10px;
+            top: 2rem;
+            right: -380px;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
@@ -313,6 +335,7 @@
             z-index: 100;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(0, 0, 0, 0.1);
+            width: 200px;
         }
 
         .legend-item {
@@ -437,6 +460,7 @@
                 gap: 0.5rem;
                 padding: 0.75rem;
                 margin-bottom: 1rem;
+                width: auto;
             }
             
             .legend-item {
@@ -538,45 +562,55 @@
 
                 <div class="map-workspace">
                     <div class="map-display" id="map-display">
-                        <div class="zoom-controls">
-                            <button class="zoom-btn" id="zoom-in" title="放大">+</button>
-                            <button class="zoom-btn" id="zoom-out" title="缩小">−</button>
-                            <button class="zoom-btn" id="zoom-reset" title="重置视图">⌂</button>
+                        <div class="globe-controls">
+                            <button class="globe-btn" id="auto-rotate" title="自动旋转">🔄</button>
+                            <button class="globe-btn" id="reset-view" title="重置视图">🏠</button>
+                            <button class="globe-btn" id="toggle-wireframe" title="线框模式">📐</button>
                         </div>
                         
-                        <div class="continent-legend" id="map-legend">
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #ff6b6b;"></div>
-                                <span>亚洲</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #4ecdc4;"></div>
-                                <span>欧洲</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #45b7d1;"></div>
-                                <span>非洲</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #f9ca24;"></div>
-                                <span>北美洲</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #6c5ce7;"></div>
-                                <span>南美洲</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background: #a29bfe;"></div>
-                                <span>大洋洲</span>
-                            </div>
+                        <div class="globe-info">
+                            <div>🌍 3D 交互式地球</div>
+                            <div>拖拽旋转 | 滚轮缩放</div>
                         </div>
                         
-                        <div id="world-map-container" style="width: 100%; height: 100%; position: relative;">
-                            <!-- Real world map will be loaded here -->
-                            <div id="world-map-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
+                        <div id="globe-container">
+                            <!-- 3D Globe will be rendered here -->
+                            <div id="globe-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: white;">
                                 <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i>
-                                加载世界地图中...
+                                加载3D地球中...
                             </div>
+                        </div>
+                    </div>
+                    
+                    <div class="continent-legend" id="map-legend">
+                        <h4 style="margin: 0 0 1rem 0; color: #333;">大洲图例</h4>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #ff6b6b;"></div>
+                            <span>亚洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #4ecdc4;"></div>
+                            <span>欧洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #45b7d1;"></div>
+                            <span>非洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #f9ca24;"></div>
+                            <span>北美洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #6c5ce7;"></div>
+                            <span>南美洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #a29bfe;"></div>
+                            <span>大洋洲</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color" style="background: #95a5a6;"></div>
+                            <span>南极洲</span>
                         </div>
                     </div>
                     
@@ -611,139 +645,361 @@
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     <script>
-        // 世界地图功能
-        class WorldMap {
+        // 3D 世界地球功能
+        class WorldGlobe {
             constructor() {
                 this.selectedCountry = null;
                 this.currentMapType = 'political';
                 this.countries = this.initializeCountries();
-                this.scale = 1;
-                this.translateX = 0;
-                this.translateY = 0;
-                this.isPanning = false;
-                this.lastMouseX = 0;
-                this.lastMouseY = 0;
-                this.loadWorldMap();
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.globe = null;
+                this.controls = null;
+                this.autoRotate = false;
+                this.wireframe = false;
+                this.countryMeshes = [];
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                this.init3DGlobe();
             }
 
-            async loadWorldMap() {
+            async init3DGlobe() {
                 try {
-                    // Use a CDN URL for the world map SVG
-                    const response = await fetch('https://cdn.jsdelivr.net/gh/flekschas/simple-world-map@master/world-map.min.svg');
-                    const svgText = await response.text();
+                    // Initialize Three.js scene
+                    this.setupScene();
+                    this.setupCamera();
+                    this.setupRenderer();
+                    this.setupLights();
+                    this.setupControls();
                     
-                    // Parse the SVG and inject it
-                    const parser = new DOMParser();
-                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
-                    const svg = svgDoc.documentElement;
+                    // Load Earth textures and create globe
+                    await this.createGlobe();
                     
-                    // Set up the SVG
-                    svg.setAttribute('class', 'world-map-svg');
-                    svg.setAttribute('id', 'world-map');
-                    svg.style.width = '100%';
-                    svg.style.height = '100%';
+                    // Load country data and create interactive regions
+                    await this.loadCountryData();
                     
-                    // Get the container and replace loading content
-                    const container = document.getElementById('world-map-container');
-                    container.innerHTML = '';
-                    container.appendChild(svg);
+                    // Setup event listeners
+                    this.setupEventListeners();
                     
-                    // Add event listeners to countries
-                    this.setupCountryInteractions();
-                    this.initializeEventListeners();
-                    this.setupZoomAndPan();
-                    this.updateMapDisplay();
+                    // Start animation loop
+                    this.animate();
+                    
+                    // Hide loading indicator
+                    document.getElementById('globe-loading').style.display = 'none';
                     
                 } catch (error) {
-                    console.error('Failed to load world map:', error);
-                    // Fallback to a simplified map
-                    this.loadFallbackMap();
+                    console.error('Failed to initialize 3D globe:', error);
+                    this.showFallbackMessage();
                 }
             }
 
-            loadFallbackMap() {
-                const container = document.getElementById('world-map-container');
+            setupScene() {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000011);
+                
+                // Add stars background
+                this.createStarField();
+            }
+
+            setupCamera() {
+                const container = document.getElementById('globe-container');
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+                this.camera.position.z = 3;
+            }
+
+            setupRenderer() {
+                const container = document.getElementById('globe-container');
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                container.appendChild(this.renderer.domElement);
+            }
+
+            setupLights() {
+                // Ambient light
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                // Directional light (sun)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(5, 3, 5);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+            }
+
+            setupControls() {
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.minDistance = 1.5;
+                this.controls.maxDistance = 10;
+                this.controls.autoRotate = false;
+                this.controls.autoRotateSpeed = 0.5;
+            }
+
+            createStarField() {
+                const starsGeometry = new THREE.BufferGeometry();
+                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+                
+                const starsVertices = [];
+                for (let i = 0; i < 10000; i++) {
+                    const x = (Math.random() - 0.5) * 2000;
+                    const y = (Math.random() - 0.5) * 2000;
+                    const z = (Math.random() - 0.5) * 2000;
+                    starsVertices.push(x, y, z);
+                }
+                
+                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+                const stars = new THREE.Points(starsGeometry, starsMaterial);
+                this.scene.add(stars);
+            }
+
+            async createGlobe() {
+                // Create sphere geometry
+                const geometry = new THREE.SphereGeometry(1, 64, 64);
+                
+                // Load Earth texture
+                const textureLoader = new THREE.TextureLoader();
+                
+                // Use NASA's Blue Marble texture
+                const earthTexture = await this.loadTexture('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg');
+                const bumpTexture = await this.loadTexture('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_normal_2048.jpg');
+                
+                // Create material
+                const material = new THREE.MeshPhongMaterial({
+                    map: earthTexture,
+                    bumpMap: bumpTexture,
+                    bumpScale: 0.05,
+                    shininess: 100
+                });
+                
+                // Create globe mesh
+                this.globe = new THREE.Mesh(geometry, material);
+                this.globe.receiveShadow = true;
+                this.scene.add(this.globe);
+                
+                // Add atmosphere
+                this.createAtmosphere();
+            }
+
+            createAtmosphere() {
+                const atmosphereGeometry = new THREE.SphereGeometry(1.01, 64, 64);
+                const atmosphereMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x87ceeb,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                this.scene.add(atmosphere);
+            }
+
+            async loadTexture(url) {
+                return new Promise((resolve, reject) => {
+                    const loader = new THREE.TextureLoader();
+                    loader.load(url, resolve, undefined, reject);
+                });
+            }
+
+            async loadCountryData() {
+                try {
+                    // Load GeoJSON data for countries
+                    const response = await fetch('https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson');
+                    const geoData = await response.json();
+                    
+                    this.createCountryMeshes(geoData);
+                } catch (error) {
+                    console.warn('Could not load country data:', error);
+                }
+            }
+
+            createCountryMeshes(geoData) {
+                // This is a simplified version - in a real implementation,
+                // you would convert GeoJSON coordinates to 3D sphere coordinates
+                // and create individual meshes for each country
+                
+                geoData.features.forEach((feature, index) => {
+                    if (feature.geometry && feature.geometry.coordinates) {
+                        // Create a simple representation for now
+                        const countryGroup = new THREE.Group();
+                        countryGroup.userData = {
+                            name: feature.properties.NAME || `Country ${index}`,
+                            code: feature.properties.ISO_A2 || `c${index}`,
+                            continent: this.getContinent(feature.properties.ISO_A2 || `c${index}`)
+                        };
+                        
+                        this.countryMeshes.push(countryGroup);
+                        this.scene.add(countryGroup);
+                    }
+                });
+            }
+
+            showFallbackMessage() {
+                const container = document.getElementById('globe-container');
                 container.innerHTML = `
-                    <svg class="world-map-svg" id="world-map" viewBox="0 0 1000 500">
-                        <text x="500" y="250" text-anchor="middle" fill="#666" font-size="20">
-                            世界地图加载失败，请检查网络连接
-                        </text>
-                        <text x="500" y="280" text-anchor="middle" fill="#999" font-size="14">
-                            Failed to load world map
-                        </text>
-                    </svg>
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: white; text-align: center;">
+                        <div>
+                            <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                            <div>3D地球加载失败</div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem;">请检查网络连接或浏览器兼容性</div>
+                        </div>
+                    </div>
                 `;
             }
 
-            setupCountryInteractions() {
-                // Wait for SVG to fully load
-                setTimeout(() => {
-                    // Add event listeners to all country paths and groups
-                    const countries = document.querySelectorAll('#world-map path[id], #world-map g[id]');
-                    
-                    countries.forEach(country => {
-                        const countryId = country.id;
-                        if (countryId && countryId.length >= 2) {
-                            // Get clean country code (first 2 letters)
-                            let countryCode = countryId.substring(0, 2).toLowerCase();
-                            
-                            // Handle special cases for known country codes
-                            if (countryId.toLowerCase() === 'china' || countryId.toLowerCase() === 'cn') {
-                                countryCode = 'cn';
-                            } else if (countryId.toLowerCase() === 'usa' || countryId.toLowerCase() === 'us') {
-                                countryCode = 'us';
-                            } else if (countryId.toLowerCase() === 'russia' || countryId.toLowerCase() === 'ru') {
-                                countryCode = 'ru';
-                            }
-                            
-                            // Add CSS classes and event listeners
-                            country.classList.add('country');
-                            country.setAttribute('data-country', countryCode);
-                            
-                            // Set continent based on country code
-                            const continent = this.getContinent(countryCode);
-                            country.setAttribute('data-continent', continent);
-                            country.classList.add(`continent-${continent}`);
-                            
-                            // Add click events
-                            country.addEventListener('click', (e) => {
-                                e.stopPropagation();
-                                this.selectCountry(countryCode);
-                            });
-                            
-                            country.addEventListener('mouseenter', (e) => {
-                                this.showCountryTooltip(e, countryCode);
-                            });
-                            
-                            country.addEventListener('mouseleave', (e) => {
-                                this.hideCountryTooltip();
-                            });
-                        }
+            setupEventListeners() {
+                // Mouse interaction for country selection
+                this.renderer.domElement.addEventListener('click', (event) => {
+                    this.onMouseClick(event);
+                });
+                
+                this.renderer.domElement.addEventListener('mousemove', (event) => {
+                    this.onMouseMove(event);
+                });
+                
+                // Control buttons
+                document.getElementById('auto-rotate').addEventListener('click', () => {
+                    this.toggleAutoRotate();
+                });
+                
+                document.getElementById('reset-view').addEventListener('click', () => {
+                    this.resetView();
+                });
+                
+                document.getElementById('toggle-wireframe').addEventListener('click', () => {
+                    this.toggleWireframe();
+                });
+                
+                // Map type buttons
+                document.querySelectorAll('.map-type-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        this.switchMapType(e.target.dataset.type);
                     });
-
-                    // Also handle any paths without proper IDs
-                    const allPaths = document.querySelectorAll('#world-map path:not(.country)');
-                    allPaths.forEach((path, index) => {
-                        try {
-                            if (path.getBBox && path.getBBox().width > 5) { // Only handle significant paths
-                                path.classList.add('country');
-                                const tempId = 'unknown_' + index;
-                                path.setAttribute('data-country', tempId);
-                                path.setAttribute('data-continent', 'unknown');
-                                
-                                path.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    this.selectCountry(tempId);
-                                });
-                            }
-                        } catch (e) {
-                            // Ignore paths that can't be measured
-                        }
+                });
+                
+                // Search functionality
+                const searchInput = document.getElementById('country-search');
+                if (searchInput) {
+                    searchInput.addEventListener('input', (e) => {
+                        this.searchCountries(e.target.value);
                     });
+                }
+                
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.onWindowResize();
+                });
+                
+                // Close search results when clicking elsewhere
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('#country-search') && !e.target.closest('#search-results')) {
+                        const resultsDiv = document.getElementById('search-results');
+                        if (resultsDiv) {
+                            resultsDiv.style.display = 'none';
+                        }
+                    }
+                });
+            }
 
-                    // Apply initial color scheme
-                    this.updateMapDisplay();
-                }, 500);
+            onMouseClick(event) {
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.countryMeshes, true);
+                
+                if (intersects.length > 0) {
+                    const country = intersects[0].object.parent || intersects[0].object;
+                    if (country.userData && country.userData.code) {
+                        this.selectCountry(country.userData.code);
+                    }
+                }
+            }
+
+            onMouseMove(event) {
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.countryMeshes, true);
+                
+                if (intersects.length > 0) {
+                    const country = intersects[0].object.parent || intersects[0].object;
+                    if (country.userData && country.userData.code) {
+                        this.showCountryTooltip(event, country.userData.code);
+                        this.renderer.domElement.style.cursor = 'pointer';
+                    }
+                } else {
+                    this.hideCountryTooltip();
+                    this.renderer.domElement.style.cursor = 'grab';
+                }
+            }
+
+            toggleAutoRotate() {
+                this.autoRotate = !this.autoRotate;
+                this.controls.autoRotate = this.autoRotate;
+                
+                const button = document.getElementById('auto-rotate');
+                button.style.background = this.autoRotate ? 
+                    'rgba(67, 97, 238, 0.9)' : 'rgba(255, 255, 255, 0.95)';
+                button.style.color = this.autoRotate ? 'white' : '#333';
+            }
+
+            resetView() {
+                this.camera.position.set(0, 0, 3);
+                this.controls.reset();
+                this.autoRotate = false;
+                this.controls.autoRotate = false;
+                
+                const button = document.getElementById('auto-rotate');
+                button.style.background = 'rgba(255, 255, 255, 0.95)';
+                button.style.color = '#333';
+            }
+
+            toggleWireframe() {
+                this.wireframe = !this.wireframe;
+                if (this.globe) {
+                    this.globe.material.wireframe = this.wireframe;
+                }
+                
+                const button = document.getElementById('toggle-wireframe');
+                button.style.background = this.wireframe ? 
+                    'rgba(67, 97, 238, 0.9)' : 'rgba(255, 255, 255, 0.95)';
+                button.style.color = this.wireframe ? 'white' : '#333';
+            }
+
+            onWindowResize() {
+                const container = document.getElementById('globe-container');
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                this.camera.aspect = width / height;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(width, height);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                this.controls.update();
+                
+                // Rotate globe slowly if auto-rotate is enabled
+                if (this.autoRotate && this.globe) {
+                    this.globe.rotation.y += 0.005;
+                }
+                
+                this.renderer.render(this.scene, this.camera);
             }
 
             getContinent(countryCode) {
@@ -844,118 +1100,7 @@
                 }
             }
 
-            setupZoomAndPan() {
-                const mapContainer = document.getElementById('world-map-container');
-                const svg = document.getElementById('world-map');
-                const mapDisplay = document.getElementById('map-display');
 
-                // Zoom controls
-                document.getElementById('zoom-in').addEventListener('click', () => {
-                    this.zoom(1.2);
-                });
-                
-                document.getElementById('zoom-out').addEventListener('click', () => {
-                    this.zoom(0.8);
-                });
-                
-                document.getElementById('zoom-reset').addEventListener('click', () => {
-                    this.resetView();
-                });
-
-                // Mouse wheel zoom
-                mapContainer.addEventListener('wheel', (e) => {
-                    e.preventDefault();
-                    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-                    this.zoom(zoomFactor, e.clientX, e.clientY);
-                });
-
-                // Pan functionality
-                mapContainer.addEventListener('mousedown', (e) => {
-                    this.isPanning = true;
-                    this.lastMouseX = e.clientX;
-                    this.lastMouseY = e.clientY;
-                    mapDisplay.classList.add('panning');
-                });
-
-                document.addEventListener('mousemove', (e) => {
-                    if (this.isPanning) {
-                        const deltaX = e.clientX - this.lastMouseX;
-                        const deltaY = e.clientY - this.lastMouseY;
-                        this.translateX += deltaX;
-                        this.translateY += deltaY;
-                        this.updateTransform();
-                        this.lastMouseX = e.clientX;
-                        this.lastMouseY = e.clientY;
-                    }
-                });
-
-                document.addEventListener('mouseup', () => {
-                    this.isPanning = false;
-                    mapDisplay.classList.remove('panning');
-                });
-
-                // Touch support for mobile
-                let touchStartX, touchStartY;
-                mapContainer.addEventListener('touchstart', (e) => {
-                    if (e.touches.length === 1) {
-                        this.isPanning = true;
-                        touchStartX = e.touches[0].clientX;
-                        touchStartY = e.touches[0].clientY;
-                        this.lastMouseX = touchStartX;
-                        this.lastMouseY = touchStartY;
-                    }
-                });
-
-                mapContainer.addEventListener('touchmove', (e) => {
-                    e.preventDefault();
-                    if (e.touches.length === 1 && this.isPanning) {
-                        const deltaX = e.touches[0].clientX - this.lastMouseX;
-                        const deltaY = e.touches[0].clientY - this.lastMouseY;
-                        this.translateX += deltaX;
-                        this.translateY += deltaY;
-                        this.updateTransform();
-                        this.lastMouseX = e.touches[0].clientX;
-                        this.lastMouseY = e.touches[0].clientY;
-                    }
-                });
-
-                mapContainer.addEventListener('touchend', () => {
-                    this.isPanning = false;
-                });
-            }
-
-            zoom(factor, centerX = null, centerY = null) {
-                const newScale = Math.max(0.5, Math.min(5, this.scale * factor));
-                
-                if (centerX !== null && centerY !== null) {
-                    // Zoom towards mouse position
-                    const mapContainer = document.getElementById('world-map-container');
-                    const rect = mapContainer.getBoundingClientRect();
-                    const offsetX = centerX - rect.left;
-                    const offsetY = centerY - rect.top;
-                    
-                    this.translateX = offsetX - (offsetX - this.translateX) * (newScale / this.scale);
-                    this.translateY = offsetY - (offsetY - this.translateY) * (newScale / this.scale);
-                }
-                
-                this.scale = newScale;
-                this.updateTransform();
-            }
-
-            resetView() {
-                this.scale = 1;
-                this.translateX = 0;
-                this.translateY = 0;
-                this.updateTransform();
-            }
-
-            updateTransform() {
-                const svg = document.getElementById('world-map');
-                if (svg) {
-                    svg.style.transform = `translate(${this.translateX}px, ${this.translateY}px) scale(${this.scale})`;
-                    svg.style.transformOrigin = '0 0';
-                }
-            }
 
             initializeCountries() {
                 // 扩展的国家数据库 - 支持更多国家
@@ -1290,32 +1435,7 @@
                 };
             }
 
-            initializeEventListeners() {
-                // 搜索功能
-                const searchInput = document.getElementById('country-search');
-                if (searchInput) {
-                    searchInput.addEventListener('input', (e) => {
-                        this.searchCountries(e.target.value);
-                    });
-                }
 
-                // 地图类型切换
-                document.querySelectorAll('.map-type-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
-                        this.switchMapType(e.target.dataset.type);
-                    });
-                });
-
-                // 点击其他地方关闭搜索结果
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('#country-search') && !e.target.closest('#search-results')) {
-                        const resultsDiv = document.getElementById('search-results');
-                        if (resultsDiv) {
-                            resultsDiv.style.display = 'none';
-                        }
-                    }
-                });
-            }
 
             selectCountry(countryCode) {
                 // 移除之前的选择
@@ -1512,7 +1632,7 @@
 
                 if (matches.length > 0) {
                     resultsDiv.innerHTML = matches.map(([code, country]) => `
-                        <div class="search-result-item" onclick="worldMap.selectCountry('${code}')">
+                        <div class="search-result-item" onclick="worldGlobe.selectCountry('${code}')">
                             ${country.flag} ${country.name}
                         </div>
                     `).join('');
@@ -1535,106 +1655,44 @@
             }
 
             updateMapDisplay() {
-                const countries = document.querySelectorAll('.country');
+                // For 3D globe, we'll update the globe material based on map type
+                if (!this.globe) return;
                 
                 switch (this.currentMapType) {
                     case 'political':
-                        // 按大洲着色 - 与图例颜色完全匹配
-                        countries.forEach(country => {
-                            const continent = country.dataset.continent;
-                            const colors = {
-                                'asia': '#ff6b6b',           // 红色 - 亚洲
-                                'europe': '#4ecdc4',         // 青色 - 欧洲
-                                'africa': '#45b7d1',         // 蓝色 - 非洲
-                                'north-america': '#f9ca24',  // 黄色 - 北美洲
-                                'south-america': '#6c5ce7',  // 紫色 - 南美洲
-                                'oceania': '#a29bfe',        // 浅紫色 - 大洋洲
-                                'antarctica': '#95a5a6',     // 灰色 - 南极洲
-                                'unknown': '#e9ecef'         // 浅灰色 - 未知
-                            };
-                            const color = colors[continent] || '#e9ecef';
-                            country.style.fill = color;
-                            
-                            // Remove any existing continent classes and add the correct one
-                            const classesToRemove = [];
-                            for (let i = 0; i < country.classList.length; i++) {
-                                const cls = country.classList[i];
-                                if (cls.startsWith('continent-')) {
-                                    classesToRemove.push(cls);
-                                }
-                            }
-                            classesToRemove.forEach(cls => country.classList.remove(cls));
-                            
-                            if (continent && continent !== 'unknown') {
-                                country.classList.add(`continent-${continent}`);
-                            }
-                        });
+                        // Use the default Earth texture for political view
+                        this.loadTexture('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg')
+                            .then(texture => {
+                                this.globe.material.map = texture;
+                                this.globe.material.needsUpdate = true;
+                            });
                         break;
                         
                     case 'population':
-                        // 按人口密度着色（简化示例）
-                        countries.forEach(country => {
-                            const countryData = this.countries[country.dataset.country];
-                            let color = '#e9ecef'; // 默认颜色
-                            
-                            if (countryData) {
-                                const population = parseFloat(countryData.population);
-                                if (population > 10) {
-                                    color = '#d32f2f'; // 高人口 - 深红色
-                                } else if (population > 1) {
-                                    color = '#f57c00'; // 中等人口 - 橙色
-                                } else if (population > 0.1) {
-                                    color = '#388e3c'; // 低人口 - 绿色
-                                } else {
-                                    color = '#81c784'; // 极低人口 - 浅绿色
-                                }
-                            }
-                            country.style.fill = color;
-                        });
+                        // Use a different texture or color scheme for population
+                        this.globe.material.color.setHex(0x88aa88);
+                        this.globe.material.needsUpdate = true;
                         break;
                         
                     case 'economy':
-                        // 按经济发展水平着色（简化示例）
-                        countries.forEach(country => {
-                            const developed = ['us', 'de', 'jp', 'gb', 'au', 'fr', 'it', 'ca'];
-                            const developing = ['cn', 'in', 'br'];
-                            
-                            if (developed.includes(country.dataset.country)) {
-                                country.style.fill = '#2e7d32'; // 发达国家 - 绿色
-                            } else if (developing.includes(country.dataset.country)) {
-                                country.style.fill = '#f57c00'; // 发展中国家 - 橙色
-                            } else {
-                                country.style.fill = '#d32f2f'; // 欠发达国家 - 红色
-                            }
-                        });
+                        // Economic development visualization
+                        this.globe.material.color.setHex(0xaa8888);
+                        this.globe.material.needsUpdate = true;
                         break;
                         
                     case 'climate':
-                        // 按气候类型着色（简化示例）
-                        countries.forEach(country => {
-                            const climates = {
-                                'cn': '#ff9800', // 温带
-                                'us': '#4caf50', // 多样气候
-                                'ru': '#2196f3', // 寒带
-                                'br': '#f44336', // 热带
-                                'in': '#ff5722', // 热带季风
-                                'de': '#9c27b0', // 温带海洋性
-                                'au': '#ffeb3b', // 干旱
-                                'eg': '#795548', // 沙漠
-                                'jp': '#607d8b', // 温带季风
-                                'gb': '#3f51b5' // 温带海洋性
-                            };
-                            country.style.fill = climates[country.dataset.country] || '#e9ecef';
-                        });
+                        // Climate visualization
+                        this.globe.material.color.setHex(0x8888aa);
+                        this.globe.material.needsUpdate = true;
                         break;
                 }
             }
         }
 
-        // 初始化世界地图
-        let worldMap;
+        // 初始化3D世界地球
+        let worldGlobe;
         document.addEventListener('DOMContentLoaded', () => {
-            worldMap = new WorldMap();
+            worldGlobe = new WorldGlobe();
         });
     </script>
 </body>
