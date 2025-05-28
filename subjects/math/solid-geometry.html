@@ -701,21 +701,9 @@
                                 <i class="fas fa-ring"></i>
                                 圆环体
                             </button>
-                            <button class="shape-button" data-shape="dodecahedron">
-                                <i class="fas fa-dice-d20"></i>
-                                十二面体
-                            </button>
-                            <button class="shape-button" data-shape="icosahedron">
-                                <i class="fas fa-dice-d20"></i>
-                                二十面体
-                            </button>
-                            <button class="shape-button" data-shape="octahedron">
-                                <i class="fas fa-diamond"></i>
-                                八面体
-                            </button>
-                            <button class="shape-button" data-shape="tetrahedron">
-                                <i class="fas fa-triangle"></i>
-                                四面体
+                            <button class="shape-button" data-shape="polygon">
+                                <i class="fas fa-shapes"></i>
+                                多边形柱
                             </button>
                         </div>
                     </div>
@@ -727,6 +715,7 @@
                             <input type="number" class="parameter-input" id="param1" placeholder="边长 (单位)" min="0.1" max="20" step="0.1" value="2">
                             <input type="number" class="parameter-input" id="param2" placeholder="宽度/高度 (单位)" min="0.1" max="20" step="0.1" value="2" style="display: none;">
                             <input type="number" class="parameter-input" id="param3" placeholder="高度/深度 (单位)" min="0.1" max="20" step="0.1" value="2" style="display: none;">
+                            <input type="number" class="parameter-input" id="polygon-sides" placeholder="边数 (3-20)" min="3" max="20" step="1" value="6" style="display: none;">
                         </div>
                         <button class="action-button" onclick="createShape()">
                             <i class="fas fa-plus"></i> 创建几何体
@@ -1119,6 +1108,10 @@
                 const param1 = document.getElementById('param1');
                 const param2 = document.getElementById('param2');
                 const param3 = document.getElementById('param3');
+                const polygonSides = document.getElementById('polygon-sides');
+                
+                // 默认隐藏边数输入框
+                polygonSides.style.display = 'none';
                 
                 switch(this.selectedShape) {
                     case 'cube':
@@ -1169,13 +1162,13 @@
                         param2.style.display = 'block';
                         param3.style.display = 'none';
                         break;
-                    case 'dodecahedron':
-                    case 'icosahedron':
-                    case 'octahedron':
-                    case 'tetrahedron':
+                    case 'polygon':
                         param1.placeholder = '半径 (单位)';
-                        param2.style.display = 'none';
+                        param2.placeholder = '高度 (单位)';
+                        param2.style.display = 'block';
                         param3.style.display = 'none';
+                        // 显示边数输入框
+                        polygonSides.style.display = 'block';
                         break;
                     default:
                         param1.placeholder = '长度 (单位)';
@@ -1219,17 +1212,9 @@
                     case 'torus':
                         geometry = new THREE.TorusGeometry(params[0], params[1], 16, 100);
                         break;
-                    case 'dodecahedron':
-                        geometry = new THREE.DodecahedronGeometry(params[0]);
-                        break;
-                    case 'icosahedron':
-                        geometry = new THREE.IcosahedronGeometry(params[0]);
-                        break;
-                    case 'octahedron':
-                        geometry = new THREE.OctahedronGeometry(params[0]);
-                        break;
-                    case 'tetrahedron':
-                        geometry = new THREE.TetrahedronGeometry(params[0]);
+                    case 'polygon':
+                        const sides = parseInt(document.getElementById('polygon-sides').value) || 6;
+                        geometry = new THREE.CylinderGeometry(params[0], params[0], params[1], Math.max(3, Math.min(20, sides)));
                         break;
                     default:
                         geometry = new THREE.BoxGeometry(params[0], params[1], params[2]);
@@ -1306,6 +1291,11 @@
                         parameters: params,
                         color: color
                     };
+                    
+                    // 对于多边形柱，额外存储边数信息
+                    if (this.selectedShape === 'polygon') {
+                        objectInfo.sides = parseInt(document.getElementById('polygon-sides').value) || 6;
+                    }
                     
                     // 确保材质颜色与存储的颜色一致
                     mesh.material.color.setHex(parseInt(color.slice(1), 16));
@@ -1433,10 +1423,7 @@
                     pyramid: '四角锥',
                     prism: '三角柱',
                     torus: '圆环体',
-                    dodecahedron: '十二面体',
-                    icosahedron: '二十面体',
-                    octahedron: '八面体',
-                    tetrahedron: '四面体',
+                    polygon: '多边形柱',
                     line: '线段'
                 };
                 return typeNames[obj.type] || obj.type;
@@ -1841,12 +1828,10 @@
                         param2.style.display = 'block';
                         param3.style.display = 'none';
                         break;
-                    case 'dodecahedron':
-                    case 'icosahedron':
-                    case 'octahedron':
-                    case 'tetrahedron':
+                    case 'polygon':
                         param1.placeholder = '半径 (单位)';
-                        param2.style.display = 'none';
+                        param2.placeholder = '高度 (单位)';
+                        param2.style.display = 'block';
                         param3.style.display = 'none';
                         break;
                     default:
