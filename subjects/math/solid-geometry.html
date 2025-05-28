@@ -75,8 +75,8 @@
         }
 
         .main-workspace {
-            display: grid;
-            grid-template-columns: 300px 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 2rem;
             margin: 2rem 0;
         }
@@ -85,9 +85,11 @@
             background: rgba(0, 0, 0, 0.3);
             border-radius: 15px;
             padding: 1.5rem;
-            height: fit-content;
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
         }
 
         .control-section {
@@ -354,18 +356,8 @@
 
         /* Responsive Design */
         @media (max-width: 1024px) {
-            .main-workspace {
-                grid-template-columns: 1fr;
-                gap: 1rem;
-            }
-            
             .control-panel {
-                order: 2;
-            }
-            
-            .geometry-viewer {
-                order: 1;
-                height: 500px;
+                grid-template-columns: 1fr;
             }
         }
 
@@ -380,6 +372,7 @@
             
             .control-panel {
                 padding: 1rem;
+                grid-template-columns: 1fr;
             }
             
             .info-panel {
@@ -576,6 +569,13 @@
                     <div class="control-section" id="object-editor" style="display: none;">
                         <h3>✏️ 编辑选中对象</h3>
                         <div class="edit-controls">
+                            <label style="font-size: 0.9rem; opacity: 0.8;">对象坐标:</label>
+                            <div class="coordinate-input">
+                                <input type="number" class="coord-input" id="edit-x" placeholder="X" step="0.1">
+                                <input type="number" class="coord-input" id="edit-y" placeholder="Y" step="0.1">
+                                <input type="number" class="coord-input" id="edit-z" placeholder="Z" step="0.1">
+                            </div>
+                            
                             <label style="font-size: 0.9rem; opacity: 0.8;">对象颜色:</label>
                             <input type="color" class="color-picker" id="edit-color">
                             
@@ -1049,6 +1049,9 @@
                         color: color
                     };
                     
+                    // 确保材质颜色与存储的颜色一致
+                    mesh.material.color.setHex(parseInt(color.slice(1), 16));
+                    
                     this.objects.push(objectInfo);
                     this.updateObjectsList();
                     console.log('✅ 几何体创建成功！对象总数:', this.objects.length);
@@ -1383,10 +1386,17 @@
 
             updateSelectedObject() {
                 if (this.selectedObject && this.transformControls.object) {
+                    // 实时更新编辑面板中的坐标
+                    const pos = this.selectedObject.position;
+                    document.getElementById('edit-x').value = pos.x.toFixed(2);
+                    document.getElementById('edit-y').value = pos.y.toFixed(2);
+                    document.getElementById('edit-z').value = pos.z.toFixed(2);
+                    
                     // 更新选中对象的位置、旋转、缩放
                     const objectInfo = this.objects.find(obj => obj.mesh === this.selectedObject);
                     if (objectInfo) {
-                        this.updateObjectPropertiesPanel(objectInfo);
+                        // 可以在这里添加更多实时更新的属性
+                        console.log('📍 对象位置更新:', pos);
                     }
                 }
             }
@@ -1461,6 +1471,14 @@
                 const editPanel = document.getElementById('object-editor');
                 editPanel.style.display = 'block';
                 
+                // 填充当前对象的坐标
+                document.getElementById('edit-x').value = objectInfo.mesh.position.x.toFixed(2);
+                document.getElementById('edit-y').value = objectInfo.mesh.position.y.toFixed(2);
+                document.getElementById('edit-z').value = objectInfo.mesh.position.z.toFixed(2);
+                
+                // 添加坐标实时更新监听器
+                this.setupCoordinateListeners();
+                
                 // 填充当前对象的属性
                 document.getElementById('edit-color').value = objectInfo.color;
                 document.getElementById('edit-transparency').value = objectInfo.mesh.material.opacity;
@@ -1473,6 +1491,34 @@
                     document.getElementById('edit-param1').value = objectInfo.parameters[0] || '';
                     document.getElementById('edit-param2').value = objectInfo.parameters[1] || '';
                     document.getElementById('edit-param3').value = objectInfo.parameters[2] || '';
+                }
+            }
+
+            // 设置坐标输入框的实时监听器
+            setupCoordinateListeners() {
+                const inputs = ['edit-x', 'edit-y', 'edit-z'];
+                
+                inputs.forEach(inputId => {
+                    const input = document.getElementById(inputId);
+                    if (input) {
+                        // 移除旧的监听器（如果存在）
+                        input.removeEventListener('input', this.handleCoordinateChange);
+                        // 添加新的监听器
+                        input.addEventListener('input', this.handleCoordinateChange.bind(this));
+                    }
+                });
+            }
+
+            // 处理坐标变化
+            handleCoordinateChange() {
+                if (!this.selectedObject) return;
+                
+                const x = parseFloat(document.getElementById('edit-x').value);
+                const y = parseFloat(document.getElementById('edit-y').value);
+                const z = parseFloat(document.getElementById('edit-z').value);
+                
+                if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+                    this.selectedObject.position.set(x, y, z);
                 }
             }
 
@@ -1522,14 +1568,41 @@
                 if (!objectInfo) return;
                 
                 try {
-                    // 更新颜色
+                    // 更新坐标
+                    const newX = parseFloat(document.getElementById('edit-x').value);
+                    const newY = parseFloat(document.getElementById('edit-y').value);
+                    const newZ = parseFloat(document.getElementById('edit-z').value);
+                    
+                    if (!isNaN(newX) && !isNaN(newY) && !isNaN(newZ)) {
+                        this.selectedObject.position.set(newX, newY, newZ);
+                        console.log('✅ 坐标更新:', { x: newX, y: newY, z: newZ });
+                    }
+                    
+                    // 更新颜色 - 需要处理原始材质和高亮材质
                     const newColor = document.getElementById('edit-color').value;
-                    this.selectedObject.material.color.setHex(parseInt(newColor.slice(1), 16));
+                    const colorInt = parseInt(newColor.slice(1), 16);
+                    
+                    // 更新当前显示的材质
+                    this.selectedObject.material.color.setHex(colorInt);
+                    
+                    // 如果有原始材质，也要更新它
+                    if (this.selectedObject.userData.originalMaterial) {
+                        this.selectedObject.userData.originalMaterial.color.setHex(colorInt);
+                    }
+                    
                     objectInfo.color = newColor;
+                    console.log('✅ 颜色更新:', newColor);
                     
                     // 更新透明度
                     const newTransparency = parseFloat(document.getElementById('edit-transparency').value);
                     this.selectedObject.material.opacity = newTransparency;
+                    
+                    // 也更新原始材质的透明度
+                    if (this.selectedObject.userData.originalMaterial) {
+                        this.selectedObject.userData.originalMaterial.opacity = newTransparency;
+                    }
+                    
+                    console.log('✅ 透明度更新:', newTransparency);
                     
                     // 更新尺寸参数
                     const newParam1 = parseFloat(document.getElementById('edit-param1').value);
@@ -1543,6 +1616,7 @@
                         
                         // 重新创建几何体
                         this.updateObjectGeometry(objectInfo, newParams);
+                        console.log('✅ 尺寸更新:', newParams);
                     }
                     
                     console.log('✅ 对象编辑应用成功');
