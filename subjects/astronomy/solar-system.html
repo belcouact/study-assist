@@ -1640,39 +1640,53 @@
                     sun: [
                         'https://threejs.org/examples/textures/planets/sun.jpg',
                         'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/sun.jpg',
-                        'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/textures/planets/sun.jpg'
+                        'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/textures/planets/sun.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
                     ],
                     mercury: [
                         'https://threejs.org/examples/textures/planets/mercury.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2266_mercury_messenger_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_mercury.jpg'
                     ],
                     venus: [
                         'https://threejs.org/examples/textures/planets/venus_surface.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2267_venus_magellan_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg'
                     ],
                     earth: [
                         'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg',
                         'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg'
+                    ],
+                    earth_night: [
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg',
+                        'https://threejs.org/examples/textures/planets/earth_lights_2048.png'
+                    ],
+                    earth_clouds: [
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg',
+                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png'
+                    ],
+                    moon: [
+                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg',
+                        'https://threejs.org/examples/textures/planets/moon_1024.jpg'
                     ],
                     mars: [
                         'https://threejs.org/examples/textures/planets/mars_1k_color.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2268_mars_viking_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_mars.jpg'
                     ],
                     jupiter: [
                         'https://threejs.org/examples/textures/planets/jupiter_2k.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2269_jupiter_cassini_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg'
                     ],
                     saturn: [
                         'https://threejs.org/examples/textures/planets/saturn_2k.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2270_saturn_cassini_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_saturn.jpg'
                     ],
                     uranus: [
                         'https://threejs.org/examples/textures/planets/uranus_2k.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2271_uranus_voyager_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_uranus.jpg'
                     ],
                     neptune: [
                         'https://threejs.org/examples/textures/planets/neptune_2k.jpg',
-                        'https://solarsystem.nasa.gov/system/resources/detail_files/2272_neptune_voyager_globe_1024.jpg'
+                        'https://www.solarsystemscope.com/textures/download/2k_neptune.jpg'
                     ]
                 };
                 
@@ -1704,6 +1718,206 @@
                     
                     tryLoadTexture();
                 });
+            }
+
+            // Create realistic Earth with day/night textures and clouds
+            async createRealisticEarth(size = 1.2, position = [0, 0, 0]) {
+                const earthGroup = new THREE.Group();
+                
+                // Load textures
+                const dayTexture = await this.loadPlanetTexture('earth');
+                const nightTexture = await this.loadPlanetTexture('earth_night');
+                const cloudsTexture = await this.loadPlanetTexture('earth_clouds');
+                
+                // Earth sphere with day texture
+                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    map: dayTexture,
+                    bumpMap: dayTexture,
+                    bumpScale: 0.05,
+                    specularMap: dayTexture,
+                    specular: new THREE.Color('grey'),
+                    shininess: 100
+                });
+                
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.castShadow = true;
+                earth.receiveShadow = true;
+                earthGroup.add(earth);
+                
+                // Night lights layer (visible on dark side)
+                if (nightTexture) {
+                    const nightMaterial = new THREE.MeshBasicMaterial({
+                        map: nightTexture,
+                        transparent: true,
+                        opacity: 0.6,
+                        blending: THREE.AdditiveBlending
+                    });
+                    const nightLights = new THREE.Mesh(earthGeometry, nightMaterial);
+                    earthGroup.add(nightLights);
+                }
+                
+                // Cloud layer
+                if (cloudsTexture) {
+                    const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
+                    const cloudMaterial = new THREE.MeshPhongMaterial({
+                        map: cloudsTexture,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                    earthGroup.add(clouds);
+                    
+                    // Store cloud reference for animation
+                    earthGroup.clouds = clouds;
+                }
+                
+                // Atmosphere glow
+                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.05, 32, 32);
+                const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x87CEEB,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.BackSide
+                });
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                earthGroup.add(atmosphere);
+                
+                earthGroup.position.set(...position);
+                return earthGroup;
+            }
+
+            // Create realistic Sun with surface texture and corona
+            async createRealisticSun(size = 2, position = [0, 0, 0]) {
+                const sunGroup = new THREE.Group();
+                
+                // Load sun texture
+                const sunTexture = await this.loadPlanetTexture('sun');
+                
+                // Sun sphere with realistic surface
+                const sunGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const sunMaterial = new THREE.MeshPhongMaterial({
+                    map: sunTexture,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 0.8,
+                    emissiveMap: sunTexture
+                });
+                
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sunGroup.add(sun);
+                
+                // Corona layers for realistic glow
+                const coronaLayers = [
+                    { size: size * 1.1, color: 0xFFD700, opacity: 0.4 },
+                    { size: size * 1.3, color: 0xFF6600, opacity: 0.2 },
+                    { size: size * 1.6, color: 0xFFDD44, opacity: 0.1 }
+                ];
+                
+                coronaLayers.forEach(layer => {
+                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
+                    const coronaMaterial = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: layer.opacity,
+                        side: THREE.BackSide
+                    });
+                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+                    sunGroup.add(corona);
+                });
+                
+                // Solar flares particle system
+                this.createEnhancedSolarFlares(sunGroup, size);
+                
+                sunGroup.position.set(...position);
+                return sunGroup;
+            }
+
+            // Create realistic Moon with surface details
+            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
+                const moonGroup = new THREE.Group();
+                
+                // Load moon texture
+                const moonTexture = await this.loadPlanetTexture('moon');
+                
+                // Moon sphere with realistic surface
+                const moonGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const moonMaterial = new THREE.MeshPhongMaterial({
+                    map: moonTexture,
+                    bumpMap: moonTexture,
+                    bumpScale: 0.1,
+                    shininess: 1
+                });
+                
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.castShadow = true;
+                moon.receiveShadow = true;
+                moonGroup.add(moon);
+                
+                // Subtle glow for moon
+                const glowGeometry = new THREE.SphereGeometry(size * 1.1, 32, 32);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xC0C0C0,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                moonGroup.add(glow);
+                
+                moonGroup.position.set(...position);
+                return moonGroup;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Create more realistic solar flare particles
+                const flareCount = 200;
+                const flareGeometry = new THREE.BufferGeometry();
+                const flarePositions = [];
+                const flareSizes = [];
+                const flareColors = [];
+                
+                for (let i = 0; i < flareCount; i++) {
+                    // Random positions around the sun surface
+                    const radius = sunSize + Math.random() * (sunSize * 0.5);
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.random() * Math.PI;
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta);
+                    const z = radius * Math.cos(phi);
+                    
+                    flarePositions.push(x, y, z);
+                    flareSizes.push(Math.random() * 0.2 + 0.1);
+                    
+                    // Vary colors from yellow to orange to red
+                    const colorVariation = Math.random();
+                    if (colorVariation < 0.4) {
+                        flareColors.push(1, 1, 0); // Yellow
+                    } else if (colorVariation < 0.7) {
+                        flareColors.push(1, 0.5, 0); // Orange
+                    } else {
+                        flareColors.push(1, 0.2, 0); // Red-orange
+                    }
+                }
+                
+                flareGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flarePositions, 3));
+                flareGeometry.setAttribute('size', new THREE.Float32BufferAttribute(flareSizes, 1));
+                flareGeometry.setAttribute('color', new THREE.Float32BufferAttribute(flareColors, 3));
+                
+                const flareMaterial = new THREE.PointsMaterial({
+                    size: 0.15,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending,
+                    vertexColors: true
+                });
+                
+                const flares = new THREE.Points(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                
+                // Store reference for animation
+                sunGroup.solarFlares = flares;
+                return flares;
             }
 
             setupEventListeners() {
@@ -2060,13 +2274,13 @@
                 this.init();
             }
 
-            init() {
+            async init() {
                 this.setupScene();
                 this.setupCamera();
                 this.setupRenderer();
                 this.setupLights();
                 this.setupControls();
-                this.createObjects();
+                await this.createObjects();
                 this.setupEventListeners();
                 this.animate();
             }
@@ -2199,9 +2413,6 @@
 
                 // Create sun rays to show illumination
                 this.createSunRays();
-
-                // Position Earth at spring equinox initially
-                this.earth.position.set(12, 0, 0);
             }
 
             addContinents() {
@@ -2337,8 +2548,13 @@
                     this.earth.position.x = Math.cos(this.orbitAngle) * 12;
                     this.earth.position.z = Math.sin(this.orbitAngle) * 12;
                     
-                    // Rotate Earth on its axis
+                    // Rotate Earth on its axis (maintaining the tilt)
                     this.earth.rotation.y += 0.02 * this.speed;
+                    
+                    // Animate clouds if they exist
+                    if (this.earth.clouds) {
+                        this.earth.clouds.rotation.y += 0.005 * this.speed;
+                    }
                     
                     // Update season information
                     this.updateSeasonInfo();
@@ -2347,6 +2563,12 @@
                     this.sunRays.forEach((ray, index) => {
                         ray.rotation.z += 0.005 * this.speed;
                     });
+                    
+                    // Animate sun solar flares
+                    if (this.sun.solarFlares) {
+                        this.sun.solarFlares.rotation.y += 0.02 * this.speed;
+                        this.sun.solarFlares.rotation.z += 0.01 * this.speed;
+                    }
                 }
                 
                 this.controls.update();
@@ -2458,41 +2680,16 @@
                 this.controls.target.set(0, 0, 0);
             }
 
-            createObjects() {
-                // Create Sun (light source) with glow
-                const sunGeometry = new THREE.SphereGeometry(0.8, 32, 32);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                this.sun.position.set(-12, 0, 0);
+            async createObjects() {
+                // Create realistic Sun (light source) with glow
+                this.sun = await this.createRealisticSun(0.8, [-12, 0, 0]);
                 this.scene.add(this.sun);
 
-                // Add sun glow
-                const glowGeometry = new THREE.SphereGeometry(1.2, 32, 32);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFD700,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                this.sun.add(glow);
-
-                // Create Earth with day/night texture
-                const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x6B93D6,
-                    shininess: 30
-                });
-                this.earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                // Create realistic Earth with day/night texture
+                this.earth = await this.createRealisticEarth(2, [0, 0, 0]);
                 this.earth.castShadow = true;
                 this.earth.receiveShadow = true;
                 this.scene.add(this.earth);
-
-                // Add continents
-                this.addContinents();
 
                 // Add atmosphere with day/night glow
                 this.createAtmosphere();
@@ -2622,6 +2819,11 @@
                     this.rotationAngle += 0.02 * this.speed;
                     this.earth.rotation.y = this.rotationAngle;
                     
+                    // Animate clouds independently for realism
+                    if (this.earth.clouds) {
+                        this.earth.clouds.rotation.y = this.rotationAngle * 0.9; // Slightly slower
+                    }
+                    
                     // Update terminator position
                     if (this.terminator) {
                         this.terminator.rotation.z = this.rotationAngle;
@@ -2637,6 +2839,12 @@
                             // Show lights on night side (facing away from sun)
                             light.visible = dotProduct < 0;
                         });
+                    }
+                    
+                    // Animate sun solar flares
+                    if (this.sun.solarFlares) {
+                        this.sun.solarFlares.rotation.y += 0.02 * this.speed;
+                        this.sun.solarFlares.rotation.z += 0.01 * this.speed;
                     }
                     
                     // Update time information
@@ -2749,50 +2957,23 @@
                 this.controls.target.set(0, 0, 0);
             }
 
-            createObjects() {
-                // Create Earth with continents
-                const earthGeometry = new THREE.SphereGeometry(2, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x228B22,
-                    shininess: 30
-                });
-                this.earth = new THREE.Mesh(earthGeometry, earthMaterial);
+            async createObjects() {
+                // Create realistic Earth with continents
+                this.earth = await this.createRealisticEarth(2, [0, 0, 0]);
                 this.earth.castShadow = true;
                 this.earth.receiveShadow = true;
                 this.scene.add(this.earth);
 
-                // Add ocean layer with realistic tidal effects
+                // Add enhanced ocean layer with realistic tidal effects
                 this.createOceanLayer();
 
-                // Create Moon with realistic size and glow
-                const moonGeometry = new THREE.SphereGeometry(0.6, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xC0C0C0,
-                    shininess: 10
-                });
-                this.moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                // Create realistic Moon with surface details
+                this.moon = await this.createRealisticMoon(0.6, [8, 0, 0]);
                 this.moon.castShadow = true;
                 this.scene.add(this.moon);
 
-                // Add moon glow
-                const moonGlowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-                const moonGlowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xC0C0C0,
-                    transparent: true,
-                    opacity: 0.2
-                });
-                const moonGlow = new THREE.Mesh(moonGlowGeometry, moonGlowMaterial);
-                this.moon.add(moonGlow);
-
-                // Create distant Sun
-                const sunGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                this.sun.position.set(25, 5, 5);
+                // Create distant realistic Sun
+                this.sun = await this.createRealisticSun(0.3, [25, 5, 5]);
                 this.scene.add(this.sun);
 
                 // Create Moon's orbit path
@@ -2800,9 +2981,6 @@
 
                 // Create tidal force indicators
                 this.createTidalIndicators();
-
-                // Position moon initially
-                this.moon.position.set(8, 0, 0);
             }
 
             createOceanLayer() {
