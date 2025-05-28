@@ -91,6 +91,16 @@
             border-radius: 10px;
             background: white;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            cursor: crosshair;
+            user-select: none;
+        }
+
+        .coordinate-canvas.dragging {
+            cursor: grabbing;
+        }
+
+        .coordinate-canvas.moving-object {
+            cursor: move;
         }
 
         .controls-panel {
@@ -331,6 +341,93 @@
             font-size: 12px;
             pointer-events: none;
             z-index: 10;
+        }
+
+        /* Object editing panel */
+        .edit-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 2px solid #45b7d1;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 300px;
+            max-width: 90vw;
+        }
+
+        .edit-panel h3 {
+            color: #45b7d1;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .edit-panel .input-row {
+            margin-bottom: 12px;
+        }
+
+        .edit-panel .btn {
+            margin: 5px;
+        }
+
+        .edit-panel-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+
+        /* Selected object highlighting */
+        .object-selected {
+            filter: drop-shadow(0 0 8px #45b7d1);
+        }
+
+        /* Zoom controls */
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            color: #45b7d1;
+            transition: all 0.2s ease;
+        }
+
+        .zoom-btn:hover {
+            background: white;
+            transform: scale(1.1);
+        }
+
+        .zoom-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
         }
 
         /* Responsive Design */
@@ -660,6 +757,18 @@
             <div class="coordinate-area">
                 <canvas id="coordinateCanvas" class="coordinate-canvas" width="600" height="600"></canvas>
                 <div id="coordinateDisplay" class="coordinate-display" style="display: none;"></div>
+                
+                <!-- Zoom controls -->
+                <div class="zoom-controls">
+                    <button class="zoom-btn" onclick="zoomIn()" title="放大">+</button>
+                    <button class="zoom-btn" onclick="zoomOut()" title="缩小">−</button>
+                    <button class="zoom-btn" onclick="resetZoom()" title="重置">⌂</button>
+                </div>
+                
+                <!-- Zoom info -->
+                <div class="zoom-info" id="zoomInfo">
+                    缩放: 100% | 拖拽: 平移画布 | 双击: 编辑对象
+                </div>
             </div>
 
             <div class="controls-panel">
@@ -667,7 +776,6 @@
                     <button class="tab-btn active" data-tab="points">点</button>
                     <button class="tab-btn" data-tab="lines">线</button>
                     <button class="tab-btn" data-tab="shapes">图形</button>
-                    <button class="tab-btn" data-tab="transform">变换</button>
                 </div>
 
                 <!-- 点操作 -->
@@ -806,61 +914,6 @@
                     </div>
                 </div>
 
-                <!-- 变换操作 -->
-                <div class="tab-content" id="transform">
-                    <div class="info-panel">
-                        <h5>🔄 几何变换</h5>
-                        <p>平移、旋转、缩放、反射</p>
-                        <p>观察图形在变换下的坐标变化</p>
-                    </div>
-
-                    <div class="control-group">
-                        <h4>平移变换</h4>
-                        <div class="slider-control">
-                            <label>水平平移: <span id="translateXValue">0</span></label>
-                            <input type="range" id="translateX" class="slider" min="-10" max="10" value="0" step="0.5">
-                        </div>
-                        <div class="slider-control">
-                            <label>垂直平移: <span id="translateYValue">0</span></label>
-                            <input type="range" id="translateY" class="slider" min="-10" max="10" value="0" step="0.5">
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h4>旋转变换</h4>
-                        <div class="slider-control">
-                            <label>旋转角度: <span id="rotateValue">0</span>°</label>
-                            <input type="range" id="rotate" class="slider" min="0" max="360" value="0" step="5">
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h4>缩放变换</h4>
-                        <div class="slider-control">
-                            <label>缩放比例: <span id="scaleValue">1</span></label>
-                            <input type="range" id="scale" class="slider" min="0.1" max="3" value="1" step="0.1">
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <h4>反射变换</h4>
-                        <div class="transformation-controls">
-                            <button class="btn btn-secondary" onclick="reflectX()">
-                                ↕️ x轴反射
-                            </button>
-                            <button class="btn btn-secondary" onclick="reflectY()">
-                                ↔️ y轴反射
-                            </button>
-                            <button class="btn btn-secondary" onclick="reflectOrigin()">
-                                🔄 原点反射
-                            </button>
-                            <button class="btn btn-danger" onclick="resetTransform()">
-                                🔄 重置变换
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
                 <div class="control-group" style="margin-top: 20px;">
                     <button class="btn btn-danger" onclick="clearAll()" style="width: 100%;">
                         🗑️ 清除画布
@@ -875,64 +928,166 @@
         const canvas = document.getElementById('coordinateCanvas');
         const ctx = canvas.getContext('2d');
         const coordinateDisplay = document.getElementById('coordinateDisplay');
+        const zoomInfo = document.getElementById('zoomInfo');
 
         // Drawing state
         let points = [];
         let lines = [];
         let shapes = [];
-        let transform = {
-            translateX: 0,
-            translateY: 0,
-            rotate: 0,
-            scale: 1
-        };
+        let selectedObject = null;
+        let editPanel = null;
 
-        // Canvas settings
-        const GRID_SIZE = 20;
-        const ORIGIN_X = canvas.width / 2;
-        const ORIGIN_Y = canvas.height / 2;
+        // Canvas settings and zoom/pan state
+        let zoom = 1;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let isMovingObject = false;
+        let movingObject = null;
+
+        const BASE_GRID_SIZE = 20;
+        const BASE_ORIGIN_X = canvas.width / 2;
+        const BASE_ORIGIN_Y = canvas.height / 2;
         const MAX_COORD = 15;
+        const MIN_ZOOM = 0.3;
+        const MAX_ZOOM = 5;
+
+        // Computed values based on zoom and pan
+        function getGridSize() { return BASE_GRID_SIZE * zoom; }
+        function getOriginX() { return BASE_ORIGIN_X + panX; }
+        function getOriginY() { return BASE_ORIGIN_Y + panY; }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             setupCanvas();
             setupEventListeners();
             drawCoordinateSystem();
+            updateZoomInfo();
         });
 
         function setupCanvas() {
-            // Mouse move event for coordinate display
+            // Mouse events for coordinate display, pan, and object interaction
             canvas.addEventListener('mousemove', function(e) {
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const canvasX = e.clientX - rect.left;
+                const canvasY = e.clientY - rect.top;
                 
-                const coordX = Math.round((x - ORIGIN_X) / GRID_SIZE);
-                const coordY = Math.round((ORIGIN_Y - y) / GRID_SIZE);
+                if (isDragging && !isMovingObject) {
+                    // Pan the canvas
+                    panX += canvasX - dragStart.x;
+                    panY += canvasY - dragStart.y;
+                    dragStart.x = canvasX;
+                    dragStart.y = canvasY;
+                    redraw();
+                    updateZoomInfo();
+                } else if (isMovingObject && movingObject) {
+                    // Move selected object
+                    const coord = canvasToCoord(canvasX, canvasY);
+                    if (movingObject.type === 'point') {
+                        movingObject.x = Math.round(coord.x * 2) / 2; // Snap to half grid
+                        movingObject.y = Math.round(coord.y * 2) / 2;
+                    } else if (movingObject.type === 'circle') {
+                        movingObject.x = Math.round(coord.x * 2) / 2;
+                        movingObject.y = Math.round(coord.y * 2) / 2;
+                    } else if (movingObject.type === 'rectangle') {
+                        movingObject.x = Math.round(coord.x * 2) / 2;
+                        movingObject.y = Math.round(coord.y * 2) / 2;
+                    }
+                    redraw();
+                    if (editPanel) updateEditPanel();
+                } else {
+                    // Show coordinates
+                    const coord = canvasToCoord(canvasX, canvasY);
+                    coordinateDisplay.textContent = `(${coord.x.toFixed(1)}, ${coord.y.toFixed(1)})`;
+                    coordinateDisplay.style.left = (e.clientX + 10) + 'px';
+                    coordinateDisplay.style.top = (e.clientY - 30) + 'px';
+                    coordinateDisplay.style.display = 'block';
+                }
+            });
+
+            canvas.addEventListener('mousedown', function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const canvasX = e.clientX - rect.left;
+                const canvasY = e.clientY - rect.top;
                 
-                coordinateDisplay.textContent = `(${coordX}, ${coordY})`;
-                coordinateDisplay.style.left = (e.clientX + 10) + 'px';
-                coordinateDisplay.style.top = (e.clientY - 30) + 'px';
-                coordinateDisplay.style.display = 'block';
+                // Check if clicking on an object
+                const clickedObject = getObjectAtPosition(canvasX, canvasY);
+                
+                if (clickedObject && e.shiftKey) {
+                    // Start moving object with Shift+click
+                    isMovingObject = true;
+                    movingObject = clickedObject;
+                    canvas.classList.add('moving-object');
+                    e.preventDefault();
+                } else if (!clickedObject) {
+                    // Start panning
+                    isDragging = true;
+                    dragStart.x = canvasX;
+                    dragStart.y = canvasY;
+                    canvas.classList.add('dragging');
+                    
+                    // Add point if in points tab and not dragging
+                    const activeTab = document.querySelector('.tab-btn.active').dataset.tab;
+                    if (activeTab === 'points' && !e.shiftKey && !e.ctrlKey) {
+                        const coord = canvasToCoord(canvasX, canvasY);
+                        if (Math.abs(coord.x) <= MAX_COORD && Math.abs(coord.y) <= MAX_COORD) {
+                            document.getElementById('pointX').value = Math.round(coord.x * 2) / 2;
+                            document.getElementById('pointY').value = Math.round(coord.y * 2) / 2;
+                            addPoint();
+                        }
+                    }
+                }
+            });
+
+            canvas.addEventListener('mouseup', function(e) {
+                isDragging = false;
+                isMovingObject = false;
+                movingObject = null;
+                canvas.classList.remove('dragging', 'moving-object');
             });
 
             canvas.addEventListener('mouseleave', function() {
                 coordinateDisplay.style.display = 'none';
+                isDragging = false;
+                isMovingObject = false;
+                movingObject = null;
+                canvas.classList.remove('dragging', 'moving-object');
             });
 
-            // Click to add point
-            canvas.addEventListener('click', function(e) {
+            // Double click to edit object
+            canvas.addEventListener('dblclick', function(e) {
                 const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
+                const canvasX = e.clientX - rect.left;
+                const canvasY = e.clientY - rect.top;
                 
-                const coordX = Math.round((x - ORIGIN_X) / GRID_SIZE);
-                const coordY = Math.round((ORIGIN_Y - y) / GRID_SIZE);
+                const clickedObject = getObjectAtPosition(canvasX, canvasY);
+                if (clickedObject) {
+                    showEditPanel(clickedObject);
+                }
+            });
+
+            // Wheel zoom
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
                 
-                if (Math.abs(coordX) <= MAX_COORD && Math.abs(coordY) <= MAX_COORD) {
-                    document.getElementById('pointX').value = coordX;
-                    document.getElementById('pointY').value = coordY;
-                    addPoint();
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom * zoomFactor));
+                
+                if (newZoom !== zoom) {
+                    // Zoom towards mouse position
+                    const beforeZoom = canvasToCoord(mouseX, mouseY);
+                    zoom = newZoom;
+                    const afterZoom = canvasToCoord(mouseX, mouseY);
+                    
+                    panX += (afterZoom.x - beforeZoom.x) * getGridSize();
+                    panY -= (afterZoom.y - beforeZoom.y) * getGridSize();
+                    
+                    redraw();
+                    updateZoomInfo();
                 }
             });
         }
@@ -953,54 +1108,104 @@
                 });
             });
 
-            // Transform sliders
-            document.getElementById('translateX').addEventListener('input', function() {
-                transform.translateX = parseFloat(this.value);
-                document.getElementById('translateXValue').textContent = this.value;
-                redraw();
-            });
-
-            document.getElementById('translateY').addEventListener('input', function() {
-                transform.translateY = parseFloat(this.value);
-                document.getElementById('translateYValue').textContent = this.value;
-                redraw();
-            });
-
-            document.getElementById('rotate').addEventListener('input', function() {
-                transform.rotate = parseFloat(this.value);
-                document.getElementById('rotateValue').textContent = this.value;
-                redraw();
-            });
-
-            document.getElementById('scale').addEventListener('input', function() {
-                transform.scale = parseFloat(this.value);
-                document.getElementById('scaleValue').textContent = this.value;
-                redraw();
-            });
-
             // Point selectors change event
-            document.getElementById('point1Select').addEventListener('change', updateLineInfo);
-            document.getElementById('point2Select').addEventListener('change', updateLineInfo);
+            const point1Select = document.getElementById('point1Select');
+            const point2Select = document.getElementById('point2Select');
+            if (point1Select) point1Select.addEventListener('change', updateLineInfo);
+            if (point2Select) point2Select.addEventListener('change', updateLineInfo);
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoom = Math.min(MAX_ZOOM, zoom * 1.2);
+            redraw();
+            updateZoomInfo();
+        }
+
+        function zoomOut() {
+            zoom = Math.max(MIN_ZOOM, zoom / 1.2);
+            redraw();
+            updateZoomInfo();
+        }
+
+        function resetZoom() {
+            zoom = 1;
+            panX = 0;
+            panY = 0;
+            redraw();
+            updateZoomInfo();
+        }
+
+        function updateZoomInfo() {
+            zoomInfo.textContent = `缩放: ${Math.round(zoom * 100)}% | 拖拽: 平移画布 | Shift+拖拽: 移动对象 | 双击: 编辑`;
+        }
+
+        // Coordinate conversion functions
+        function canvasToCoord(canvasX, canvasY) {
+            return {
+                x: (canvasX - getOriginX()) / getGridSize(),
+                y: (getOriginY() - canvasY) / getGridSize()
+            };
+        }
+
+        function coordToCanvas(x, y) {
+            return {
+                x: getOriginX() + x * getGridSize(),
+                y: getOriginY() - y * getGridSize()
+            };
+        }
+
+        // Object detection
+        function getObjectAtPosition(canvasX, canvasY) {
+            const coord = canvasToCoord(canvasX, canvasY);
+            const tolerance = 0.3 / zoom; // Smaller tolerance when zoomed in
+            
+            // Check points
+            for (const point of points) {
+                const distance = Math.sqrt(Math.pow(coord.x - point.x, 2) + Math.pow(coord.y - point.y, 2));
+                if (distance <= tolerance) return point;
+            }
+            
+            // Check shapes
+            for (const shape of shapes) {
+                if (shape.type === 'circle') {
+                    const distance = Math.sqrt(Math.pow(coord.x - shape.x, 2) + Math.pow(coord.y - shape.y, 2));
+                    if (Math.abs(distance - shape.r) <= tolerance) return shape;
+                } else if (shape.type === 'rectangle') {
+                    if (coord.x >= shape.x - tolerance && coord.x <= shape.x + shape.w + tolerance &&
+                        coord.y >= shape.y - shape.h - tolerance && coord.y <= shape.y + tolerance) {
+                        return shape;
+                    }
+                }
+            }
+            
+            return null;
         }
 
         function drawCoordinateSystem() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
+            const gridSize = getGridSize();
+            const originX = getOriginX();
+            const originY = getOriginY();
+            
             // Grid
             ctx.strokeStyle = '#f0f0f0';
             ctx.lineWidth = 1;
             
-            for (let i = 0; i <= canvas.width; i += GRID_SIZE) {
+            // Vertical grid lines
+            for (let x = originX % gridSize; x <= canvas.width; x += gridSize) {
                 ctx.beginPath();
-                ctx.moveTo(i, 0);
-                ctx.lineTo(i, canvas.height);
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
                 ctx.stroke();
             }
             
-            for (let i = 0; i <= canvas.height; i += GRID_SIZE) {
+            // Horizontal grid lines  
+            for (let y = originY % gridSize; y <= canvas.height; y += gridSize) {
                 ctx.beginPath();
-                ctx.moveTo(0, i);
-                ctx.lineTo(canvas.width, i);
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
                 ctx.stroke();
             }
             
@@ -1009,99 +1214,84 @@
             ctx.lineWidth = 2;
             
             // X-axis
-            ctx.beginPath();
-            ctx.moveTo(0, ORIGIN_Y);
-            ctx.lineTo(canvas.width, ORIGIN_Y);
-            ctx.stroke();
+            if (originY >= 0 && originY <= canvas.height) {
+                ctx.beginPath();
+                ctx.moveTo(0, originY);
+                ctx.lineTo(canvas.width, originY);
+                ctx.stroke();
+            }
             
             // Y-axis
-            ctx.beginPath();
-            ctx.moveTo(ORIGIN_X, 0);
-            ctx.lineTo(ORIGIN_X, canvas.height);
-            ctx.stroke();
-            
-            // Axis labels
-            ctx.fillStyle = '#666';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            
-            // X-axis numbers
-            for (let i = -MAX_COORD; i <= MAX_COORD; i++) {
-                if (i !== 0) {
-                    const x = ORIGIN_X + i * GRID_SIZE;
-                    ctx.fillText(i.toString(), x, ORIGIN_Y + 15);
-                }
+            if (originX >= 0 && originX <= canvas.width) {
+                ctx.beginPath();
+                ctx.moveTo(originX, 0);
+                ctx.lineTo(originX, canvas.height);
+                ctx.stroke();
             }
             
-            // Y-axis numbers
-            ctx.textAlign = 'right';
-            for (let i = -MAX_COORD; i <= MAX_COORD; i++) {
-                if (i !== 0) {
-                    const y = ORIGIN_Y - i * GRID_SIZE;
-                    ctx.fillText(i.toString(), ORIGIN_X - 5, y + 4);
+            // Axis labels (only draw if zoom is reasonable)
+            if (zoom > 0.5) {
+                ctx.fillStyle = '#666';
+                ctx.font = `${Math.min(12, gridSize / 2)}px Arial`;
+                ctx.textAlign = 'center';
+                
+                // X-axis numbers
+                for (let i = -50; i <= 50; i++) {
+                    if (i !== 0) {
+                        const x = originX + i * gridSize;
+                        if (x >= 0 && x <= canvas.width && originY >= 15 && originY <= canvas.height) {
+                            ctx.fillText(i.toString(), x, originY + 15);
+                        }
+                    }
                 }
+                
+                // Y-axis numbers
+                ctx.textAlign = 'right';
+                for (let i = -50; i <= 50; i++) {
+                    if (i !== 0) {
+                        const y = originY - i * gridSize;
+                        if (y >= 15 && y <= canvas.height && originX >= 20 && originX <= canvas.width) {
+                            ctx.fillText(i.toString(), originX - 5, y + 4);
+                        }
+                    }
+                }
+                
+                // Origin
+                if (originX >= 5 && originX <= canvas.width && originY >= 0 && originY <= canvas.height - 15) {
+                    ctx.fillStyle = '#333';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('O', originX - 5, originY + 15);
+                }
+                
+                // Axis arrows
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                
+                // X-axis arrow
+                if (originY >= 5 && originY <= canvas.height - 5) {
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width - 10, originY - 5);
+                    ctx.lineTo(canvas.width, originY);
+                    ctx.lineTo(canvas.width - 10, originY + 5);
+                    ctx.stroke();
+                }
+                
+                // Y-axis arrow
+                if (originX >= 5 && originX <= canvas.width - 5) {
+                    ctx.beginPath();
+                    ctx.moveTo(originX - 5, 10);
+                    ctx.lineTo(originX, 0);
+                    ctx.lineTo(originX + 5, 10);
+                    ctx.stroke();
+                }
+                
+                // Axis labels
+                ctx.fillStyle = '#333';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                if (originY >= 25) ctx.fillText('x', canvas.width - 15, originY - 10);
+                if (originX <= canvas.width - 15) ctx.fillText('y', originX + 15, 15);
             }
-            
-            // Origin
-            ctx.fillStyle = '#333';
-            ctx.textAlign = 'right';
-            ctx.fillText('O', ORIGIN_X - 5, ORIGIN_Y + 15);
-            
-            // Axis arrows
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            
-            // X-axis arrow
-            ctx.beginPath();
-            ctx.moveTo(canvas.width - 10, ORIGIN_Y - 5);
-            ctx.lineTo(canvas.width, ORIGIN_Y);
-            ctx.lineTo(canvas.width - 10, ORIGIN_Y + 5);
-            ctx.stroke();
-            
-            // Y-axis arrow
-            ctx.beginPath();
-            ctx.moveTo(ORIGIN_X - 5, 10);
-            ctx.lineTo(ORIGIN_X, 0);
-            ctx.lineTo(ORIGIN_X + 5, 10);
-            ctx.stroke();
-            
-            // Axis labels
-            ctx.fillStyle = '#333';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('x', canvas.width - 15, ORIGIN_Y - 10);
-            ctx.fillText('y', ORIGIN_X + 15, 15);
-        }
-
-        function canvasToCoord(canvasX, canvasY) {
-            return {
-                x: (canvasX - ORIGIN_X) / GRID_SIZE,
-                y: (ORIGIN_Y - canvasY) / GRID_SIZE
-            };
-        }
-
-        function coordToCanvas(x, y) {
-            return {
-                x: ORIGIN_X + x * GRID_SIZE,
-                y: ORIGIN_Y - y * GRID_SIZE
-            };
-        }
-
-        function applyTransform(x, y) {
-            // Apply transformations in order: scale, rotate, translate
-            let newX = x * transform.scale;
-            let newY = y * transform.scale;
-            
-            // Rotation
-            const angle = transform.rotate * Math.PI / 180;
-            const rotatedX = newX * Math.cos(angle) - newY * Math.sin(angle);
-            const rotatedY = newX * Math.sin(angle) + newY * Math.cos(angle);
-            
-            // Translation
-            return {
-                x: rotatedX + transform.translateX,
-                y: rotatedY + transform.translateY
-            };
         }
 
         function addPoint() {
@@ -1109,12 +1299,7 @@
             const y = parseFloat(document.getElementById('pointY').value) || 0;
             const label = document.getElementById('pointLabel').value || `P${points.length + 1}`;
             
-            if (Math.abs(x) > MAX_COORD || Math.abs(y) > MAX_COORD) {
-                alert(`坐标范围应在 -${MAX_COORD} 到 ${MAX_COORD} 之间`);
-                return;
-            }
-            
-            const point = { x, y, label, id: Date.now() };
+            const point = { type: 'point', x, y, label, id: Date.now() };
             points.push(point);
             
             // Clear inputs
@@ -1128,11 +1313,11 @@
         }
 
         function addRandomPoint() {
-            const x = Math.floor(Math.random() * (MAX_COORD * 2 + 1)) - MAX_COORD;
-            const y = Math.floor(Math.random() * (MAX_COORD * 2 + 1)) - MAX_COORD;
+            const x = (Math.random() - 0.5) * 20; // Random point in visible area
+            const y = (Math.random() - 0.5) * 20;
             const label = `R${points.length + 1}`;
             
-            const point = { x, y, label, id: Date.now() };
+            const point = { type: 'point', x, y, label, id: Date.now() };
             points.push(point);
             
             updatePointsList();
@@ -1331,90 +1516,11 @@
             redraw();
         }
 
-        function reflectX() {
-            points.forEach(point => {
-                point.y = -point.y;
-            });
-            shapes.forEach(shape => {
-                if (shape.type === 'circle') {
-                    shape.y = -shape.y;
-                } else if (shape.type === 'rectangle') {
-                    shape.y = -shape.y - shape.h;
-                } else if (shape.type === 'polygon') {
-                    shape.points.forEach(p => {
-                        p.y = -p.y;
-                    });
-                }
-            });
-            updatePointsList();
-            updatePointSelectors();
-            redraw();
-        }
-
-        function reflectY() {
-            points.forEach(point => {
-                point.x = -point.x;
-            });
-            shapes.forEach(shape => {
-                if (shape.type === 'circle') {
-                    shape.x = -shape.x;
-                } else if (shape.type === 'rectangle') {
-                    shape.x = -shape.x - shape.w;
-                } else if (shape.type === 'polygon') {
-                    shape.points.forEach(p => {
-                        p.x = -p.x;
-                    });
-                }
-            });
-            updatePointsList();
-            updatePointSelectors();
-            redraw();
-        }
-
-        function reflectOrigin() {
-            points.forEach(point => {
-                point.x = -point.x;
-                point.y = -point.y;
-            });
-            shapes.forEach(shape => {
-                if (shape.type === 'circle') {
-                    shape.x = -shape.x;
-                    shape.y = -shape.y;
-                } else if (shape.type === 'rectangle') {
-                    shape.x = -shape.x - shape.w;
-                    shape.y = -shape.y - shape.h;
-                } else if (shape.type === 'polygon') {
-                    shape.points.forEach(p => {
-                        p.x = -p.x;
-                        p.y = -p.y;
-                    });
-                }
-            });
-            updatePointsList();
-            updatePointSelectors();
-            redraw();
-        }
-
-        function resetTransform() {
-            transform = { translateX: 0, translateY: 0, rotate: 0, scale: 1 };
-            
-            document.getElementById('translateX').value = 0;
-            document.getElementById('translateY').value = 0;
-            document.getElementById('rotate').value = 0;
-            document.getElementById('scale').value = 1;
-            
-            document.getElementById('translateXValue').textContent = '0';
-            document.getElementById('translateYValue').textContent = '0';
-            document.getElementById('rotateValue').textContent = '0';
-            document.getElementById('scaleValue').textContent = '1';
-            
-            redraw();
-        }
-
         function clearAll() {
             points = [];
             lines = [];
             shapes = [];
+            hideEditPanel();
             updatePointsList();
             updatePointSelectors();
             redraw();
@@ -1430,8 +1536,8 @@
                 
                 if (line.type === 'function') {
                     ctx.beginPath();
-                    const startX = -MAX_COORD;
-                    const endX = MAX_COORD;
+                    const startX = -50;
+                    const endX = 50;
                     const startY = line.k * startX + line.b;
                     const endY = line.k * endX + line.b;
                     
@@ -1454,32 +1560,31 @@
             
             // Draw shapes
             shapes.forEach(shape => {
-                ctx.strokeStyle = '#45b7d1';
-                ctx.fillStyle = 'rgba(69, 183, 209, 0.2)';
-                ctx.lineWidth = 2;
+                const isSelected = selectedObject && selectedObject.id === shape.id;
+                
+                ctx.strokeStyle = isSelected ? '#FFD700' : '#45b7d1';
+                ctx.fillStyle = isSelected ? 'rgba(255, 215, 0, 0.2)' : 'rgba(69, 183, 209, 0.2)';
+                ctx.lineWidth = isSelected ? 3 : 2;
                 
                 if (shape.type === 'circle') {
-                    const transformed = applyTransform(shape.x, shape.y);
-                    const center = coordToCanvas(transformed.x, transformed.y);
-                    const radius = shape.r * GRID_SIZE * transform.scale;
+                    const center = coordToCanvas(shape.x, shape.y);
+                    const radius = shape.r * getGridSize();
                     
                     ctx.beginPath();
                     ctx.arc(center.x, center.y, radius, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.stroke();
                 } else if (shape.type === 'rectangle') {
-                    const transformed = applyTransform(shape.x, shape.y);
-                    const topLeft = coordToCanvas(transformed.x, transformed.y);
-                    const width = shape.w * GRID_SIZE * transform.scale;
-                    const height = shape.h * GRID_SIZE * transform.scale;
+                    const topLeft = coordToCanvas(shape.x, shape.y);
+                    const width = shape.w * getGridSize();
+                    const height = shape.h * getGridSize();
                     
                     ctx.fillRect(topLeft.x, topLeft.y, width, height);
                     ctx.strokeRect(topLeft.x, topLeft.y, width, height);
                 } else if (shape.type === 'polygon') {
                     ctx.beginPath();
                     shape.points.forEach((point, index) => {
-                        const transformed = applyTransform(point.x, point.y);
-                        const canvasPoint = coordToCanvas(transformed.x, transformed.y);
+                        const canvasPoint = coordToCanvas(point.x, point.y);
                         
                         if (index === 0) {
                             ctx.moveTo(canvasPoint.x, canvasPoint.y);
@@ -1495,26 +1600,199 @@
             
             // Draw points
             points.forEach(point => {
-                const transformed = applyTransform(point.x, point.y);
-                const canvasPoint = coordToCanvas(transformed.x, transformed.y);
+                const canvasPoint = coordToCanvas(point.x, point.y);
+                const isSelected = selectedObject && selectedObject.id === point.id;
                 
                 // Point circle
-                ctx.fillStyle = '#ff6b6b';
+                ctx.fillStyle = isSelected ? '#FFD700' : '#ff6b6b';
                 ctx.beginPath();
-                ctx.arc(canvasPoint.x, canvasPoint.y, 4, 0, 2 * Math.PI);
+                ctx.arc(canvasPoint.x, canvasPoint.y, isSelected ? 6 : 4, 0, 2 * Math.PI);
                 ctx.fill();
                 
                 // Point label
                 ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
+                ctx.font = `${Math.max(10, Math.min(14, getGridSize() / 2))}px Arial`;
                 ctx.textAlign = 'left';
                 ctx.fillText(point.label, canvasPoint.x + 8, canvasPoint.y - 8);
                 
-                // Coordinates
-                ctx.fillStyle = '#666';
-                ctx.font = '10px Arial';
-                ctx.fillText(`(${transformed.x.toFixed(1)}, ${transformed.y.toFixed(1)})`, canvasPoint.x + 8, canvasPoint.y + 15);
+                // Coordinates (only show if zoom is reasonable)
+                if (zoom > 0.7) {
+                    ctx.fillStyle = '#666';
+                    ctx.font = `${Math.max(8, Math.min(11, getGridSize() / 3))}px Arial`;
+                    ctx.fillText(`(${point.x.toFixed(1)}, ${point.y.toFixed(1)})`, canvasPoint.x + 8, canvasPoint.y + 15);
+                }
             });
+        }
+
+        // Edit panel functionality
+        function showEditPanel(object) {
+            hideEditPanel(); // Close any existing panel
+            selectedObject = object;
+            
+            // Create overlay
+            const overlay = document.createElement('div');
+            overlay.className = 'edit-panel-overlay';
+            overlay.onclick = hideEditPanel;
+            
+            // Create edit panel
+            editPanel = document.createElement('div');
+            editPanel.className = 'edit-panel';
+            editPanel.onclick = (e) => e.stopPropagation();
+            
+            let content = `<h3>编辑 ${getObjectTypeName(object)}</h3>`;
+            
+            if (object.type === 'point') {
+                content += `
+                    <div class="input-row">
+                        <label>标签:</label>
+                        <input type="text" id="edit-label" value="${object.label}" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>X 坐标:</label>
+                        <input type="number" id="edit-x" value="${object.x}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>Y 坐标:</label>
+                        <input type="number" id="edit-y" value="${object.y}" step="0.1" class="input-field">
+                    </div>
+                `;
+            } else if (object.type === 'circle') {
+                content += `
+                    <div class="input-row">
+                        <label>圆心 X:</label>
+                        <input type="number" id="edit-x" value="${object.x}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>圆心 Y:</label>
+                        <input type="number" id="edit-y" value="${object.y}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>半径:</label>
+                        <input type="number" id="edit-radius" value="${object.r}" step="0.1" min="0.1" class="input-field">
+                    </div>
+                `;
+            } else if (object.type === 'rectangle') {
+                content += `
+                    <div class="input-row">
+                        <label>X 坐标:</label>
+                        <input type="number" id="edit-x" value="${object.x}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>Y 坐标:</label>
+                        <input type="number" id="edit-y" value="${object.y}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>宽度:</label>
+                        <input type="number" id="edit-width" value="${object.w}" step="0.1" min="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>高度:</label>
+                        <input type="number" id="edit-height" value="${object.h}" step="0.1" min="0.1" class="input-field">
+                    </div>
+                `;
+            }
+            
+            content += `
+                <div class="input-row">
+                    <button class="btn btn-primary" onclick="applyEdit()">应用更改</button>
+                    <button class="btn btn-danger" onclick="deleteObject()">删除</button>
+                    <button class="btn btn-secondary" onclick="hideEditPanel()">取消</button>
+                </div>
+            `;
+            
+            editPanel.innerHTML = content;
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(editPanel);
+        }
+        
+        function hideEditPanel() {
+            if (editPanel) {
+                editPanel.remove();
+                editPanel = null;
+            }
+            const overlay = document.querySelector('.edit-panel-overlay');
+            if (overlay) overlay.remove();
+            selectedObject = null;
+            redraw();
+        }
+        
+        function updateEditPanel() {
+            if (!editPanel || !selectedObject) return;
+            
+            const xInput = document.getElementById('edit-x');
+            const yInput = document.getElementById('edit-y');
+            
+            if (xInput) xInput.value = selectedObject.x.toFixed(1);
+            if (yInput) yInput.value = selectedObject.y.toFixed(1);
+        }
+        
+        function applyEdit() {
+            if (!selectedObject) return;
+            
+            if (selectedObject.type === 'point') {
+                const label = document.getElementById('edit-label').value;
+                const x = parseFloat(document.getElementById('edit-x').value);
+                const y = parseFloat(document.getElementById('edit-y').value);
+                
+                if (!isNaN(x) && !isNaN(y)) {
+                    selectedObject.label = label || selectedObject.label;
+                    selectedObject.x = x;
+                    selectedObject.y = y;
+                    updatePointsList();
+                    updatePointSelectors();
+                }
+            } else if (selectedObject.type === 'circle') {
+                const x = parseFloat(document.getElementById('edit-x').value);
+                const y = parseFloat(document.getElementById('edit-y').value);
+                const r = parseFloat(document.getElementById('edit-radius').value);
+                
+                if (!isNaN(x) && !isNaN(y) && !isNaN(r) && r > 0) {
+                    selectedObject.x = x;
+                    selectedObject.y = y;
+                    selectedObject.r = r;
+                }
+            } else if (selectedObject.type === 'rectangle') {
+                const x = parseFloat(document.getElementById('edit-x').value);
+                const y = parseFloat(document.getElementById('edit-y').value);
+                const w = parseFloat(document.getElementById('edit-width').value);
+                const h = parseFloat(document.getElementById('edit-height').value);
+                
+                if (!isNaN(x) && !isNaN(y) && !isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+                    selectedObject.x = x;
+                    selectedObject.y = y;
+                    selectedObject.w = w;
+                    selectedObject.h = h;
+                }
+            }
+            
+            hideEditPanel();
+            redraw();
+        }
+        
+        function deleteObject() {
+            if (!selectedObject) return;
+            
+            if (selectedObject.type === 'point') {
+                points = points.filter(p => p.id !== selectedObject.id);
+                updatePointsList();
+                updatePointSelectors();
+            } else {
+                shapes = shapes.filter(s => s.id !== selectedObject.id);
+            }
+            
+            hideEditPanel();
+            redraw();
+        }
+        
+        function getObjectTypeName(object) {
+            const typeNames = {
+                'point': '点',
+                'circle': '圆',
+                'rectangle': '矩形',
+                'polygon': '多边形'
+            };
+            return typeNames[object.type] || object.type;
         }
     </script>
 </body>
