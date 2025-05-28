@@ -12,46 +12,33 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Try multiple CDN sources for Three.js -->
+    <!-- Three.js r128 with stable CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // Create a fallback loading system for Three.js
-        function loadThreeJS() {
-            return new Promise((resolve, reject) => {
-                // Try threejs.org first
-                const script1 = document.createElement('script');
-                script1.src = 'https://threejs.org/build/three.min.js';
-                script1.onload = () => {
-                    // Load OrbitControls
-                    const script2 = document.createElement('script');
-                    script2.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
-                    script2.onload = () => resolve();
-                    script2.onerror = () => {
-                        // Fallback to jsdelivr
-                        const script3 = document.createElement('script');
-                        script3.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.js';
-                        script3.onload = () => resolve();
-                        script3.onerror = () => reject('Failed to load OrbitControls');
-                        document.head.appendChild(script3);
-                    };
-                    document.head.appendChild(script2);
+        // Load OrbitControls after Three.js is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const script = document.createElement('script');
+            script.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
+            script.onload = function() {
+                console.log('✅ OrbitControls loaded successfully');
+                initGeometrySystem();
+            };
+            script.onerror = function() {
+                console.warn('Failed to load OrbitControls from threejs.org, trying fallback...');
+                const fallbackScript = document.createElement('script');
+                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
+                fallbackScript.onload = function() {
+                    console.log('✅ OrbitControls loaded from fallback');
+                    initGeometrySystem();
                 };
-                script1.onerror = () => {
-                    // Fallback to jsdelivr
-                    const script4 = document.createElement('script');
-                    script4.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js';
-                    script4.onload = () => {
-                        const script5 = document.createElement('script');
-                        script5.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.js';
-                        script5.onload = () => resolve();
-                        script5.onerror = () => reject('Failed to load Three.js components');
-                        document.head.appendChild(script5);
-                    };
-                    script4.onerror = () => reject('Failed to load Three.js');
-                    document.head.appendChild(script4);
+                fallbackScript.onerror = function() {
+                    console.error('❌ Failed to load OrbitControls');
+                    showError('无法加载3D控制器组件');
                 };
-                document.head.appendChild(script1);
-            });
-        }
+                document.head.appendChild(fallbackScript);
+            };
+            document.head.appendChild(script);
+        });
     </script>
     <style>
         .solid-geometry-page {
@@ -446,9 +433,9 @@
                     <div class="control-section">
                         <h3>📏 设置参数</h3>
                         <div id="shape-parameters">
-                            <input type="number" class="parameter-input" id="param1" placeholder="长度/半径 (单位)" min="0.1" max="20" step="0.1" value="2">
-                            <input type="number" class="parameter-input" id="param2" placeholder="宽度/高度 (单位)" min="0.1" max="20" step="0.1" value="2">
-                            <input type="number" class="parameter-input" id="param3" placeholder="高度/深度 (单位)" min="0.1" max="20" step="0.1" value="2">
+                            <input type="number" class="parameter-input" id="param1" placeholder="边长 (单位)" min="0.1" max="20" step="0.1" value="2">
+                            <input type="number" class="parameter-input" id="param2" placeholder="宽度/高度 (单位)" min="0.1" max="20" step="0.1" value="2" style="display: none;">
+                            <input type="number" class="parameter-input" id="param3" placeholder="高度/深度 (单位)" min="0.1" max="20" step="0.1" value="2" style="display: none;">
                         </div>
                         <button class="action-button" onclick="createShape()">
                             <i class="fas fa-plus"></i> 创建几何体
@@ -551,6 +538,49 @@
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     <script>
+        // Global variables
+        let geometrySystem = null;
+
+        // Error display function
+        function showError(message) {
+            document.getElementById('geometry-container').innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #FFD700; text-align: center; padding: 20px;">
+                    <div>
+                        <h3>❌ ${message}</h3>
+                        <p>请刷新页面重试</p>
+                        <button onclick="location.reload()" style="background: #4361ee; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin-top: 10px; cursor: pointer;">刷新页面</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Initialize the geometry system
+        function initGeometrySystem() {
+            console.log('📄 DOM内容已加载');
+            console.log('检查THREE.js是否加载:', typeof THREE !== 'undefined');
+            console.log('检查OrbitControls是否加载:', typeof THREE.OrbitControls !== 'undefined');
+            
+            if (typeof THREE === 'undefined') {
+                console.error('❌ THREE.js未加载');
+                showError('无法加载3D渲染引擎');
+                return;
+            }
+            
+            if (typeof THREE.OrbitControls === 'undefined') {
+                console.error('❌ OrbitControls未加载');
+                showError('控制器组件加载失败');
+                return;
+            }
+            
+            try {
+                geometrySystem = new SolidGeometryVisualizationSystem();
+                console.log('✅ 几何系统实例化成功:', geometrySystem);
+            } catch (error) {
+                console.error('❌ 几何系统实例化失败:', error);
+                showError('3D系统初始化失败: ' + error.message);
+            }
+        }
+
         // 3D立体几何可视化系统
         class SolidGeometryVisualizationSystem {
             constructor() {
@@ -601,7 +631,7 @@
                     console.log('✅ 3D立体几何系统初始化完成');
                 } catch (error) {
                     console.error('❌ 初始化失败:', error);
-                    alert('3D系统初始化失败，请刷新页面重试');
+                    throw error;
                 }
             }
 
@@ -1048,37 +1078,6 @@
             }
         }
 
-        // 全局变量和函数
-        let geometrySystem;
-
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log('📄 DOM内容已加载');
-            
-            try {
-                console.log('🔄 正在加载Three.js...');
-                await loadThreeJS();
-                console.log('✅ Three.js加载完成');
-                
-                console.log('检查THREE.js是否加载:', typeof THREE !== 'undefined');
-                console.log('检查OrbitControls是否加载:', typeof THREE.OrbitControls !== 'undefined');
-                
-                geometrySystem = new SolidGeometryVisualizationSystem();
-                console.log('✅ 几何系统实例化成功:', geometrySystem);
-            } catch (error) {
-                console.error('❌ 几何系统实例化失败:', error);
-                document.getElementById('geometry-container').innerHTML = `
-                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #FFD700; text-align: center; padding: 20px;">
-                        <div>
-                            <h3>❌ 无法加载3D渲染引擎</h3>
-                            <p>请检查网络连接或刷新页面重试</p>
-                            <p style="font-size: 0.8em; opacity: 0.7;">${error.message}</p>
-                        </div>
-                    </div>
-                `;
-            }
-        });
-
         // 全局函数供HTML调用
         function createShape() {
             console.log('🎯 createShape函数被调用');
@@ -1091,29 +1090,37 @@
         }
 
         function createLine() {
+            if (!geometrySystem) {
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
             geometrySystem.createLine();
         }
 
         function clearAll() {
+            if (!geometrySystem) {
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
             if (confirm('确定要清空所有对象吗？')) {
                 geometrySystem.clearAll();
             }
         }
 
         function resetView() {
-            geometrySystem.resetView();
+            if (geometrySystem) geometrySystem.resetView();
         }
 
         function toggleGrid() {
-            geometrySystem.toggleGrid();
+            if (geometrySystem) geometrySystem.toggleGrid();
         }
 
         function toggleAxes() {
-            geometrySystem.toggleAxes();
+            if (geometrySystem) geometrySystem.toggleAxes();
         }
 
         function exportScene() {
-            geometrySystem.exportScene();
+            if (geometrySystem) geometrySystem.exportScene();
         }
     </script>
 </body>
