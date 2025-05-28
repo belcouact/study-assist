@@ -2266,14 +2266,33 @@
             }
 
             async init() {
-                this.setupScene();
-                this.setupCamera();
-                this.setupRenderer();
-                this.setupLights();
-                this.setupControls();
-                await this.createObjects();
-                this.setupEventListeners();
-                this.animate();
+                try {
+                    this.setupScene();
+                    this.setupCamera();
+                    this.setupRenderer();
+                    this.setupLights();
+                    this.setupControls();
+                    await this.createObjects();
+                    this.setupEventListeners();
+                    this.animate();
+                    
+                    // Hide loading indicator
+                    const loadingElement = document.getElementById('seasons-loading');
+                    if (loadingElement) {
+                        loadingElement.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to initialize Seasons3D:', error);
+                    this.showError();
+                }
+            }
+
+            showError() {
+                const container = document.getElementById(this.containerId);
+                const loadingElement = document.getElementById('seasons-loading');
+                if (loadingElement) {
+                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
+                }
             }
 
             setupScene() {
@@ -2286,13 +2305,13 @@
 
             createStarField() {
                 const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
+                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.0 });
                 
                 const starsVertices = [];
-                for (let i = 0; i < 1000; i++) {
-                    const x = (Math.random() - 0.5) * 200;
-                    const y = (Math.random() - 0.5) * 200;
-                    const z = (Math.random() - 0.5) * 200;
+                for (let i = 0; i < 2000; i++) {
+                    const x = (Math.random() - 0.5) * 400;
+                    const y = (Math.random() - 0.5) * 400;
+                    const z = (Math.random() - 0.5) * 400;
                     starsVertices.push(x, y, z);
                 }
                 
@@ -2307,7 +2326,7 @@
                 const height = container.clientHeight;
                 
                 this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(0, 20, 25);
+                this.camera.position.set(0, 25, 35);
                 this.camera.lookAt(0, 0, 0);
             }
 
@@ -2325,15 +2344,21 @@
 
             setupLights() {
                 // Ambient light for general illumination
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.2);
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
                 this.scene.add(ambientLight);
                 
                 // Sun light (directional light from sun position)
-                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 2);
+                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 3);
                 this.sunLight.position.set(0, 0, 0);
                 this.sunLight.castShadow = true;
                 this.sunLight.shadow.mapSize.width = 2048;
                 this.sunLight.shadow.mapSize.height = 2048;
+                this.sunLight.shadow.camera.near = 0.5;
+                this.sunLight.shadow.camera.far = 100;
+                this.sunLight.shadow.camera.left = -50;
+                this.sunLight.shadow.camera.right = 50;
+                this.sunLight.shadow.camera.top = 50;
+                this.sunLight.shadow.camera.bottom = -50;
                 this.scene.add(this.sunLight);
             }
 
@@ -2341,81 +2366,31 @@
                 this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 this.controls.enableDamping = true;
                 this.controls.dampingFactor = 0.05;
-                this.controls.minDistance = 15;
-                this.controls.maxDistance = 60;
+                this.controls.minDistance = 20;
+                this.controls.maxDistance = 80;
                 this.controls.target.set(0, 0, 0);
+                this.controls.autoRotate = false;
             }
 
-            createObjects() {
-                // Create Sun at center with glow effect
-                const sunGeometry = new THREE.SphereGeometry(2, 32, 32);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                this.sun = new THREE.Mesh(sunGeometry, sunMaterial);
+            async createObjects() {
+                // Create realistic Sun at center
+                this.sun = await this.createRealisticSun(3, [0, 0, 0]);
                 this.scene.add(this.sun);
 
-                // Add sun glow
-                const glowGeometry = new THREE.SphereGeometry(2.5, 32, 32);
-                const glowMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFD700,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                this.sun.add(glow);
-
-                // Create Earth with realistic textures and tilted axis
-                const earthGeometry = new THREE.SphereGeometry(1.2, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x6B93D6,
-                    shininess: 30,
-                    transparent: false
-                });
-                this.earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                
-                // Apply 23.5 degree axial tilt
-                this.earth.rotation.z = Math.PI * 23.5 / 180;
+                // Create realistic Earth with proper tilt
+                this.earth = await this.createRealisticEarth(1.5, [15, 0, 0]);
                 this.earth.castShadow = true;
                 this.earth.receiveShadow = true;
                 this.scene.add(this.earth);
 
-                // Add continents visualization
-                this.addContinents();
-
-                // Add atmosphere
-                const atmosphereGeometry = new THREE.SphereGeometry(1.3, 32, 32);
-                const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x87CEEB,
-                    transparent: true,
-                    opacity: 0.2,
-                    side: THREE.BackSide
-                });
-                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-                this.earth.add(atmosphere);
-
                 // Create Earth's orbital path
                 this.createOrbitPath();
 
-                // Create season markers
+                // Create season markers with labels
                 this.createSeasonMarkers();
 
-                // Create sun rays to show illumination
-                this.createSunRays();
-            }
-
-            addContinents() {
-                // Add simple continent representations
-                const continentGeometry = new THREE.SphereGeometry(1.21, 32, 32);
-                const continentMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x228B22,
-                    transparent: true,
-                    opacity: 0.8
-                });
-                const continents = new THREE.Mesh(continentGeometry, continentMaterial);
-                this.earth.add(continents);
+                // Create illumination indicators
+                this.createIlluminationIndicators();
             }
 
             createOrbitPath() {
@@ -2423,17 +2398,17 @@
                 for (let i = 0; i <= 128; i++) {
                     const angle = (i / 128) * Math.PI * 2;
                     orbitPoints.push(new THREE.Vector3(
-                        Math.cos(angle) * 12,
+                        Math.cos(angle) * 15,
                         0,
-                        Math.sin(angle) * 12
+                        Math.sin(angle) * 15
                     ));
                 }
                 
                 const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
                 const orbitMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0x666666,
+                    color: 0x888888,
                     transparent: true,
-                    opacity: 0.4
+                    opacity: 0.6
                 });
                 const orbit = new THREE.Line(orbitGeometry, orbitMaterial);
                 this.scene.add(orbit);
@@ -2441,52 +2416,83 @@
 
             createSeasonMarkers() {
                 const seasonData = [
-                    { pos: [12, 0, 0], text: '春分', color: 0x90EE90, description: '昼夜等长' },
-                    { pos: [0, 0, 12], text: '夏至', color: 0xFFD700, description: '北半球最长白昼' },
-                    { pos: [-12, 0, 0], text: '秋分', color: 0xFFA500, description: '昼夜等长' },
-                    { pos: [0, 0, -12], text: '冬至', color: 0x87CEEB, description: '北半球最短白昼' }
+                    { pos: [15, 0, 0], text: '春分\n昼夜等长', color: 0x90EE90, angle: 0 },
+                    { pos: [0, 0, 15], text: '夏至\n北半球夏季', color: 0xFFD700, angle: Math.PI/2 },
+                    { pos: [-15, 0, 0], text: '秋分\n昼夜等长', color: 0xFFA500, angle: Math.PI },
+                    { pos: [0, 0, -15], text: '冬至\n北半球冬季', color: 0x87CEEB, angle: 3*Math.PI/2 }
                 ];
 
                 seasonData.forEach((season, index) => {
                     // Create marker sphere
-                    const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                    const geometry = new THREE.SphereGeometry(0.5, 16, 16);
                     const material = new THREE.MeshPhongMaterial({ 
                         color: season.color,
                         emissive: season.color,
-                        emissiveIntensity: 0.3
+                        emissiveIntensity: 0.4
                     });
                     const marker = new THREE.Mesh(geometry, material);
                     marker.position.set(...season.pos);
                     this.scene.add(marker);
 
                     // Add glow effect
-                    const glowGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+                    const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
                     const glowMaterial = new THREE.MeshBasicMaterial({
                         color: season.color,
                         transparent: true,
-                        opacity: 0.3
+                        opacity: 0.3,
+                        side: THREE.BackSide
                     });
                     const glow = new THREE.Mesh(glowGeometry, glowMaterial);
                     marker.add(glow);
+
+                    // Add text label using CSS2DRenderer would be better, but using simple geometry
+                    this.createTextLabel(season.text, season.pos, season.color);
                 });
             }
 
-            createSunRays() {
-                // Create visible sun rays to show illumination direction
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i / 8) * Math.PI * 2;
-                    const rayGeometry = new THREE.CylinderGeometry(0.02, 0.02, 20, 8);
+            createTextLabel(text, position, color) {
+                // Create a simple plane for text (placeholder - in real implementation would use CSS2DRenderer)
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = 256;
+                canvas.height = 128;
+                
+                context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+                context.font = '24px Arial';
+                context.textAlign = 'center';
+                context.fillText(text.split('\n')[0], 128, 50);
+                context.fillText(text.split('\n')[1] || '', 128, 80);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    transparent: true,
+                    alphaTest: 0.1
+                });
+                const geometry = new THREE.PlaneGeometry(4, 2);
+                const textMesh = new THREE.Mesh(geometry, material);
+                textMesh.position.set(position[0], position[1] + 3, position[2]);
+                textMesh.lookAt(this.camera.position);
+                this.scene.add(textMesh);
+            }
+
+            createIlluminationIndicators() {
+                // Create sun rays to show illumination direction
+                this.sunRays = [];
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    const rayGeometry = new THREE.CylinderGeometry(0.05, 0.05, 30, 8);
                     const rayMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFFFAA,
+                        color: 0xFFFF88,
                         transparent: true,
-                        opacity: 0.6
+                        opacity: 0.7
                     });
                     const ray = new THREE.Mesh(rayGeometry, rayMaterial);
                     
                     ray.position.set(
-                        Math.cos(angle) * 10,
+                        Math.cos(angle) * 15,
                         0,
-                        Math.sin(angle) * 10
+                        Math.sin(angle) * 15
                     );
                     ray.lookAt(0, 0, 0);
                     ray.rotateX(Math.PI / 2);
@@ -2520,24 +2526,253 @@
 
             updateSeasonInfo() {
                 // Determine current season based on orbit angle
-                const normalizedAngle = (this.orbitAngle % (Math.PI * 2)) / (Math.PI * 2);
-                this.currentSeasonIndex = Math.floor(normalizedAngle * 4);
+                const normalizedAngle = ((this.orbitAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+                this.currentSeasonIndex = Math.floor((normalizedAngle / (Math.PI * 2)) * 4);
                 
                 const seasonNames = ['春分', '夏至', '秋分', '冬至'];
                 const sunPositions = ['赤道', '北回归线', '赤道', '南回归线'];
                 
-                document.getElementById('current-season').textContent = seasonNames[this.currentSeasonIndex];
-                document.getElementById('sun-position').textContent = sunPositions[this.currentSeasonIndex];
+                const currentSeasonElement = document.getElementById('current-season');
+                const sunPositionElement = document.getElementById('sun-position');
+                
+                if (currentSeasonElement) {
+                    currentSeasonElement.textContent = seasonNames[this.currentSeasonIndex] || '春分';
+                }
+                if (sunPositionElement) {
+                    sunPositionElement.textContent = sunPositions[this.currentSeasonIndex] || '赤道';
+                }
+            }
+
+            // Add missing methods for realistic object creation
+            async loadPlanetTexture(planetName) {
+                const textureUrls = {
+                    sun: [
+                        'https://threejs.org/examples/textures/planets/sun.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
+                    ],
+                    earth: [
+                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg'
+                    ],
+                    earth_clouds: [
+                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg'
+                    ],
+                    moon: [
+                        'https://threejs.org/examples/textures/planets/moon_1024.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg'
+                    ]
+                };
+                
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
+                    const loader = new THREE.TextureLoader();
+                    
+                    const tryLoadTexture = (urlIndex = 0) => {
+                        if (urlIndex >= urls.length) {
+                            resolve(null);
+                            return;
+                        }
+                        
+                        loader.load(
+                            urls[urlIndex],
+                            (texture) => {
+                                resolve(texture);
+                            },
+                            undefined,
+                            () => {
+                                tryLoadTexture(urlIndex + 1);
+                            }
+                        );
+                    };
+                    
+                    tryLoadTexture();
+                });
+            }
+
+            async createRealisticEarth(size = 1.5, position = [15, 0, 0]) {
+                const earthGroup = new THREE.Group();
+                
+                // Load textures
+                const dayTexture = await this.loadPlanetTexture('earth');
+                const cloudsTexture = await this.loadPlanetTexture('earth_clouds');
+                
+                // Earth sphere with day texture
+                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    map: dayTexture,
+                    bumpMap: dayTexture,
+                    bumpScale: 0.05,
+                    specularMap: dayTexture,
+                    specular: new THREE.Color('grey'),
+                    shininess: 100
+                });
+                
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.castShadow = true;
+                earth.receiveShadow = true;
+                earthGroup.add(earth);
+                
+                // Apply 23.5 degree axial tilt - this is crucial for seasons!
+                earthGroup.rotation.z = Math.PI * 23.5 / 180;
+                
+                // Cloud layer
+                if (cloudsTexture) {
+                    const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
+                    const cloudMaterial = new THREE.MeshPhongMaterial({
+                        map: cloudsTexture,
+                        transparent: true,
+                        opacity: 0.4
+                    });
+                    const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                    earthGroup.add(clouds);
+                    earthGroup.clouds = clouds;
+                }
+                
+                // Atmosphere glow
+                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.1, 32, 32);
+                const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x87CEEB,
+                    transparent: true,
+                    opacity: 0.2,
+                    side: THREE.BackSide
+                });
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                earthGroup.add(atmosphere);
+                
+                earthGroup.position.set(...position);
+                return earthGroup;
+            }
+
+            async createRealisticSun(size = 3, position = [0, 0, 0]) {
+                const sunGroup = new THREE.Group();
+                
+                // Load sun texture
+                const sunTexture = await this.loadPlanetTexture('sun');
+                
+                // Sun sphere with realistic surface
+                const sunGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const sunMaterial = new THREE.MeshPhongMaterial({
+                    map: sunTexture,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 1.2,
+                    emissiveMap: sunTexture
+                });
+                
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sunGroup.add(sun);
+                
+                // Corona layers for realistic glow
+                const coronaLayers = [
+                    { size: size * 1.2, color: 0xFFD700, opacity: 0.5 },
+                    { size: size * 1.5, color: 0xFF6600, opacity: 0.3 },
+                    { size: size * 1.8, color: 0xFFDD44, opacity: 0.1 }
+                ];
+                
+                coronaLayers.forEach(layer => {
+                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
+                    const coronaMaterial = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: layer.opacity,
+                        side: THREE.BackSide
+                    });
+                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+                    sunGroup.add(corona);
+                });
+                
+                // Enhanced solar flares
+                this.createEnhancedSolarFlares(sunGroup, size);
+                
+                sunGroup.position.set(...position);
+                return sunGroup;
+            }
+
+            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
+                const moonGroup = new THREE.Group();
+                
+                // Load moon texture
+                const moonTexture = await this.loadPlanetTexture('moon');
+                
+                // Moon sphere with realistic surface
+                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const moonMaterial = new THREE.MeshPhongMaterial({
+                    map: moonTexture,
+                    bumpMap: moonTexture,
+                    bumpScale: 0.1,
+                    shininess: 1
+                });
+                
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.castShadow = true;
+                moon.receiveShadow = true;
+                moonGroup.add(moon);
+                
+                moonGroup.position.set(...position);
+                return moonGroup;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Create more realistic solar flare particles
+                const flareCount = 300;
+                const flareGeometry = new THREE.BufferGeometry();
+                const flarePositions = [];
+                const flareSizes = [];
+                const flareColors = [];
+                
+                for (let i = 0; i < flareCount; i++) {
+                    // Random positions around the sun surface
+                    const radius = sunSize + Math.random() * (sunSize * 0.8);
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.random() * Math.PI;
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta);
+                    const z = radius * Math.cos(phi);
+                    
+                    flarePositions.push(x, y, z);
+                    flareSizes.push(Math.random() * 0.3 + 0.1);
+                    
+                    // Vary colors from yellow to orange to red
+                    const colorVariation = Math.random();
+                    if (colorVariation < 0.4) {
+                        flareColors.push(1, 1, 0); // Yellow
+                    } else if (colorVariation < 0.7) {
+                        flareColors.push(1, 0.5, 0); // Orange
+                    } else {
+                        flareColors.push(1, 0.2, 0); // Red-orange
+                    }
+                }
+                
+                flareGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flarePositions, 3));
+                flareGeometry.setAttribute('size', new THREE.Float32BufferAttribute(flareSizes, 1));
+                flareGeometry.setAttribute('color', new THREE.Float32BufferAttribute(flareColors, 3));
+                
+                const flareMaterial = new THREE.PointsMaterial({
+                    size: 0.2,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending,
+                    vertexColors: true
+                });
+                
+                const flares = new THREE.Points(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                
+                // Store reference for animation
+                sunGroup.solarFlares = flares;
+                return flares;
             }
 
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                if (this.isPlaying && this.earth) { // Add null check for earth
+                if (this.isPlaying && this.earth) { 
                     // Orbit Earth around Sun
-                    this.orbitAngle += 0.01 * this.speed;
-                    this.earth.position.x = Math.cos(this.orbitAngle) * 12;
-                    this.earth.position.z = Math.sin(this.orbitAngle) * 12;
+                    this.orbitAngle += 0.008 * this.speed;
+                    this.earth.position.x = Math.cos(this.orbitAngle) * 15;
+                    this.earth.position.z = Math.sin(this.orbitAngle) * 15;
                     
                     // Rotate Earth on its axis (maintaining the tilt)
                     this.earth.rotation.y += 0.02 * this.speed;
@@ -2553,85 +2788,19 @@
                     // Animate sun rays
                     if (this.sunRays) {
                         this.sunRays.forEach((ray, index) => {
-                            ray.rotation.z += 0.005 * this.speed;
+                            ray.rotation.z += 0.003 * this.speed;
                         });
                     }
                     
                     // Animate sun solar flares
                     if (this.sun && this.sun.solarFlares) {
-                        this.sun.solarFlares.rotation.y += 0.02 * this.speed;
-                        this.sun.solarFlares.rotation.z += 0.01 * this.speed;
+                        this.sun.solarFlares.rotation.y += 0.01 * this.speed;
+                        this.sun.solarFlares.rotation.z += 0.005 * this.speed;
                     }
                 }
                 
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
-            }
-
-            // Add missing methods for realistic object creation
-            async loadPlanetTexture(planetName) {
-                const textureUrls = {
-                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
-                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
-                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
-                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
-                };
-                
-                const urls = textureUrls[planetName] || textureUrls.earth;
-                
-                return new Promise((resolve) => {
-                    const loader = new THREE.TextureLoader();
-                    loader.load(urls[0], resolve, undefined, () => resolve(null));
-                });
-            }
-
-            async createRealisticEarth(size = 1.2, position = [0, 0, 0]) {
-                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x6B93D6,
-                    shininess: 30
-                });
-                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                earth.rotation.z = Math.PI * 23.5 / 180; // Apply tilt
-                earth.position.set(...position);
-                return earth;
-            }
-
-            async createRealisticSun(size = 2, position = [0, 0, 0]) {
-                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                sun.position.set(...position);
-                return sun;
-            }
-
-            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
-                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xC0C0C0,
-                    shininess: 1
-                });
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.position.set(...position);
-                return moon;
-            }
-
-            createEnhancedSolarFlares(sunGroup, sunSize) {
-                // Simple solar flare effect
-                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
-                const flareMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFAA00,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
-                sunGroup.add(flares);
-                sunGroup.solarFlares = flares;
-                return flares;
             }
         }
 
@@ -2646,21 +2815,40 @@
                 this.earth = null;
                 this.sun = null;
                 this.terminator = null;
+                this.cityLights = [];
                 this.isPlaying = true;
                 this.speed = 2;
                 this.rotationAngle = 0;
                 this.init();
             }
 
-            init() {
-                this.setupScene();
-                this.setupCamera();
-                this.setupRenderer();
-                this.setupLights();
-                this.setupControls();
-                this.createObjects();
-                this.setupEventListeners();
-                this.animate();
+            async init() {
+                try {
+                    this.setupScene();
+                    this.setupCamera();
+                    this.setupRenderer();
+                    this.setupLights();
+                    this.setupControls();
+                    await this.createObjects();
+                    this.setupEventListeners();
+                    this.animate();
+                    
+                    // Hide loading indicator
+                    const loadingElement = document.getElementById('day-night-loading');
+                    if (loadingElement) {
+                        loadingElement.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to initialize DayNight3D:', error);
+                    this.showError();
+                }
+            }
+
+            showError() {
+                const loadingElement = document.getElementById('day-night-loading');
+                if (loadingElement) {
+                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
+                }
             }
 
             setupScene() {
@@ -2673,13 +2861,13 @@
 
             createStarField() {
                 const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3 });
+                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
                 
                 const starsVertices = [];
-                for (let i = 0; i < 500; i++) {
-                    const x = (Math.random() - 0.5) * 100;
-                    const y = (Math.random() - 0.5) * 100;
-                    const z = (Math.random() - 0.5) * 100;
+                for (let i = 0; i < 1500; i++) {
+                    const x = (Math.random() - 0.5) * 200;
+                    const y = (Math.random() - 0.5) * 200;
+                    const z = (Math.random() - 0.5) * 200;
                     starsVertices.push(x, y, z);
                 }
                 
@@ -2694,7 +2882,7 @@
                 const height = container.clientHeight;
                 
                 this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(5, 3, 8);
+                this.camera.position.set(8, 5, 12);
                 this.camera.lookAt(0, 0, 0);
             }
 
@@ -2712,21 +2900,21 @@
 
             setupLights() {
                 // Very dim ambient light to show night side
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.1);
+                const ambientLight = new THREE.AmbientLight(0x202040, 0.2);
                 this.scene.add(ambientLight);
                 
                 // Strong directional light from sun
-                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 2);
-                this.sunLight.position.set(-10, 0, 0);
+                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 3);
+                this.sunLight.position.set(-15, 5, 0);
                 this.sunLight.castShadow = true;
                 this.sunLight.shadow.mapSize.width = 2048;
                 this.sunLight.shadow.mapSize.height = 2048;
                 this.sunLight.shadow.camera.near = 0.5;
                 this.sunLight.shadow.camera.far = 50;
-                this.sunLight.shadow.camera.left = -10;
-                this.sunLight.shadow.camera.right = 10;
-                this.sunLight.shadow.camera.top = 10;
-                this.sunLight.shadow.camera.bottom = -10;
+                this.sunLight.shadow.camera.left = -15;
+                this.sunLight.shadow.camera.right = 15;
+                this.sunLight.shadow.camera.top = 15;
+                this.sunLight.shadow.camera.bottom = -15;
                 this.scene.add(this.sunLight);
             }
 
@@ -2734,62 +2922,37 @@
                 this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
                 this.controls.enableDamping = true;
                 this.controls.dampingFactor = 0.05;
-                this.controls.minDistance = 3;
-                this.controls.maxDistance = 20;
+                this.controls.minDistance = 5;
+                this.controls.maxDistance = 25;
                 this.controls.target.set(0, 0, 0);
             }
 
             async createObjects() {
-                // Create realistic Sun (light source) with glow
-                this.sun = await this.createRealisticSun(0.8, [-12, 0, 0]);
+                // Create realistic Sun (light source) with enhanced glow
+                this.sun = await this.createRealisticSun(1.2, [-15, 0, 0]);
                 this.scene.add(this.sun);
 
-                // Create realistic Earth with day/night texture
-                this.earth = await this.createRealisticEarth(2, [0, 0, 0]);
+                // Create realistic Earth with day/night textures
+                this.earth = await this.createRealisticEarth(2.5, [0, 0, 0]);
                 this.earth.castShadow = true;
                 this.earth.receiveShadow = true;
                 this.scene.add(this.earth);
 
-                // Add atmosphere with day/night glow
-                this.createAtmosphere();
-
-                // Create terminator line (day/night boundary)
+                // Create visible terminator line (day/night boundary)
                 this.createTerminator();
 
                 // Add city lights on night side
                 this.addCityLights();
-            }
 
-            addContinents() {
-                // Add continent representations
-                const continentGeometry = new THREE.SphereGeometry(2.01, 32, 32);
-                const continentMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x228B22,
-                    transparent: true,
-                    opacity: 0.9
-                });
-                const continents = new THREE.Mesh(continentGeometry, continentMaterial);
-                this.earth.add(continents);
-            }
-
-            createAtmosphere() {
-                // Day side atmosphere (blue)
-                const atmosphereGeometry = new THREE.SphereGeometry(2.1, 32, 32);
-                const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x87CEEB,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.BackSide
-                });
-                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-                this.earth.add(atmosphere);
+                // Add illumination indicators
+                this.createIlluminationIndicators();
             }
 
             createTerminator() {
-                // Create a visible terminator line
-                const terminatorGeometry = new THREE.RingGeometry(2.02, 2.03, 64);
+                // Create a visible terminator line as a ring around Earth
+                const terminatorGeometry = new THREE.RingGeometry(2.52, 2.55, 128);
                 const terminatorMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFFFFF,
+                    color: 0xFFDD88,
                     transparent: true,
                     opacity: 0.8,
                     side: THREE.DoubleSide
@@ -2800,38 +2963,82 @@
             }
 
             addCityLights() {
-                // Add small lights to represent cities on night side
-                const cityLights = [];
+                // Add realistic city lights that appear on night side
                 const cityPositions = [
-                    { lat: 40.7, lon: -74 },   // New York
-                    { lat: 51.5, lon: 0 },     // London
-                    { lat: 35.7, lon: 139.7 }, // Tokyo
-                    { lat: -33.9, lon: 151.2 }, // Sydney
-                    { lat: 55.8, lon: 37.6 },  // Moscow
-                    { lat: 39.9, lon: 116.4 }, // Beijing
+                    { name: '纽约', lat: 40.7, lon: -74 },
+                    { name: '伦敦', lat: 51.5, lon: 0 },
+                    { name: '东京', lat: 35.7, lon: 139.7 },
+                    { name: '悉尼', lat: -33.9, lon: 151.2 },
+                    { name: '莫斯科', lat: 55.8, lon: 37.6 },
+                    { name: '北京', lat: 39.9, lon: 116.4 },
+                    { name: '开罗', lat: 30.0, lon: 31.2 },
+                    { name: '里约', lat: -22.9, lon: -43.2 }
                 ];
 
+                this.cityLights = [];
                 cityPositions.forEach(city => {
                     const phi = (90 - city.lat) * (Math.PI / 180);
                     const theta = (city.lon + 180) * (Math.PI / 180);
                     
-                    const x = -(2.05 * Math.sin(phi) * Math.cos(theta));
-                    const z = (2.05 * Math.sin(phi) * Math.sin(theta));
-                    const y = (2.05 * Math.cos(phi));
+                    const x = -(2.6 * Math.sin(phi) * Math.cos(theta));
+                    const z = (2.6 * Math.sin(phi) * Math.sin(theta));
+                    const y = (2.6 * Math.cos(phi));
                     
-                    const lightGeometry = new THREE.SphereGeometry(0.02, 8, 8);
-                    const lightMaterial = new THREE.MeshPhongMaterial({
+                    // Create glowing city light
+                    const lightGeometry = new THREE.SphereGeometry(0.04, 8, 8);
+                    const lightMaterial = new THREE.MeshBasicMaterial({
                         color: 0xFFFF88,
                         emissive: 0xFFFF88,
-                        emissiveIntensity: 0.8
+                        emissiveIntensity: 1.0
                     });
                     const light = new THREE.Mesh(lightGeometry, lightMaterial);
                     light.position.set(x, y, z);
-                    cityLights.push(light);
+                    
+                    // Add glow effect
+                    const glowGeometry = new THREE.SphereGeometry(0.08, 8, 8);
+                    const glowMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xFFFF88,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    light.add(glow);
+                    
+                    light.userData = { city: city.name, originalPosition: { x, y, z } };
+                    this.cityLights.push(light);
                     this.scene.add(light);
                 });
+            }
 
-                this.cityLights = cityLights;
+            createIlluminationIndicators() {
+                // Create arrows showing sun rays direction
+                const arrowCount = 8;
+                this.sunRays = [];
+                
+                for (let i = 0; i < arrowCount; i++) {
+                    const angle = (i / arrowCount) * Math.PI * 2;
+                    
+                    // Create arrow geometry
+                    const arrowGeometry = new THREE.ConeGeometry(0.1, 0.5, 8);
+                    const arrowMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xFFDD00,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+                    
+                    // Position arrows around the illuminated hemisphere
+                    const radius = 4;
+                    arrow.position.set(
+                        -radius + Math.cos(angle) * 0.5,
+                        Math.sin(angle) * 2,
+                        Math.cos(angle + Math.PI/2) * 2
+                    );
+                    arrow.lookAt(0, 0, 0);
+                    
+                    this.sunRays.push(arrow);
+                    this.scene.add(arrow);
+                }
             }
 
             setupEventListeners() {
@@ -2845,7 +3052,9 @@
                 // Reset button
                 document.getElementById('daynight-reset').addEventListener('click', () => {
                     this.rotationAngle = 0;
-                    this.earth.rotation.y = 0;
+                    if (this.earth) {
+                        this.earth.rotation.y = 0;
+                    }
                     this.updateTimeInfo();
                 });
 
@@ -2857,48 +3066,283 @@
             }
 
             updateTimeInfo() {
-                // Calculate current time based on rotation
+                // Calculate current time based on rotation (24 hours = 2π radians)
                 const hours = ((this.rotationAngle % (Math.PI * 2)) / (Math.PI * 2)) * 24;
                 const displayHours = Math.floor(hours);
                 const displayMinutes = Math.floor((hours - displayHours) * 60);
                 
                 const timeString = `${displayHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}`;
-                document.getElementById('current-time').textContent = timeString;
                 
-                // Update terminator position description
-                const terminatorPos = hours < 6 || hours > 18 ? '夜侧' : '昼侧';
-                document.getElementById('terminator-position').textContent = `${terminatorPos}可见`;
+                const currentTimeElement = document.getElementById('current-time');
+                const terminatorElement = document.getElementById('terminator-position');
+                
+                if (currentTimeElement) {
+                    currentTimeElement.textContent = timeString;
+                }
+                
+                if (terminatorElement) {
+                    const isDay = (hours >= 6 && hours <= 18);
+                    terminatorElement.textContent = isDay ? '昼侧主导' : '夜侧主导';
+                }
+            }
+
+            // Add missing methods for realistic object creation
+            async loadPlanetTexture(planetName) {
+                const textureUrls = {
+                    sun: [
+                        'https://threejs.org/examples/textures/planets/sun.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
+                    ],
+                    earth: [
+                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg'
+                    ],
+                    earth_night: [
+                        'https://threejs.org/examples/textures/planets/earth_lights_2048.png',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg'
+                    ],
+                    earth_clouds: [
+                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
+                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg'
+                    ],
+                    moon: [
+                        'https://threejs.org/examples/textures/planets/moon_1024.jpg',
+                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg'
+                    ]
+                };
+                
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
+                    const loader = new THREE.TextureLoader();
+                    
+                    const tryLoadTexture = (urlIndex = 0) => {
+                        if (urlIndex >= urls.length) {
+                            resolve(null);
+                            return;
+                        }
+                        
+                        loader.load(
+                            urls[urlIndex],
+                            (texture) => {
+                                resolve(texture);
+                            },
+                            undefined,
+                            () => {
+                                tryLoadTexture(urlIndex + 1);
+                            }
+                        );
+                    };
+                    
+                    tryLoadTexture();
+                });
+            }
+
+            async createRealisticEarth(size = 2.5, position = [0, 0, 0]) {
+                const earthGroup = new THREE.Group();
+                
+                // Load textures
+                const dayTexture = await this.loadPlanetTexture('earth');
+                const nightTexture = await this.loadPlanetTexture('earth_night');
+                const cloudsTexture = await this.loadPlanetTexture('earth_clouds');
+                
+                // Earth sphere with day texture
+                const earthGeometry = new THREE.SphereGeometry(size, 128, 128);
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    map: dayTexture,
+                    bumpMap: dayTexture,
+                    bumpScale: 0.02,
+                    specularMap: dayTexture,
+                    specular: new THREE.Color('grey'),
+                    shininess: 100
+                });
+                
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.castShadow = true;
+                earth.receiveShadow = true;
+                earthGroup.add(earth);
+                
+                // Night lights layer (visible on dark side)
+                if (nightTexture) {
+                    const nightGeometry = new THREE.SphereGeometry(size * 1.001, 128, 128);
+                    const nightMaterial = new THREE.MeshBasicMaterial({
+                        map: nightTexture,
+                        transparent: true,
+                        opacity: 1.0,
+                        blending: THREE.AdditiveBlending
+                    });
+                    const nightLights = new THREE.Mesh(nightGeometry, nightMaterial);
+                    earthGroup.add(nightLights);
+                    earthGroup.nightLights = nightLights;
+                }
+                
+                // Cloud layer with animation
+                if (cloudsTexture) {
+                    const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
+                    const cloudMaterial = new THREE.MeshPhongMaterial({
+                        map: cloudsTexture,
+                        transparent: true,
+                        opacity: 0.4,
+                        alphaMap: cloudsTexture
+                    });
+                    const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                    earthGroup.add(clouds);
+                    earthGroup.clouds = clouds;
+                }
+                
+                // Atmosphere glow (stronger on day side)
+                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.1, 32, 32);
+                const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x87CEEB,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.BackSide
+                });
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                earthGroup.add(atmosphere);
+                
+                earthGroup.position.set(...position);
+                return earthGroup;
+            }
+
+            async createRealisticSun(size = 1.2, position = [-15, 0, 0]) {
+                const sunGroup = new THREE.Group();
+                
+                // Load sun texture
+                const sunTexture = await this.loadPlanetTexture('sun');
+                
+                // Sun sphere with realistic surface
+                const sunGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const sunMaterial = new THREE.MeshPhongMaterial({
+                    map: sunTexture,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 1.5,
+                    emissiveMap: sunTexture
+                });
+                
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sunGroup.add(sun);
+                
+                // Enhanced corona for distance viewing
+                const coronaLayers = [
+                    { size: size * 1.3, color: 0xFFD700, opacity: 0.6 },
+                    { size: size * 1.6, color: 0xFF6600, opacity: 0.4 },
+                    { size: size * 2.0, color: 0xFFDD44, opacity: 0.2 }
+                ];
+                
+                coronaLayers.forEach(layer => {
+                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
+                    const coronaMaterial = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: layer.opacity,
+                        side: THREE.BackSide
+                    });
+                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
+                    sunGroup.add(corona);
+                });
+                
+                // Enhanced solar flares
+                this.createEnhancedSolarFlares(sunGroup, size);
+                
+                sunGroup.position.set(...position);
+                return sunGroup;
+            }
+
+            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
+                const moonGroup = new THREE.Group();
+                
+                // Load moon texture
+                const moonTexture = await this.loadPlanetTexture('moon');
+                
+                // Moon sphere with realistic surface
+                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const moonMaterial = new THREE.MeshPhongMaterial({
+                    map: moonTexture,
+                    bumpMap: moonTexture,
+                    bumpScale: 0.1,
+                    shininess: 1
+                });
+                
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.castShadow = true;
+                moon.receiveShadow = true;
+                moonGroup.add(moon);
+                
+                moonGroup.position.set(...position);
+                return moonGroup;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Create solar flare particles for the sun
+                const flareCount = 200;
+                const flareGeometry = new THREE.BufferGeometry();
+                const flarePositions = [];
+                const flareSizes = [];
+                const flareColors = [];
+                
+                for (let i = 0; i < flareCount; i++) {
+                    // Random positions around the sun surface
+                    const radius = sunSize + Math.random() * (sunSize * 0.6);
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.random() * Math.PI;
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta);
+                    const z = radius * Math.cos(phi);
+                    
+                    flarePositions.push(x, y, z);
+                    flareSizes.push(Math.random() * 0.2 + 0.1);
+                    
+                    // Solar flare colors
+                    const colorVariation = Math.random();
+                    if (colorVariation < 0.5) {
+                        flareColors.push(1, 1, 0); // Yellow
+                    } else {
+                        flareColors.push(1, 0.4, 0); // Orange
+                    }
+                }
+                
+                flareGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flarePositions, 3));
+                flareGeometry.setAttribute('size', new THREE.Float32BufferAttribute(flareSizes, 1));
+                flareGeometry.setAttribute('color', new THREE.Float32BufferAttribute(flareColors, 3));
+                
+                const flareMaterial = new THREE.PointsMaterial({
+                    size: 0.15,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending,
+                    vertexColors: true
+                });
+                
+                const flares = new THREE.Points(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                
+                // Store reference for animation
+                sunGroup.solarFlares = flares;
+                return flares;
             }
 
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                if (this.isPlaying && this.earth) { // Add null check for earth
+                if (this.isPlaying && this.earth) { 
                     // Rotate Earth to show day/night cycle
-                    this.rotationAngle += 0.02 * this.speed;
+                    this.rotationAngle += 0.015 * this.speed;
                     this.earth.rotation.y = this.rotationAngle;
                     
                     // Animate clouds independently for realism
                     if (this.earth.clouds) {
-                        this.earth.clouds.rotation.y = this.rotationAngle * 0.9; // Slightly slower
+                        this.earth.clouds.rotation.y = this.rotationAngle * 0.95; // Slightly different speed
                     }
                     
-                    // Update terminator position
+                    // Update terminator position to follow Earth's rotation
                     if (this.terminator) {
                         this.terminator.rotation.z = this.rotationAngle;
                     }
                     
-                    // Update city lights visibility based on which side faces away from sun
-                    if (this.cityLights) {
-                        this.cityLights.forEach(light => {
-                            const lightDirection = light.position.clone().normalize();
-                            const sunDirection = this.sunLight.position.clone().normalize();
-                            const dotProduct = lightDirection.dot(sunDirection);
-                            
-                            // Show lights on night side (facing away from sun)
-                            light.visible = dotProduct < 0;
-                        });
-                    }
+                    // Update city lights visibility based on day/night
+                    this.updateCityLights();
                     
                     // Animate sun solar flares
                     if (this.sun && this.sun.solarFlares) {
@@ -2914,70 +3358,33 @@
                 this.renderer.render(this.scene, this.camera);
             }
 
-            // Add missing methods for realistic object creation
-            async loadPlanetTexture(planetName) {
-                const textureUrls = {
-                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
-                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
-                    earth_night: ['https://threejs.org/examples/textures/planets/earth_lights_2048.png'],
-                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
-                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
-                };
+            updateCityLights() {
+                if (!this.cityLights) return;
                 
-                const urls = textureUrls[planetName] || textureUrls.earth;
-                
-                return new Promise((resolve) => {
-                    const loader = new THREE.TextureLoader();
-                    loader.load(urls[0], resolve, undefined, () => resolve(null));
+                this.cityLights.forEach(light => {
+                    // Rotate city light with Earth
+                    const originalPos = light.userData.originalPosition;
+                    const rotatedX = originalPos.x * Math.cos(this.rotationAngle) - originalPos.z * Math.sin(this.rotationAngle);
+                    const rotatedZ = originalPos.x * Math.sin(this.rotationAngle) + originalPos.z * Math.cos(this.rotationAngle);
+                    
+                    light.position.set(rotatedX, originalPos.y, rotatedZ);
+                    
+                    // Calculate if this position is on night side (facing away from sun)
+                    const sunDirection = new THREE.Vector3(-1, 0, 0); // Sun is at [-15, 0, 0]
+                    const lightDirection = light.position.clone().normalize();
+                    const dotProduct = lightDirection.dot(sunDirection);
+                    
+                    // Show lights on night side (dot product < 0 means facing away from sun)
+                    const isNightSide = dotProduct < -0.1;
+                    light.visible = isNightSide;
+                    
+                    // Adjust opacity based on how deep into night side
+                    if (isNightSide) {
+                        const opacity = Math.min(1.0, Math.abs(dotProduct) * 2);
+                        light.material.opacity = opacity;
+                        light.children[0].material.opacity = opacity * 0.6; // Glow effect
+                    }
                 });
-            }
-
-            async createRealisticEarth(size = 2, position = [0, 0, 0]) {
-                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x6B93D6,
-                    shininess: 30
-                });
-                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                earth.position.set(...position);
-                return earth;
-            }
-
-            async createRealisticSun(size = 0.8, position = [-12, 0, 0]) {
-                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                sun.position.set(...position);
-                return sun;
-            }
-
-            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
-                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xC0C0C0,
-                    shininess: 1
-                });
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.position.set(...position);
-                return moon;
-            }
-
-            createEnhancedSolarFlares(sunGroup, sunSize) {
-                // Simple solar flare effect
-                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
-                const flareMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFAA00,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
-                sunGroup.add(flares);
-                sunGroup.solarFlares = flares;
-                return flares;
             }
         }
 
@@ -3000,15 +3407,33 @@
                 this.init();
             }
 
-            init() {
-                this.setupScene();
-                this.setupCamera();
-                this.setupRenderer();
-                this.setupLights();
-                this.setupControls();
-                this.createObjects();
-                this.setupEventListeners();
-                this.animate();
+            async init() {
+                try {
+                    this.setupScene();
+                    this.setupCamera();
+                    this.setupRenderer();
+                    this.setupLights();
+                    this.setupControls();
+                    await this.createObjects();
+                    this.setupEventListeners();
+                    this.animate();
+                    
+                    // Hide loading indicator
+                    const loadingElement = document.getElementById('tidal-loading');
+                    if (loadingElement) {
+                        loadingElement.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to initialize Tidal3D:', error);
+                    this.showError();
+                }
+            }
+
+            showError() {
+                const loadingElement = document.getElementById('tidal-loading');
+                if (loadingElement) {
+                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
+                }
             }
 
             setupScene() {
@@ -3021,13 +3446,13 @@
 
             createStarField() {
                 const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3 });
+                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
                 
                 const starsVertices = [];
-                for (let i = 0; i < 300; i++) {
-                    const x = (Math.random() - 0.5) * 100;
-                    const y = (Math.random() - 0.5) * 100;
-                    const z = (Math.random() - 0.5) * 100;
+                for (let i = 0; i < 1000; i++) {
+                    const x = (Math.random() - 0.5) * 300;
+                    const y = (Math.random() - 0.5) * 300;
+                    const z = (Math.random() - 0.5) * 300;
                     starsVertices.push(x, y, z);
                 }
                 
@@ -3042,7 +3467,7 @@
                 const height = container.clientHeight;
                 
                 this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(0, 8, 12);
+                this.camera.position.set(0, 12, 18);
                 this.camera.lookAt(0, 0, 0);
             }
 
@@ -3059,17 +3484,19 @@
             }
 
             setupLights() {
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
                 this.scene.add(ambientLight);
                 
-                // Sun light (distant)
-                const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1);
-                sunLight.position.set(20, 10, 10);
+                // Sun light (distant but visible)
+                const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1.5);
+                sunLight.position.set(25, 15, 15);
                 sunLight.castShadow = true;
+                sunLight.shadow.mapSize.width = 1024;
+                sunLight.shadow.mapSize.height = 1024;
                 this.scene.add(sunLight);
 
-                // Moon light (subtle)
-                this.moonLight = new THREE.PointLight(0xC0C0C0, 0.3, 20);
+                // Moon light (subtle blue tint)
+                this.moonLight = new THREE.PointLight(0xC0C0FF, 0.8, 30);
                 this.scene.add(this.moonLight);
             }
 
@@ -3387,15 +3814,25 @@
         let dayNight3D;
         let tidal3D;
         
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize main solar system first
             solarSystem3D = new SolarSystem3D();
             
-            // Initialize 3D phenomena demonstrations
-            setTimeout(() => {
-                seasons3D = new Seasons3D('seasons-3d-container');
-                dayNight3D = new DayNight3D('day-night-3d-container');
-                tidal3D = new Tidal3D('tidal-3d-container');
-            }, 1000); // Delay to ensure main solar system loads first
+            // Initialize 3D phenomena demonstrations with proper async handling
+            try {
+                // Create instances and wait for them to initialize
+                setTimeout(async () => {
+                    try {
+                        seasons3D = new Seasons3D('seasons-3d-container');
+                        dayNight3D = new DayNight3D('day-night-3d-container'); 
+                        tidal3D = new Tidal3D('tidal-3d-container');
+                    } catch (error) {
+                        console.error('Error initializing 3D phenomena:', error);
+                    }
+                }, 1500); // Delay to ensure main solar system loads first
+            } catch (error) {
+                console.error('Error setting up 3D demonstrations:', error);
+            }
         });
     </script>
 </body>
