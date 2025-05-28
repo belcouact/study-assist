@@ -14,7 +14,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         .solar-system-page {
             background: linear-gradient(135deg, #0f0f23 0%, #1a1a3a 50%, #2d1b69 100%);
@@ -22,11 +21,163 @@
             color: #fff;
         }
 
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .solar-system-header {
+            text-align: center;
+            padding: 3rem 0;
+        }
+
+        .solar-system-header h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #FFD700, #FFA500, #FF6347);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        }
+
+        .solar-system-header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .main-solar-system {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 25px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.1);
+        }
+
+        .main-solar-system h2 {
+            text-align: center;
+            color: #FFD700;
+            margin-bottom: 2rem;
+            font-size: 2rem;
+        }
+
+        #solar-system-container {
+            width: 100%;
+            height: 700px;
+            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.05) 0%, transparent 70%);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .solar-system-controls {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            width: 45px;
+            height: 45px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 215, 0, 0.6);
+            border-radius: 10px;
+            color: #FFD700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
+            transform: scale(1.05);
+        }
+
+        .planet-selector {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 215, 0, 0.6);
+            border-radius: 10px;
+            padding: 10px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .planet-selector select {
+            background: transparent;
+            border: none;
+            color: #FFD700;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .planet-selector select option {
+            background: #1a1a3a;
+            color: #FFD700;
+        }
+
+        .solar-system-info {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(255, 215, 0, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            max-width: 250px;
+            color: #FFD700;
+            font-size: 13px;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .loading-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #FFD700;
+            z-index: 10;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 215, 0, 0.3);
+            border-top: 4px solid #FFD700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .planet-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
             gap: 2rem;
-            margin: 2rem 0;
+            margin: 3rem 0;
         }
 
         .planet-card {
@@ -38,6 +189,17 @@
             transition: all 0.3s ease;
             position: relative;
             overflow: hidden;
+        }
+
+        .planet-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--planet-color, #FFD700);
+            border-radius: 20px 20px 0 0;
         }
 
         .planet-card:hover {
@@ -61,17 +223,9 @@
             justify-content: center;
             font-size: 2rem;
             color: white;
-            position: relative;
+            background: var(--planet-color, #FFD700);
+            box-shadow: 0 0 20px var(--planet-color, #FFD700);
         }
-
-        .planet-mercury { background: linear-gradient(135deg, #8C7853, #FFC649); }
-        .planet-venus { background: linear-gradient(135deg, #FFC649, #FFB347); }
-        .planet-earth { background: linear-gradient(135deg, #6B93D6, #4F94CD); }
-        .planet-mars { background: linear-gradient(135deg, #CD5C5C, #A0522D); }
-        .planet-jupiter { background: linear-gradient(135deg, #D2691E, #CD853F); }
-        .planet-saturn { background: linear-gradient(135deg, #FAD5A5, #DEB887); }
-        .planet-uranus { background: linear-gradient(135deg, #4FD0E7, #3CB371); }
-        .planet-neptune { background: linear-gradient(135deg, #4169E1, #0000CD); }
 
         .planet-info h3 {
             font-size: 1.5rem;
@@ -87,7 +241,7 @@
 
         .planet-stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
             margin: 1.5rem 0;
         }
@@ -102,7 +256,7 @@
         .stat-value {
             font-size: 1.2rem;
             font-weight: 600;
-            color: #4361ee;
+            color: var(--planet-color, #FFD700);
             margin-bottom: 0.25rem;
         }
 
@@ -132,341 +286,24 @@
             border: 1px solid rgba(67, 97, 238, 0.3);
         }
 
-        .solar-system-model {
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
-            padding: 2rem;
-            margin: 3rem 0;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
+        /* Planet-specific colors */
+        .mercury-card { --planet-color: #8C7853; }
+        .venus-card { --planet-color: #FFC649; }
+        .earth-card { --planet-color: #6B93D6; }
+        .mars-card { --planet-color: #CD5C5C; }
+        .jupiter-card { --planet-color: #D2691E; }
+        .saturn-card { --planet-color: #FAD5A5; }
+        .uranus-card { --planet-color: #4FD0E7; }
+        .neptune-card { --planet-color: #4169E1; }
 
-        #solar-system-container {
-            width: 100%;
-            height: 600px;
-            margin: 2rem auto;
-            border-radius: 20px;
-            background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .solar-system-controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            z-index: 100;
-        }
-
-        .solar-system-btn {
-            width: 40px;
-            height: 40px;
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
-            color: #333;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .solar-system-btn:hover {
-            background: white;
-            transform: scale(1.05);
-        }
-
-        .solar-system-info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #333;
-            backdrop-filter: blur(5px);
-            z-index: 100;
-            max-width: 200px;
-        }
-
-        .planet-selector {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 10px;
-            border-radius: 8px;
-            backdrop-filter: blur(5px);
-            z-index: 100;
-        }
-
-        .planet-selector select {
-            background: transparent;
-            border: none;
-            color: #333;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        /* 3D Solar System Styles */
-        .loading-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            text-align: center;
-            z-index: 10;
-        }
-
-        .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid #FFD700;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* 自然现象演示区域 */
-        .phenomena-section {
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
-            padding: 2rem;
-            margin: 3rem 0;
-        }
-
-        .phenomena-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 3rem;
-            margin: 2rem 0;
-        }
-
-        .phenomenon-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-            border-radius: 20px;
-            padding: 2rem;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        /* 3D Phenomena containers */
-        #seasons-3d-container,
-        #day-night-3d-container,
-        #tidal-3d-container {
-            position: relative;
-            overflow: hidden;
-        }
-
-        .comparison-section {
-            background: rgba(0,0,0,0.2);
-            border-radius: 20px;
-            padding: 2rem;
-            margin: 3rem 0;
-        }
-
-        .size-comparison {
-            display: flex;
-            align-items: end;
-            justify-content: center;
-            gap: 1rem;
-            margin: 2rem 0;
-            flex-wrap: wrap;
-        }
-
-        .size-planet {
-            text-align: center;
-            margin: 0.5rem;
-        }
-
-        .size-circle {
-            border-radius: 50%;
-            margin: 0 auto 0.5rem;
-        }
-
-        .size-label {
-            font-size: 0.7rem;
-            opacity: 0.8;
-        }
-
-        .explanation-box {
-            background: rgba(67, 97, 238, 0.1);
-            border: 1px solid rgba(67, 97, 238, 0.3);
-            border-radius: 15px;
-            padding: 1.5rem;
-            margin: 1.5rem 0;
-        }
-
-        .explanation-box h4 {
-            color: #4361ee;
-            margin-bottom: 1rem;
-            font-size: 1.1rem;
-        }
-
-        .explanation-box p {
-            line-height: 1.6;
-            opacity: 0.9;
-        }
-
-        /* 天文现象3D演示样式 */
-        .phenomena-section {
-            margin: 4rem 0;
-            padding: 2rem;
-            background: rgba(0,0,0,0.2);
-            border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .phenomena-section h2 {
-            text-align: center;
-            margin-bottom: 1rem;
-            color: #4361ee;
-            font-size: 2rem;
-        }
-
-        .phenomena-section > p {
-            text-align: center;
-            opacity: 0.8;
-            margin-bottom: 2rem;
-        }
-
-        .phenomena-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
-        }
-
-        .phenomenon-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-            border-radius: 20px;
-            padding: 1.5rem;
-            border: 1px solid rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
-
-        .phenomenon-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(67, 97, 238, 0.2);
-        }
-
-        .phenomenon-card h3 {
-            color: #4361ee;
-            margin-bottom: 1rem;
-            font-size: 1.3rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .phenomenon-3d-container {
-            width: 100%;
-            height: 350px;
-            background: linear-gradient(135deg, #000011 0%, #001122 50%, #002244 100%);
-            border-radius: 15px;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 1rem;
-            border: 2px solid rgba(67, 97, 238, 0.3);
-        }
-
-        .phenomenon-controls {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            display: flex;
-            gap: 5px;
-            z-index: 100;
-            align-items: center;
-        }
-
-        .phenomenon-btn {
-            width: 35px;
-            height: 35px;
-            background: rgba(255, 255, 255, 0.9);
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: #333;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .phenomenon-btn:hover {
-            background: white;
-            transform: scale(1.05);
-        }
-
-        .speed-control {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 12px;
-            color: #333;
-        }
-
-        .speed-control label {
-            font-weight: 600;
-        }
-
-        .speed-control input[type="range"] {
-            width: 60px;
-            height: 4px;
-        }
-
-        .speed-control span {
-            font-weight: 600;
-            min-width: 25px;
-        }
-
-        .phenomenon-info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 11px;
-            color: #333;
-            z-index: 100;
-            min-width: 150px;
-        }
-
-        .phenomenon-info div {
-            margin-bottom: 3px;
-        }
-
-        .phenomenon-info span {
-            font-weight: 600;
-            color: #4361ee;
-        }
-
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .solar-system-page {
-                padding: 1rem 0;
+            .solar-system-header h1 {
+                font-size: 2rem;
+            }
+            
+            #solar-system-container {
+                height: 500px;
             }
             
             .planet-grid {
@@ -474,61 +311,34 @@
                 gap: 1.5rem;
             }
             
-            #solar-system-container {
-                height: 400px;
-                margin: 1rem auto;
-            }
-            
-            .phenomena-grid {
-                grid-template-columns: 1fr;
-                gap: 1.5rem;
-            }
-            
-            .phenomenon-3d-container {
-                height: 300px !important;
-            }
-            
-            .phenomenon-controls {
-                flex-direction: column;
-                gap: 3px;
-            }
-            
-            .speed-control {
-                padding: 3px 6px;
-                font-size: 10px;
-            }
-            
-            .speed-control input[type="range"] {
-                width: 50px;
-            }
-            
             .solar-system-controls {
                 flex-direction: row;
                 flex-wrap: wrap;
-                gap: 3px;
+                gap: 5px;
             }
             
-            .solar-system-btn {
-                width: 35px;
-                height: 35px;
-                font-size: 14px;
-            }
-            
-            .planet-selector {
-                top: auto;
-                bottom: 10px;
-                right: 10px;
-                padding: 8px;
-            }
-            
-            .planet-selector select {
-                font-size: 12px;
+            .control-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
             }
             
             .solar-system-info {
-                font-size: 11px;
-                padding: 8px;
-                max-width: 150px;
+                font-size: 12px;
+                max-width: 200px;
+                padding: 10px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #solar-system-container {
+                height: 400px;
+            }
+            
+            .control-btn {
+                width: 35px;
+                height: 35px;
+                font-size: 14px;
             }
             
             .planet-card {
@@ -536,85 +346,7 @@
             }
             
             .planet-stats {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.75rem;
-            }
-            
-            .stat-item {
-                padding: 0.75rem;
-            }
-        }
-
-        @media (max-width: 480px) {
-            #solar-system-container {
-                height: 300px;
-            }
-            
-            .phenomenon-3d-container {
-                height: 250px !important;
-            }
-            
-            .phenomenon-controls {
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 2px;
-            }
-            
-            .phenomenon-btn {
-                width: 30px;
-                height: 30px;
-                font-size: 12px;
-            }
-            
-            .speed-control {
-                padding: 2px 4px;
-                font-size: 9px;
-            }
-            
-            .solar-system-controls {
-                gap: 2px;
-            }
-            
-            .solar-system-btn {
-                width: 30px;
-                height: 30px;
-                font-size: 12px;
-            }
-            
-            .planet-selector select {
-                font-size: 11px;
-            }
-            
-            .solar-system-info {
-                font-size: 10px;
-                padding: 6px;
-                max-width: 120px;
-            }
-            
-            .planet-stats {
                 grid-template-columns: 1fr;
-            }
-        }
-
-        @media (min-width: 768px) {
-            .planet-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            #solar-system-container {
-                height: 600px;
-            }
-        }
-
-        @media (min-width: 1024px) {
-            .planet-grid {
-                grid-template-columns: repeat(2, 1fr);
-                max-width: 1200px;
-                margin: 2rem auto;
-            }
-            
-            #solar-system-container {
-                height: 700px;
             }
         }
     </style>
@@ -648,27 +380,25 @@
     </header>
 
     <main class="solar-system-page">
-        <section class="hero-section">
+        <section class="solar-system-header">
             <div class="container">
-                <div class="hero-content">
-                    <h1><i class="fas fa-sun"></i> 太阳系探索</h1>
-                    <p>探索我们的太阳系，了解八大行星的特征和运动规律</p>
-                </div>
+                <h1><i class="fas fa-sun"></i> 3D 太阳系探索</h1>
+                <p>体验真实的3D太阳系模型，探索八大行星的奇妙世界</p>
             </div>
         </section>
 
         <section class="container">
-            <div class="solar-system-model">
-                <h2>3D 太阳系轨道模型</h2>
-                <p>探索真实的3D太阳系，观察行星围绕太阳的轨道运动</p>
+            <div class="main-solar-system">
+                <h2>🌟 交互式太阳系模型</h2>
                 
                 <div id="solar-system-container">
                     <div class="solar-system-controls">
-                        <button class="solar-system-btn" id="play-pause" title="播放/暂停">⏸️</button>
-                        <button class="solar-system-btn" id="speed-up" title="加速">⏩</button>
-                        <button class="solar-system-btn" id="speed-down" title="减速">⏪</button>
-                        <button class="solar-system-btn" id="reset-view" title="重置视图">🏠</button>
-                        <button class="solar-system-btn" id="toggle-orbits" title="显示/隐藏轨道">🔄</button>
+                        <button class="control-btn" id="play-pause" title="播放/暂停">⏸️</button>
+                        <button class="control-btn" id="speed-up" title="加速">⏩</button>
+                        <button class="control-btn" id="speed-down" title="减速">⏪</button>
+                        <button class="control-btn" id="reset-view" title="重置视图">🏠</button>
+                        <button class="control-btn" id="toggle-orbits" title="显示/隐藏轨道">🔄</button>
+                        <button class="control-btn" id="toggle-labels" title="显示/隐藏标签">🏷️</button>
                     </div>
                     
                     <div class="planet-selector">
@@ -691,81 +421,22 @@
                             <strong>太阳系全景</strong><br>
                             拖拽旋转视角<br>
                             滚轮缩放距离<br>
-                            选择行星聚焦观察
+                            点击行星聚焦观察
                         </div>
                     </div>
                     
                     <div class="loading-indicator" id="solar-system-loading">
                         <div class="loading-spinner"></div>
-                        <div>加载3D太阳系模型中...</div>
-                    </div>
-                </div>
-
-                <div class="explanation-box">
-                    <h4><i class="fas fa-info-circle"></i> 轨道运动说明</h4>
-                    <p>行星围绕太阳的轨道运动遵循开普勒定律。距离太阳越近的行星，公转速度越快，公转周期越短。水星公转一周只需88天，而海王星需要165年。动画中的速度比例已经调整，便于观察各行星的相对运动关系。</p>
-                </div>
-            </div>
-
-            <div class="phenomena-section">
-                <h2>自然现象形成原理</h2>
-                <p>了解地球上四季、日夜、潮汐等自然现象的天文成因</p>
-                
-                <div class="phenomena-grid">
-                    <!-- 四季形成 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-leaf"></i> 四季形成</h3>
-                        <div id="seasons-3d-container" style="width: 100%; height: 400px; background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%); border-radius: 15px; position: relative;">
-                            <div class="loading-indicator" id="seasons-loading">
-                                <div class="loading-spinner"></div>
-                                <div>加载3D四季演示中...</div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>四季的形成是由于地球自转轴相对于公转轨道平面倾斜23.5°。当地球公转到不同位置时，南北半球接受太阳辐射的角度和时长不同，从而形成四季变化。夏至时北半球倾向太阳，冬至时背离太阳。</p>
-                        </div>
-                    </div>
-
-                    <!-- 日夜交替 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-moon"></i> 日夜交替</h3>
-                        <div id="day-night-3d-container" style="width: 100%; height: 400px; background: linear-gradient(90deg, #FFD700 0%, #87CEEB 50%, #191970 100%); border-radius: 15px; position: relative;">
-                            <div class="loading-indicator" id="day-night-loading">
-                                <div class="loading-spinner"></div>
-                                <div>加载3D日夜演示中...</div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>日夜交替是由地球自转造成的。地球绕自转轴旋转一周约24小时，面向太阳的一面是白天，背离太阳的一面是黑夜。地球自转使得地表各点轮流接受太阳照射，形成昼夜循环。</p>
-                        </div>
-                    </div>
-
-                    <!-- 潮汐现象 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-water"></i> 潮汐现象</h3>
-                        <div id="tidal-3d-container" style="width: 100%; height: 400px; background: linear-gradient(180deg, #87CEEB 0%, #4682B4 100%); border-radius: 15px; position: relative;">
-                            <div class="loading-indicator" id="tidal-loading">
-                                <div class="loading-spinner"></div>
-                                <div>加载3D潮汐演示中...</div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>潮汐是由月球和太阳的引力作用引起的。月球引力使面向月球的海水被拉起形成高潮，同时地球背面由于惯性力也形成高潮。月球绕地球公转使潮汐位置不断变化，一天内通常有两次高潮和两次低潮。</p>
-                        </div>
+                        <div>加载真实3D太阳系模型中...</div>
                     </div>
                 </div>
             </div>
 
             <div class="planet-grid">
                 <!-- 水星 -->
-                <div class="planet-card">
+                <div class="planet-card mercury-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-mercury">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">☿️</div>
                         <div class="planet-info">
                             <h3>水星 Mercury</h3>
                             <div class="planet-subtitle">距离太阳最近的行星</div>
@@ -804,11 +475,9 @@
                 </div>
 
                 <!-- 金星 -->
-                <div class="planet-card">
+                <div class="planet-card venus-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-venus">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♀️</div>
                         <div class="planet-info">
                             <h3>金星 Venus</h3>
                             <div class="planet-subtitle">太阳系最热的行星</div>
@@ -847,11 +516,9 @@
                 </div>
 
                 <!-- 地球 -->
-                <div class="planet-card">
+                <div class="planet-card earth-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-earth">
-                            <i class="fas fa-globe"></i>
-                        </div>
+                        <div class="planet-icon">🌍</div>
                         <div class="planet-info">
                             <h3>地球 Earth</h3>
                             <div class="planet-subtitle">我们的家园</div>
@@ -890,11 +557,9 @@
                 </div>
 
                 <!-- 火星 -->
-                <div class="planet-card">
+                <div class="planet-card mars-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-mars">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♂️</div>
                         <div class="planet-info">
                             <h3>火星 Mars</h3>
                             <div class="planet-subtitle">红色星球</div>
@@ -933,11 +598,9 @@
                 </div>
 
                 <!-- 木星 -->
-                <div class="planet-card">
+                <div class="planet-card jupiter-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-jupiter">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♃</div>
                         <div class="planet-info">
                             <h3>木星 Jupiter</h3>
                             <div class="planet-subtitle">气态巨行星</div>
@@ -958,7 +621,7 @@
                             <div class="stat-label">直径</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">79颗</div>
+                            <div class="stat-value">95颗</div>
                             <div class="stat-label">已知卫星</div>
                         </div>
                     </div>
@@ -976,11 +639,9 @@
                 </div>
 
                 <!-- 土星 -->
-                <div class="planet-card">
+                <div class="planet-card saturn-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-saturn">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♄</div>
                         <div class="planet-info">
                             <h3>土星 Saturn</h3>
                             <div class="planet-subtitle">环之王</div>
@@ -1001,7 +662,7 @@
                             <div class="stat-label">直径</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">82颗</div>
+                            <div class="stat-value">146颗</div>
                             <div class="stat-label">已知卫星</div>
                         </div>
                     </div>
@@ -1019,11 +680,9 @@
                 </div>
 
                 <!-- 天王星 -->
-                <div class="planet-card">
+                <div class="planet-card uranus-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-uranus">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♅</div>
                         <div class="planet-info">
                             <h3>天王星 Uranus</h3>
                             <div class="planet-subtitle">侧躺的行星</div>
@@ -1062,11 +721,9 @@
                 </div>
 
                 <!-- 海王星 -->
-                <div class="planet-card">
+                <div class="planet-card neptune-card">
                     <div class="planet-header">
-                        <div class="planet-icon planet-neptune">
-                            <i class="fas fa-circle"></i>
-                        </div>
+                        <div class="planet-icon">♆</div>
                         <div class="planet-info">
                             <h3>海王星 Neptune</h3>
                             <div class="planet-subtitle">风暴之王</div>
@@ -1087,7 +744,7 @@
                             <div class="stat-label">直径</div>
                         </div>
                         <div class="stat-item">
-                            <div class="stat-value">14颗</div>
+                            <div class="stat-value">16颗</div>
                             <div class="stat-label">已知卫星</div>
                         </div>
                     </div>
@@ -1101,129 +758,6 @@
                         <span class="feature-badge">海卫一</span>
                         <span class="feature-badge">深蓝色</span>
                         <span class="feature-badge">数学发现</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="comparison-section">
-                <h2>行星大小比较</h2>
-                <p>直观比较太阳系各行星的相对大小</p>
-                
-                <div class="size-comparison">
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 8px; height: 8px; background: #8C7853;"></div>
-                        <div class="size-label">水星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 12px; height: 12px; background: #FFC649;"></div>
-                        <div class="size-label">金星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 13px; height: 13px; background: #6B93D6;"></div>
-                        <div class="size-label">地球</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 10px; height: 10px; background: #CD5C5C;"></div>
-                        <div class="size-label">火星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 40px; height: 40px; background: #D2691E;"></div>
-                        <div class="size-label">木星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 35px; height: 35px; background: #FAD5A5;"></div>
-                        <div class="size-label">土星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 18px; height: 18px; background: #4FD0E7;"></div>
-                        <div class="size-label">天王星</div>
-                    </div>
-                    <div class="size-planet">
-                        <div class="size-circle" style="width: 17px; height: 17px; background: #4169E1;"></div>
-                        <div class="size-label">海王星</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 天文现象3D演示 -->
-            <div class="phenomena-section">
-                <h2><i class="fas fa-globe"></i> 天文现象3D演示</h2>
-                <p>通过真实的3D模拟理解地球上的天文现象</p>
-                
-                <div class="phenomena-grid">
-                    <!-- 四季形成 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-leaf"></i> 四季形成</h3>
-                        <div id="seasons-3d-container" class="phenomenon-3d-container">
-                            <div class="phenomenon-controls">
-                                <button id="seasons-play-pause" class="phenomenon-btn">⏸️</button>
-                                <button id="seasons-reset" class="phenomenon-btn">🔄</button>
-                                <div class="speed-control">
-                                    <label>速度:</label>
-                                    <input type="range" id="seasons-speed" min="0.1" max="3" step="0.1" value="1">
-                                    <span id="seasons-speed-value">1x</span>
-                                </div>
-                            </div>
-                            <div class="phenomenon-info" id="seasons-info">
-                                <div>当前季节: <span id="current-season">春分</span></div>
-                                <div>地轴倾斜: 23.5°</div>
-                                <div>太阳直射点: <span id="sun-position">赤道</span></div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>四季的形成是由于地球自转轴相对于公转轨道平面倾斜23.5°。当地球绕太阳公转时，不同地区接受太阳辐射的角度和时长发生变化，形成春夏秋冬四季。</p>
-                        </div>
-                    </div>
-
-                    <!-- 日夜交替 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-moon"></i> 日夜交替</h3>
-                        <div id="day-night-3d-container" class="phenomenon-3d-container">
-                            <div class="phenomenon-controls">
-                                <button id="daynight-play-pause" class="phenomenon-btn">⏸️</button>
-                                <button id="daynight-reset" class="phenomenon-btn">🔄</button>
-                                <div class="speed-control">
-                                    <label>速度:</label>
-                                    <input type="range" id="daynight-speed" min="0.1" max="5" step="0.1" value="2">
-                                    <span id="daynight-speed-value">2x</span>
-                                </div>
-                            </div>
-                            <div class="phenomenon-info" id="daynight-info">
-                                <div>当前时间: <span id="current-time">12:00</span></div>
-                                <div>自转周期: 24小时</div>
-                                <div>昼夜分界线: <span id="terminator-position">移动中</span></div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>日夜交替是由地球自转造成的。地球绕自转轴旋转一周约24小时，面向太阳的一面是白天，背离太阳的一面是黑夜。地球自转使得地表各点轮流接受太阳照射，形成昼夜循环。</p>
-                        </div>
-                    </div>
-
-                    <!-- 潮汐现象 -->
-                    <div class="phenomenon-card">
-                        <h3><i class="fas fa-water"></i> 潮汐现象</h3>
-                        <div id="tidal-3d-container" class="phenomenon-3d-container">
-                            <div class="phenomenon-controls">
-                                <button id="tidal-play-pause" class="phenomenon-btn">⏸️</button>
-                                <button id="tidal-reset" class="phenomenon-btn">🔄</button>
-                                <div class="speed-control">
-                                    <label>速度:</label>
-                                    <input type="range" id="tidal-speed" min="0.1" max="4" step="0.1" value="1.5">
-                                    <span id="tidal-speed-value">1.5x</span>
-                                </div>
-                            </div>
-                            <div class="phenomenon-info" id="tidal-info">
-                                <div>潮汐状态: <span id="tidal-state">涨潮</span></div>
-                                <div>月球位置: <span id="moon-phase">新月</span></div>
-                                <div>潮差: <span id="tidal-range">2.5米</span></div>
-                            </div>
-                        </div>
-                        <div class="explanation-box">
-                            <h4>形成原理</h4>
-                            <p>潮汐是由月球和太阳的引力作用引起的。月球引力使面向月球的海水被拉起形成高潮，同时地球背面由于惯性力也形成高潮。月球绕地球公转使潮汐位置不断变化，一天内通常有两次高潮和两次低潮。</p>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -1241,8 +775,8 @@
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     <script>
-        // 3D Solar System Implementation
-        class SolarSystem3D {
+        // 真实3D太阳系类 - 基于世界地图的地球模型技术
+        class RealisticSolarSystem {
             constructor() {
                 this.scene = null;
                 this.camera = null;
@@ -1253,19 +787,92 @@
                 this.isPlaying = true;
                 this.speed = 1;
                 this.showOrbits = true;
+                this.showLabels = true;
                 this.focusedPlanet = 'overview';
                 
-                // Real astronomical data (scaled for visualization)
+                // 真实天文数据 (按比例缩放用于可视化)
                 this.planetData = {
-                    sun: { distance: 0, size: 2, color: 0xFFD700, period: 0, texture: 'sun' },
-                    mercury: { distance: 8, size: 0.3, color: 0x8C7853, period: 88, texture: 'mercury' },
-                    venus: { distance: 12, size: 0.4, color: 0xFFC649, period: 225, texture: 'venus' },
-                    earth: { distance: 16, size: 0.4, color: 0x6B93D6, period: 365, texture: 'earth' },
-                    mars: { distance: 20, size: 0.35, color: 0xCD5C5C, period: 687, texture: 'mars' },
-                    jupiter: { distance: 28, size: 1.2, color: 0xD2691E, period: 4333, texture: 'jupiter' },
-                    saturn: { distance: 36, size: 1.0, color: 0xFAD5A5, period: 10759, texture: 'saturn' },
-                    uranus: { distance: 44, size: 0.7, color: 0x4FD0E7, period: 30687, texture: 'uranus' },
-                    neptune: { distance: 52, size: 0.7, color: 0x4169E1, period: 60190, texture: 'neptune' }
+                    sun: { 
+                        distance: 0, 
+                        size: 3, 
+                        color: 0xFFD700, 
+                        period: 0, 
+                        rotationPeriod: 25,
+                        tilt: 7.25,
+                        description: '太阳是太阳系的中心恒星' 
+                    },
+                    mercury: { 
+                        distance: 12, 
+                        size: 0.35, 
+                        color: 0x8C7853, 
+                        period: 88, 
+                        rotationPeriod: 59,
+                        tilt: 0.034,
+                        description: '距离太阳最近，表面温差极大' 
+                    },
+                    venus: { 
+                        distance: 18, 
+                        size: 0.45, 
+                        color: 0xFFC649, 
+                        period: 225, 
+                        rotationPeriod: -243,
+                        tilt: 177.4,
+                        description: '太阳系最热的行星，逆向自转' 
+                    },
+                    earth: { 
+                        distance: 24, 
+                        size: 0.5, 
+                        color: 0x6B93D6, 
+                        period: 365, 
+                        rotationPeriod: 1,
+                        tilt: 23.5,
+                        description: '我们的家园，唯一已知有生命的行星' 
+                    },
+                    mars: { 
+                        distance: 32, 
+                        size: 0.4, 
+                        color: 0xCD5C5C, 
+                        period: 687, 
+                        rotationPeriod: 1.03,
+                        tilt: 25.2,
+                        description: '红色星球，人类探索的重点目标' 
+                    },
+                    jupiter: { 
+                        distance: 50, 
+                        size: 1.8, 
+                        color: 0xD2691E, 
+                        period: 4333, 
+                        rotationPeriod: 0.41,
+                        tilt: 3.1,
+                        description: '太阳系最大行星，气态巨行星' 
+                    },
+                    saturn: { 
+                        distance: 70, 
+                        size: 1.5, 
+                        color: 0xFAD5A5, 
+                        period: 10759, 
+                        rotationPeriod: 0.45,
+                        tilt: 26.7,
+                        description: '拥有壮观光环的美丽行星' 
+                    },
+                    uranus: { 
+                        distance: 90, 
+                        size: 0.9, 
+                        color: 0x4FD0E7, 
+                        period: 30687, 
+                        rotationPeriod: -0.72,
+                        tilt: 97.8,
+                        description: '侧躺着公转的冰巨行星' 
+                    },
+                    neptune: { 
+                        distance: 110, 
+                        size: 0.85, 
+                        color: 0x4169E1, 
+                        period: 60190, 
+                        rotationPeriod: 0.67,
+                        tilt: 28.3,
+                        description: '风速最强的深蓝色行星' 
+                    }
                 };
                 
                 this.init();
@@ -1273,19 +880,21 @@
 
             async init() {
                 try {
+                    console.log('🌟 初始化真实3D太阳系...');
                     this.setupScene();
                     this.setupCamera();
                     this.setupRenderer();
                     this.setupLights();
                     this.setupControls();
                     
-                    await this.createSolarSystem();
+                    await this.createRealisticSolarSystem();
                     this.setupEventListeners();
                     this.animate();
                     
                     document.getElementById('solar-system-loading').style.display = 'none';
+                    console.log('✅ 3D太阳系初始化完成');
                 } catch (error) {
-                    console.error('Failed to initialize 3D solar system:', error);
+                    console.error('❌ 太阳系初始化失败:', error);
                     this.showFallbackMessage();
                 }
             }
@@ -1293,7 +902,66 @@
             setupScene() {
                 this.scene = new THREE.Scene();
                 this.scene.background = new THREE.Color(0x000011);
-                this.createStarField();
+                this.createEnhancedStarField();
+            }
+
+            createEnhancedStarField() {
+                // 创建更加真实的星空背景
+                const starsGeometry = new THREE.BufferGeometry();
+                const starsMaterial = new THREE.PointsMaterial({ 
+                    size: 2, 
+                    sizeAttenuation: false,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const starsVertices = [];
+                const starsColors = [];
+                
+                for (let i = 0; i < 15000; i++) {
+                    // 随机位置
+                    const x = (Math.random() - 0.5) * 2000;
+                    const y = (Math.random() - 0.5) * 2000;
+                    const z = (Math.random() - 0.5) * 2000;
+                    starsVertices.push(x, y, z);
+                    
+                    // 不同颜色的恒星
+                    const starType = Math.random();
+                    if (starType < 0.7) {
+                        // 白色恒星
+                        starsColors.push(1, 1, 1);
+                    } else if (starType < 0.9) {
+                        // 黄色恒星
+                        starsColors.push(1, 1, 0.8);
+                    } else {
+                        // 红色恒星
+                        starsColors.push(1, 0.8, 0.6);
+                    }
+                }
+                
+                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+                starsGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starsColors, 3));
+                
+                starsMaterial.vertexColors = true;
+                const stars = new THREE.Points(starsGeometry, starsMaterial);
+                this.scene.add(stars);
+                
+                // 添加银河系背景效果
+                this.createGalaxyBackground();
+            }
+
+            createGalaxyBackground() {
+                // 创建银河系盘状结构的视觉效果
+                const galaxyGeometry = new THREE.RingGeometry(400, 800, 64);
+                const galaxyMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x443366,
+                    transparent: true,
+                    opacity: 0.05,
+                    side: THREE.DoubleSide
+                });
+                const galaxy = new THREE.Mesh(galaxyGeometry, galaxyMaterial);
+                galaxy.rotation.x = Math.PI / 2;
+                this.scene.add(galaxy);
             }
 
             setupCamera() {
@@ -1301,8 +969,8 @@
                 const width = container.clientWidth;
                 const height = container.clientHeight;
                 
-                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(0, 30, 60);
+                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 2000);
+                this.camera.position.set(0, 40, 120);
             }
 
             setupRenderer() {
@@ -1318,17 +986,24 @@
             }
 
             setupLights() {
-                // Ambient light
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+                // 模拟太阳光照
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
                 this.scene.add(ambientLight);
                 
-                // Point light (sun)
-                const sunLight = new THREE.PointLight(0xFFFFFF, 2, 200);
-                sunLight.position.set(0, 0, 0);
-                sunLight.castShadow = true;
-                sunLight.shadow.mapSize.width = 2048;
-                sunLight.shadow.mapSize.height = 2048;
-                this.scene.add(sunLight);
+                // 太阳主光源
+                this.sunLight = new THREE.PointLight(0xFFFFFF, 3, 300);
+                this.sunLight.position.set(0, 0, 0);
+                this.sunLight.castShadow = true;
+                this.sunLight.shadow.mapSize.width = 2048;
+                this.sunLight.shadow.mapSize.height = 2048;
+                this.sunLight.shadow.camera.near = 0.5;
+                this.sunLight.shadow.camera.far = 200;
+                this.scene.add(this.sunLight);
+                
+                // 补充光源减少暗面过暗
+                const fillLight = new THREE.DirectionalLight(0x404080, 0.3);
+                fillLight.position.set(50, 20, 50);
+                this.scene.add(fillLight);
             }
 
             setupControls() {
@@ -1354,24 +1029,7 @@
                 this.controls.autoRotateSpeed = 0.5;
             }
 
-            createStarField() {
-                const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 });
-                
-                const starsVertices = [];
-                for (let i = 0; i < 10000; i++) {
-                    const x = (Math.random() - 0.5) * 2000;
-                    const y = (Math.random() - 0.5) * 2000;
-                    const z = (Math.random() - 0.5) * 2000;
-                    starsVertices.push(x, y, z);
-                }
-                
-                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-                const stars = new THREE.Points(starsGeometry, starsMaterial);
-                this.scene.add(stars);
-            }
-
-            async createSolarSystem() {
+            async createRealisticSolarSystem() {
                 // Create planets
                 for (const [name, data] of Object.entries(this.planetData)) {
                     await this.createPlanet(name, data);
@@ -2196,6 +1854,10 @@
                     this.toggleOrbits();
                 });
                 
+                document.getElementById('toggle-labels').addEventListener('click', () => {
+                    this.toggleLabels();
+                });
+                
                 document.getElementById('planet-focus').addEventListener('change', (e) => {
                     this.focusOnPlanet(e.target.value);
                 });
@@ -2249,6 +1911,18 @@
                 button.style.background = this.showOrbits ? 
                     'rgba(255, 255, 255, 0.95)' : 'rgba(67, 97, 238, 0.9)';
                 button.style.color = this.showOrbits ? '#333' : 'white';
+            }
+
+            toggleLabels() {
+                this.showLabels = !this.showLabels;
+                Object.values(this.planets).forEach(planet => {
+                    planet.mesh.visible = this.showLabels;
+                });
+                
+                const button = document.getElementById('toggle-labels');
+                button.style.background = this.showLabels ? 
+                    'rgba(255, 255, 255, 0.95)' : 'rgba(67, 97, 238, 0.9)';
+                button.style.color = this.showLabels ? '#333' : 'white';
             }
 
             focusOnPlanet(planetName) {
@@ -2505,1681 +2179,176 @@
                     </div>
                 `;
             }
-        }
 
-        // 3D Seasons Demonstration - Enhanced and Educational
-        class Seasons3D {
-            constructor(containerId) {
-                this.containerId = containerId;
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.controls = null;
-                this.earth = null;
-                this.sun = null;
-                this.sunRays = [];
-                this.orbitAngle = 0;
-                this.isPlaying = true;
-                this.speed = 1;
-                this.seasons = ['春分', '夏至', '秋分', '冬至'];
-                this.currentSeasonIndex = 0;
-                this.init();
-            }
-
-            async init() {
-                try {
-                    this.setupScene();
-                    this.setupCamera();
-                    this.setupRenderer();
-                    this.setupLights();
-                    this.setupControls();
-                    await this.createObjects();
-                    this.setupEventListeners();
-                    this.animate();
-                    
-                    // Hide loading indicator
-                    const loadingElement = document.getElementById('seasons-loading');
-                    if (loadingElement) {
-                        loadingElement.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Failed to initialize Seasons3D:', error);
-                    this.showError();
-                }
-            }
-
-            showError() {
-                const container = document.getElementById(this.containerId);
-                const loadingElement = document.getElementById('seasons-loading');
-                if (loadingElement) {
-                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
-                }
-            }
-
-            setupScene() {
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x000022);
-                
-                // Add stars
-                this.createStarField();
-            }
-
-            createStarField() {
-                const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 1.0 });
-                
-                const starsVertices = [];
-                for (let i = 0; i < 2000; i++) {
-                    const x = (Math.random() - 0.5) * 400;
-                    const y = (Math.random() - 0.5) * 400;
-                    const z = (Math.random() - 0.5) * 400;
-                    starsVertices.push(x, y, z);
-                }
-                
-                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-                const stars = new THREE.Points(starsGeometry, starsMaterial);
-                this.scene.add(stars);
-            }
-
-            setupCamera() {
-                const container = document.getElementById(this.containerId);
-                const width = container.clientWidth;
-                const height = container.clientHeight;
-                
-                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(0, 25, 35);
-                this.camera.lookAt(0, 0, 0);
-            }
-
-            setupRenderer() {
-                const container = document.getElementById(this.containerId);
-                
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
-                this.renderer.setSize(container.clientWidth, container.clientHeight);
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                
-                container.appendChild(this.renderer.domElement);
-            }
-
-            setupLights() {
-                // Ambient light for general illumination
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
-                this.scene.add(ambientLight);
-                
-                // Sun light (directional light from sun position)
-                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 3);
-                this.sunLight.position.set(0, 0, 0);
-                this.sunLight.castShadow = true;
-                this.sunLight.shadow.mapSize.width = 2048;
-                this.sunLight.shadow.mapSize.height = 2048;
-                this.sunLight.shadow.camera.near = 0.5;
-                this.sunLight.shadow.camera.far = 100;
-                this.sunLight.shadow.camera.left = -50;
-                this.sunLight.shadow.camera.right = 50;
-                this.sunLight.shadow.camera.top = 50;
-                this.sunLight.shadow.camera.bottom = -50;
-                this.scene.add(this.sunLight);
-            }
-
-            setupControls() {
-                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-                this.controls.enableDamping = true;
-                this.controls.dampingFactor = 0.05;
-                this.controls.minDistance = 20;
-                this.controls.maxDistance = 80;
-                this.controls.target.set(0, 0, 0);
-                this.controls.autoRotate = false;
-            }
-
-            async createObjects() {
-                // Create realistic Sun at center
-                this.sun = await this.createRealisticSun(3, [0, 0, 0]);
-                this.scene.add(this.sun);
-
-                // Create realistic Earth with proper tilt
-                this.earth = await this.createRealisticEarth(1.5, [15, 0, 0]);
-                this.earth.castShadow = true;
-                this.earth.receiveShadow = true;
-                this.scene.add(this.earth);
-
-                // Create Earth's orbital path
-                this.createOrbitPath();
-
-                // Create season markers with labels
-                this.createSeasonMarkers();
-
-                // Create illumination indicators
-                this.createIlluminationIndicators();
-            }
-
-            createOrbitPath() {
-                const orbitPoints = [];
-                for (let i = 0; i <= 128; i++) {
-                    const angle = (i / 128) * Math.PI * 2;
-                    orbitPoints.push(new THREE.Vector3(
-                        Math.cos(angle) * 15,
-                        0,
-                        Math.sin(angle) * 15
-                    ));
-                }
-                
-                const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-                const orbitMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0x888888,
-                    transparent: true,
-                    opacity: 0.6
-                });
-                const orbit = new THREE.Line(orbitGeometry, orbitMaterial);
-                this.scene.add(orbit);
-            }
-
-            createSeasonMarkers() {
-                const seasonData = [
-                    { pos: [15, 0, 0], text: '春分\n昼夜等长', color: 0x90EE90, angle: 0 },
-                    { pos: [0, 0, 15], text: '夏至\n北半球夏季', color: 0xFFD700, angle: Math.PI/2 },
-                    { pos: [-15, 0, 0], text: '秋分\n昼夜等长', color: 0xFFA500, angle: Math.PI },
-                    { pos: [0, 0, -15], text: '冬至\n北半球冬季', color: 0x87CEEB, angle: 3*Math.PI/2 }
-                ];
-
-                seasonData.forEach((season, index) => {
-                    // Create marker sphere
-                    const geometry = new THREE.SphereGeometry(0.5, 16, 16);
-                    const material = new THREE.MeshPhongMaterial({ 
-                        color: season.color,
-                        emissive: season.color,
-                        emissiveIntensity: 0.4
-                    });
-                    const marker = new THREE.Mesh(geometry, material);
-                    marker.position.set(...season.pos);
-                    this.scene.add(marker);
-
-                    // Add glow effect
-                    const glowGeometry = new THREE.SphereGeometry(0.8, 16, 16);
-                    const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: season.color,
-                        transparent: true,
-                        opacity: 0.3,
-                        side: THREE.BackSide
-                    });
-                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                    marker.add(glow);
-
-                    // Add text label using CSS2DRenderer would be better, but using simple geometry
-                    this.createTextLabel(season.text, season.pos, season.color);
-                });
-            }
-
-            createTextLabel(text, position, color) {
-                // Create a simple plane for text (placeholder - in real implementation would use CSS2DRenderer)
-                const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.width = 256;
-                canvas.height = 128;
-                
-                context.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-                context.font = '24px Arial';
-                context.textAlign = 'center';
-                context.fillText(text.split('\n')[0], 128, 50);
-                context.fillText(text.split('\n')[1] || '', 128, 80);
-                
-                const texture = new THREE.CanvasTexture(canvas);
-                const material = new THREE.MeshBasicMaterial({ 
-                    map: texture, 
-                    transparent: true,
-                    alphaTest: 0.1
-                });
-                const geometry = new THREE.PlaneGeometry(4, 2);
-                const textMesh = new THREE.Mesh(geometry, material);
-                textMesh.position.set(position[0], position[1] + 3, position[2]);
-                textMesh.lookAt(this.camera.position);
-                this.scene.add(textMesh);
-            }
-
-            createIlluminationIndicators() {
-                // Create sun rays to show illumination direction
-                this.sunRays = [];
-                for (let i = 0; i < 12; i++) {
-                    const angle = (i / 12) * Math.PI * 2;
-                    const rayGeometry = new THREE.CylinderGeometry(0.05, 0.05, 30, 8);
-                    const rayMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFFF88,
-                        transparent: true,
-                        opacity: 0.7
-                    });
-                    const ray = new THREE.Mesh(rayGeometry, rayMaterial);
-                    
-                    ray.position.set(
-                        Math.cos(angle) * 15,
-                        0,
-                        Math.sin(angle) * 15
-                    );
-                    ray.lookAt(0, 0, 0);
-                    ray.rotateX(Math.PI / 2);
-                    
-                    this.sunRays.push(ray);
-                    this.scene.add(ray);
-                }
-            }
-
-            setupEventListeners() {
-                // Play/Pause button
-                document.getElementById('seasons-play-pause').addEventListener('click', () => {
-                    this.isPlaying = !this.isPlaying;
-                    const button = document.getElementById('seasons-play-pause');
-                    button.textContent = this.isPlaying ? '⏸️' : '▶️';
-                });
-
-                // Reset button
-                document.getElementById('seasons-reset').addEventListener('click', () => {
-                    this.orbitAngle = 0;
-                    this.currentSeasonIndex = 0;
-                    this.updateSeasonInfo();
-                });
-
-                // Speed control
-                document.getElementById('seasons-speed').addEventListener('input', (e) => {
-                    this.speed = parseFloat(e.target.value);
-                    document.getElementById('seasons-speed-value').textContent = this.speed + 'x';
-                });
-            }
-
-            updateSeasonInfo() {
-                // Determine current season based on orbit angle
-                const normalizedAngle = ((this.orbitAngle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                this.currentSeasonIndex = Math.floor((normalizedAngle / (Math.PI * 2)) * 4);
-                
-                const seasonNames = ['春分', '夏至', '秋分', '冬至'];
-                const sunPositions = ['赤道', '北回归线', '赤道', '南回归线'];
-                
-                const currentSeasonElement = document.getElementById('current-season');
-                const sunPositionElement = document.getElementById('sun-position');
-                
-                if (currentSeasonElement) {
-                    currentSeasonElement.textContent = seasonNames[this.currentSeasonIndex] || '春分';
-                }
-                if (sunPositionElement) {
-                    sunPositionElement.textContent = sunPositions[this.currentSeasonIndex] || '赤道';
-                }
-            }
-
-            // Add missing methods for realistic object creation
-            async loadPlanetTexture(planetName) {
-                // Use procedural textures to avoid CORS issues
-                return new Promise((resolve) => {
-                    resolve(this.createProceduralTexture(planetName));
-                });
-            }
-
-            createProceduralTexture(planetName) {
+            createEarthBumpTexture() {
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
-                canvas.height = 512;
+                canvas.height = 256;
                 const context = canvas.getContext('2d');
                 
-                // Create realistic procedural textures for each planet
+                const imageData = context.createImageData(512, 256);
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    const height = Math.random() * 100 + 155;
+                    imageData.data[i] = height;
+                    imageData.data[i + 1] = height;
+                    imageData.data[i + 2] = height;
+                    imageData.data[i + 3] = 255;
+                }
+                context.putImageData(imageData, 0, 0);
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createEarthCloudTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                context.clearRect(0, 0, 512, 256);
+                for (let i = 0; i < 500; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 20 + 5;
+                    const opacity = Math.random() * 0.8 + 0.2;
+                    
+                    context.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createProceduralMarsTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                const gradient = context.createLinearGradient(0, 0, 512, 256);
+                gradient.addColorStop(0, '#CD853F');
+                gradient.addColorStop(0.5, '#D2691E');
+                gradient.addColorStop(1, '#A0522D');
+                
+                context.fillStyle = gradient;
+                context.fillRect(0, 0, 512, 256);
+                
+                // Add Mars features
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * 512;
+                    const y = Math.random() * 256;
+                    const size = Math.random() * 5 + 1;
+                    context.fillStyle = '#654321';
+                    context.beginPath();
+                    context.arc(x, y, size, 0, Math.PI * 2);
+                    context.fill();
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createMarsBumpTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                const imageData = context.createImageData(512, 256);
+                
+                for (let y = 0; y < 256; y++) {
+                    for (let x = 0; x < 512; x++) {
+                        const index = (y * 512 + x) * 4;
+                        let height = 128;
+                        height += Math.sin(x * 0.02) * 30;
+                        height += Math.sin(y * 0.03) * 20;
+                        height += (Math.random() - 0.5) * 40;
+                        height = Math.max(0, Math.min(255, height));
+                        
+                        imageData.data[index] = height;
+                        imageData.data[index + 1] = height;
+                        imageData.data[index + 2] = height;
+                        imageData.data[index + 3] = 255;
+                    }
+                }
+                
+                context.putImageData(imageData, 0, 0);
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createProceduralJupiterTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                for (let y = 0; y < 256; y++) {
+                    const intensity = Math.sin(y * 0.1) * 0.3 + 0.7;
+                    const hue = 30 + Math.sin(y * 0.05) * 10;
+                    context.fillStyle = `hsl(${hue}, 60%, ${intensity * 60}%)`;
+                    context.fillRect(0, y, 512, 1);
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createProceduralSaturnTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                for (let y = 0; y < 256; y++) {
+                    const intensity = Math.sin(y * 0.08) * 0.2 + 0.8;
+                    const hue = 45 + Math.sin(y * 0.03) * 5;
+                    context.fillStyle = `hsl(${hue}, 40%, ${intensity * 70}%)`;
+                    context.fillRect(0, y, 512, 1);
+                }
+                
+                return new THREE.CanvasTexture(canvas);
+            }
+
+            createProceduralPlanetTexture(planetName) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 256;
+                const context = canvas.getContext('2d');
+                
+                // Basic planet textures based on type
                 switch(planetName) {
-                    case 'sun':
-                        this.createSunTexture(context, canvas.width, canvas.height);
+                    case 'mercury':
+                        context.fillStyle = '#8C7853';
+                        context.fillRect(0, 0, 512, 256);
                         break;
-                    case 'earth':
-                        this.createEarthTexture(context, canvas.width, canvas.height);
+                    case 'venus':
+                        const venusGradient = context.createRadialGradient(256, 128, 0, 256, 128, 200);
+                        venusGradient.addColorStop(0, '#FFEB3B');
+                        venusGradient.addColorStop(1, '#FF9800');
+                        context.fillStyle = venusGradient;
+                        context.fillRect(0, 0, 512, 256);
                         break;
-                    case 'earth_clouds':
-                        this.createEarthCloudsTexture(context, canvas.width, canvas.height);
+                    case 'uranus':
+                        context.fillStyle = '#4FD0E7';
+                        context.fillRect(0, 0, 512, 256);
                         break;
-                    case 'moon':
-                        this.createMoonTexture(context, canvas.width, canvas.height);
+                    case 'neptune':
+                        context.fillStyle = '#4169E1';
+                        context.fillRect(0, 0, 512, 256);
                         break;
                     default:
-                        this.createDefaultTexture(context, canvas.width, canvas.height);
+                        context.fillStyle = '#888888';
+                        context.fillRect(0, 0, 512, 256);
                 }
                 
-                const texture = new THREE.CanvasTexture(canvas);
-                texture.wrapS = THREE.RepeatWrapping;
-                texture.wrapT = THREE.RepeatWrapping;
-                return texture;
-            }
-
-            createSunTexture(ctx, width, height) {
-                // Create realistic sun texture with solar granulation
-                const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
-                gradient.addColorStop(0, '#FFFF88');
-                gradient.addColorStop(0.7, '#FFAA00');
-                gradient.addColorStop(1, '#FF6600');
-                
-                ctx.fillStyle = gradient;
-                ctx.fillRect(0, 0, width, height);
-                
-                // Add solar granulation pattern
-                for (let i = 0; i < 800; i++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    const size = Math.random() * 6 + 2;
-                    const brightness = Math.random() * 0.3 + 0.7;
-                    
-                    ctx.fillStyle = `rgba(255, 255, 0, ${brightness})`;
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            createEarthTexture(ctx, width, height) {
-                // Earth: blue oceans with green/brown continents
-                ctx.fillStyle = '#4F94CD';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Add continents
-                const continents = [
-                    {x: width * 0.3, y: height * 0.3, w: width * 0.2, h: height * 0.4}, // Africa
-                    {x: width * 0.1, y: height * 0.4, w: width * 0.15, h: height * 0.3}, // America
-                    {x: width * 0.6, y: height * 0.2, w: width * 0.25, h: height * 0.5}, // Asia
-                ];
-                
-                continents.forEach(continent => {
-                    ctx.fillStyle = '#228B22';
-                    ctx.fillRect(continent.x, continent.y, continent.w, continent.h);
-                    
-                    // Add terrain variation
-                    ctx.fillStyle = '#8B4513';
-                    for (let i = 0; i < 10; i++) {
-                        const x = continent.x + Math.random() * continent.w;
-                        const y = continent.y + Math.random() * continent.h;
-                        const size = Math.random() * 20 + 5;
-                        ctx.fillRect(x, y, size, size);
-                    }
-                });
-            }
-
-            createEarthCloudsTexture(ctx, width, height) {
-                // Earth clouds: white wispy patterns on transparent background
-                ctx.clearRect(0, 0, width, height);
-                
-                for (let i = 0; i < 100; i++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    const size = Math.random() * 30 + 10;
-                    
-                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.7 + 0.3})`;
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            createMoonTexture(ctx, width, height) {
-                // Moon: grey with craters
-                ctx.fillStyle = '#C0C0C0';
-                ctx.fillRect(0, 0, width, height);
-                
-                // Add large craters
-                for (let i = 0; i < 50; i++) {
-                    const x = Math.random() * width;
-                    const y = Math.random() * height;
-                    const size = Math.random() * 25 + 10;
-                    
-                    ctx.fillStyle = '#888888';
-                    ctx.beginPath();
-                    ctx.arc(x, y, size, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.fillStyle = '#DDDDDD';
-                    ctx.beginPath();
-                    ctx.arc(x - size * 0.3, y - size * 0.3, size * 0.2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            createDefaultTexture(ctx, width, height) {
-                // Default grey texture
-                ctx.fillStyle = '#808080';
-                ctx.fillRect(0, 0, width, height);
-            }
-
-            async createRealisticEarth(size = 1.5, position = [15, 0, 0]) {
-                const earthGroup = new THREE.Group();
-                
-                // Load textures
-                const dayTexture = await this.loadPlanetTexture('earth');
-                const cloudsTexture = await this.loadPlanetTexture('earth_clouds');
-                
-                // Earth sphere with day texture
-                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({
-                    map: dayTexture,
-                    bumpMap: dayTexture,
-                    bumpScale: 0.05,
-                    specularMap: dayTexture,
-                    specular: new THREE.Color('grey'),
-                    shininess: 100
-                });
-                
-                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                earth.castShadow = true;
-                earth.receiveShadow = true;
-                earthGroup.add(earth);
-                
-                // Apply 23.5 degree axial tilt - this is crucial for seasons!
-                earthGroup.rotation.z = Math.PI * 23.5 / 180;
-                
-                // Cloud layer
-                if (cloudsTexture) {
-                    const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
-                    const cloudMaterial = new THREE.MeshPhongMaterial({
-                        map: cloudsTexture,
-                        transparent: true,
-                        opacity: 0.4
-                    });
-                    const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-                    earthGroup.add(clouds);
-                    earthGroup.clouds = clouds;
-                }
-                
-                // Atmosphere glow
-                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.1, 32, 32);
-                const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x87CEEB,
-                    transparent: true,
-                    opacity: 0.2,
-                    side: THREE.BackSide
-                });
-                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-                earthGroup.add(atmosphere);
-                
-                earthGroup.position.set(...position);
-                return earthGroup;
-            }
-
-            async createRealisticSun(size = 3, position = [0, 0, 0]) {
-                const sunGroup = new THREE.Group();
-                
-                // Load sun texture
-                const sunTexture = await this.loadPlanetTexture('sun');
-                
-                // Sun sphere with realistic surface
-                const sunGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const sunMaterial = new THREE.MeshPhongMaterial({
-                    map: sunTexture,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1.2,
-                    emissiveMap: sunTexture
-                });
-                
-                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                sunGroup.add(sun);
-                
-                // Corona layers for realistic glow
-                const coronaLayers = [
-                    { size: size * 1.2, color: 0xFFD700, opacity: 0.5 },
-                    { size: size * 1.5, color: 0xFF6600, opacity: 0.3 },
-                    { size: size * 1.8, color: 0xFFDD44, opacity: 0.1 }
-                ];
-                
-                coronaLayers.forEach(layer => {
-                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
-                    const coronaMaterial = new THREE.MeshBasicMaterial({
-                        color: layer.color,
-                        transparent: true,
-                        opacity: layer.opacity,
-                        side: THREE.BackSide
-                    });
-                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-                    sunGroup.add(corona);
-                });
-                
-                // Enhanced solar flares
-                this.createEnhancedSolarFlares(sunGroup, size);
-                
-                sunGroup.position.set(...position);
-                return sunGroup;
-            }
-
-            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
-                const moonGroup = new THREE.Group();
-                
-                // Load moon texture
-                const moonTexture = await this.loadPlanetTexture('moon');
-                
-                // Moon sphere with realistic surface
-                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({
-                    map: moonTexture,
-                    bumpMap: moonTexture,
-                    bumpScale: 0.1,
-                    shininess: 1
-                });
-                
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.castShadow = true;
-                moon.receiveShadow = true;
-                moonGroup.add(moon);
-                
-                moonGroup.position.set(...position);
-                return moonGroup;
-            }
-
-            createEnhancedSolarFlares(sunGroup, sunSize) {
-                // Create more realistic solar flare particles
-                const flareCount = 300;
-                const flareGeometry = new THREE.BufferGeometry();
-                const flarePositions = [];
-                const flareSizes = [];
-                const flareColors = [];
-                
-                for (let i = 0; i < flareCount; i++) {
-                    // Random positions around the sun surface
-                    const radius = sunSize + Math.random() * (sunSize * 0.8);
-                    const theta = Math.random() * Math.PI * 2;
-                    const phi = Math.random() * Math.PI;
-                    
-                    const x = radius * Math.sin(phi) * Math.cos(theta);
-                    const y = radius * Math.sin(phi) * Math.sin(theta);
-                    const z = radius * Math.cos(phi);
-                    
-                    flarePositions.push(x, y, z);
-                    flareSizes.push(Math.random() * 0.3 + 0.1);
-                    
-                    // Vary colors from yellow to orange to red
-                    const colorVariation = Math.random();
-                    if (colorVariation < 0.4) {
-                        flareColors.push(1, 1, 0); // Yellow
-                    } else if (colorVariation < 0.7) {
-                        flareColors.push(1, 0.5, 0); // Orange
-                    } else {
-                        flareColors.push(1, 0.2, 0); // Red-orange
-                    }
-                }
-                
-                flareGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flarePositions, 3));
-                flareGeometry.setAttribute('size', new THREE.Float32BufferAttribute(flareSizes, 1));
-                flareGeometry.setAttribute('color', new THREE.Float32BufferAttribute(flareColors, 3));
-                
-                const flareMaterial = new THREE.PointsMaterial({
-                    size: 0.2,
-                    transparent: true,
-                    opacity: 0.8,
-                    blending: THREE.AdditiveBlending,
-                    vertexColors: true
-                });
-                
-                const flares = new THREE.Points(flareGeometry, flareMaterial);
-                sunGroup.add(flares);
-                
-                // Store reference for animation
-                sunGroup.solarFlares = flares;
-                return flares;
-            }
-
-            animate() {
-                requestAnimationFrame(() => this.animate());
-                
-                if (this.isPlaying && this.earth) { 
-                    // Orbit Earth around Sun
-                    this.orbitAngle += 0.008 * this.speed;
-                    this.earth.position.x = Math.cos(this.orbitAngle) * 15;
-                    this.earth.position.z = Math.sin(this.orbitAngle) * 15;
-                    
-                    // Rotate Earth on its axis (maintaining the tilt)
-                    this.earth.rotation.y += 0.02 * this.speed;
-                    
-                    // Animate clouds if they exist
-                    if (this.earth.clouds) {
-                        this.earth.clouds.rotation.y += 0.005 * this.speed;
-                    }
-                    
-                    // Update season information
-                    this.updateSeasonInfo();
-                    
-                    // Animate sun rays
-                    if (this.sunRays) {
-                        this.sunRays.forEach((ray, index) => {
-                            ray.rotation.z += 0.003 * this.speed;
-                        });
-                    }
-                    
-                    // Animate sun solar flares
-                    if (this.sun && this.sun.solarFlares) {
-                        this.sun.solarFlares.rotation.y += 0.01 * this.speed;
-                        this.sun.solarFlares.rotation.z += 0.005 * this.speed;
-                    }
-                }
-                
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-            }
-        }
-
-        // 3D Day/Night Demonstration - Enhanced and Educational
-        class DayNight3D {
-            constructor(containerId) {
-                this.containerId = containerId;
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.controls = null;
-                this.earth = null;
-                this.sun = null;
-                this.terminator = null;
-                this.cityLights = [];
-                this.isPlaying = true;
-                this.speed = 2;
-                this.rotationAngle = 0;
-                this.init();
-            }
-
-            async init() {
-                try {
-                    this.setupScene();
-                    this.setupCamera();
-                    this.setupRenderer();
-                    this.setupLights();
-                    this.setupControls();
-                    await this.createObjects();
-                    this.setupEventListeners();
-                    this.animate();
-                    
-                    // Hide loading indicator
-                    const loadingElement = document.getElementById('day-night-loading');
-                    if (loadingElement) {
-                        loadingElement.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Failed to initialize DayNight3D:', error);
-                    this.showError();
-                }
-            }
-
-            showError() {
-                const loadingElement = document.getElementById('day-night-loading');
-                if (loadingElement) {
-                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
-                }
-            }
-
-            setupScene() {
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x000033);
-                
-                // Add stars
-                this.createStarField();
-            }
-
-            createStarField() {
-                const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
-                
-                const starsVertices = [];
-                for (let i = 0; i < 1500; i++) {
-                    const x = (Math.random() - 0.5) * 200;
-                    const y = (Math.random() - 0.5) * 200;
-                    const z = (Math.random() - 0.5) * 200;
-                    starsVertices.push(x, y, z);
-                }
-                
-                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-                const stars = new THREE.Points(starsGeometry, starsMaterial);
-                this.scene.add(stars);
-            }
-
-            setupCamera() {
-                const container = document.getElementById(this.containerId);
-                const width = container.clientWidth;
-                const height = container.clientHeight;
-                
-                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(8, 5, 12);
-                this.camera.lookAt(0, 0, 0);
-            }
-
-            setupRenderer() {
-                const container = document.getElementById(this.containerId);
-                
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
-                this.renderer.setSize(container.clientWidth, container.clientHeight);
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                
-                container.appendChild(this.renderer.domElement);
-            }
-
-            setupLights() {
-                // Very dim ambient light to show night side
-                const ambientLight = new THREE.AmbientLight(0x202040, 0.2);
-                this.scene.add(ambientLight);
-                
-                // Strong directional light from sun
-                this.sunLight = new THREE.DirectionalLight(0xFFFFFF, 3);
-                this.sunLight.position.set(-15, 5, 0);
-                this.sunLight.castShadow = true;
-                this.sunLight.shadow.mapSize.width = 2048;
-                this.sunLight.shadow.mapSize.height = 2048;
-                this.sunLight.shadow.camera.near = 0.5;
-                this.sunLight.shadow.camera.far = 50;
-                this.sunLight.shadow.camera.left = -15;
-                this.sunLight.shadow.camera.right = 15;
-                this.sunLight.shadow.camera.top = 15;
-                this.sunLight.shadow.camera.bottom = -15;
-                this.scene.add(this.sunLight);
-            }
-
-            setupControls() {
-                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-                this.controls.enableDamping = true;
-                this.controls.dampingFactor = 0.05;
-                this.controls.minDistance = 5;
-                this.controls.maxDistance = 25;
-                this.controls.target.set(0, 0, 0);
-            }
-
-            async createObjects() {
-                // Create realistic Sun (light source) with enhanced glow
-                this.sun = await this.createRealisticSun(1.2, [-15, 0, 0]);
-                this.scene.add(this.sun);
-
-                // Create realistic Earth with day/night textures
-                this.earth = await this.createRealisticEarth(2.5, [0, 0, 0]);
-                this.earth.castShadow = true;
-                this.earth.receiveShadow = true;
-                this.scene.add(this.earth);
-
-                // Create visible terminator line (day/night boundary)
-                this.createTerminator();
-
-                // Add city lights on night side
-                this.addCityLights();
-
-                // Add illumination indicators
-                this.createIlluminationIndicators();
-            }
-
-            createTerminator() {
-                // Create a visible terminator line as a ring around Earth
-                const terminatorGeometry = new THREE.RingGeometry(2.52, 2.55, 128);
-                const terminatorMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFDD88,
-                    transparent: true,
-                    opacity: 0.8,
-                    side: THREE.DoubleSide
-                });
-                this.terminator = new THREE.Mesh(terminatorGeometry, terminatorMaterial);
-                this.terminator.rotation.x = Math.PI / 2;
-                this.scene.add(this.terminator);
-            }
-
-            addCityLights() {
-                // Add realistic city lights that appear on night side
-                const cityPositions = [
-                    { name: '纽约', lat: 40.7, lon: -74 },
-                    { name: '伦敦', lat: 51.5, lon: 0 },
-                    { name: '东京', lat: 35.7, lon: 139.7 },
-                    { name: '悉尼', lat: -33.9, lon: 151.2 },
-                    { name: '莫斯科', lat: 55.8, lon: 37.6 },
-                    { name: '北京', lat: 39.9, lon: 116.4 },
-                    { name: '开罗', lat: 30.0, lon: 31.2 },
-                    { name: '里约', lat: -22.9, lon: -43.2 }
-                ];
-
-                this.cityLights = [];
-                cityPositions.forEach(city => {
-                    const phi = (90 - city.lat) * (Math.PI / 180);
-                    const theta = (city.lon + 180) * (Math.PI / 180);
-                    
-                    const x = -(2.6 * Math.sin(phi) * Math.cos(theta));
-                    const z = (2.6 * Math.sin(phi) * Math.sin(theta));
-                    const y = (2.6 * Math.cos(phi));
-                    
-                    // Create glowing city light
-                    const lightGeometry = new THREE.SphereGeometry(0.04, 8, 8);
-                    const lightMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFFF88,
-                        emissive: 0xFFFF88,
-                        emissiveIntensity: 1.0
-                    });
-                    const light = new THREE.Mesh(lightGeometry, lightMaterial);
-                    light.position.set(x, y, z);
-                    
-                    // Add glow effect
-                    const glowGeometry = new THREE.SphereGeometry(0.08, 8, 8);
-                    const glowMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFFF88,
-                        transparent: true,
-                        opacity: 0.6
-                    });
-                    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-                    light.add(glow);
-                    
-                    light.userData = { city: city.name, originalPosition: { x, y, z } };
-                    this.cityLights.push(light);
-                    this.scene.add(light);
-                });
-            }
-
-            createIlluminationIndicators() {
-                // Create arrows showing sun rays direction
-                const arrowCount = 8;
-                this.sunRays = [];
-                
-                for (let i = 0; i < arrowCount; i++) {
-                    const angle = (i / arrowCount) * Math.PI * 2;
-                    
-                    // Create arrow geometry
-                    const arrowGeometry = new THREE.ConeGeometry(0.1, 0.5, 8);
-                    const arrowMaterial = new THREE.MeshBasicMaterial({
-                        color: 0xFFDD00,
-                        transparent: true,
-                        opacity: 0.8
-                    });
-                    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                    
-                    // Position arrows around the illuminated hemisphere
-                    const radius = 4;
-                    arrow.position.set(
-                        -radius + Math.cos(angle) * 0.5,
-                        Math.sin(angle) * 2,
-                        Math.cos(angle + Math.PI/2) * 2
-                    );
-                    arrow.lookAt(0, 0, 0);
-                    
-                    this.sunRays.push(arrow);
-                    this.scene.add(arrow);
-                }
-            }
-
-            setupEventListeners() {
-                // Play/Pause button
-                document.getElementById('daynight-play-pause').addEventListener('click', () => {
-                    this.isPlaying = !this.isPlaying;
-                    const button = document.getElementById('daynight-play-pause');
-                    button.textContent = this.isPlaying ? '⏸️' : '▶️';
-                });
-
-                // Reset button
-                document.getElementById('daynight-reset').addEventListener('click', () => {
-                    this.rotationAngle = 0;
-                    if (this.earth) {
-                        this.earth.rotation.y = 0;
-                    }
-                    this.updateTimeInfo();
-                });
-
-                // Speed control
-                document.getElementById('daynight-speed').addEventListener('input', (e) => {
-                    this.speed = parseFloat(e.target.value);
-                    document.getElementById('daynight-speed-value').textContent = this.speed + 'x';
-                });
-            }
-
-            updateTimeInfo() {
-                // Calculate current time based on rotation (24 hours = 2π radians)
-                const hours = ((this.rotationAngle % (Math.PI * 2)) / (Math.PI * 2)) * 24;
-                const displayHours = Math.floor(hours);
-                const displayMinutes = Math.floor((hours - displayHours) * 60);
-                
-                const timeString = `${displayHours.toString().padStart(2, '0')}:${displayMinutes.toString().padStart(2, '0')}`;
-                
-                const currentTimeElement = document.getElementById('current-time');
-                const terminatorElement = document.getElementById('terminator-position');
-                
-                if (currentTimeElement) {
-                    currentTimeElement.textContent = timeString;
-                }
-                
-                if (terminatorElement) {
-                    const isDay = (hours >= 6 && hours <= 18);
-                    terminatorElement.textContent = isDay ? '昼侧主导' : '夜侧主导';
-                }
-            }
-
-            // Add missing methods for realistic object creation
-            async loadPlanetTexture(planetName) {
-                const textureUrls = {
-                    sun: [
-                        'https://threejs.org/examples/textures/planets/sun.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
-                    ],
-                    earth: [
-                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg'
-                    ],
-                    earth_night: [
-                        'https://threejs.org/examples/textures/planets/earth_lights_2048.png',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg'
-                    ],
-                    earth_clouds: [
-                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg'
-                    ],
-                    moon: [
-                        'https://threejs.org/examples/textures/planets/moon_1024.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg'
-                    ]
-                };
-                
-                const urls = textureUrls[planetName] || textureUrls.earth;
-                
-                return new Promise((resolve) => {
-                    const loader = new THREE.TextureLoader();
-                    
-                    const tryLoadTexture = (urlIndex = 0) => {
-                        if (urlIndex >= urls.length) {
-                            resolve(null);
-                            return;
-                        }
-                        
-                        loader.load(
-                            urls[urlIndex],
-                            (texture) => {
-                                resolve(texture);
-                            },
-                            undefined,
-                            () => {
-                                tryLoadTexture(urlIndex + 1);
-                            }
-                        );
-                    };
-                    
-                    tryLoadTexture();
-                });
-            }
-
-            async createRealisticEarth(size = 2.5, position = [0, 0, 0]) {
-                const earthGroup = new THREE.Group();
-                
-                // Load textures
-                const dayTexture = await this.loadPlanetTexture('earth');
-                const nightTexture = await this.loadPlanetTexture('earth_night');
-                const cloudsTexture = await this.loadPlanetTexture('earth_clouds');
-                
-                // Earth sphere with day texture
-                const earthGeometry = new THREE.SphereGeometry(size, 128, 128);
-                const earthMaterial = new THREE.MeshPhongMaterial({
-                    map: dayTexture,
-                    bumpMap: dayTexture,
-                    bumpScale: 0.02,
-                    specularMap: dayTexture,
-                    specular: new THREE.Color('grey'),
-                    shininess: 100
-                });
-                
-                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                earth.castShadow = true;
-                earth.receiveShadow = true;
-                earthGroup.add(earth);
-                
-                // Night lights layer (visible on dark side)
-                if (nightTexture) {
-                    const nightGeometry = new THREE.SphereGeometry(size * 1.001, 128, 128);
-                    const nightMaterial = new THREE.MeshBasicMaterial({
-                        map: nightTexture,
-                        transparent: true,
-                        opacity: 1.0,
-                        blending: THREE.AdditiveBlending
-                    });
-                    const nightLights = new THREE.Mesh(nightGeometry, nightMaterial);
-                    earthGroup.add(nightLights);
-                    earthGroup.nightLights = nightLights;
-                }
-                
-                // Cloud layer with animation
-                if (cloudsTexture) {
-                    const cloudGeometry = new THREE.SphereGeometry(size * 1.02, 64, 64);
-                    const cloudMaterial = new THREE.MeshPhongMaterial({
-                        map: cloudsTexture,
-                        transparent: true,
-                        opacity: 0.4,
-                        alphaMap: cloudsTexture
-                    });
-                    const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
-                    earthGroup.add(clouds);
-                    earthGroup.clouds = clouds;
-                }
-                
-                // Atmosphere glow (stronger on day side)
-                const atmosphereGeometry = new THREE.SphereGeometry(size * 1.1, 32, 32);
-                const atmosphereMaterial = new THREE.MeshBasicMaterial({
-                    color: 0x87CEEB,
-                    transparent: true,
-                    opacity: 0.3,
-                    side: THREE.BackSide
-                });
-                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
-                earthGroup.add(atmosphere);
-                
-                earthGroup.position.set(...position);
-                return earthGroup;
-            }
-
-            async createRealisticSun(size = 1.2, position = [-15, 0, 0]) {
-                const sunGroup = new THREE.Group();
-                
-                // Load sun texture
-                const sunTexture = await this.loadPlanetTexture('sun');
-                
-                // Sun sphere with realistic surface
-                const sunGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const sunMaterial = new THREE.MeshPhongMaterial({
-                    map: sunTexture,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1.5,
-                    emissiveMap: sunTexture
-                });
-                
-                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                sunGroup.add(sun);
-                
-                // Enhanced corona for distance viewing
-                const coronaLayers = [
-                    { size: size * 1.3, color: 0xFFD700, opacity: 0.6 },
-                    { size: size * 1.6, color: 0xFF6600, opacity: 0.4 },
-                    { size: size * 2.0, color: 0xFFDD44, opacity: 0.2 }
-                ];
-                
-                coronaLayers.forEach(layer => {
-                    const coronaGeometry = new THREE.SphereGeometry(layer.size, 32, 32);
-                    const coronaMaterial = new THREE.MeshBasicMaterial({
-                        color: layer.color,
-                        transparent: true,
-                        opacity: layer.opacity,
-                        side: THREE.BackSide
-                    });
-                    const corona = new THREE.Mesh(coronaGeometry, coronaMaterial);
-                    sunGroup.add(corona);
-                });
-                
-                // Enhanced solar flares
-                this.createEnhancedSolarFlares(sunGroup, size);
-                
-                sunGroup.position.set(...position);
-                return sunGroup;
-            }
-
-            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
-                const moonGroup = new THREE.Group();
-                
-                // Load moon texture
-                const moonTexture = await this.loadPlanetTexture('moon');
-                
-                // Moon sphere with realistic surface
-                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({
-                    map: moonTexture,
-                    bumpMap: moonTexture,
-                    bumpScale: 0.1,
-                    shininess: 1
-                });
-                
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.castShadow = true;
-                moon.receiveShadow = true;
-                moonGroup.add(moon);
-                
-                moonGroup.position.set(...position);
-                return moonGroup;
-            }
-
-            createEnhancedSolarFlares(sunGroup, sunSize) {
-                // Create solar flare particles for the sun
-                const flareCount = 200;
-                const flareGeometry = new THREE.BufferGeometry();
-                const flarePositions = [];
-                const flareSizes = [];
-                const flareColors = [];
-                
-                for (let i = 0; i < flareCount; i++) {
-                    // Random positions around the sun surface
-                    const radius = sunSize + Math.random() * (sunSize * 0.6);
-                    const theta = Math.random() * Math.PI * 2;
-                    const phi = Math.random() * Math.PI;
-                    
-                    const x = radius * Math.sin(phi) * Math.cos(theta);
-                    const y = radius * Math.sin(phi) * Math.sin(theta);
-                    const z = radius * Math.cos(phi);
-                    
-                    flarePositions.push(x, y, z);
-                    flareSizes.push(Math.random() * 0.2 + 0.1);
-                    
-                    // Solar flare colors
-                    const colorVariation = Math.random();
-                    if (colorVariation < 0.5) {
-                        flareColors.push(1, 1, 0); // Yellow
-                    } else {
-                        flareColors.push(1, 0.4, 0); // Orange
-                    }
-                }
-                
-                flareGeometry.setAttribute('position', new THREE.Float32BufferAttribute(flarePositions, 3));
-                flareGeometry.setAttribute('size', new THREE.Float32BufferAttribute(flareSizes, 1));
-                flareGeometry.setAttribute('color', new THREE.Float32BufferAttribute(flareColors, 3));
-                
-                const flareMaterial = new THREE.PointsMaterial({
-                    size: 0.15,
-                    transparent: true,
-                    opacity: 0.8,
-                    blending: THREE.AdditiveBlending,
-                    vertexColors: true
-                });
-                
-                const flares = new THREE.Points(flareGeometry, flareMaterial);
-                sunGroup.add(flares);
-                
-                // Store reference for animation
-                sunGroup.solarFlares = flares;
-                return flares;
-            }
-
-            animate() {
-                requestAnimationFrame(() => this.animate());
-                
-                if (this.isPlaying && this.earth) { 
-                    // Rotate Earth to show day/night cycle
-                    this.rotationAngle += 0.015 * this.speed;
-                    this.earth.rotation.y = this.rotationAngle;
-                    
-                    // Animate clouds independently for realism
-                    if (this.earth.clouds) {
-                        this.earth.clouds.rotation.y = this.rotationAngle * 0.95; // Slightly different speed
-                    }
-                    
-                    // Update terminator position to follow Earth's rotation
-                    if (this.terminator) {
-                        this.terminator.rotation.z = this.rotationAngle;
-                    }
-                    
-                    // Update city lights visibility based on day/night
-                    this.updateCityLights();
-                    
-                    // Animate sun solar flares
-                    if (this.sun && this.sun.solarFlares) {
-                        this.sun.solarFlares.rotation.y += 0.02 * this.speed;
-                        this.sun.solarFlares.rotation.z += 0.01 * this.speed;
-                    }
-                    
-                    // Update time information
-                    this.updateTimeInfo();
-                }
-                
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-            }
-
-            updateCityLights() {
-                if (!this.cityLights) return;
-                
-                this.cityLights.forEach(light => {
-                    // Rotate city light with Earth
-                    const originalPos = light.userData.originalPosition;
-                    const rotatedX = originalPos.x * Math.cos(this.rotationAngle) - originalPos.z * Math.sin(this.rotationAngle);
-                    const rotatedZ = originalPos.x * Math.sin(this.rotationAngle) + originalPos.z * Math.cos(this.rotationAngle);
-                    
-                    light.position.set(rotatedX, originalPos.y, rotatedZ);
-                    
-                    // Calculate if this position is on night side (facing away from sun)
-                    const sunDirection = new THREE.Vector3(-1, 0, 0); // Sun is at [-15, 0, 0]
-                    const lightDirection = light.position.clone().normalize();
-                    const dotProduct = lightDirection.dot(sunDirection);
-                    
-                    // Show lights on night side (dot product < 0 means facing away from sun)
-                    const isNightSide = dotProduct < -0.1;
-                    light.visible = isNightSide;
-                    
-                    // Adjust opacity based on how deep into night side
-                    if (isNightSide) {
-                        const opacity = Math.min(1.0, Math.abs(dotProduct) * 2);
-                        light.material.opacity = opacity;
-                        light.children[0].material.opacity = opacity * 0.6; // Glow effect
-                    }
-                });
-            }
-        }
-
-        // 3D Tidal Demonstration - Enhanced and Educational
-        class Tidal3D {
-            constructor(containerId) {
-                this.containerId = containerId;
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.controls = null;
-                this.earth = null;
-                this.moon = null;
-                this.sun = null;
-                this.water = null;
-                this.tidalIndicators = [];
-                this.moonAngle = 0;
-                this.isPlaying = true;
-                this.speed = 1.5;
-                this.init();
-            }
-
-            async init() {
-                try {
-                    this.setupScene();
-                    this.setupCamera();
-                    this.setupRenderer();
-                    this.setupLights();
-                    this.setupControls();
-                    await this.createObjects();
-                    this.setupEventListeners();
-                    this.animate();
-                    
-                    // Hide loading indicator
-                    const loadingElement = document.getElementById('tidal-loading');
-                    if (loadingElement) {
-                        loadingElement.style.display = 'none';
-                    }
-                } catch (error) {
-                    console.error('Failed to initialize Tidal3D:', error);
-                    this.showError();
-                }
-            }
-
-            showError() {
-                const loadingElement = document.getElementById('tidal-loading');
-                if (loadingElement) {
-                    loadingElement.innerHTML = '<div style="color: #ff6b6b;">3D演示加载失败</div>';
-                }
-            }
-
-            setupScene() {
-                this.scene = new THREE.Scene();
-                this.scene.background = new THREE.Color(0x001122);
-                
-                // Add stars
-                this.createStarField();
-            }
-
-            createStarField() {
-                const starsGeometry = new THREE.BufferGeometry();
-                const starsMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.8 });
-                
-                const starsVertices = [];
-                for (let i = 0; i < 1000; i++) {
-                    const x = (Math.random() - 0.5) * 300;
-                    const y = (Math.random() - 0.5) * 300;
-                    const z = (Math.random() - 0.5) * 300;
-                    starsVertices.push(x, y, z);
-                }
-                
-                starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
-                const stars = new THREE.Points(starsGeometry, starsMaterial);
-                this.scene.add(stars);
-            }
-
-            setupCamera() {
-                const container = document.getElementById(this.containerId);
-                const width = container.clientWidth;
-                const height = container.clientHeight;
-                
-                this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-                this.camera.position.set(0, 12, 18);
-                this.camera.lookAt(0, 0, 0);
-            }
-
-            setupRenderer() {
-                const container = document.getElementById(this.containerId);
-                
-                this.renderer = new THREE.WebGLRenderer({ antialias: true });
-                this.renderer.setSize(container.clientWidth, container.clientHeight);
-                this.renderer.setPixelRatio(window.devicePixelRatio);
-                this.renderer.shadowMap.enabled = true;
-                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-                
-                container.appendChild(this.renderer.domElement);
-            }
-
-            setupLights() {
-                const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
-                this.scene.add(ambientLight);
-                
-                // Sun light (distant but visible)
-                const sunLight = new THREE.DirectionalLight(0xFFFFFF, 1.5);
-                sunLight.position.set(25, 15, 15);
-                sunLight.castShadow = true;
-                sunLight.shadow.mapSize.width = 1024;
-                sunLight.shadow.mapSize.height = 1024;
-                this.scene.add(sunLight);
-
-                // Moon light (subtle blue tint)
-                this.moonLight = new THREE.PointLight(0xC0C0FF, 0.8, 30);
-                this.scene.add(this.moonLight);
-            }
-
-            setupControls() {
-                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-                this.controls.enableDamping = true;
-                this.controls.dampingFactor = 0.05;
-                this.controls.minDistance = 5;
-                this.controls.maxDistance = 25;
-                this.controls.target.set(0, 0, 0);
-            }
-
-            async createObjects() {
-                // Create realistic Earth with continents
-                this.earth = await this.createRealisticEarth(2, [0, 0, 0]);
-                this.earth.castShadow = true;
-                this.earth.receiveShadow = true;
-                this.scene.add(this.earth);
-
-                // Add enhanced ocean layer with realistic tidal effects
-                this.createOceanLayer();
-
-                // Create realistic Moon with surface details
-                this.moon = await this.createRealisticMoon(0.6, [8, 0, 0]);
-                this.moon.castShadow = true;
-                this.scene.add(this.moon);
-
-                // Create distant realistic Sun
-                this.sun = await this.createRealisticSun(0.3, [25, 5, 5]);
-                this.scene.add(this.sun);
-
-                // Create Moon's orbit path
-                this.createOrbitPath();
-
-                // Create tidal force indicators
-                this.createTidalIndicators();
-            }
-
-            createOceanLayer() {
-                // Create ocean with dynamic tidal bulges
-                const oceanGeometry = new THREE.SphereGeometry(2.15, 128, 128);
-                const oceanMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x006994,
-                    transparent: true,
-                    opacity: 0.8,
-                    shininess: 100,
-                    specular: 0x111111
-                });
-                this.water = new THREE.Mesh(oceanGeometry, oceanMaterial);
-                this.water.receiveShadow = true;
-                this.scene.add(this.water);
-
-                // Store original positions for tidal calculations
-                this.originalPositions = oceanGeometry.attributes.position.array.slice();
-            }
-
-            createOrbitPath() {
-                const orbitPoints = [];
-                for (let i = 0; i <= 128; i++) {
-                    const angle = (i / 128) * Math.PI * 2;
-                    orbitPoints.push(new THREE.Vector3(
-                        Math.cos(angle) * 8,
-                        0,
-                        Math.sin(angle) * 8
-                    ));
-                }
-                
-                const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-                const orbitMaterial = new THREE.LineBasicMaterial({ 
-                    color: 0x666666,
-                    transparent: true,
-                    opacity: 0.4
-                });
-                const orbit = new THREE.Line(orbitGeometry, orbitMaterial);
-                this.scene.add(orbit);
-            }
-
-            createTidalIndicators() {
-                // Create arrows to show tidal forces
-                const arrowGeometry = new THREE.ConeGeometry(0.1, 0.5, 8);
-                const highTideMaterial = new THREE.MeshBasicMaterial({ color: 0xFF4444 });
-                const lowTideMaterial = new THREE.MeshBasicMaterial({ color: 0x4444FF });
-
-                // High tide indicators (facing moon and opposite)
-                for (let i = 0; i < 2; i++) {
-                    const arrow = new THREE.Mesh(arrowGeometry, highTideMaterial);
-                    this.tidalIndicators.push({ mesh: arrow, type: 'high' });
-                    this.scene.add(arrow);
-                }
-
-                // Low tide indicators (perpendicular to moon)
-                for (let i = 0; i < 2; i++) {
-                    const arrow = new THREE.Mesh(arrowGeometry, lowTideMaterial);
-                    this.tidalIndicators.push({ mesh: arrow, type: 'low' });
-                    this.scene.add(arrow);
-                }
-            }
-
-            setupEventListeners() {
-                // Play/Pause button
-                document.getElementById('tidal-play-pause').addEventListener('click', () => {
-                    this.isPlaying = !this.isPlaying;
-                    const button = document.getElementById('tidal-play-pause');
-                    button.textContent = this.isPlaying ? '⏸️' : '▶️';
-                });
-
-                // Reset button
-                document.getElementById('tidal-reset').addEventListener('click', () => {
-                    this.moonAngle = 0;
-                    this.moon.position.set(8, 0, 0);
-                    this.updateTidalInfo();
-                });
-
-                // Speed control
-                document.getElementById('tidal-speed').addEventListener('input', (e) => {
-                    this.speed = parseFloat(e.target.value);
-                    document.getElementById('tidal-speed-value').textContent = this.speed + 'x';
-                });
-            }
-
-            updateTidalInfo() {
-                if (!this.moon) return; // Add null check for moon
-                
-                // Determine tidal state based on moon position
-                const moonX = this.moon.position.x;
-                const moonZ = this.moon.position.z;
-                
-                let tidalState = '';
-                let moonPhase = '';
-                let tidalRange = '';
-
-                // Determine if it's high or low tide based on moon position
-                if (Math.abs(moonX) > Math.abs(moonZ)) {
-                    tidalState = moonX > 0 ? '涨潮' : '涨潮';
-                    tidalRange = '3.2米';
-                } else {
-                    tidalState = '落潮';
-                    tidalRange = '1.8米';
-                }
-
-                // Determine moon phase
-                if (moonX > 6) moonPhase = '新月';
-                else if (moonZ > 6) moonPhase = '上弦月';
-                else if (moonX < -6) moonPhase = '满月';
-                else moonPhase = '下弦月';
-
-                document.getElementById('tidal-state').textContent = tidalState;
-                document.getElementById('moon-phase').textContent = moonPhase;
-                document.getElementById('tidal-range').textContent = tidalRange;
-            }
-
-            animate() {
-                requestAnimationFrame(() => this.animate());
-                
-                if (this.isPlaying && this.moon && this.earth) { // Add null checks for moon and earth
-                    // Orbit Moon around Earth
-                    this.moonAngle += 0.015 * this.speed;
-                    this.moon.position.x = Math.cos(this.moonAngle) * 8;
-                    this.moon.position.z = Math.sin(this.moonAngle) * 8;
-                    
-                    // Update moon light position
-                    if (this.moonLight) {
-                        this.moonLight.position.copy(this.moon.position);
-                    }
-                    
-                    // Animate realistic tidal bulges
-                    this.updateTidalBulges();
-                    
-                    // Update tidal force indicators
-                    this.updateTidalIndicators();
-                    
-                    // Rotate Earth (slower than moon orbit)
-                    this.earth.rotation.y += 0.008 * this.speed;
-                    
-                    // Update tidal information
-                    this.updateTidalInfo();
-                }
-                
-                this.controls.update();
-                this.renderer.render(this.scene, this.camera);
-            }
-
-            updateTidalBulges() {
-                if (!this.water || !this.originalPositions) return;
-
-                const positions = this.water.geometry.attributes.position;
-                const moonPos = this.moon.position.clone().normalize();
-                
-                for (let i = 0; i < positions.count; i++) {
-                    const index = i * 3;
-                    
-                    // Get original position
-                    const x = this.originalPositions[index];
-                    const y = this.originalPositions[index + 1];
-                    const z = this.originalPositions[index + 2];
-                    
-                    const vertex = new THREE.Vector3(x, y, z).normalize();
-                    
-                    // Calculate tidal effect based on moon position
-                    const moonDot = vertex.dot(moonPos);
-                    
-                    // Primary bulge (facing moon)
-                    const primaryBulge = Math.max(0, moonDot) * 0.4;
-                    
-                    // Secondary bulge (opposite side - centrifugal force)
-                    const secondaryBulge = Math.max(0, -moonDot) * 0.25;
-                    
-                    // Side compression (perpendicular to moon)
-                    const sideCompression = Math.abs(moonDot) < 0.3 ? -0.15 : 0;
-                    
-                    const totalEffect = primaryBulge + secondaryBulge + sideCompression;
-                    const newRadius = 2.15 + totalEffect;
-                    
-                    vertex.multiplyScalar(newRadius);
-                    positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
-                }
-                
-                positions.needsUpdate = true;
-            }
-
-            updateTidalIndicators() {
-                const moonPos = this.moon.position.clone().normalize();
-                
-                this.tidalIndicators.forEach((indicator, index) => {
-                    if (indicator.type === 'high') {
-                        if (index === 0) {
-                            // High tide facing moon
-                            indicator.mesh.position.copy(moonPos).multiplyScalar(3);
-                            indicator.mesh.lookAt(moonPos.clone().multiplyScalar(4));
-                        } else {
-                            // High tide opposite moon
-                            indicator.mesh.position.copy(moonPos).multiplyScalar(-3);
-                            indicator.mesh.lookAt(moonPos.clone().multiplyScalar(-4));
-                        }
-                    } else {
-                        // Low tide perpendicular to moon
-                        const perpendicular = new THREE.Vector3(-moonPos.z, 0, moonPos.x);
-                        const direction = index === 2 ? 1 : -1;
-                        indicator.mesh.position.copy(perpendicular).multiplyScalar(3 * direction);
-                        indicator.mesh.lookAt(perpendicular.clone().multiplyScalar(4 * direction));
-                    }
-                });
-            }
-            
-            // Add missing methods for realistic object creation
-            async loadPlanetTexture(planetName) {
-                const textureUrls = {
-                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
-                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
-                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
-                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
-                };
-                
-                const urls = textureUrls[planetName] || textureUrls.earth;
-                
-                return new Promise((resolve) => {
-                    const loader = new THREE.TextureLoader();
-                    loader.load(urls[0], resolve, undefined, () => resolve(null));
-                });
-            }
-
-            async createRealisticEarth(size = 2, position = [0, 0, 0]) {
-                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
-                const earthMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x6B93D6,
-                    shininess: 30
-                });
-                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
-                earth.rotation.z = Math.PI * 23.5 / 180; // Apply tilt
-                earth.position.set(...position);
-                return earth;
-            }
-
-            async createRealisticSun(size = 0.3, position = [25, 5, 5]) {
-                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const sunMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xFFD700,
-                    emissive: 0xFFAA00,
-                    emissiveIntensity: 1
-                });
-                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
-                sun.position.set(...position);
-                return sun;
-            }
-
-            async createRealisticMoon(size = 0.6, position = [8, 0, 0]) {
-                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
-                const moonMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0xC0C0C0,
-                    shininess: 1
-                });
-                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
-                moon.position.set(...position);
-                return moon;
-            }
-
-            createEnhancedSolarFlares(sunGroup, sunSize) {
-                // Simple solar flare effect
-                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
-                const flareMaterial = new THREE.MeshBasicMaterial({
-                    color: 0xFFAA00,
-                    transparent: true,
-                    opacity: 0.3
-                });
-                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
-                sunGroup.add(flares);
-                sunGroup.solarFlares = flares;
-                return flares;
+                return new THREE.CanvasTexture(canvas);
             }
         }
 
         // Initialize 3D Solar System and Phenomena
         let solarSystem3D;
-        let seasons3D;
-        let dayNight3D;
-        let tidal3D;
         
         document.addEventListener('DOMContentLoaded', async () => {
             // Initialize main solar system first
-            solarSystem3D = new SolarSystem3D();
-            
-            // Initialize 3D phenomena demonstrations with proper async handling
-            try {
-                // Create instances and wait for them to initialize
-                setTimeout(async () => {
-                    try {
-                        seasons3D = new Seasons3D('seasons-3d-container');
-                        dayNight3D = new DayNight3D('day-night-3d-container'); 
-                        tidal3D = new Tidal3D('tidal-3d-container');
-                    } catch (error) {
-                        console.error('Error initializing 3D phenomena:', error);
-                    }
-                }, 1500); // Delay to ensure main solar system loads first
-            } catch (error) {
-                console.error('Error setting up 3D demonstrations:', error);
-            }
+            solarSystem3D = new RealisticSolarSystem();
         });
     </script>
 </body>
