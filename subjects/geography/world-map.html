@@ -107,6 +107,55 @@
             color: white;
         }
 
+        .terrain-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #ddd;
+        }
+
+        .terrain-slider {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .terrain-slider label {
+            font-size: 0.8rem;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .terrain-slider input[type="range"] {
+            width: 150px;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .terrain-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #28a745;
+            cursor: pointer;
+        }
+
+        .terrain-slider input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #28a745;
+            cursor: pointer;
+            border: none;
+        }
+
         .map-workspace {
             display: grid;
             grid-template-columns: 1fr 350px;
@@ -399,6 +448,21 @@
                 border-radius: 15px;
             }
             
+            .terrain-controls {
+                flex-direction: column;
+                gap: 0.75rem;
+                align-items: stretch;
+            }
+            
+            .terrain-slider {
+                align-items: center;
+            }
+            
+            .terrain-slider input[type="range"] {
+                width: 100%;
+                max-width: 200px;
+            }
+            
             .map-header {
                 padding: 1.5rem 1rem;
             }
@@ -494,6 +558,33 @@
                 padding: 0.3rem 0.6rem;
             }
             
+            .terrain-controls {
+                gap: 0.5rem;
+                padding-top: 0.75rem;
+            }
+            
+            .terrain-slider {
+                align-items: center;
+            }
+            
+            .terrain-slider label {
+                font-size: 0.75rem;
+                text-align: center;
+                margin-bottom: 0.25rem;
+            }
+            
+            .terrain-slider input[type="range"] {
+                width: 100%;
+                max-width: 180px;
+            }
+            
+            #toggle-wireframe-terrain {
+                font-size: 0.75rem;
+                padding: 0.3rem 0.6rem;
+                align-self: center;
+                max-width: 120px;
+            }
+            
             .continent-legend {
                 padding: 0.5rem;
             }
@@ -551,13 +642,30 @@
                     
                     <div class="control-group">
                         <label>地图视图</label>
-                        <div class="map-type-buttons">
-                            <button class="map-type-btn active" data-type="political">政治地图</button>
-                            <button class="map-type-btn" data-type="population">人口密度</button>
-                            <button class="map-type-btn" data-type="economy">经济发展</button>
-                            <button class="map-type-btn" data-type="climate">气候分布</button>
-                        </div>
+                                        <div class="map-type-buttons">
+                    <button class="map-type-btn active" data-type="political">政治地图</button>
+                    <button class="map-type-btn" data-type="terrain">3D地形</button>
+                    <button class="map-type-btn" data-type="population">人口密度</button>
+                    <button class="map-type-btn" data-type="economy">经济发展</button>
+                    <button class="map-type-btn" data-type="climate">气候分布</button>
+                </div>
+                
+                <div class="terrain-controls">
+                    <div class="terrain-slider">
+                        <label>地形高度</label>
+                        <input type="range" id="terrain-height" min="0" max="2" step="0.1" value="0.5">
                     </div>
+                    <div class="terrain-slider">
+                        <label>海洋深度</label>
+                        <input type="range" id="ocean-depth" min="0" max="1" step="0.1" value="0.3">
+                    </div>
+                    <div class="terrain-slider">
+                        <label>地形细节</label>
+                        <input type="range" id="terrain-detail" min="32" max="256" step="32" value="128">
+                    </div>
+                    <button class="map-type-btn" id="toggle-wireframe-terrain">显示网格</button>
+                </div>
+            </div>
                 </div>
 
                 <div class="map-workspace">
@@ -786,12 +894,19 @@
             }
 
             async createGlobe() {
-                // Create sphere geometry
-                const geometry = new THREE.SphereGeometry(1, 64, 64);
+                // Initialize terrain properties
+                this.terrainHeight = 0.5;
+                this.oceanDepth = 0.3;
+                this.terrainDetail = 128;
+                this.showTerrainWireframe = false;
+                
+                // Create sphere geometry with higher detail for terrain
+                this.baseGeometry = new THREE.SphereGeometry(1, this.terrainDetail, this.terrainDetail);
                 
                 // Try to load Earth textures with fallbacks
                 let earthTexture = null;
                 let bumpTexture = null;
+                let heightTexture = null;
                 
                 try {
                     // Try multiple texture sources
@@ -824,8 +939,49 @@
                             console.warn(`Failed to load bump texture from ${url}`);
                         }
                     }
+                    
+                    // Try to load height map for terrain
+                    const heightUrls = [
+                        'https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/terrain/heightmap.png',
+                        'https://threejs.org/examples/textures/terrain/heightmap.png'
+                    ];
+                    
+                    for (const url of heightUrls) {
+                        try {
+                            heightTexture = await this.loadTexture(url);
+                            break;
+                        } catch (e) {
+                            console.warn(`Failed to load height texture from ${url}`);
+                        }
+                    }
                 } catch (error) {
                     console.warn('Failed to load textures:', error);
+                }
+                
+                // Store textures for later use
+                this.earthTexture = earthTexture;
+                this.bumpTexture = bumpTexture;
+                this.heightTexture = heightTexture;
+                
+                // Create initial globe
+                this.createGlobeWithTerrain();
+                
+                // Add atmosphere
+                this.createAtmosphere();
+            }
+
+            createGlobeWithTerrain() {
+                // Remove existing globe if it exists
+                if (this.globe) {
+                    this.scene.remove(this.globe);
+                }
+                
+                // Create geometry based on current terrain settings
+                const geometry = new THREE.SphereGeometry(1, this.terrainDetail, this.terrainDetail);
+                
+                // Apply terrain displacement if in terrain mode
+                if (this.currentMapType === 'terrain') {
+                    this.applyTerrainDisplacement(geometry);
                 }
                 
                 // Create material with better visibility
@@ -833,23 +989,13 @@
                     shininess: 30,
                     transparent: false,
                     opacity: 1.0,
-                    // Increase brightness
                     emissive: 0x111111,
-                    emissiveIntensity: 0.2
+                    emissiveIntensity: 0.2,
+                    wireframe: this.showTerrainWireframe
                 };
                 
-                // Add textures if loaded successfully
-                if (earthTexture) {
-                    materialOptions.map = earthTexture;
-                } else {
-                    // Fallback to blue-green color for Earth
-                    materialOptions.color = 0x4a90e2;
-                }
-                
-                if (bumpTexture) {
-                    materialOptions.bumpMap = bumpTexture;
-                    materialOptions.bumpScale = 0.02;
-                }
+                // Configure material based on map type
+                this.configureMaterial(materialOptions);
                 
                 const material = new THREE.MeshPhongMaterial(materialOptions);
                 
@@ -857,9 +1003,159 @@
                 this.globe = new THREE.Mesh(geometry, material);
                 this.globe.receiveShadow = true;
                 this.scene.add(this.globe);
+            }
+
+            applyTerrainDisplacement(geometry) {
+                const positions = geometry.attributes.position;
+                const vertex = new THREE.Vector3();
                 
-                // Add atmosphere
-                this.createAtmosphere();
+                for (let i = 0; i < positions.count; i++) {
+                    vertex.fromBufferAttribute(positions, i);
+                    
+                    // Generate procedural terrain height based on position
+                    const height = this.generateTerrainHeight(vertex);
+                    
+                    // Apply displacement
+                    const displacement = height * this.terrainHeight * 0.1;
+                    vertex.normalize().multiplyScalar(1 + displacement);
+                    
+                    positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
+                }
+                
+                positions.needsUpdate = true;
+                geometry.computeVertexNormals();
+            }
+
+            generateTerrainHeight(vertex) {
+                // Convert 3D position to latitude/longitude
+                const lat = Math.asin(vertex.y) * 180 / Math.PI;
+                const lon = Math.atan2(vertex.z, vertex.x) * 180 / Math.PI;
+                
+                // Generate realistic terrain using multiple noise functions
+                let height = 0;
+                
+                // Continental scale features (large landmasses)
+                height += this.noise(lat * 0.008, lon * 0.008) * 1.0;
+                
+                // Mountain ranges and major terrain features
+                height += this.noise(lat * 0.03, lon * 0.03) * 0.6;
+                
+                // Hills and medium terrain features
+                height += this.noise(lat * 0.08, lon * 0.08) * 0.3;
+                
+                // Local terrain details
+                height += this.noise(lat * 0.15, lon * 0.15) * 0.15;
+                
+                // Add some specific geographic features
+                height += this.addGeographicFeatures(lat, lon);
+                
+                // Ocean depth (negative values for underwater)
+                if (height < -0.1) {
+                    height *= this.oceanDepth * 2; // Deeper oceans
+                } else if (height < 0) {
+                    height *= 0.5; // Shallow seas
+                }
+                
+                // Clamp extreme values
+                height = Math.max(-1, Math.min(1, height));
+                
+                return height;
+            }
+
+            addGeographicFeatures(lat, lon) {
+                let features = 0;
+                
+                // Himalayas (around 28°N, 84°E)
+                const himalayaDist = Math.sqrt(Math.pow(lat - 28, 2) + Math.pow(lon - 84, 2));
+                if (himalayaDist < 15) {
+                    features += (1 - himalayaDist / 15) * 0.8;
+                }
+                
+                // Andes Mountains (along western South America)
+                if (lon > -80 && lon < -60 && lat > -55 && lat < 15) {
+                    const andesFactor = Math.sin((lat + 20) * Math.PI / 70) * 0.6;
+                    features += Math.max(0, andesFactor);
+                }
+                
+                // Rocky Mountains (western North America)
+                if (lon > -125 && lon < -100 && lat > 30 && lat < 60) {
+                    const rockiesFactor = Math.sin((lat - 30) * Math.PI / 30) * 0.5;
+                    features += Math.max(0, rockiesFactor);
+                }
+                
+                // Alps (central Europe)
+                const alpsDist = Math.sqrt(Math.pow(lat - 46, 2) + Math.pow(lon - 8, 2));
+                if (alpsDist < 8) {
+                    features += (1 - alpsDist / 8) * 0.4;
+                }
+                
+                // Mariana Trench (deep ocean trench)
+                const trenchDist = Math.sqrt(Math.pow(lat - 11, 2) + Math.pow(lon - 142, 2));
+                if (trenchDist < 5) {
+                    features -= (1 - trenchDist / 5) * 0.8;
+                }
+                
+                return features;
+            }
+
+            noise(x, y) {
+                // Improved noise function using multiple octaves
+                let value = 0;
+                let amplitude = 1;
+                let frequency = 1;
+                
+                for (let i = 0; i < 4; i++) {
+                    value += this.simpleNoise(x * frequency, y * frequency) * amplitude;
+                    amplitude *= 0.5;
+                    frequency *= 2;
+                }
+                
+                return value;
+            }
+
+            simpleNoise(x, y) {
+                // Simple noise function for terrain generation
+                const n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+                return (n - Math.floor(n)) * 2 - 1;
+            }
+
+            configureMaterial(materialOptions) {
+                switch (this.currentMapType) {
+                    case 'terrain':
+                        // Terrain visualization with height-based coloring
+                        if (this.earthTexture) {
+                            materialOptions.map = this.earthTexture;
+                        } else {
+                            materialOptions.color = 0x228B22; // Forest green for land
+                        }
+                        
+                        if (this.bumpTexture) {
+                            materialOptions.bumpMap = this.bumpTexture;
+                            materialOptions.bumpScale = 0.05;
+                        }
+                        break;
+                        
+                    case 'political':
+                        // Standard Earth texture
+                        if (this.earthTexture) {
+                            materialOptions.map = this.earthTexture;
+                        } else {
+                            materialOptions.color = 0x4a90e2;
+                        }
+                        break;
+                        
+                    case 'population':
+                        materialOptions.color = 0x88aa88;
+                        break;
+                        
+                    case 'economy':
+                        materialOptions.color = 0xaa8888;
+                        break;
+                        
+                    case 'climate':
+                        materialOptions.color = 0x8888aa;
+                        break;
+                }
             }
 
             createAtmosphere() {
@@ -1137,6 +1433,35 @@
                         this.switchMapType(e.target.dataset.type);
                     });
                 });
+                
+                // Terrain controls
+                const terrainHeightSlider = document.getElementById('terrain-height');
+                if (terrainHeightSlider) {
+                    terrainHeightSlider.addEventListener('input', (e) => {
+                        this.updateTerrainHeight(e.target.value);
+                    });
+                }
+                
+                const oceanDepthSlider = document.getElementById('ocean-depth');
+                if (oceanDepthSlider) {
+                    oceanDepthSlider.addEventListener('input', (e) => {
+                        this.updateOceanDepth(e.target.value);
+                    });
+                }
+                
+                const terrainDetailSlider = document.getElementById('terrain-detail');
+                if (terrainDetailSlider) {
+                    terrainDetailSlider.addEventListener('input', (e) => {
+                        this.updateTerrainDetail(e.target.value);
+                    });
+                }
+                
+                const wireframeTerrainBtn = document.getElementById('toggle-wireframe-terrain');
+                if (wireframeTerrainBtn) {
+                    wireframeTerrainBtn.addEventListener('click', () => {
+                        this.toggleTerrainWireframe();
+                    });
+                }
                 
                 // Search functionality
                 const searchInput = document.getElementById('country-search');
@@ -1908,36 +2233,40 @@
             }
 
             updateMapDisplay() {
-                // For 3D globe, we'll update the globe material based on map type
-                if (!this.globe) return;
+                // Recreate globe with new settings
+                this.createGlobeWithTerrain();
+            }
+
+            updateTerrainHeight(value) {
+                this.terrainHeight = parseFloat(value);
+                if (this.currentMapType === 'terrain') {
+                    this.updateMapDisplay();
+                }
+            }
+
+            updateOceanDepth(value) {
+                this.oceanDepth = parseFloat(value);
+                if (this.currentMapType === 'terrain') {
+                    this.updateMapDisplay();
+                }
+            }
+
+            updateTerrainDetail(value) {
+                this.terrainDetail = parseInt(value);
+                if (this.currentMapType === 'terrain') {
+                    this.updateMapDisplay();
+                }
+            }
+
+            toggleTerrainWireframe() {
+                this.showTerrainWireframe = !this.showTerrainWireframe;
+                const button = document.getElementById('toggle-wireframe-terrain');
+                button.textContent = this.showTerrainWireframe ? '隐藏网格' : '显示网格';
+                button.style.background = this.showTerrainWireframe ? '#28a745' : 'white';
+                button.style.color = this.showTerrainWireframe ? 'white' : '#28a745';
                 
-                switch (this.currentMapType) {
-                    case 'political':
-                        // Use the default Earth texture for political view
-                        this.loadTexture('https://cdn.jsdelivr.net/gh/mrdoob/three.js@dev/examples/textures/planets/earth_atmos_2048.jpg')
-                            .then(texture => {
-                                this.globe.material.map = texture;
-                                this.globe.material.needsUpdate = true;
-                            });
-                        break;
-                        
-                    case 'population':
-                        // Use a different texture or color scheme for population
-                        this.globe.material.color.setHex(0x88aa88);
-                        this.globe.material.needsUpdate = true;
-                        break;
-                        
-                    case 'economy':
-                        // Economic development visualization
-                        this.globe.material.color.setHex(0xaa8888);
-                        this.globe.material.needsUpdate = true;
-                        break;
-                        
-                    case 'climate':
-                        // Climate visualization
-                        this.globe.material.color.setHex(0x8888aa);
-                        this.globe.material.needsUpdate = true;
-                        break;
+                if (this.currentMapType === 'terrain') {
+                    this.updateMapDisplay();
                 }
             }
         }
