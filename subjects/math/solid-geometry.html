@@ -358,6 +358,30 @@
                 flex-wrap: wrap;
             }
         }
+
+        /* Placement instruction animation */
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .placement-instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 215, 0, 0.95);
+            color: #000;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-weight: bold;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+            pointer-events: none;
+            box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
+            border: 2px solid #FFD700;
+        }
     </style>
 </head>
 <body>
@@ -439,6 +463,9 @@
                         </div>
                         <button class="action-button" onclick="createShape()">
                             <i class="fas fa-plus"></i> 创建几何体
+                        </button>
+                        <button class="action-button" onclick="enableClickToPlace()" style="background: linear-gradient(45deg, #28a745, #20c997); margin-top: 5px;">
+                            <i class="fas fa-mouse-pointer"></i> 点击放置模式
                         </button>
                     </div>
 
@@ -595,6 +622,9 @@
                 this.axesHelper = null;
                 this.raycaster = new THREE.Raycaster();
                 this.mouse = new THREE.Vector2();
+                this.lastClickPosition = new THREE.Vector3(0, 0, 0); // 记录最后点击位置
+                this.placementMode = false; // 是否处于放置模式
+                this.escKeyListener = null; // 用于存储ESC键监听器
                 
                 this.init();
             }
@@ -715,7 +745,7 @@
                 // 鼠标移动
                 this.renderer.domElement.addEventListener('mousemove', (event) => this.onMouseMove(event));
                 
-                // 鼠标点击
+                // 鼠标点击 - 修改为支持放置模式
                 this.renderer.domElement.addEventListener('click', (event) => this.onMouseClick(event));
                 
                 // 形状选择按钮
@@ -840,13 +870,29 @@
                     mesh.receiveShadow = true;
                     console.log('✅ 网格创建完成:', mesh);
                     
-                    // 随机位置
-                    mesh.position.set(
-                        (Math.random() - 0.5) * 10,
-                        Math.random() * 5,
-                        (Math.random() - 0.5) * 10
-                    );
-                    console.log('✅ 位置设置完成:', mesh.position);
+                    // 智能位置设置：使用最后点击位置或默认居中位置
+                    if (this.lastClickPosition.length() > 0) {
+                        // 使用最后点击的位置
+                        mesh.position.copy(this.lastClickPosition);
+                        console.log('✅ 使用点击位置:', mesh.position);
+                        // 清除点击位置，避免后续对象都堆叠在同一位置
+                        this.lastClickPosition.set(0, 0, 0);
+                    } else {
+                        // 默认位置：在相机前方可见区域内有序排列
+                        const offsetCount = this.objects.length;
+                        const gridSize = 4; // 4x4网格排列
+                        const spacing = 3; // 对象间距
+                        
+                        const row = Math.floor(offsetCount / gridSize);
+                        const col = offsetCount % gridSize;
+                        
+                        mesh.position.set(
+                            (col - gridSize/2) * spacing, // X轴：左右分布
+                            1 + row * 2, // Y轴：垂直分层
+                            -2 - row * spacing // Z轴：向前排列，确保在相机视野内
+                        );
+                        console.log('✅ 使用默认排列位置:', mesh.position);
+                    }
                     
                     this.scene.add(mesh);
                     console.log('✅ 添加到场景完成');
@@ -863,6 +909,10 @@
                     this.objects.push(objectInfo);
                     this.updateObjectsList();
                     console.log('✅ 几何体创建成功！对象总数:', this.objects.length);
+                    
+                    // 重置放置模式
+                    this.placementMode = false;
+                    this.updatePlacementUI();
                 } catch (error) {
                     console.error('❌ 创建几何体失败:', error);
                     alert('创建几何体失败: ' + error.message);
@@ -1045,7 +1095,25 @@
             }
 
             onMouseClick(event) {
+                // 防止控制器冲突
+                if (event.button !== 0) return; // 只处理左键点击
+                
                 this.raycaster.setFromCamera(this.mouse, this.camera);
+                
+                // 如果处于放置模式，设置放置位置
+                if (this.placementMode) {
+                    // 与网格平面相交来确定放置位置
+                    const intersects = this.raycaster.intersectObject(this.gridHelper);
+                    if (intersects.length > 0) {
+                        this.lastClickPosition.copy(intersects[0].point);
+                        this.lastClickPosition.y = Math.max(0, this.lastClickPosition.y); // 确保在地面以上
+                        console.log('📍 设置放置位置:', this.lastClickPosition);
+                        this.createShape(); // 立即创建几何体
+                        return;
+                    }
+                }
+                
+                // 检查是否点击了现有对象
                 const intersects = this.raycaster.intersectObjects(this.objects.map(obj => obj.mesh));
                 
                 if (intersects.length > 0) {
@@ -1054,6 +1122,14 @@
                     
                     if (objectInfo) {
                         this.showObjectInfo(objectInfo);
+                    }
+                } else {
+                    // 如果没有点击到对象，在网格上设置新的点击位置用于下次创建
+                    const gridIntersects = this.raycaster.intersectObject(this.gridHelper);
+                    if (gridIntersects.length > 0) {
+                        this.lastClickPosition.copy(gridIntersects[0].point);
+                        this.lastClickPosition.y = Math.max(0, this.lastClickPosition.y);
+                        console.log('📍 更新点击位置:', this.lastClickPosition);
                     }
                 }
             }
@@ -1076,6 +1152,61 @@
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
             }
+
+            // 启用放置模式
+            enablePlacementMode() {
+                this.placementMode = true;
+                this.updatePlacementUI();
+                console.log('🎯 放置模式已启用，点击3D视图来放置几何体');
+            }
+
+            // 更新放置模式UI提示
+            updatePlacementUI() {
+                const container = document.getElementById('geometry-container');
+                let instruction = container.querySelector('.placement-instruction');
+                
+                if (this.placementMode) {
+                    if (!instruction) {
+                        instruction = document.createElement('div');
+                        instruction.className = 'placement-instruction';
+                        instruction.style.cssText = `
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            transform: translate(-50%, -50%);
+                            background: rgba(255, 215, 0, 0.9);
+                            color: #000;
+                            padding: 15px 25px;
+                            border-radius: 10px;
+                            font-weight: bold;
+                            z-index: 1000;
+                            animation: pulse 2s infinite;
+                            pointer-events: none;
+                        `;
+                        instruction.innerHTML = '🎯 点击网格上的任意位置来放置几何体<br><small>按 ESC 键退出放置模式</small>';
+                        container.appendChild(instruction);
+                    }
+                } else {
+                    if (instruction) {
+                        instruction.remove();
+                    }
+                }
+                
+                // 添加ESC键退出放置模式的监听
+                if (this.placementMode && !this.escKeyListener) {
+                    this.escKeyListener = (event) => {
+                        if (event.key === 'Escape') {
+                            this.placementMode = false;
+                            this.updatePlacementUI();
+                            console.log('🚫 取消放置模式');
+                        }
+                    };
+                    document.addEventListener('keydown', this.escKeyListener);
+                } else if (!this.placementMode && this.escKeyListener) {
+                    document.removeEventListener('keydown', this.escKeyListener);
+                    this.escKeyListener = null;
+                }
+            }
         }
 
         // 全局函数供HTML调用
@@ -1086,7 +1217,17 @@
                 alert('3D系统未初始化，请刷新页面');
                 return;
             }
+            
+            // 直接创建几何体在默认位置
             geometrySystem.createShape();
+        }
+
+        function enableClickToPlace() {
+            if (!geometrySystem) {
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
+            geometrySystem.enablePlacementMode();
         }
 
         function createLine() {
