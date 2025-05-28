@@ -1745,17 +1745,8 @@
                 earth.receiveShadow = true;
                 earthGroup.add(earth);
                 
-                // Night lights layer (visible on dark side)
-                if (nightTexture) {
-                    const nightMaterial = new THREE.MeshBasicMaterial({
-                        map: nightTexture,
-                        transparent: true,
-                        opacity: 0.6,
-                        blending: THREE.AdditiveBlending
-                    });
-                    const nightLights = new THREE.Mesh(earthGeometry, nightMaterial);
-                    earthGroup.add(nightLights);
-                }
+                // Apply 23.5 degree axial tilt
+                earthGroup.rotation.z = Math.PI * 23.5 / 180;
                 
                 // Cloud layer
                 if (cloudsTexture) {
@@ -2542,7 +2533,7 @@
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                if (this.isPlaying) {
+                if (this.isPlaying && this.earth) { // Add null check for earth
                     // Orbit Earth around Sun
                     this.orbitAngle += 0.01 * this.speed;
                     this.earth.position.x = Math.cos(this.orbitAngle) * 12;
@@ -2560,12 +2551,14 @@
                     this.updateSeasonInfo();
                     
                     // Animate sun rays
-                    this.sunRays.forEach((ray, index) => {
-                        ray.rotation.z += 0.005 * this.speed;
-                    });
+                    if (this.sunRays) {
+                        this.sunRays.forEach((ray, index) => {
+                            ray.rotation.z += 0.005 * this.speed;
+                        });
+                    }
                     
                     // Animate sun solar flares
-                    if (this.sun.solarFlares) {
+                    if (this.sun && this.sun.solarFlares) {
                         this.sun.solarFlares.rotation.y += 0.02 * this.speed;
                         this.sun.solarFlares.rotation.z += 0.01 * this.speed;
                     }
@@ -2573,6 +2566,72 @@
                 
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
+            }
+
+            // Add missing methods for realistic object creation
+            async loadPlanetTexture(planetName) {
+                const textureUrls = {
+                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
+                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
+                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
+                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
+                };
+                
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
+                    const loader = new THREE.TextureLoader();
+                    loader.load(urls[0], resolve, undefined, () => resolve(null));
+                });
+            }
+
+            async createRealisticEarth(size = 1.2, position = [0, 0, 0]) {
+                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x6B93D6,
+                    shininess: 30
+                });
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.rotation.z = Math.PI * 23.5 / 180; // Apply tilt
+                earth.position.set(...position);
+                return earth;
+            }
+
+            async createRealisticSun(size = 2, position = [0, 0, 0]) {
+                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFFD700,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 1
+                });
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sun.position.set(...position);
+                return sun;
+            }
+
+            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
+                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const moonMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xC0C0C0,
+                    shininess: 1
+                });
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.position.set(...position);
+                return moon;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Simple solar flare effect
+                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
+                const flareMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xFFAA00,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                sunGroup.solarFlares = flares;
+                return flares;
             }
         }
 
@@ -2814,7 +2873,7 @@
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                if (this.isPlaying) {
+                if (this.isPlaying && this.earth) { // Add null check for earth
                     // Rotate Earth to show day/night cycle
                     this.rotationAngle += 0.02 * this.speed;
                     this.earth.rotation.y = this.rotationAngle;
@@ -2842,7 +2901,7 @@
                     }
                     
                     // Animate sun solar flares
-                    if (this.sun.solarFlares) {
+                    if (this.sun && this.sun.solarFlares) {
                         this.sun.solarFlares.rotation.y += 0.02 * this.speed;
                         this.sun.solarFlares.rotation.z += 0.01 * this.speed;
                     }
@@ -2853,6 +2912,72 @@
                 
                 this.controls.update();
                 this.renderer.render(this.scene, this.camera);
+            }
+
+            // Add missing methods for realistic object creation
+            async loadPlanetTexture(planetName) {
+                const textureUrls = {
+                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
+                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
+                    earth_night: ['https://threejs.org/examples/textures/planets/earth_lights_2048.png'],
+                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
+                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
+                };
+                
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
+                    const loader = new THREE.TextureLoader();
+                    loader.load(urls[0], resolve, undefined, () => resolve(null));
+                });
+            }
+
+            async createRealisticEarth(size = 2, position = [0, 0, 0]) {
+                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x6B93D6,
+                    shininess: 30
+                });
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.position.set(...position);
+                return earth;
+            }
+
+            async createRealisticSun(size = 0.8, position = [-12, 0, 0]) {
+                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFFD700,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 1
+                });
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sun.position.set(...position);
+                return sun;
+            }
+
+            async createRealisticMoon(size = 0.6, position = [0, 0, 0]) {
+                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const moonMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xC0C0C0,
+                    shininess: 1
+                });
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.position.set(...position);
+                return moon;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Simple solar flare effect
+                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
+                const flareMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xFFAA00,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                sunGroup.solarFlares = flares;
+                return flares;
             }
         }
 
@@ -3066,6 +3191,8 @@
             }
 
             updateTidalInfo() {
+                if (!this.moon) return; // Add null check for moon
+                
                 // Determine tidal state based on moon position
                 const moonX = this.moon.position.x;
                 const moonZ = this.moon.position.z;
@@ -3097,14 +3224,16 @@
             animate() {
                 requestAnimationFrame(() => this.animate());
                 
-                if (this.isPlaying) {
+                if (this.isPlaying && this.moon && this.earth) { // Add null checks for moon and earth
                     // Orbit Moon around Earth
                     this.moonAngle += 0.015 * this.speed;
                     this.moon.position.x = Math.cos(this.moonAngle) * 8;
                     this.moon.position.z = Math.sin(this.moonAngle) * 8;
                     
                     // Update moon light position
-                    this.moonLight.position.copy(this.moon.position);
+                    if (this.moonLight) {
+                        this.moonLight.position.copy(this.moon.position);
+                    }
                     
                     // Animate realistic tidal bulges
                     this.updateTidalBulges();
@@ -3183,6 +3312,72 @@
                         indicator.mesh.lookAt(perpendicular.clone().multiplyScalar(4 * direction));
                     }
                 });
+            }
+            
+            // Add missing methods for realistic object creation
+            async loadPlanetTexture(planetName) {
+                const textureUrls = {
+                    sun: ['https://threejs.org/examples/textures/planets/sun.jpg'],
+                    earth: ['https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg'],
+                    earth_clouds: ['https://threejs.org/examples/textures/planets/earth_clouds_1024.png'],
+                    moon: ['https://threejs.org/examples/textures/planets/moon_1024.jpg']
+                };
+                
+                const urls = textureUrls[planetName] || textureUrls.earth;
+                
+                return new Promise((resolve) => {
+                    const loader = new THREE.TextureLoader();
+                    loader.load(urls[0], resolve, undefined, () => resolve(null));
+                });
+            }
+
+            async createRealisticEarth(size = 2, position = [0, 0, 0]) {
+                const earthGeometry = new THREE.SphereGeometry(size, 64, 64);
+                const earthMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x6B93D6,
+                    shininess: 30
+                });
+                const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+                earth.rotation.z = Math.PI * 23.5 / 180; // Apply tilt
+                earth.position.set(...position);
+                return earth;
+            }
+
+            async createRealisticSun(size = 0.3, position = [25, 5, 5]) {
+                const sunGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const sunMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFFD700,
+                    emissive: 0xFFAA00,
+                    emissiveIntensity: 1
+                });
+                const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+                sun.position.set(...position);
+                return sun;
+            }
+
+            async createRealisticMoon(size = 0.6, position = [8, 0, 0]) {
+                const moonGeometry = new THREE.SphereGeometry(size, 32, 32);
+                const moonMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xC0C0C0,
+                    shininess: 1
+                });
+                const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+                moon.position.set(...position);
+                return moon;
+            }
+
+            createEnhancedSolarFlares(sunGroup, sunSize) {
+                // Simple solar flare effect
+                const flareGeometry = new THREE.SphereGeometry(sunSize * 1.2, 16, 16);
+                const flareMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xFFAA00,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const flares = new THREE.Mesh(flareGeometry, flareMaterial);
+                sunGroup.add(flares);
+                sunGroup.solarFlares = flares;
+                return flares;
             }
         }
 
