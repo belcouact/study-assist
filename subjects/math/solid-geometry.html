@@ -14,30 +14,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Three.js r128 with stable CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script>
-        // Load OrbitControls after Three.js is loaded
+        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
-            const script = document.createElement('script');
-            script.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
-            script.onload = function() {
-                console.log('✅ OrbitControls loaded successfully');
-                initGeometrySystem();
-            };
-            script.onerror = function() {
-                console.warn('Failed to load OrbitControls from threejs.org, trying fallback...');
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js';
-                fallbackScript.onload = function() {
-                    console.log('✅ OrbitControls loaded from fallback');
-                    initGeometrySystem();
-                };
-                fallbackScript.onerror = function() {
-                    console.error('❌ Failed to load OrbitControls');
-                    showError('无法加载3D控制器组件');
-                };
-                document.head.appendChild(fallbackScript);
-            };
-            document.head.appendChild(script);
+            console.log('📄 DOM内容已加载');
+            console.log('检查THREE.js:', typeof THREE !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
+            console.log('检查OrbitControls:', typeof THREE.OrbitControls !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
+            
+            if (typeof THREE === 'undefined') {
+                console.error('❌ THREE.js未加载');
+                showError('无法加载3D渲染引擎');
+                return;
+            }
+            
+            if (typeof THREE.OrbitControls === 'undefined') {
+                console.error('❌ OrbitControls未加载');
+                showError('控制器组件加载失败');
+                return;
+            }
+            
+            // 延迟一点点确保所有脚本完全加载
+            setTimeout(initGeometrySystem, 100);
         });
     </script>
     <style>
@@ -111,6 +109,18 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             height: 700px;
+        }
+
+        #geometry-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #geometry-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .shape-button {
@@ -583,9 +593,34 @@
 
         // Initialize the geometry system
         function initGeometrySystem() {
-            console.log('📄 DOM内容已加载');
-            console.log('检查THREE.js是否加载:', typeof THREE !== 'undefined');
-            console.log('检查OrbitControls是否加载:', typeof THREE.OrbitControls !== 'undefined');
+            console.log('🔧 开始初始化几何系统...');
+            
+            // 检查容器
+            const container = document.getElementById('geometry-container');
+            if (!container) {
+                console.error('❌ 找不到geometry-container元素');
+                showError('找不到3D容器元素');
+                return;
+            }
+            
+            console.log('📦 容器尺寸:', {
+                width: container.clientWidth,
+                height: container.clientHeight,
+                offsetWidth: container.offsetWidth,
+                offsetHeight: container.offsetHeight
+            });
+            
+            // 确保容器有尺寸
+            if (container.clientWidth === 0 || container.clientHeight === 0) {
+                console.warn('⚠️ 容器尺寸为零，等待布局完成...');
+                setTimeout(() => {
+                    console.log('🔄 重试初始化...');
+                    initGeometrySystem();
+                }, 200);
+                return;
+            }
+            
+            console.log('✅ 容器检查通过');
             
             if (typeof THREE === 'undefined') {
                 console.error('❌ THREE.js未加载');
@@ -654,6 +689,10 @@
                     
                     this.setupEventListeners();
                     console.log('✅ 事件监听器设置完成');
+                    
+                    // 添加测试立方体验证系统工作正常
+                    this.addTestCube();
+                    console.log('✅ 测试对象添加完成');
                     
                     this.animate();
                     console.log('✅ 动画循环启动');
@@ -843,6 +882,7 @@
                 try {
                     console.log('🔄 开始创建几何体...');
                     console.log('选择的形状:', this.selectedShape);
+                    console.log('场景对象数量:', this.scene.children.length);
                     
                     const param1 = parseFloat(document.getElementById('param1').value) || 2;
                     const param2 = parseFloat(document.getElementById('param2').value) || 2;
@@ -856,6 +896,7 @@
                     const params = [param1, param2, param3];
                     const geometry = this.createGeometry(this.selectedShape, params);
                     console.log('✅ 几何体创建完成:', geometry);
+                    console.log('几何体顶点数:', geometry.attributes.position ? geometry.attributes.position.count : 'N/A');
                     
                     const material = new THREE.MeshPhongMaterial({
                         color: color,
@@ -895,7 +936,7 @@
                     }
                     
                     this.scene.add(mesh);
-                    console.log('✅ 添加到场景完成');
+                    console.log('✅ 添加到场景完成，场景对象数量:', this.scene.children.length);
                     
                     // 存储对象信息
                     const objectInfo = {
@@ -909,6 +950,8 @@
                     this.objects.push(objectInfo);
                     this.updateObjectsList();
                     console.log('✅ 几何体创建成功！对象总数:', this.objects.length);
+                    console.log('几何体位置:', mesh.position);
+                    console.log('几何体在相机视野内:', this.isInCameraView(mesh));
                     
                     // 重置放置模式
                     this.placementMode = false;
@@ -917,6 +960,14 @@
                     console.error('❌ 创建几何体失败:', error);
                     alert('创建几何体失败: ' + error.message);
                 }
+            }
+
+            // 检查对象是否在相机视野内
+            isInCameraView(object) {
+                const frustum = new THREE.Frustum();
+                const cameraMatrix = new THREE.Matrix4().multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+                frustum.setFromProjectionMatrix(cameraMatrix);
+                return frustum.intersectsObject(object);
             }
 
             createLine() {
@@ -1085,12 +1136,18 @@
                 
                 // 更新坐标显示
                 this.raycaster.setFromCamera(this.mouse, this.camera);
+                
+                // 尝试与网格相交
                 const intersects = this.raycaster.intersectObject(this.gridHelper);
                 
                 if (intersects.length > 0) {
                     const point = intersects[0].point;
                     document.getElementById('coordinates-display').textContent = 
                         `鼠标坐标: (${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)})`;
+                } else {
+                    // 如果没有与网格相交，显示屏幕坐标
+                    document.getElementById('coordinates-display').textContent = 
+                        `屏幕坐标: (${this.mouse.x.toFixed(2)}, ${this.mouse.y.toFixed(2)})`;
                 }
             }
 
@@ -1206,6 +1263,20 @@
                     document.removeEventListener('keydown', this.escKeyListener);
                     this.escKeyListener = null;
                 }
+            }
+
+            addTestCube() {
+                // 添加一个简单的测试立方体来验证系统工作
+                const geometry = new THREE.BoxGeometry(1, 1, 1);
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0x00ff00, 
+                    transparent: true, 
+                    opacity: 0.7 
+                });
+                const testCube = new THREE.Mesh(geometry, material);
+                testCube.position.set(0, 1, 0); // 放在原点上方
+                this.scene.add(testCube);
+                console.log('🧪 测试立方体已添加:', testCube.position);
             }
         }
 
