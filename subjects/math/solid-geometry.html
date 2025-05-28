@@ -12,8 +12,47 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Try multiple CDN sources for Three.js -->
+    <script>
+        // Create a fallback loading system for Three.js
+        function loadThreeJS() {
+            return new Promise((resolve, reject) => {
+                // Try threejs.org first
+                const script1 = document.createElement('script');
+                script1.src = 'https://threejs.org/build/three.min.js';
+                script1.onload = () => {
+                    // Load OrbitControls
+                    const script2 = document.createElement('script');
+                    script2.src = 'https://threejs.org/examples/js/controls/OrbitControls.js';
+                    script2.onload = () => resolve();
+                    script2.onerror = () => {
+                        // Fallback to jsdelivr
+                        const script3 = document.createElement('script');
+                        script3.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.js';
+                        script3.onload = () => resolve();
+                        script3.onerror = () => reject('Failed to load OrbitControls');
+                        document.head.appendChild(script3);
+                    };
+                    document.head.appendChild(script2);
+                };
+                script1.onerror = () => {
+                    // Fallback to jsdelivr
+                    const script4 = document.createElement('script');
+                    script4.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js';
+                    script4.onload = () => {
+                        const script5 = document.createElement('script');
+                        script5.src = 'https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/OrbitControls.js';
+                        script5.onload = () => resolve();
+                        script5.onerror = () => reject('Failed to load Three.js components');
+                        document.head.appendChild(script5);
+                    };
+                    script4.onerror = () => reject('Failed to load Three.js');
+                    document.head.appendChild(script4);
+                };
+                document.head.appendChild(script1);
+            });
+        }
+    </script>
     <style>
         .solid-geometry-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -377,7 +416,7 @@
                     <!-- 几何体选择 -->
                     <div class="control-section">
                         <h3>🎯 选择几何体</h3>
-                        <button class="shape-button" data-shape="cube">
+                        <button class="shape-button active" data-shape="cube">
                             <i class="fas fa-cube"></i>
                             立方体
                         </button>
@@ -531,16 +570,39 @@
             }
 
             init() {
-                this.setupScene();
-                this.setupCamera();
-                this.setupRenderer();
-                this.setupLights();
-                this.setupControls();
-                this.setupHelpers();
-                this.setupEventListeners();
-                this.animate();
-                
-                console.log('✅ 3D立体几何系统初始化完成');
+                try {
+                    console.log('🔄 开始初始化3D立体几何系统...');
+                    console.log('THREE.js版本:', THREE.REVISION);
+                    
+                    this.setupScene();
+                    console.log('✅ 场景设置完成');
+                    
+                    this.setupCamera();
+                    console.log('✅ 相机设置完成');
+                    
+                    this.setupRenderer();
+                    console.log('✅ 渲染器设置完成');
+                    
+                    this.setupLights();
+                    console.log('✅ 光照设置完成');
+                    
+                    this.setupControls();
+                    console.log('✅ 控制器设置完成');
+                    
+                    this.setupHelpers();
+                    console.log('✅ 辅助工具设置完成');
+                    
+                    this.setupEventListeners();
+                    console.log('✅ 事件监听器设置完成');
+                    
+                    this.animate();
+                    console.log('✅ 动画循环启动');
+                    
+                    console.log('✅ 3D立体几何系统初始化完成');
+                } catch (error) {
+                    console.error('❌ 初始化失败:', error);
+                    alert('3D系统初始化失败，请刷新页面重试');
+                }
             }
 
             setupScene() {
@@ -718,47 +780,63 @@
             }
 
             createShape() {
-                const param1 = parseFloat(document.getElementById('param1').value) || 2;
-                const param2 = parseFloat(document.getElementById('param2').value) || 2;
-                const param3 = parseFloat(document.getElementById('param3').value) || 2;
-                const color = document.getElementById('shape-color').value;
-                const transparency = parseFloat(document.getElementById('transparency').value);
-                const wireframe = document.getElementById('wireframe').checked;
-                
-                const params = [param1, param2, param3];
-                const geometry = this.createGeometry(this.selectedShape, params);
-                
-                const material = new THREE.MeshPhongMaterial({
-                    color: color,
-                    transparent: true,
-                    opacity: transparency,
-                    wireframe: wireframe
-                });
-                
-                const mesh = new THREE.Mesh(geometry, material);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                
-                // 随机位置
-                mesh.position.set(
-                    (Math.random() - 0.5) * 10,
-                    Math.random() * 5,
-                    (Math.random() - 0.5) * 10
-                );
-                
-                this.scene.add(mesh);
-                
-                // 存储对象信息
-                const objectInfo = {
-                    id: Date.now(),
-                    mesh: mesh,
-                    type: this.selectedShape,
-                    parameters: params,
-                    color: color
-                };
-                
-                this.objects.push(objectInfo);
-                this.updateObjectsList();
+                try {
+                    console.log('🔄 开始创建几何体...');
+                    console.log('选择的形状:', this.selectedShape);
+                    
+                    const param1 = parseFloat(document.getElementById('param1').value) || 2;
+                    const param2 = parseFloat(document.getElementById('param2').value) || 2;
+                    const param3 = parseFloat(document.getElementById('param3').value) || 2;
+                    const color = document.getElementById('shape-color').value;
+                    const transparency = parseFloat(document.getElementById('transparency').value);
+                    const wireframe = document.getElementById('wireframe').checked;
+                    
+                    console.log('参数:', { param1, param2, param3, color, transparency, wireframe });
+                    
+                    const params = [param1, param2, param3];
+                    const geometry = this.createGeometry(this.selectedShape, params);
+                    console.log('✅ 几何体创建完成:', geometry);
+                    
+                    const material = new THREE.MeshPhongMaterial({
+                        color: color,
+                        transparent: true,
+                        opacity: transparency,
+                        wireframe: wireframe
+                    });
+                    console.log('✅ 材质创建完成:', material);
+                    
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    console.log('✅ 网格创建完成:', mesh);
+                    
+                    // 随机位置
+                    mesh.position.set(
+                        (Math.random() - 0.5) * 10,
+                        Math.random() * 5,
+                        (Math.random() - 0.5) * 10
+                    );
+                    console.log('✅ 位置设置完成:', mesh.position);
+                    
+                    this.scene.add(mesh);
+                    console.log('✅ 添加到场景完成');
+                    
+                    // 存储对象信息
+                    const objectInfo = {
+                        id: Date.now(),
+                        mesh: mesh,
+                        type: this.selectedShape,
+                        parameters: params,
+                        color: color
+                    };
+                    
+                    this.objects.push(objectInfo);
+                    this.updateObjectsList();
+                    console.log('✅ 几何体创建成功！对象总数:', this.objects.length);
+                } catch (error) {
+                    console.error('❌ 创建几何体失败:', error);
+                    alert('创建几何体失败: ' + error.message);
+                }
             }
 
             createLine() {
@@ -974,12 +1052,41 @@
         let geometrySystem;
 
         // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            geometrySystem = new SolidGeometryVisualizationSystem();
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('📄 DOM内容已加载');
+            
+            try {
+                console.log('🔄 正在加载Three.js...');
+                await loadThreeJS();
+                console.log('✅ Three.js加载完成');
+                
+                console.log('检查THREE.js是否加载:', typeof THREE !== 'undefined');
+                console.log('检查OrbitControls是否加载:', typeof THREE.OrbitControls !== 'undefined');
+                
+                geometrySystem = new SolidGeometryVisualizationSystem();
+                console.log('✅ 几何系统实例化成功:', geometrySystem);
+            } catch (error) {
+                console.error('❌ 几何系统实例化失败:', error);
+                document.getElementById('geometry-container').innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #FFD700; text-align: center; padding: 20px;">
+                        <div>
+                            <h3>❌ 无法加载3D渲染引擎</h3>
+                            <p>请检查网络连接或刷新页面重试</p>
+                            <p style="font-size: 0.8em; opacity: 0.7;">${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            }
         });
 
         // 全局函数供HTML调用
         function createShape() {
+            console.log('🎯 createShape函数被调用');
+            if (!geometrySystem) {
+                console.error('❌ 几何系统未初始化');
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
             geometrySystem.createShape();
         }
 
