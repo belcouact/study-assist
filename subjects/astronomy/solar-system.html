@@ -1635,70 +1635,43 @@
             }
 
             async loadPlanetTexture(planetName) {
-                // Use multiple fallback sources for planet textures
+                // Use CORS-friendly texture sources and procedural fallbacks
                 const textureUrls = {
                     sun: [
-                        'https://threejs.org/examples/textures/planets/sun.jpg',
-                        'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/sun.jpg',
-                        'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/textures/planets/sun.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/512px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg'
                     ],
-                    mercury: [
-                        'https://threejs.org/examples/textures/planets/mercury.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_mercury.jpg'
-                    ],
-                    venus: [
-                        'https://threejs.org/examples/textures/planets/venus_surface.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg'
-                    ],
+                    mercury: [],
+                    venus: [],
                     earth: [
-                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg',
-                        'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73909/world.topo.bathy.200412.3x5400x2700.jpg'
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/512px-The_Earth_seen_from_Apollo_17.jpg'
                     ],
-                    earth_night: [
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg',
-                        'https://threejs.org/examples/textures/planets/earth_lights_2048.png'
-                    ],
-                    earth_clouds: [
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg',
-                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png'
-                    ],
+                    earth_night: [],
+                    earth_clouds: [],
                     moon: [
-                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg',
-                        'https://threejs.org/examples/textures/planets/moon_1024.jpg'
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/512px-FullMoon2010.jpg'
                     ],
-                    mars: [
-                        'https://threejs.org/examples/textures/planets/mars_1k_color.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_mars.jpg'
-                    ],
-                    jupiter: [
-                        'https://threejs.org/examples/textures/planets/jupiter_2k.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg'
-                    ],
-                    saturn: [
-                        'https://threejs.org/examples/textures/planets/saturn_2k.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_saturn.jpg'
-                    ],
-                    uranus: [
-                        'https://threejs.org/examples/textures/planets/uranus_2k.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_uranus.jpg'
-                    ],
-                    neptune: [
-                        'https://threejs.org/examples/textures/planets/neptune_2k.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_neptune.jpg'
-                    ]
+                    mars: [],
+                    jupiter: [],
+                    saturn: [],
+                    uranus: [],
+                    neptune: []
                 };
                 
-                const urls = textureUrls[planetName] || textureUrls.earth;
+                const urls = textureUrls[planetName] || [];
                 
                 return new Promise((resolve) => {
+                    if (urls.length === 0) {
+                        // Create procedural texture for this planet
+                        resolve(this.createProceduralTexture(planetName));
+                        return;
+                    }
+                    
                     const loader = new THREE.TextureLoader();
                     
                     const tryLoadTexture = (urlIndex = 0) => {
                         if (urlIndex >= urls.length) {
-                            console.log(`Failed to load texture for ${planetName}, using fallback color`);
-                            resolve(null);
+                            // All URLs failed, create procedural texture
+                            resolve(this.createProceduralTexture(planetName));
                             return;
                         }
                         
@@ -1718,6 +1691,294 @@
                     
                     tryLoadTexture();
                 });
+            }
+
+            createProceduralTexture(planetName) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Create realistic procedural textures for each planet
+                switch(planetName) {
+                    case 'sun':
+                        this.createSunTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'mercury':
+                        this.createMercuryTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'venus':
+                        this.createVenusTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'earth':
+                        this.createEarthTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'earth_night':
+                        this.createEarthNightTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'earth_clouds':
+                        this.createEarthCloudsTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'moon':
+                        this.createMoonTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'mars':
+                        this.createMarsTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'jupiter':
+                        this.createJupiterTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'saturn':
+                        this.createSaturnTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'uranus':
+                        this.createUranusTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'neptune':
+                        this.createNeptuneTexture(context, canvas.width, canvas.height);
+                        break;
+                    default:
+                        this.createDefaultTexture(context, canvas.width, canvas.height);
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
+            }
+
+            createSunTexture(ctx, width, height) {
+                // Create realistic sun texture with solar granulation
+                const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
+                gradient.addColorStop(0, '#FFFF88');
+                gradient.addColorStop(0.7, '#FFAA00');
+                gradient.addColorStop(1, '#FF6600');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add solar granulation pattern
+                for (let i = 0; i < 1000; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 8 + 2;
+                    const brightness = Math.random() * 0.3 + 0.7;
+                    
+                    ctx.fillStyle = `rgba(255, 255, 0, ${brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createMercuryTexture(ctx, width, height) {
+                // Mercury: grey with many craters
+                ctx.fillStyle = '#8C7853';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add craters
+                for (let i = 0; i < 200; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 15 + 5;
+                    
+                    ctx.fillStyle = '#666644';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#AA9977';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createVenusTexture(ctx, width, height) {
+                // Venus: thick atmosphere with cloud patterns
+                const gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#FFC649');
+                gradient.addColorStop(0.5, '#FFB347');
+                gradient.addColorStop(1, '#FF9933');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add atmospheric swirls
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    
+                    ctx.strokeStyle = `rgba(255, 200, 100, ${Math.random() * 0.3})`;
+                    ctx.lineWidth = Math.random() * 5 + 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, Math.random() * 30 + 10, 0, Math.PI * Math.random() * 2);
+                    ctx.stroke();
+                }
+            }
+
+            createEarthTexture(ctx, width, height) {
+                // Earth: blue oceans with green/brown continents
+                ctx.fillStyle = '#4F94CD';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add continents
+                const continents = [
+                    {x: width * 0.3, y: height * 0.3, w: width * 0.2, h: height * 0.4}, // Africa
+                    {x: width * 0.1, y: height * 0.4, w: width * 0.15, h: height * 0.3}, // America
+                    {x: width * 0.6, y: height * 0.2, w: width * 0.25, h: height * 0.5}, // Asia
+                ];
+                
+                continents.forEach(continent => {
+                    ctx.fillStyle = '#228B22';
+                    ctx.fillRect(continent.x, continent.y, continent.w, continent.h);
+                    
+                    // Add terrain variation
+                    ctx.fillStyle = '#8B4513';
+                    for (let i = 0; i < 10; i++) {
+                        const x = continent.x + Math.random() * continent.w;
+                        const y = continent.y + Math.random() * continent.h;
+                        const size = Math.random() * 20 + 5;
+                        ctx.fillRect(x, y, size, size);
+                    }
+                });
+            }
+
+            createEarthNightTexture(ctx, width, height) {
+                // Earth night: black with city lights
+                ctx.fillStyle = '#000011';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add city lights
+                for (let i = 0; i < 300; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 2 + 1;
+                    
+                    ctx.fillStyle = '#FFFF88';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createEarthCloudsTexture(ctx, width, height) {
+                // Earth clouds: white wispy patterns
+                ctx.fillStyle = 'transparent';
+                ctx.fillRect(0, 0, width, height);
+                
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 30 + 10;
+                    
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.7 + 0.3})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createMoonTexture(ctx, width, height) {
+                // Moon: grey with craters
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add large craters
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 25 + 10;
+                    
+                    ctx.fillStyle = '#888888';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#DDDDDD';
+                    ctx.beginPath();
+                    ctx.arc(x - size * 0.3, y - size * 0.3, size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createMarsTexture(ctx, width, height) {
+                // Mars: rusty red with darker regions
+                ctx.fillStyle = '#CD5C5C';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add polar ice caps
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height * 0.1);
+                ctx.fillRect(0, height * 0.9, width, height * 0.1);
+                
+                // Add dark regions
+                for (let i = 0; i < 30; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 40 + 20;
+                    
+                    ctx.fillStyle = '#A0522D';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createJupiterTexture(ctx, width, height) {
+                // Jupiter: banded atmosphere
+                const bands = 8;
+                const bandHeight = height / bands;
+                
+                for (let i = 0; i < bands; i++) {
+                    const hue = i % 2 === 0 ? '#D2691E' : '#CD853F';
+                    ctx.fillStyle = hue;
+                    ctx.fillRect(0, i * bandHeight, width, bandHeight);
+                }
+                
+                // Add Great Red Spot
+                ctx.fillStyle = '#B22222';
+                ctx.beginPath();
+                ctx.ellipse(width * 0.7, height * 0.6, width * 0.1, height * 0.05, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            createSaturnTexture(ctx, width, height) {
+                // Saturn: pale yellow with subtle bands
+                ctx.fillStyle = '#FAD5A5';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add subtle bands
+                for (let i = 0; i < 6; i++) {
+                    ctx.fillStyle = i % 2 === 0 ? '#DEB887' : '#F5DEB3';
+                    ctx.fillRect(0, i * height / 6, width, height / 6);
+                }
+            }
+
+            createUranusTexture(ctx, width, height) {
+                // Uranus: blue-green
+                const gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#4FD0E7');
+                gradient.addColorStop(1, '#3CB371');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            createNeptuneTexture(ctx, width, height) {
+                // Neptune: deep blue
+                const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
+                gradient.addColorStop(0, '#4169E1');
+                gradient.addColorStop(1, '#0000CD');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            createDefaultTexture(ctx, width, height) {
+                // Default grey texture
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(0, 0, width, height);
             }
 
             // Create realistic Earth with day/night textures and clouds
@@ -2545,50 +2806,136 @@
 
             // Add missing methods for realistic object creation
             async loadPlanetTexture(planetName) {
-                const textureUrls = {
-                    sun: [
-                        'https://threejs.org/examples/textures/planets/sun.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_sun.jpg'
-                    ],
-                    earth: [
-                        'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg'
-                    ],
-                    earth_clouds: [
-                        'https://threejs.org/examples/textures/planets/earth_clouds_1024.png',
-                        'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg'
-                    ],
-                    moon: [
-                        'https://threejs.org/examples/textures/planets/moon_1024.jpg',
-                        'https://www.solarsystemscope.com/textures/download/2k_moon.jpg'
-                    ]
-                };
-                
-                const urls = textureUrls[planetName] || textureUrls.earth;
-                
+                // Use procedural textures to avoid CORS issues
                 return new Promise((resolve) => {
-                    const loader = new THREE.TextureLoader();
-                    
-                    const tryLoadTexture = (urlIndex = 0) => {
-                        if (urlIndex >= urls.length) {
-                            resolve(null);
-                            return;
-                        }
-                        
-                        loader.load(
-                            urls[urlIndex],
-                            (texture) => {
-                                resolve(texture);
-                            },
-                            undefined,
-                            () => {
-                                tryLoadTexture(urlIndex + 1);
-                            }
-                        );
-                    };
-                    
-                    tryLoadTexture();
+                    resolve(this.createProceduralTexture(planetName));
                 });
+            }
+
+            createProceduralTexture(planetName) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512;
+                canvas.height = 512;
+                const context = canvas.getContext('2d');
+                
+                // Create realistic procedural textures for each planet
+                switch(planetName) {
+                    case 'sun':
+                        this.createSunTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'earth':
+                        this.createEarthTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'earth_clouds':
+                        this.createEarthCloudsTexture(context, canvas.width, canvas.height);
+                        break;
+                    case 'moon':
+                        this.createMoonTexture(context, canvas.width, canvas.height);
+                        break;
+                    default:
+                        this.createDefaultTexture(context, canvas.width, canvas.height);
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
+            }
+
+            createSunTexture(ctx, width, height) {
+                // Create realistic sun texture with solar granulation
+                const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width/2);
+                gradient.addColorStop(0, '#FFFF88');
+                gradient.addColorStop(0.7, '#FFAA00');
+                gradient.addColorStop(1, '#FF6600');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add solar granulation pattern
+                for (let i = 0; i < 800; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 6 + 2;
+                    const brightness = Math.random() * 0.3 + 0.7;
+                    
+                    ctx.fillStyle = `rgba(255, 255, 0, ${brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createEarthTexture(ctx, width, height) {
+                // Earth: blue oceans with green/brown continents
+                ctx.fillStyle = '#4F94CD';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add continents
+                const continents = [
+                    {x: width * 0.3, y: height * 0.3, w: width * 0.2, h: height * 0.4}, // Africa
+                    {x: width * 0.1, y: height * 0.4, w: width * 0.15, h: height * 0.3}, // America
+                    {x: width * 0.6, y: height * 0.2, w: width * 0.25, h: height * 0.5}, // Asia
+                ];
+                
+                continents.forEach(continent => {
+                    ctx.fillStyle = '#228B22';
+                    ctx.fillRect(continent.x, continent.y, continent.w, continent.h);
+                    
+                    // Add terrain variation
+                    ctx.fillStyle = '#8B4513';
+                    for (let i = 0; i < 10; i++) {
+                        const x = continent.x + Math.random() * continent.w;
+                        const y = continent.y + Math.random() * continent.h;
+                        const size = Math.random() * 20 + 5;
+                        ctx.fillRect(x, y, size, size);
+                    }
+                });
+            }
+
+            createEarthCloudsTexture(ctx, width, height) {
+                // Earth clouds: white wispy patterns on transparent background
+                ctx.clearRect(0, 0, width, height);
+                
+                for (let i = 0; i < 100; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 30 + 10;
+                    
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.7 + 0.3})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createMoonTexture(ctx, width, height) {
+                // Moon: grey with craters
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Add large craters
+                for (let i = 0; i < 50; i++) {
+                    const x = Math.random() * width;
+                    const y = Math.random() * height;
+                    const size = Math.random() * 25 + 10;
+                    
+                    ctx.fillStyle = '#888888';
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#DDDDDD';
+                    ctx.beginPath();
+                    ctx.arc(x - size * 0.3, y - size * 0.3, size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            createDefaultTexture(ctx, width, height) {
+                // Default grey texture
+                ctx.fillStyle = '#808080';
+                ctx.fillRect(0, 0, width, height);
             }
 
             async createRealisticEarth(size = 1.5, position = [15, 0, 0]) {
