@@ -15,6 +15,7 @@
     <!-- Three.js r128 with stable CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <script>
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', function() {
@@ -309,14 +310,37 @@
             align-items: center;
         }
 
-        .delete-button {
+        .object-buttons {
+            display: flex;
+            gap: 0.3rem;
+        }
+
+        .select-button, .delete-button {
             background: rgba(231, 76, 60, 0.3);
             border: 1px solid #e74c3c;
             border-radius: 3px;
             color: #fff;
-            padding: 0.2rem 0.5rem;
+            padding: 0.2rem 0.4rem;
             cursor: pointer;
             font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+        }
+
+        .select-button {
+            background: rgba(40, 167, 69, 0.3);
+            border-color: #28a745;
+        }
+
+        .select-button:hover {
+            background: rgba(40, 167, 69, 0.5);
+        }
+
+        .delete-button:hover {
+            background: rgba(231, 76, 60, 0.5);
         }
 
         .color-picker {
@@ -391,6 +415,29 @@
             pointer-events: none;
             box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
             border: 2px solid #FFD700;
+        }
+
+        .transform-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.3rem;
+            margin: 0.5rem 0;
+        }
+
+        .transform-controls .action-button {
+            margin-bottom: 0;
+            padding: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .edit-controls {
+            margin-top: 1rem;
+        }
+
+        .edit-controls label {
+            display: block;
+            margin-top: 0.5rem;
+            margin-bottom: 0.3rem;
         }
     </style>
 </head>
@@ -524,6 +571,42 @@
                             <i class="fas fa-trash"></i> 清空所有
                         </button>
                     </div>
+
+                    <!-- 对象编辑 -->
+                    <div class="control-section" id="object-editor" style="display: none;">
+                        <h3>✏️ 编辑选中对象</h3>
+                        <div class="edit-controls">
+                            <label style="font-size: 0.9rem; opacity: 0.8;">对象颜色:</label>
+                            <input type="color" class="color-picker" id="edit-color">
+                            
+                            <label style="font-size: 0.9rem; opacity: 0.8;">透明度:</label>
+                            <input type="range" class="transparency-slider" id="edit-transparency" min="0.1" max="1" step="0.1">
+                            
+                            <label style="font-size: 0.9rem; opacity: 0.8;">尺寸参数:</label>
+                            <input type="number" class="parameter-input" id="edit-param1" placeholder="参数1" min="0.1" max="20" step="0.1">
+                            <input type="number" class="parameter-input" id="edit-param2" placeholder="参数2" min="0.1" max="20" step="0.1" style="display: none;">
+                            <input type="number" class="parameter-input" id="edit-param3" placeholder="参数3" min="0.1" max="20" step="0.1" style="display: none;">
+                            
+                            <div class="transform-controls">
+                                <button class="action-button" onclick="setTransformMode('translate')" style="background: linear-gradient(45deg, #17a2b8, #138496);">
+                                    <i class="fas fa-arrows-alt"></i> 移动
+                                </button>
+                                <button class="action-button" onclick="setTransformMode('rotate')" style="background: linear-gradient(45deg, #fd7e14, #e36414);">
+                                    <i class="fas fa-sync-alt"></i> 旋转
+                                </button>
+                                <button class="action-button" onclick="setTransformMode('scale')" style="background: linear-gradient(45deg, #6f42c1, #59359a);">
+                                    <i class="fas fa-expand-arrows-alt"></i> 缩放
+                                </button>
+                            </div>
+                            
+                            <button class="action-button" onclick="applyObjectEdits()">
+                                <i class="fas fa-check"></i> 应用更改
+                            </button>
+                            <button class="action-button" onclick="deselectObject()" style="background: linear-gradient(45deg, #6c757d, #545b62);">
+                                <i class="fas fa-times"></i> 取消选择
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 3D视图区域 -->
@@ -536,7 +619,9 @@
                         🖱️ 左键拖拽：旋转视角<br>
                         🔄 滚轮：缩放画面<br>
                         ✋ 右键拖拽：平移视图<br>
-                        📏 点击对象：查看属性
+                        📏 点击对象：选择编辑<br>
+                        🎯 Ctrl+点击：查看属性<br>
+                        ⚡ 创建后可移动、编辑
                     </div>
 
                     <!-- 工具栏 -->
@@ -650,6 +735,7 @@
                 this.camera = null;
                 this.renderer = null;
                 this.controls = null;
+                this.transformControls = null; // 变换控制器
                 this.objects = [];
                 this.selectedShape = 'cube';
                 this.lineType = 'straight';
@@ -660,6 +746,8 @@
                 this.lastClickPosition = new THREE.Vector3(0, 0, 0); // 记录最后点击位置
                 this.placementMode = false; // 是否处于放置模式
                 this.escKeyListener = null; // 用于存储ESC键监听器
+                this.selectedObject = null; // 当前选中的对象
+                this.isEditMode = false; // 是否处于编辑模式
                 
                 this.init();
             }
@@ -684,15 +772,14 @@
                     this.setupControls();
                     console.log('✅ 控制器设置完成');
                     
+                    this.setupTransformControls();
+                    console.log('✅ 变换控制器设置完成');
+                    
                     this.setupHelpers();
                     console.log('✅ 辅助工具设置完成');
                     
                     this.setupEventListeners();
                     console.log('✅ 事件监听器设置完成');
-                    
-                    // 添加测试立方体验证系统工作正常
-                    this.addTestCube();
-                    console.log('✅ 测试对象添加完成');
                     
                     this.animate();
                     console.log('✅ 动画循环启动');
@@ -765,6 +852,21 @@
                     ONE: THREE.TOUCH.ROTATE,
                     TWO: THREE.TOUCH.DOLLY_PAN
                 };
+            }
+
+            setupTransformControls() {
+                this.transformControls = new THREE.TransformControls(this.camera, this.renderer.domElement);
+                this.transformControls.addEventListener('change', () => this.updateSelectedObject());
+                
+                // 当变换控制器被拖拽时，禁用轨道控制器
+                this.transformControls.addEventListener('dragging-changed', (event) => {
+                    this.controls.enabled = !event.value;
+                });
+                
+                this.scene.add(this.transformControls);
+                
+                // 默认隐藏变换控制器
+                this.transformControls.visible = false;
             }
 
             setupHelpers() {
@@ -1048,7 +1150,14 @@
                 listContainer.innerHTML = this.objects.map(obj => `
                     <div class="object-item">
                         <span>${this.getObjectDisplayName(obj)}</span>
-                        <button class="delete-button" onclick="geometrySystem.deleteObject(${obj.id})">删除</button>
+                        <div class="object-buttons">
+                            <button class="select-button" onclick="geometrySystem.selectObjectById(${obj.id})" title="选择编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-button" onclick="geometrySystem.deleteObject(${obj.id})" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 `).join('');
             }
@@ -1174,14 +1283,21 @@
                 const intersects = this.raycaster.intersectObjects(this.objects.map(obj => obj.mesh));
                 
                 if (intersects.length > 0) {
-                    const object = intersects[0].object;
-                    const objectInfo = this.objects.find(obj => obj.mesh === object);
+                    const clickedObject = intersects[0].object;
+                    const objectInfo = this.objects.find(obj => obj.mesh === clickedObject);
                     
                     if (objectInfo) {
-                        this.showObjectInfo(objectInfo);
+                        // 如果按住Ctrl键，显示对象信息；否则选择对象进行编辑
+                        if (event.ctrlKey) {
+                            this.showObjectInfo(objectInfo);
+                        } else {
+                            this.selectObject(clickedObject, objectInfo);
+                        }
                     }
                 } else {
-                    // 如果没有点击到对象，在网格上设置新的点击位置用于下次创建
+                    // 如果没有点击到对象，取消选择并在网格上设置新的点击位置
+                    this.deselectObject();
+                    
                     const gridIntersects = this.raycaster.intersectObject(this.gridHelper);
                     if (gridIntersects.length > 0) {
                         this.lastClickPosition.copy(gridIntersects[0].point);
@@ -1265,18 +1381,204 @@
                 }
             }
 
-            addTestCube() {
-                // 添加一个简单的测试立方体来验证系统工作
-                const geometry = new THREE.BoxGeometry(1, 1, 1);
-                const material = new THREE.MeshPhongMaterial({ 
-                    color: 0x00ff00, 
-                    transparent: true, 
-                    opacity: 0.7 
-                });
-                const testCube = new THREE.Mesh(geometry, material);
-                testCube.position.set(0, 1, 0); // 放在原点上方
-                this.scene.add(testCube);
-                console.log('🧪 测试立方体已添加:', testCube.position);
+            updateSelectedObject() {
+                if (this.selectedObject && this.transformControls.object) {
+                    // 更新选中对象的位置、旋转、缩放
+                    const objectInfo = this.objects.find(obj => obj.mesh === this.selectedObject);
+                    if (objectInfo) {
+                        this.updateObjectPropertiesPanel(objectInfo);
+                    }
+                }
+            }
+
+            // 选择对象进行编辑
+            selectObject(mesh, objectInfo) {
+                // 取消之前的选择
+                this.deselectObject();
+                
+                // 设置新的选择
+                this.selectedObject = mesh;
+                this.isEditMode = true;
+                
+                // 添加选择高亮效果
+                this.addSelectionHighlight(mesh);
+                
+                // 显示编辑面板
+                this.showEditPanel(objectInfo);
+                
+                // 显示变换控制器
+                this.transformControls.attach(mesh);
+                this.transformControls.visible = true;
+                this.transformControls.setMode('translate'); // 默认移动模式
+                
+                console.log('✅ 选择对象进行编辑:', objectInfo.type);
+            }
+
+            // 取消对象选择
+            deselectObject() {
+                if (this.selectedObject) {
+                    // 移除高亮效果
+                    this.removeSelectionHighlight(this.selectedObject);
+                    
+                    // 隐藏变换控制器
+                    this.transformControls.detach();
+                    this.transformControls.visible = false;
+                    
+                    this.selectedObject = null;
+                    this.isEditMode = false;
+                    
+                    // 隐藏编辑面板
+                    document.getElementById('object-editor').style.display = 'none';
+                    
+                    console.log('✅ 取消对象选择');
+                }
+            }
+
+            // 添加选择高亮效果
+            addSelectionHighlight(mesh) {
+                // 保存原始材质
+                mesh.userData.originalMaterial = mesh.material;
+                
+                // 创建高亮材质
+                const highlightMaterial = mesh.material.clone();
+                highlightMaterial.emissive = new THREE.Color(0x444444);
+                highlightMaterial.transparent = true;
+                highlightMaterial.opacity = Math.max(0.8, mesh.material.opacity);
+                
+                mesh.material = highlightMaterial;
+            }
+
+            // 移除选择高亮效果
+            removeSelectionHighlight(mesh) {
+                if (mesh.userData.originalMaterial) {
+                    mesh.material = mesh.userData.originalMaterial;
+                    delete mesh.userData.originalMaterial;
+                }
+            }
+
+            // 显示编辑面板
+            showEditPanel(objectInfo) {
+                const editPanel = document.getElementById('object-editor');
+                editPanel.style.display = 'block';
+                
+                // 填充当前对象的属性
+                document.getElementById('edit-color').value = objectInfo.color;
+                document.getElementById('edit-transparency').value = objectInfo.mesh.material.opacity;
+                
+                // 根据对象类型显示相应的参数输入框
+                this.updateEditParameterInputs(objectInfo);
+                
+                // 填充参数值
+                if (objectInfo.parameters) {
+                    document.getElementById('edit-param1').value = objectInfo.parameters[0] || '';
+                    document.getElementById('edit-param2').value = objectInfo.parameters[1] || '';
+                    document.getElementById('edit-param3').value = objectInfo.parameters[2] || '';
+                }
+            }
+
+            // 更新编辑参数输入框
+            updateEditParameterInputs(objectInfo) {
+                const param1 = document.getElementById('edit-param1');
+                const param2 = document.getElementById('edit-param2');
+                const param3 = document.getElementById('edit-param3');
+                
+                switch(objectInfo.type) {
+                    case 'cube':
+                        param1.placeholder = '边长 (单位)';
+                        param2.style.display = 'none';
+                        param3.style.display = 'none';
+                        break;
+                    case 'sphere':
+                        param1.placeholder = '半径 (单位)';
+                        param2.style.display = 'none';
+                        param3.style.display = 'none';
+                        break;
+                    case 'cylinder':
+                        param1.placeholder = '半径 (单位)';
+                        param2.placeholder = '高度 (单位)';
+                        param2.style.display = 'block';
+                        param3.style.display = 'none';
+                        break;
+                    case 'cone':
+                        param1.placeholder = '底面半径 (单位)';
+                        param2.placeholder = '高度 (单位)';
+                        param2.style.display = 'block';
+                        param3.style.display = 'none';
+                        break;
+                    default:
+                        param1.placeholder = '长度 (单位)';
+                        param2.placeholder = '宽度 (单位)';
+                        param3.placeholder = '高度 (单位)';
+                        param2.style.display = 'block';
+                        param3.style.display = 'block';
+                }
+            }
+
+            // 应用对象编辑
+            applyObjectEdits() {
+                if (!this.selectedObject) return;
+                
+                const objectInfo = this.objects.find(obj => obj.mesh === this.selectedObject);
+                if (!objectInfo) return;
+                
+                try {
+                    // 更新颜色
+                    const newColor = document.getElementById('edit-color').value;
+                    this.selectedObject.material.color.setHex(parseInt(newColor.slice(1), 16));
+                    objectInfo.color = newColor;
+                    
+                    // 更新透明度
+                    const newTransparency = parseFloat(document.getElementById('edit-transparency').value);
+                    this.selectedObject.material.opacity = newTransparency;
+                    
+                    // 更新尺寸参数
+                    const newParam1 = parseFloat(document.getElementById('edit-param1').value);
+                    const newParam2 = parseFloat(document.getElementById('edit-param2').value);
+                    const newParam3 = parseFloat(document.getElementById('edit-param3').value);
+                    
+                    if (!isNaN(newParam1) && newParam1 > 0) {
+                        const newParams = [newParam1];
+                        if (!isNaN(newParam2) && newParam2 > 0) newParams.push(newParam2);
+                        if (!isNaN(newParam3) && newParam3 > 0) newParams.push(newParam3);
+                        
+                        // 重新创建几何体
+                        this.updateObjectGeometry(objectInfo, newParams);
+                    }
+                    
+                    console.log('✅ 对象编辑应用成功');
+                    this.updateObjectsList();
+                } catch (error) {
+                    console.error('❌ 应用编辑失败:', error);
+                    alert('应用编辑失败: ' + error.message);
+                }
+            }
+
+            // 更新对象几何体
+            updateObjectGeometry(objectInfo, newParams) {
+                const oldGeometry = objectInfo.mesh.geometry;
+                const newGeometry = this.createGeometry(objectInfo.type, newParams);
+                
+                // 更新几何体
+                objectInfo.mesh.geometry = newGeometry;
+                objectInfo.parameters = newParams;
+                
+                // 释放旧几何体内存
+                oldGeometry.dispose();
+                
+                console.log('✅ 几何体更新完成:', newParams);
+            }
+
+            updateObjectPropertiesPanel(objectInfo) {
+                // 实时更新编辑面板中的位置信息等
+                // 这个方法在变换控制器移动对象时被调用
+            }
+
+            // 根据ID选择对象
+            selectObjectById(id) {
+                const objectInfo = this.objects.find(obj => obj.id === id);
+                if (objectInfo) {
+                    this.selectObject(objectInfo.mesh, objectInfo);
+                }
             }
         }
 
@@ -1333,6 +1635,31 @@
 
         function exportScene() {
             if (geometrySystem) geometrySystem.exportScene();
+        }
+
+        function setTransformMode(mode) {
+            if (!geometrySystem || !geometrySystem.transformControls) {
+                alert('变换控制器未初始化');
+                return;
+            }
+            geometrySystem.transformControls.setMode(mode);
+            console.log('🔧 变换模式设置为:', mode);
+        }
+
+        function applyObjectEdits() {
+            if (!geometrySystem) {
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
+            geometrySystem.applyObjectEdits();
+        }
+
+        function deselectObject() {
+            if (!geometrySystem) {
+                alert('3D系统未初始化，请刷新页面');
+                return;
+            }
+            geometrySystem.deselectObject();
         }
     </script>
 </body>
