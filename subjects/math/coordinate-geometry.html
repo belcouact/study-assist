@@ -1836,6 +1836,36 @@
                         <input type="number" id="edit-rotation" value="0" step="5" min="-180" max="180" class="input-field">
                     </div>
                 `;
+            } else if (object.type === 'function') {
+                content += `
+                    <div class="input-row">
+                        <label>斜率 k:</label>
+                        <input type="number" id="edit-k" value="${object.k}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>y轴截距 b:</label>
+                        <input type="number" id="edit-b" value="${object.b}" step="0.1" class="input-field">
+                    </div>
+                `;
+            } else if (object.type === 'segment') {
+                content += `
+                    <div class="input-row">
+                        <label>起点 X:</label>
+                        <input type="number" id="edit-x1" value="${object.x1}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>起点 Y:</label>
+                        <input type="number" id="edit-y1" value="${object.y1}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>终点 X:</label>
+                        <input type="number" id="edit-x2" value="${object.x2}" step="0.1" class="input-field">
+                    </div>
+                    <div class="input-row">
+                        <label>终点 Y:</label>
+                        <input type="number" id="edit-y2" value="${object.y2}" step="0.1" class="input-field">
+                    </div>
+                `;
             }
             
             content += `
@@ -1944,6 +1974,26 @@
                     
                     selectedObject.points = transformedPoints;
                 }
+            } else if (selectedObject.type === 'function') {
+                const k = parseFloat(document.getElementById('edit-k').value);
+                const b = parseFloat(document.getElementById('edit-b').value);
+                
+                if (!isNaN(k) && !isNaN(b)) {
+                    selectedObject.k = k;
+                    selectedObject.b = b;
+                }
+            } else if (selectedObject.type === 'segment') {
+                const x1 = parseFloat(document.getElementById('edit-x1').value);
+                const y1 = parseFloat(document.getElementById('edit-y1').value);
+                const x2 = parseFloat(document.getElementById('edit-x2').value);
+                const y2 = parseFloat(document.getElementById('edit-y2').value);
+                
+                if (!isNaN(x1) && !isNaN(y1) && !isNaN(x2) && !isNaN(y2)) {
+                    selectedObject.x1 = x1;
+                    selectedObject.y1 = y1;
+                    selectedObject.x2 = x2;
+                    selectedObject.y2 = y2;
+                }
             }
             
             hideEditPanel();
@@ -1957,6 +2007,10 @@
                 points = points.filter(p => p.id !== selectedObject.id);
                 updatePointsList();
                 updatePointSelectors();
+            } else if (selectedObject.type === 'function' || selectedObject.type === 'segment') {
+                lines.splice(selectedObject.index, 1);
+                updateLinesList();
+                updateManagementLists();
             } else {
                 shapes = shapes.filter(s => s.id !== selectedObject.id);
             }
@@ -1970,7 +2024,9 @@
                 'point': '点',
                 'circle': '圆',
                 'rectangle': '矩形',
-                'polygon': '多边形'
+                'polygon': '多边形',
+                'function': '直线',
+                'segment': '线段'
             };
             return typeNames[object.type] || object.type;
         }
@@ -2706,14 +2762,20 @@
                     return `
                         <div class="point-item">
                             <span class="point-coords">直线: y = ${line.k}x + ${line.b}</span>
-                            <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                            <div style="display: flex; gap: 3px;">
+                                <button class="btn btn-primary" onclick="editLine(${index})" style="padding: 2px 6px; font-size: 12px;">编辑</button>
+                                <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                            </div>
                         </div>
                     `;
                 } else {
                     return `
                         <div class="point-item">
                             <span class="point-coords">线段: (${line.x1}, ${line.y1}) → (${line.x2}, ${line.y2})</span>
-                            <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                            <div style="display: flex; gap: 3px;">
+                                <button class="btn btn-primary" onclick="editLine(${index})" style="padding: 2px 6px; font-size: 12px;">编辑</button>
+                                <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                            </div>
                         </div>
                     `;
                 }
@@ -2812,6 +2874,7 @@
         function deleteLine(index) {
             lines.splice(index, 1);
             updateLinesList();
+            updateManagementLists();
             redraw();
         }
 
@@ -2875,7 +2938,10 @@
                 return `
                     <div class="point-item">
                         <span class="point-coords">${description}</span>
-                        <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                        <div style="display: flex; gap: 3px;">
+                            <button class="btn btn-primary" onclick="editLine(${index})" style="padding: 2px 6px; font-size: 12px;">编辑</button>
+                            <button class="delete-point" onclick="deleteLine(${index})">×</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -3015,6 +3081,21 @@
             updateShapeLists();
             redraw();
         };
+
+        function editShape(shapeId) {
+            const shape = shapes.find(s => s.id === shapeId);
+            if (shape) {
+                showEditPanel(shape);
+            }
+        }
+
+        function editLine(lineIndex) {
+            const line = lines[lineIndex];
+            if (line) {
+                line.index = lineIndex;
+                showEditPanel(line);
+            }
+        }
     </script>
 </body>
 </html> 
