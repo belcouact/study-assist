@@ -2696,11 +2696,6 @@
                             }
                         }
                     }
-                    relatedItems.push({
-                        type: 'line',
-                        description: `直线: y = ${line.k}x + ${line.b}`,
-                        action: `deleteLine(${index})`
-                    });
                 } else if (shape.type === 'polygon') {
                     ctx.strokeStyle = shape === selectedObject ? '#FFD700' : '#4ecdc4';
                     ctx.lineWidth = shape === selectedObject ? 4 : 2;
@@ -3014,6 +3009,734 @@
                 showEditPanel(line);
             }
         }
+
+        // Zoom functions
+        function zoomIn() {
+            zoom = Math.min(MAX_ZOOM, zoom * 1.2);
+            redraw();
+            updateZoomInfo();
+        }
+
+        function zoomOut() {
+            zoom = Math.max(MIN_ZOOM, zoom / 1.2);
+            redraw();
+            updateZoomInfo();
+        }
+
+        function resetZoom() {
+            zoom = 1;
+            panX = 0;
+            panY = 0;
+            redraw();
+            updateZoomInfo();
+        }
+
+        function updateZoomInfo() {
+            const percentage = Math.round(zoom * 100);
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile) {
+                zoomInfo.textContent = `缩放: ${percentage}% | 单指拖拽: 平移 | 双指缩放 | 长按: 选择移动 | 双击: 编辑对象`;
+            } else {
+                zoomInfo.textContent = `缩放: ${percentage}% | 拖拽: 平移画布 | Shift+拖拽: 移动对象 | 双击: 编辑对象`;
+            }
+        }
+
+        // Event listeners setup
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabId = this.dataset.tab;
+                    switchTab(tabId);
+                });
+            });
+        }
+
+        function switchTab(tabId) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+            
+            // Update all lists when switching tabs
+            updatePointsList();
+            updatePointSelectors();
+            updateShapeLists();
+        }
+
+        // Point management functions
+        function updatePointsList() {
+            const pointsList = document.getElementById('pointsList');
+            if (!pointsList) return;
+            
+            if (points.length === 0) {
+                pointsList.innerHTML = '<p style="text-align: center; color: #666;">暂无点</p>';
+                return;
+            }
+            
+            pointsList.innerHTML = points.map(point => `
+                <div class="point-item">
+                    <span class="point-coords" onclick="focusOnPoint(${point.id})">${point.label}: (${point.x}, ${point.y})</span>
+                    <div style="display: flex; gap: 3px;">
+                        <button class="btn btn-primary" onclick="editPoint(${point.id})" style="padding: 2px 6px; font-size: 12px;">编辑</button>
+                        <button class="delete-point" onclick="deletePoint(${point.id})">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updatePointSelectors() {
+            const point1Select = document.getElementById('point1Select');
+            const point2Select = document.getElementById('point2Select');
+            
+            if (point1Select) {
+                point1Select.innerHTML = '<option value="">选择第一个点</option>' +
+                    points.map(point => `<option value="${point.id}">${point.label}: (${point.x}, ${point.y})</option>`).join('');
+            }
+            
+            if (point2Select) {
+                point2Select.innerHTML = '<option value="">选择第二个点</option>' +
+                    points.map(point => `<option value="${point.id}">${point.label}: (${point.x}, ${point.y})</option>`).join('');
+            }
+        }
+
+        function updatePointsRelatedShapes() {
+            const relatedShapesDiv = document.getElementById('pointsRelatedShapes');
+            if (!relatedShapesDiv) return;
+            
+            const relatedItems = [];
+            
+            // Check lines that use these points
+            lines.forEach((line, index) => {
+                if (line.type === 'segment') {
+                    const point1 = points.find(p => Math.abs(p.x - line.x1) < 0.1 && Math.abs(p.y - line.y1) < 0.1);
+                    const point2 = points.find(p => Math.abs(p.x - line.x2) < 0.1 && Math.abs(p.y - line.y2) < 0.1);
+                    if (point1 || point2) {
+                        relatedItems.push({
+                            type: 'line',
+                            description: `线段: (${line.x1}, ${line.y1}) → (${line.x2}, ${line.y2})`,
+                            action: `deleteLine(${index})`
+                        });
+                    }
+                }
+            });
+            
+            if (relatedItems.length === 0) {
+                relatedShapesDiv.innerHTML = '<p style="text-align: center; color: #666;">暂无相关图形</p>';
+            } else {
+                relatedShapesDiv.innerHTML = relatedItems.map(item => `
+                    <div class="point-item">
+                        <span class="point-coords">${item.description}</span>
+                        <button class="delete-point" onclick="${item.action}">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addPoint() {
+            const x = parseFloat(document.getElementById('pointX').value);
+            const y = parseFloat(document.getElementById('pointY').value);
+            const label = document.getElementById('pointLabel').value || `P${points.length + 1}`;
+            
+            if (isNaN(x) || isNaN(y)) {
+                alert('请输入有效的坐标值');
+                return;
+            }
+            
+            if (x < -MAX_COORD || x > MAX_COORD || y < -MAX_COORD || y > MAX_COORD) {
+                alert(`坐标值必须在 -${MAX_COORD} 到 ${MAX_COORD} 之间`);
+                return;
+            }
+            
+            const point = {
+                id: Date.now(),
+                x: parseFloat(x.toFixed(2)),
+                y: parseFloat(y.toFixed(2)),
+                label: label,
+                type: 'point'
+            };
+            
+            points.push(point);
+            updatePointsList();
+            updatePointSelectors();
+            updatePointsRelatedShapes();
+            redraw();
+            
+            // Clear inputs
+            document.getElementById('pointX').value = '0';
+            document.getElementById('pointY').value = '0';
+            document.getElementById('pointLabel').value = '';
+        }
+
+        function addRandomPoint() {
+            const x = Math.round((Math.random() * 20 - 10) * 2) / 2; // Random from -10 to 10, half steps
+            const y = Math.round((Math.random() * 20 - 10) * 2) / 2;
+            
+            const point = {
+                id: Date.now(),
+                x: x,
+                y: y,
+                label: `R${points.length + 1}`,
+                type: 'point'
+            };
+            
+            points.push(point);
+            updatePointsList();
+            updatePointSelectors();
+            updatePointsRelatedShapes();
+            redraw();
+        }
+
+        function deletePoint(pointId) {
+            points = points.filter(p => p.id !== pointId);
+            updatePointsList();
+            updatePointSelectors();
+            updatePointsRelatedShapes();
+            redraw();
+        }
+
+        function editPoint(pointId) {
+            const point = points.find(p => p.id === pointId);
+            if (point) {
+                showEditPanel(point);
+            }
+        }
+
+        function focusOnPoint(pointId) {
+            const point = points.find(p => p.id === pointId);
+            if (point) {
+                // Center the view on this point
+                const canvasPos = coordToCanvas(point.x, point.y);
+                panX = canvas.width / 2 - canvasPos.x + panX;
+                panY = canvas.height / 2 - canvasPos.y + panY;
+                redraw();
+                updateZoomInfo();
+            }
+        }
+
+        // Line functions
+        function addLine() {
+            const k = parseFloat(document.getElementById('lineK').value);
+            const b = parseFloat(document.getElementById('lineB').value);
+            
+            if (isNaN(k) || isNaN(b)) {
+                alert('请输入有效的数值');
+                return;
+            }
+            
+            const line = {
+                type: 'function',
+                k: k,
+                b: b
+            };
+            
+            lines.push(line);
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function connectPoints() {
+            const point1Id = document.getElementById('point1Select').value;
+            const point2Id = document.getElementById('point2Select').value;
+            
+            if (!point1Id || !point2Id) {
+                alert('请选择两个点');
+                return;
+            }
+            
+            if (point1Id === point2Id) {
+                alert('请选择不同的两个点');
+                return;
+            }
+            
+            const point1 = points.find(p => p.id == point1Id);
+            const point2 = points.find(p => p.id == point2Id);
+            
+            if (!point1 || !point2) {
+                alert('找不到指定的点');
+                return;
+            }
+            
+            const segment = {
+                type: 'segment',
+                x1: point1.x,
+                y1: point1.y,
+                x2: point2.x,
+                y2: point2.y
+            };
+            
+            lines.push(segment);
+            updateLinesList();
+            updateManagementLists();
+            updateLineInfo(segment);
+            redraw();
+        }
+
+        function updateLineInfo(segment) {
+            const lineInfoDiv = document.getElementById('lineInfo');
+            if (!lineInfoDiv || !segment) return;
+            
+            const distance = Math.sqrt(Math.pow(segment.x2 - segment.x1, 2) + Math.pow(segment.y2 - segment.y1, 2));
+            const slope = segment.x2 !== segment.x1 ? (segment.y2 - segment.y1) / (segment.x2 - segment.x1) : '∞';
+            const midpoint = {
+                x: (segment.x1 + segment.x2) / 2,
+                y: (segment.y1 + segment.y2) / 2
+            };
+            
+            lineInfoDiv.innerHTML = `
+                <p><strong>线段信息:</strong></p>
+                <p>起点: (${segment.x1}, ${segment.y1})</p>
+                <p>终点: (${segment.x2}, ${segment.y2})</p>
+                <p>长度: ${distance.toFixed(2)}</p>
+                <p>斜率: ${slope !== '∞' ? slope.toFixed(2) : '∞'}</p>
+                <p>中点: (${midpoint.x.toFixed(2)}, ${midpoint.y.toFixed(2)})</p>
+            `;
+        }
+
+        // Function curve functions
+        function addQuadratic() {
+            const a = parseFloat(document.getElementById('quadA').value);
+            const b = parseFloat(document.getElementById('quadB').value);
+            const c = parseFloat(document.getElementById('quadC').value);
+            
+            if (isNaN(a) || isNaN(b) || isNaN(c) || a === 0) {
+                alert('请输入有效的系数，且a不能为0');
+                return;
+            }
+            
+            lines.push({ type: 'quadratic', a, b, c });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addHyperbola() {
+            const k = parseFloat(document.getElementById('hyperK').value);
+            
+            if (isNaN(k) || k === 0) {
+                alert('请输入有效的系数k，且k不能为0');
+                return;
+            }
+            
+            lines.push({ type: 'hyperbola', k });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addExponential() {
+            const a = parseFloat(document.getElementById('expA').value);
+            
+            if (isNaN(a) || a <= 0 || a === 1) {
+                alert('请输入有效的底数a，且a>0且a≠1');
+                return;
+            }
+            
+            lines.push({ type: 'exponential', a });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addLogarithmic() {
+            const a = parseFloat(document.getElementById('logA').value);
+            
+            if (isNaN(a) || a <= 0 || a === 1) {
+                alert('请输入有效的底数a，且a>0且a≠1');
+                return;
+            }
+            
+            lines.push({ type: 'logarithmic', a });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addSinFunction() {
+            lines.push({ type: 'sin' });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addCosFunction() {
+            lines.push({ type: 'cos' });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        function addTanFunction() {
+            lines.push({ type: 'tan' });
+            updateLinesList();
+            updateManagementLists();
+            redraw();
+        }
+
+        // Shape functions
+        function addCircle() {
+            const x = parseFloat(document.getElementById('circleX').value);
+            const y = parseFloat(document.getElementById('circleY').value);
+            const r = parseFloat(document.getElementById('circleR').value);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(r) || r <= 0) {
+                alert('请输入有效的数值，半径必须大于0');
+                return;
+            }
+            
+            const circle = {
+                id: Date.now(),
+                type: 'circle',
+                x: x,
+                y: y,
+                r: r
+            };
+            
+            shapes.push(circle);
+            updateShapeLists();
+            redraw();
+        }
+
+        function addRectangle() {
+            const x = parseFloat(document.getElementById('rectX').value);
+            const y = parseFloat(document.getElementById('rectY').value);
+            const w = parseFloat(document.getElementById('rectW').value);
+            const h = parseFloat(document.getElementById('rectH').value);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(w) || isNaN(h) || w <= 0 || h <= 0) {
+                alert('请输入有效的数值，宽度和高度必须大于0');
+                return;
+            }
+            
+            const rectangle = {
+                id: Date.now(),
+                type: 'rectangle',
+                x: x,
+                y: y,
+                w: w,
+                h: h
+            };
+            
+            shapes.push(rectangle);
+            updateShapeLists();
+            redraw();
+        }
+
+        function addEllipse() {
+            const x = parseFloat(document.getElementById('ellipseX').value);
+            const y = parseFloat(document.getElementById('ellipseY').value);
+            const a = parseFloat(document.getElementById('ellipseA').value);
+            const b = parseFloat(document.getElementById('ellipseB').value);
+            
+            if (isNaN(x) || isNaN(y) || isNaN(a) || isNaN(b) || a <= 0 || b <= 0) {
+                alert('请输入有效的数值，长短轴必须大于0');
+                return;
+            }
+            
+            const ellipse = {
+                id: Date.now(),
+                type: 'ellipse',
+                x: x,
+                y: y,
+                a: a,
+                b: b
+            };
+            
+            shapes.push(ellipse);
+            updateShapeLists();
+            redraw();
+        }
+
+        function addParabola() {
+            const p = parseFloat(document.getElementById('parabolaP').value);
+            const direction = document.getElementById('parabolaType').value;
+            
+            if (isNaN(p) || p <= 0) {
+                alert('请输入有效的参数p，且p必须大于0');
+                return;
+            }
+            
+            const parabola = {
+                id: Date.now(),
+                type: 'parabola',
+                p: p,
+                direction: direction
+            };
+            
+            shapes.push(parabola);
+            updateShapeLists();
+            redraw();
+        }
+
+        function addHyperbolaShape() {
+            const a = parseFloat(document.getElementById('hyperbolaA').value);
+            const b = parseFloat(document.getElementById('hyperbolaB').value);
+            
+            if (isNaN(a) || isNaN(b) || a <= 0 || b <= 0) {
+                alert('请输入有效的参数a和b，且都必须大于0');
+                return;
+            }
+            
+            const hyperbola = {
+                id: Date.now(),
+                type: 'hyperbola_shape',
+                a: a,
+                b: b
+            };
+            
+            shapes.push(hyperbola);
+            updateShapeLists();
+            redraw();
+        }
+
+        function drawTriangle() {
+            const triangle = {
+                id: Date.now(),
+                type: 'polygon',
+                points: [
+                    { x: 0, y: 3 },
+                    { x: -2, y: -1 },
+                    { x: 2, y: -1 }
+                ]
+            };
+            
+            shapes.push(triangle);
+            updateShapeLists();
+            redraw();
+        }
+
+        function drawSquare() {
+            const square = {
+                id: Date.now(),
+                type: 'polygon',
+                points: [
+                    { x: -2, y: 2 },
+                    { x: 2, y: 2 },
+                    { x: 2, y: -2 },
+                    { x: -2, y: -2 }
+                ]
+            };
+            
+            shapes.push(square);
+            updateShapeLists();
+            redraw();
+        }
+
+        function drawPentagon() {
+            const pentagon = {
+                id: Date.now(),
+                type: 'polygon',
+                points: []
+            };
+            
+            // Generate pentagon points
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 2 * Math.PI / 5) - Math.PI / 2;
+                pentagon.points.push({
+                    x: parseFloat((3 * Math.cos(angle)).toFixed(2)),
+                    y: parseFloat((3 * Math.sin(angle)).toFixed(2))
+                });
+            }
+            
+            shapes.push(pentagon);
+            updateShapeLists();
+            redraw();
+        }
+
+        function drawStar() {
+            const star = {
+                id: Date.now(),
+                type: 'polygon',
+                points: []
+            };
+            
+            // Generate 5-pointed star
+            for (let i = 0; i < 10; i++) {
+                const angle = (i * Math.PI / 5) - Math.PI / 2;
+                const radius = i % 2 === 0 ? 3 : 1.5;
+                star.points.push({
+                    x: parseFloat((radius * Math.cos(angle)).toFixed(2)),
+                    y: parseFloat((radius * Math.sin(angle)).toFixed(2))
+                });
+            }
+            
+            shapes.push(star);
+            updateShapeLists();
+            redraw();
+        }
+
+        function updateShapesTabList() {
+            const shapesList = document.getElementById('shapesList');
+            if (!shapesList) return;
+            
+            if (shapes.length === 0) {
+                shapesList.innerHTML = '<p style="text-align: center; color: #666;">暂无图形</p>';
+                return;
+            }
+            
+            shapesList.innerHTML = shapes.map(shape => {
+                let description = '';
+                if (shape.type === 'circle') {
+                    description = `圆: 中心(${shape.x}, ${shape.y}), 半径${shape.r}`;
+                } else if (shape.type === 'rectangle') {
+                    description = `矩形: (${shape.x}, ${shape.y}), ${shape.w}×${shape.h}`;
+                } else if (shape.type === 'ellipse') {
+                    description = `椭圆: 中心(${shape.x}, ${shape.y}), 长轴${shape.a}, 短轴${shape.b}`;
+                } else if (shape.type === 'parabola') {
+                    description = `抛物线: p=${shape.p}, 方向${shape.direction}`;
+                } else if (shape.type === 'hyperbola_shape') {
+                    description = `双曲线: a=${shape.a}, b=${shape.b}`;
+                } else if (shape.type === 'polygon') {
+                    const center = getPolygonCenter(shape.points);
+                    description = `多边形: 中心(${center.x.toFixed(1)}, ${center.y.toFixed(1)}), ${shape.points.length}边`;
+                }
+                
+                return `
+                    <div class="point-item">
+                        <span class="point-coords">${description}</span>
+                        <div style="display: flex; gap: 3px;">
+                            <button class="btn btn-primary" onclick="editShape(${shape.id})" style="padding: 2px 6px; font-size: 12px;">编辑</button>
+                            <button class="delete-point" onclick="deleteShape(${shape.id})">×</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function deleteShape(shapeId) {
+            shapes = shapes.filter(s => s.id !== shapeId);
+            updateShapeLists();
+            redraw();
+        }
+
+        function clearAll() {
+            points = [];
+            lines = [];
+            shapes = [];
+            updatePointsList();
+            updatePointSelectors();
+            updateShapeLists();
+            redraw();
+        }
+
+        // Polygon helper functions
+        function getPolygonCenter(points) {
+            const sum = points.reduce((acc, point) => ({
+                x: acc.x + point.x,
+                y: acc.y + point.y
+            }), { x: 0, y: 0 });
+            
+            return {
+                x: sum.x / points.length,
+                y: sum.y / points.length
+            };
+        }
+
+        function getPolygonBounds(points) {
+            const xs = points.map(p => p.x);
+            const ys = points.map(p => p.y);
+            return {
+                minX: Math.min(...xs),
+                maxX: Math.max(...xs),
+                minY: Math.min(...ys),
+                maxY: Math.max(...ys)
+            };
+        }
+
+        function translatePolygon(points, centerX, centerY) {
+            const currentCenter = getPolygonCenter(points);
+            const deltaX = centerX - currentCenter.x;
+            const deltaY = centerY - currentCenter.y;
+            
+            return points.map(point => ({
+                x: parseFloat((point.x + deltaX).toFixed(2)),
+                y: parseFloat((point.y + deltaY).toFixed(2))
+            }));
+        }
+
+        function scalePolygon(points, scale) {
+            const center = getPolygonCenter(points);
+            return points.map(point => ({
+                x: parseFloat((center.x + (point.x - center.x) * scale).toFixed(2)),
+                y: parseFloat((center.y + (point.y - center.y) * scale).toFixed(2))
+            }));
+        }
+
+        function rotatePolygon(points, angleDegrees) {
+            const center = getPolygonCenter(points);
+            const angleRad = (angleDegrees * Math.PI) / 180;
+            const cos = Math.cos(angleRad);
+            const sin = Math.sin(angleRad);
+            
+            return points.map(point => {
+                const relX = point.x - center.x;
+                const relY = point.y - center.y;
+                return {
+                    x: parseFloat((center.x + relX * cos - relY * sin).toFixed(2)),
+                    y: parseFloat((center.y + relX * sin + relY * cos).toFixed(2))
+                };
+            });
+        }
+
+        function isPointInPolygon(point, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                if (((polygon[i].y > point.y) !== (polygon[j].y > point.y)) &&
+                    (point.x < (polygon[j].x - polygon[i].x) * (point.y - polygon[i].y) / (polygon[j].y - polygon[i].y) + polygon[i].x)) {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        function isPointNearPolygonEdges(point, polygon, tolerance) {
+            for (let i = 0; i < polygon.length; i++) {
+                const j = (i + 1) % polygon.length;
+                const distance = distanceToLineSegment(point, polygon[i], polygon[j]);
+                if (distance <= tolerance) return true;
+            }
+            return false;
+        }
+
+        function distanceToLineSegment(point, lineStart, lineEnd) {
+            const A = point.x - lineStart.x;
+            const B = point.y - lineStart.y;
+            const C = lineEnd.x - lineStart.x;
+            const D = lineEnd.y - lineStart.y;
+            
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            
+            if (lenSq === 0) return Math.sqrt(A * A + B * B);
+            
+            let param = dot / lenSq;
+            
+            let xx, yy;
+            if (param < 0) {
+                xx = lineStart.x;
+                yy = lineStart.y;
+            } else if (param > 1) {
+                xx = lineEnd.x;
+                yy = lineEnd.y;
+            } else {
+                xx = lineStart.x + param * C;
+                yy = lineStart.y + param * D;
+            }
+            
+            const dx = point.x - xx;
+            const dy = point.y - yy;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // Event listeners setup
     </script>
 </body>
 </html> 
