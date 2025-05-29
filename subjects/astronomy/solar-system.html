@@ -1391,62 +1391,88 @@
             }
 
             async loadPlanetTexture(planetName) {
-                // Use CORS-friendly texture sources and procedural fallbacks
-                const textureUrls = {
-                    sun: [
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/512px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg'
-                    ],
-                    mercury: [],
-                    venus: [],
-                    earth: [
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/512px-The_Earth_seen_from_Apollo_17.jpg'
-                    ],
-                    earth_night: [],
-                    earth_clouds: [],
-                    moon: [
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/512px-FullMoon2010.jpg'
-                    ],
-                    mars: [],
-                    jupiter: [],
-                    saturn: [],
-                    uranus: [],
-                    neptune: []
+                // First try to load from our local 2k texture files
+                const localTextures = {
+                    sun: '../../assets/images/2k_sun.jpg',
+                    mercury: '../../assets/images/2k_mercury.jpg',
+                    venus: '../../assets/images/2k_venus.jpg',
+                    earth: '../../assets/images/2k_earth.jpg',
+                    mars: '../../assets/images/2k_mars.jpg',
+                    jupiter: '../../assets/images/2k_jupiter.jpg',
+                    saturn: '../../assets/images/2k_saturn.jpg',
+                    uranus: '../../assets/images/2k_uranus.jpg',
+                    neptune: '../../assets/images/2k_neptune.jpg',
+                    moon: '../../assets/images/2k_moon.jpg'
                 };
                 
-                const urls = textureUrls[planetName] || [];
+                // Fallback external texture URLs
+                const textureUrls = {
+                    earth: [
+                        'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/512px-The_Earth_seen_from_Apollo_17.jpg'
+                    ]
+                };
                 
                 return new Promise((resolve) => {
-                    if (urls.length === 0) {
-                        // Create procedural texture for this planet
-                        resolve(this.createProceduralTexture(planetName));
-                        return;
-                    }
-                    
                     const loader = new THREE.TextureLoader();
                     
-                    const tryLoadTexture = (urlIndex = 0) => {
-                        if (urlIndex >= urls.length) {
-                            // All URLs failed, create procedural texture
-                            resolve(this.createProceduralTexture(planetName));
-                            return;
-                        }
-                        
+                    // Try local texture first
+                    if (localTextures[planetName]) {
                         loader.load(
-                            urls[urlIndex],
+                            localTextures[planetName],
                             (texture) => {
-                                console.log(`Successfully loaded texture for ${planetName} from source ${urlIndex + 1}`);
+                                console.log(`Successfully loaded local texture for ${planetName}`);
+                                texture.wrapS = THREE.RepeatWrapping;
+                                texture.wrapT = THREE.RepeatWrapping;
                                 resolve(texture);
                             },
                             undefined,
                             (error) => {
-                                console.log(`Failed to load texture for ${planetName} from source ${urlIndex + 1}, trying next...`);
-                                tryLoadTexture(urlIndex + 1);
+                                console.log(`Failed to load local texture for ${planetName}, trying fallback...`);
+                                this.tryFallbackTextures(planetName, textureUrls, resolve);
                             }
                         );
-                    };
+                        return;
+                    }
                     
-                    tryLoadTexture();
+                    // Try external URLs if no local texture
+                    this.tryFallbackTextures(planetName, textureUrls, resolve);
                 });
+            }
+            
+            tryFallbackTextures(planetName, textureUrls, resolve) {
+                const urls = textureUrls[planetName] || [];
+                const loader = new THREE.TextureLoader();
+                
+                if (urls.length === 0) {
+                    // Create procedural texture for this planet
+                    resolve(this.createProceduralTexture(planetName));
+                    return;
+                }
+                
+                const tryLoadTexture = (urlIndex = 0) => {
+                    if (urlIndex >= urls.length) {
+                        // All URLs failed, create procedural texture
+                        resolve(this.createProceduralTexture(planetName));
+                        return;
+                    }
+                    
+                    loader.load(
+                        urls[urlIndex],
+                        (texture) => {
+                            console.log(`Successfully loaded external texture for ${planetName} from source ${urlIndex + 1}`);
+                            texture.wrapS = THREE.RepeatWrapping;
+                            texture.wrapT = THREE.RepeatWrapping;
+                            resolve(texture);
+                        },
+                        undefined,
+                        (error) => {
+                            console.log(`Failed to load external texture for ${planetName} from source ${urlIndex + 1}, trying next...`);
+                            tryLoadTexture(urlIndex + 1);
+                        }
+                    );
+                };
+                
+                tryLoadTexture();
             }
 
             createProceduralTexture(planetName) {
@@ -2440,51 +2466,16 @@
 
             // Advanced texture creation methods for realistic planets
             createAdvancedSunTexture() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1024;
-                canvas.height = 512;
-                const context = canvas.getContext('2d');
-                
-                // Base solar surface gradient
-                const gradient = context.createRadialGradient(512, 256, 0, 512, 256, 400);
-                gradient.addColorStop(0, '#FFFF99');
-                gradient.addColorStop(0.4, '#FFCC00');
-                gradient.addColorStop(0.7, '#FF9900');
-                gradient.addColorStop(1, '#FF6600');
-                
-                context.fillStyle = gradient;
-                context.fillRect(0, 0, 1024, 512);
-                
-                // Solar granulation (convection cells)
-                for (let i = 0; i < 2000; i++) {
-                    const x = Math.random() * 1024;
-                    const y = Math.random() * 512;
-                    const size = Math.random() * 12 + 4;
-                    const intensity = Math.random() * 0.4 + 0.6;
-                    
-                    context.fillStyle = `rgba(255, 255, 100, ${intensity})`;
-                    context.beginPath();
-                    context.arc(x, y, size, 0, Math.PI * 2);
-                    context.fill();
-                }
-                
-                // Solar prominences and active regions
-                for (let i = 0; i < 50; i++) {
-                    const x = Math.random() * 1024;
-                    const y = Math.random() * 512;
-                    const size = Math.random() * 20 + 10;
-                    const intensity = Math.random() * 0.6 + 0.4;
-                    
-                    context.fillStyle = `rgba(255, 150, 0, ${intensity})`;
-                    context.beginPath();
-                    context.arc(x, y, size, 0, Math.PI * 2);
-                    context.fill();
-                }
-                
-                return new THREE.CanvasTexture(canvas);
+                const loader = new THREE.TextureLoader();
+                const texture = loader.load('../../assets/images/2k_sun.jpg');
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
             }
 
             createAdvancedEarthTexture() {
+                // For Earth, we'll use a procedural texture since we don't have 2k_earth.jpg
+                // But we'll enhance it to look more realistic
                 const canvas = document.createElement('canvas');
                 canvas.width = 2048;
                 canvas.height = 1024;
@@ -2727,60 +2718,11 @@
             }
 
             createAdvancedMarsTexture() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1024;
-                canvas.height = 512;
-                const context = canvas.getContext('2d');
-                
-                // Mars base color (rusty red)
-                const gradient = context.createLinearGradient(0, 0, 1024, 512);
-                gradient.addColorStop(0, '#cd853f');
-                gradient.addColorStop(0.3, '#d2691e');
-                gradient.addColorStop(0.7, '#a0522d');
-                gradient.addColorStop(1, '#8b4513');
-                
-                context.fillStyle = gradient;
-                context.fillRect(0, 0, 1024, 512);
-                
-                // Polar ice caps
-                context.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                context.fillRect(0, 0, 1024, 40); // North pole
-                context.fillRect(0, 472, 1024, 40); // South pole
-                
-                // Olympus Mons (largest volcano)
-                context.fillStyle = '#8b4513';
-                context.beginPath();
-                context.arc(300, 200, 25, 0, Math.PI * 2);
-                context.fill();
-                
-                // Valles Marineris (giant canyon)
-                context.strokeStyle = '#654321';
-                context.lineWidth = 15;
-                context.beginPath();
-                context.moveTo(200, 250);
-                context.bezierCurveTo(400, 240, 600, 260, 800, 250);
-                context.stroke();
-                
-                // Impact craters
-                for (let i = 0; i < 150; i++) {
-                    const x = Math.random() * 1024;
-                    const y = Math.random() * 512;
-                    const size = Math.random() * 15 + 3;
-                    
-                    context.fillStyle = '#654321';
-                    context.beginPath();
-                    context.arc(x, y, size, 0, Math.PI * 2);
-                    context.fill();
-                    
-                    // Crater rim
-                    context.strokeStyle = '#8b7355';
-                    context.lineWidth = 1;
-                    context.beginPath();
-                    context.arc(x, y, size * 1.2, 0, Math.PI * 2);
-                    context.stroke();
-                }
-                
-                return new THREE.CanvasTexture(canvas);
+                const loader = new THREE.TextureLoader();
+                const texture = loader.load('../../assets/images/2k_mars.jpg');
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
             }
 
             createMarsBumpMap() {
@@ -2791,9 +2733,9 @@
                 
                 const imageData = context.createImageData(1024, 512);
                 
-                for (let y = 0; y < 512; y++) {
-                    for (let x = 0; x < 1024; x++) {
-                        const index = (y * 1024 + x) * 4;
+                for (let y = 0; y < 256; y++) {
+                    for (let x = 0; x < 512; x++) {
+                        const index = (y * 512 + x) * 4;
                         
                         let height = 128; // Base level
                         
@@ -2846,44 +2788,11 @@
             }
 
             createAdvancedJupiterTexture() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1024;
-                canvas.height = 512;
-                const context = canvas.getContext('2d');
-                
-                // Create Jupiter's bands
-                const bands = 12;
-                const bandHeight = 512 / bands;
-                
-                for (let i = 0; i < bands; i++) {
-                    const intensity = 0.3 + Math.sin(i * 0.5) * 0.3;
-                    const hue = 25 + Math.sin(i * 0.3) * 15;
-                    
-                    let color;
-                    if (i % 2 === 0) {
-                        color = `hsl(${hue}, 70%, ${50 + intensity * 20}%)`;
-                    } else {
-                        color = `hsl(${hue + 10}, 60%, ${40 + intensity * 15}%)`;
-                    }
-                    
-                    context.fillStyle = color;
-                    context.fillRect(0, i * bandHeight, 1024, bandHeight);
-                }
-                
-                // Add turbulence and storm systems
-                for (let i = 0; i < 300; i++) {
-                    const x = Math.random() * 1024;
-                    const y = Math.random() * 512;
-                    const size = Math.random() * 20 + 5;
-                    const opacity = Math.random() * 0.5 + 0.3;
-                    
-                    context.fillStyle = `rgba(139, 69, 19, ${opacity})`;
-                    context.beginPath();
-                    context.arc(x, y, size, 0, Math.PI * 2);
-                    context.fill();
-                }
-                
-                return new THREE.CanvasTexture(canvas);
+                const loader = new THREE.TextureLoader();
+                const texture = loader.load('../../assets/images/2k_jupiter.jpg');
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
             }
 
             addGreatRedSpot(jupiter, size) {
@@ -2901,37 +2810,11 @@
             }
 
             createAdvancedSaturnTexture() {
-                const canvas = document.createElement('canvas');
-                canvas.width = 1024;
-                canvas.height = 512;
-                const context = canvas.getContext('2d');
-                
-                // Saturn's more subtle bands
-                const bands = 8;
-                const bandHeight = 512 / bands;
-                
-                for (let i = 0; i < bands; i++) {
-                    const intensity = 0.8 + Math.sin(i * 0.4) * 0.2;
-                    const hue = 45 + Math.sin(i * 0.2) * 5;
-                    
-                    context.fillStyle = `hsl(${hue}, 30%, ${intensity * 75}%)`;
-                    context.fillRect(0, i * bandHeight, 1024, bandHeight);
-                }
-                
-                // Add subtle atmospheric features
-                for (let i = 0; i < 100; i++) {
-                    const x = Math.random() * 1024;
-                    const y = Math.random() * 512;
-                    const size = Math.random() * 15 + 5;
-                    const opacity = Math.random() * 0.3 + 0.2;
-                    
-                    context.fillStyle = `rgba(222, 184, 135, ${opacity})`;
-                    context.beginPath();
-                    context.arc(x, y, size, 0, Math.PI * 2);
-                    context.fill();
-                }
-                
-                return new THREE.CanvasTexture(canvas);
+                const loader = new THREE.TextureLoader();
+                const texture = loader.load('../../assets/images/2k_saturn.jpg');
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                return texture;
             }
 
             createDetailedSaturnRings(saturnGroup, planetSize) {
@@ -2963,23 +2846,31 @@
             }
 
             createAdvancedPlanetTexture(planetName) {
+                const loader = new THREE.TextureLoader();
+                
+                // Check if we have a texture file for this planet
+                const textureFiles = {
+                    'mercury': '../../assets/images/2k_mercury.jpg',
+                    'venus': '../../assets/images/2k_venus.jpg',
+                    'neptune': '../../assets/images/2k_neptune.jpg'
+                };
+                
+                if (textureFiles[planetName]) {
+                    const texture = loader.load(textureFiles[planetName]);
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    return texture;
+                }
+                
+                // Fallback to procedural texture for planets without image files
                 const canvas = document.createElement('canvas');
                 canvas.width = 512;
                 canvas.height = 256;
                 const context = canvas.getContext('2d');
                 
                 switch(planetName) {
-                    case 'mercury':
-                        this.createMercuryTexture(context);
-                        break;
-                    case 'venus':
-                        this.createVenusTexture(context);
-                        break;
                     case 'uranus':
                         this.createUranusTexture(context);
-                        break;
-                    case 'neptune':
-                        this.createNeptuneTexture(context);
                         break;
                     default:
                         this.createDefaultPlanetTexture(context);
