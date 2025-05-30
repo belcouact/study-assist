@@ -4031,8 +4031,9 @@
                 const currentSlider = document.getElementById('current');
                 const wireShapeSelect = document.getElementById('wire-shape');
                 const chargeSlider = document.getElementById('charge-strength');
-                const startButton = document.getElementById('start-em');
-                const resetButton = document.getElementById('reset-em');
+                const startButton = document.getElementById('start-electromagnetism');
+                const resetButton = document.getElementById('reset-electromagnetism');
+                const pauseButton = document.getElementById('pause-electromagnetism');
                 const addChargeButton = document.getElementById('add-charge');
 
                 if (typeSelect) {
@@ -4099,6 +4100,17 @@
                     });
                 }
 
+                if (pauseButton) {
+                    pauseButton.addEventListener('click', () => {
+                        if (this.isRunning.em) {
+                            this.stopElectromagnetismSimulation();
+                            if (startButton) {
+                                startButton.textContent = '开始模拟';
+                            }
+                        }
+                    });
+                }
+
                 if (addChargeButton) {
                     addChargeButton.addEventListener('click', () => {
                         this.addElectricCharge();
@@ -4127,13 +4139,24 @@
             }
 
             startElectromagnetismSimulation() {
+                console.log('开始电磁学模拟...');
                 this.isRunning.em = true;
                 this.simulationTime = 0;
                 
+                // 检查canvas是否可用
+                if (!this.canvases.em || !this.contexts.em) {
+                    console.error('电磁学canvas或context不可用');
+                    alert('画布未正确初始化，请刷新页面重试。');
+                    return;
+                }
+                
                 // 初始化物理解释
                 const currentType = document.getElementById('em-type')?.value || 'electric-field';
+                console.log('模拟类型:', currentType);
+                
                 this.updatePhysicsExplanation(currentType);
                 
+                // 立即进行一次模拟更新
                 this.updateElectromagnetismSimulation();
                 
                 // 开始动画循环
@@ -4153,6 +4176,8 @@
                         }
                     }, 50);
                 }
+                
+                console.log('电磁学模拟已启动');
             }
 
             stopElectromagnetismSimulation() {
@@ -4447,26 +4472,34 @@
                 const canvas = this.canvases.em;
                 const ctx = this.contexts.em;
                 
-                if (!canvas || !ctx) return;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                const chargeAmount = parseFloat(document.getElementById('charge-strength')?.value || 1);
-                const showFieldLines = document.getElementById('show-field-lines')?.checked;
-                
-                // 如果没有电荷，创建一些默认电荷配置
-                if (this.electricCharges.length === 0) {
-                    this.electricCharges = [
-                        { x: canvas.width * 0.3, y: canvas.height * 0.5, charge: chargeAmount },
-                        { x: canvas.width * 0.7, y: canvas.height * 0.5, charge: -chargeAmount }
-                    ];
+                if (!canvas || !ctx) {
+                    console.warn('Electromagnetic canvas or context not available');
+                    return;
                 }
                 
+                console.log('正在绘制电场...');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const chargeConfig = document.getElementById('charge-config')?.value || 'single';
+                const chargeAmount = parseFloat(document.getElementById('charge-strength')?.value || 1.0);
+                const showFieldLines = document.getElementById('show-field-lines')?.checked;
+                const showEquipotential = document.getElementById('show-equipotential')?.checked;
+                const showGrid = document.getElementById('show-grid')?.checked;
+                
+                console.log('电场参数:', { chargeConfig, chargeAmount, showFieldLines, showEquipotential, showGrid });
+                
+                // 根据配置设置电荷
+                this.setupChargeConfiguration(chargeConfig, chargeAmount);
+                
                 // 绘制坐标网格和标尺
-                this.drawElectricFieldGrid(ctx, canvas);
+                if (showGrid) {
+                    this.drawElectricFieldGrid(ctx, canvas);
+                }
                 
                 // 绘制等势线
-                this.drawEquipotentialLines(ctx, canvas);
+                if (showEquipotential) {
+                    this.drawEquipotentialLines(ctx, canvas);
+                }
                 
                 // 绘制电场线
                 if (showFieldLines) {
@@ -4490,6 +4523,8 @@
                 
                 // 显示详细的物理信息
                 this.updateElectricFieldInfo(chargeAmount);
+                
+                console.log('电场绘制完成');
             }
 
             drawElectricFieldGrid(ctx, canvas) {
@@ -4622,8 +4657,8 @@
                     const dy = y - charge.y;
                     const r = Math.sqrt(dx * dx + dy * dy);
                     
-                    if (r > 5) { // 避免奇点
-                        potential += k * charge.charge / (r * 0.01); // 缩放因子
+                    if (r > charge.radius) {
+                        potential += k * charge.charge / r;
                     }
                 });
                 
@@ -5330,6 +5365,29 @@
             pauseThermoSimulation() {
                 this.isRunning.thermo = false;
                 console.log('Thermo simulation paused');
+            }
+
+            updatePhysicsExplanation(simulationType) {
+                const explanationDiv = document.getElementById('physics-explanation');
+                if (!explanationDiv) {
+                    console.log('Physics explanation div not found');
+                    return;
+                }
+
+                let content = '';
+                if (simulationType === 'electric-field') {
+                    content = '<h4>电场基本原理</h4><p>库仑定律：F = k × q₁ × q₂ / r²</p><p>电场强度：E = F / q = k × Q / r²</p>';
+                } else if (simulationType === 'magnetic-field') {
+                    content = '<h4>磁场基本原理</h4><p>毕奥-萨伐尔定律：dB = (μ₀ / 4π) × (I × dl × sin θ) / r²</p>';
+                } else if (simulationType === 'electromagnetic-induction') {
+                    content = '<h4>电磁感应原理</h4><p>法拉第定律：ε = -N × dΦ/dt</p><p>楞次定律：感应电流的方向总是阻碍引起它的磁通量变化</p>';
+                } else if (simulationType === 'circuit') {
+                    content = '<h4>电路分析原理</h4><p>欧姆定律：V = I × R</p><p>基尔霍夫电流定律：ΣI = 0</p>';
+                } else {
+                    content = '<h4>选择模拟类型</h4><p>请从上方下拉菜单中选择要模拟的电磁学现象。</p>';
+                }
+
+                explanationDiv.innerHTML = content;
             }
         }
 
