@@ -5389,6 +5389,527 @@
 
                 explanationDiv.innerHTML = content;
             }
+
+            setupChargeConfiguration(config, chargeAmount) {
+                const canvas = this.canvases.em;
+                if (!canvas) return;
+
+                // 清除现有电荷
+                this.electricCharges = [];
+
+                switch(config) {
+                    case 'single':
+                        this.electricCharges = [
+                            { x: canvas.width * 0.5, y: canvas.height * 0.5, charge: chargeAmount, radius: 10 }
+                        ];
+                        break;
+                    case 'dipole':
+                        this.electricCharges = [
+                            { x: canvas.width * 0.4, y: canvas.height * 0.5, charge: chargeAmount, radius: 10 },
+                            { x: canvas.width * 0.6, y: canvas.height * 0.5, charge: -chargeAmount, radius: 10 }
+                        ];
+                        break;
+                    case 'quadrupole':
+                        this.electricCharges = [
+                            { x: canvas.width * 0.3, y: canvas.height * 0.3, charge: chargeAmount, radius: 8 },
+                            { x: canvas.width * 0.7, y: canvas.height * 0.3, charge: -chargeAmount, radius: 8 },
+                            { x: canvas.width * 0.3, y: canvas.height * 0.7, charge: -chargeAmount, radius: 8 },
+                            { x: canvas.width * 0.7, y: canvas.height * 0.7, charge: chargeAmount, radius: 8 }
+                        ];
+                        break;
+                    case 'line':
+                        // 线电荷分布
+                        for (let i = 0; i < 10; i++) {
+                            this.electricCharges.push({
+                                x: canvas.width * 0.5,
+                                y: canvas.height * 0.2 + i * canvas.height * 0.06,
+                                charge: chargeAmount / 10,
+                                radius: 5
+                            });
+                        }
+                        break;
+                    case 'ring':
+                        // 环形电荷分布
+                        const ringRadius = canvas.width * 0.15;
+                        const centerX = canvas.width * 0.5;
+                        const centerY = canvas.height * 0.5;
+                        for (let i = 0; i < 12; i++) {
+                            const angle = (i / 12) * 2 * Math.PI;
+                            this.electricCharges.push({
+                                x: centerX + ringRadius * Math.cos(angle),
+                                y: centerY + ringRadius * Math.sin(angle),
+                                charge: chargeAmount / 12,
+                                radius: 6
+                            });
+                        }
+                        break;
+                    case 'custom':
+                        // 默认配置，用户可以手动添加
+                        this.electricCharges = [
+                            { x: canvas.width * 0.3, y: canvas.height * 0.4, charge: chargeAmount, radius: 10 },
+                            { x: canvas.width * 0.7, y: canvas.height * 0.6, charge: -chargeAmount * 0.8, radius: 9 }
+                        ];
+                        break;
+                    default:
+                        // 默认单个电荷
+                        this.electricCharges = [
+                            { x: canvas.width * 0.5, y: canvas.height * 0.5, charge: chargeAmount, radius: 10 }
+                        ];
+                }
+
+                console.log(`电荷配置已设置: ${config}, 电荷数量: ${this.electricCharges.length}`);
+            }
+
+            updateInductionData() {
+                const infoDiv = document.getElementById('em-info');
+                if (!infoDiv) return;
+
+                // 获取感应参数
+                const coilTurns = parseFloat(document.getElementById('coil-turns')?.value || 50);
+                const fluxRate = parseFloat(document.getElementById('flux-rate')?.value || 0.5);
+                const resistance = parseFloat(document.getElementById('coil-resistance')?.value || 1.0);
+
+                // 计算感应电动势和电流
+                const emf = coilTurns * fluxRate * Math.sin(this.simulationTime * 2 * Math.PI);
+                const current = emf / resistance;
+                const power = current * current * resistance;
+                const flux = fluxRate * Math.cos(this.simulationTime * 2 * Math.PI);
+
+                // 更新显示
+                const existingContent = infoDiv.innerHTML;
+                const separator = existingContent.includes('感应数据') ? '' : '<hr>';
+                
+                infoDiv.innerHTML = existingContent + separator + `
+                    <p><strong>电磁感应实时数据：</strong></p>
+                    <p>线圈匝数: ${coilTurns}</p>
+                    <p>磁通量: ${flux.toFixed(3)} Wb</p>
+                    <p>感应电动势: ${emf.toFixed(3)} V</p>
+                    <p>感应电流: ${current.toFixed(3)} A</p>
+                    <p>功率损耗: ${power.toFixed(3)} W</p>
+                    <p>时间: ${this.simulationTime.toFixed(2)} s</p>
+                `;
+            }
+
+            updateCircuitAnalysis() {
+                const infoDiv = document.getElementById('em-info');
+                if (!infoDiv) return;
+
+                // 获取电路参数
+                const voltage = parseFloat(document.getElementById('voltage')?.value || 12);
+                const circuitType = document.getElementById('circuit-type')?.value || 'dc-series';
+
+                let analysis = '';
+                
+                switch(circuitType) {
+                    case 'dc-series':
+                        const R1 = 10, R2 = 20; // 示例电阻值
+                        const totalR = R1 + R2;
+                        const current = voltage / totalR;
+                        const V1 = current * R1;
+                        const V2 = current * R2;
+                        const power = voltage * current;
+                        
+                        analysis = `
+                            <p><strong>直流串联电路分析：</strong></p>
+                            <p>总电阻: ${totalR.toFixed(1)} Ω</p>
+                            <p>电流: ${current.toFixed(3)} A</p>
+                            <p>R1电压: ${V1.toFixed(2)} V</p>
+                            <p>R2电压: ${V2.toFixed(2)} V</p>
+                            <p>总功率: ${power.toFixed(2)} W</p>
+                        `;
+                        break;
+                    case 'rc-circuit':
+                        const R = 1000, C = 1e-6; // 1kΩ, 1μF
+                        const tau = R * C;
+                        const t = this.simulationTime;
+                        const Vc = voltage * (1 - Math.exp(-t / tau));
+                        const Ic = (voltage / R) * Math.exp(-t / tau);
+                        
+                        analysis = `
+                            <p><strong>RC电路分析：</strong></p>
+                            <p>时间常数 τ: ${(tau * 1000).toFixed(1)} ms</p>
+                            <p>电容电压: ${Vc.toFixed(2)} V</p>
+                            <p>充电电流: ${(Ic * 1000).toFixed(1)} mA</p>
+                            <p>充电时间: ${t.toFixed(2)} s</p>
+                        `;
+                        break;
+                    case 'ac-circuit':
+                        const f = 50; // 50Hz
+                        const omega = 2 * Math.PI * f;
+                        const Vrms = voltage / Math.sqrt(2);
+                        const Vpeak = voltage;
+                        const Vinst = Vpeak * Math.sin(omega * this.simulationTime);
+                        
+                        analysis = `
+                            <p><strong>交流电路分析：</strong></p>
+                            <p>频率: ${f} Hz</p>
+                            <p>峰值电压: ${Vpeak.toFixed(2)} V</p>
+                            <p>有效值电压: ${Vrms.toFixed(2)} V</p>
+                            <p>瞬时电压: ${Vinst.toFixed(2)} V</p>
+                            <p>相位: ${(omega * this.simulationTime * 180 / Math.PI % 360).toFixed(1)}°</p>
+                        `;
+                        break;
+                    default:
+                        analysis = `
+                            <p><strong>电路分析：</strong></p>
+                            <p>电压源: ${voltage} V</p>
+                            <p>电路类型: ${circuitType}</p>
+                        `;
+                }
+
+                const existingContent = infoDiv.innerHTML;
+                const separator = existingContent.includes('电路分析') ? '' : '<hr>';
+                infoDiv.innerHTML = existingContent + separator + analysis;
+            }
+
+            simulateElectromagneticInduction() {
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                
+                if (!canvas || !ctx) {
+                    console.warn('Electromagnetic canvas or context not available');
+                    return;
+                }
+                
+                console.log('正在模拟电磁感应...');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // 获取感应参数
+                const inductionType = document.getElementById('induction-type')?.value || 'moving-magnet';
+                const coilTurns = parseFloat(document.getElementById('coil-turns')?.value || 50);
+                const fluxRate = parseFloat(document.getElementById('flux-rate')?.value || 0.5);
+                
+                // 绘制感应装置
+                this.drawInductionSetup(ctx, canvas, inductionType);
+                
+                // 绘制磁场线
+                this.drawInductionMagneticField(ctx, canvas, inductionType);
+                
+                // 绘制感应电流
+                this.drawInducedCurrent(ctx, canvas, inductionType);
+                
+                // 更新感应信息
+                this.updateInductionInfo(inductionType, coilTurns, fluxRate);
+                
+                console.log('电磁感应模拟完成');
+            }
+
+            drawInductionSetup(ctx, canvas, type) {
+                const centerX = canvas.width * 0.5;
+                const centerY = canvas.height * 0.5;
+                
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 3;
+                
+                switch(type) {
+                    case 'moving-magnet':
+                        // 绘制线圈
+                        this.drawCoil(ctx, centerX + 100, centerY, 80, 60);
+                        
+                        // 绘制移动的磁铁
+                        const magnetX = centerX - 50 + 30 * Math.sin(this.simulationTime * 2);
+                        this.drawMagnet(ctx, magnetX, centerY, 60, 30);
+                        break;
+                        
+                    case 'changing-current':
+                        // 绘制主线圈
+                        this.drawCoil(ctx, centerX - 50, centerY, 100, 80);
+                        
+                        // 绘制次级线圈
+                        this.drawCoil(ctx, centerX + 50, centerY, 80, 60);
+                        
+                        // 绘制铁芯
+                        ctx.fillStyle = '#666';
+                        ctx.fillRect(centerX - 60, centerY - 10, 120, 20);
+                        break;
+                        
+                    case 'rotating-coil':
+                        // 绘制旋转线圈
+                        const angle = this.simulationTime * Math.PI;
+                        this.drawRotatingCoil(ctx, centerX, centerY, 80, angle);
+                        
+                        // 绘制磁场
+                        this.drawUniformMagneticField(ctx, canvas);
+                        break;
+                        
+                    case 'transformer':
+                        // 绘制变压器
+                        this.drawTransformer(ctx, centerX, centerY);
+                        break;
+                }
+            }
+
+            drawCoil(ctx, x, y, width, height) {
+                ctx.strokeStyle = '#cc6600';
+                ctx.lineWidth = 3;
+                
+                // 绘制线圈的螺旋形状
+                ctx.beginPath();
+                for (let i = 0; i < 8; i++) {
+                    const coilY = y - height/2 + (i * height/7);
+                    ctx.arc(x - width/4, coilY, width/8, 0, Math.PI);
+                    ctx.arc(x + width/4, coilY, width/8, Math.PI, 0);
+                }
+                ctx.stroke();
+                
+                // 线圈标签
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('线圈', x, y + height/2 + 20);
+            }
+
+            drawMagnet(ctx, x, y, width, height) {
+                // 北极（红色）
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(x - width/2, y - height/2, width/2, height);
+                
+                // 南极（蓝色）
+                ctx.fillStyle = '#4444ff';
+                ctx.fillRect(x, y - height/2, width/2, height);
+                
+                // 标签
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 14px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('N', x - width/4, y);
+                ctx.fillText('S', x + width/4, y);
+            }
+
+            drawInductionMagneticField(ctx, canvas, type) {
+                ctx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+                ctx.lineWidth = 2;
+                
+                // 根据感应类型绘制不同的磁场线
+                switch(type) {
+                    case 'moving-magnet':
+                        this.drawMagnetFieldLines(ctx, canvas);
+                        break;
+                    case 'changing-current':
+                        this.drawTransformerFieldLines(ctx, canvas);
+                        break;
+                    case 'rotating-coil':
+                        this.drawUniformFieldLines(ctx, canvas);
+                        break;
+                    case 'transformer':
+                        this.drawTransformerFieldLines(ctx, canvas);
+                        break;
+                }
+            }
+
+            drawInducedCurrent(ctx, canvas, type) {
+                // 绘制感应电流方向箭头
+                const time = this.simulationTime;
+                const currentDirection = Math.sin(time * 2 * Math.PI) > 0 ? 1 : -1;
+                
+                ctx.strokeStyle = currentDirection > 0 ? '#00ff00' : '#ff0000';
+                ctx.lineWidth = 3;
+                
+                // 在线圈中绘制电流方向
+                const centerX = canvas.width * 0.5;
+                const centerY = canvas.height * 0.5;
+                
+                if (type === 'moving-magnet') {
+                    this.drawCurrentArrows(ctx, centerX + 100, centerY, currentDirection);
+                } else if (type === 'rotating-coil') {
+                    this.drawCurrentArrows(ctx, centerX, centerY, currentDirection);
+                }
+            }
+
+            drawCurrentArrows(ctx, x, y, direction) {
+                const arrowSize = 15;
+                const arrowSpacing = 30;
+                
+                for (let i = -1; i <= 1; i++) {
+                    const arrowY = y + i * arrowSpacing;
+                    
+                    ctx.beginPath();
+                    if (direction > 0) {
+                        // 顺时针
+                        ctx.moveTo(x - arrowSize, arrowY);
+                        ctx.lineTo(x + arrowSize, arrowY);
+                        ctx.moveTo(x + arrowSize - 5, arrowY - 5);
+                        ctx.lineTo(x + arrowSize, arrowY);
+                        ctx.lineTo(x + arrowSize - 5, arrowY + 5);
+                    } else {
+                        // 逆时针
+                        ctx.moveTo(x + arrowSize, arrowY);
+                        ctx.lineTo(x - arrowSize, arrowY);
+                        ctx.moveTo(x - arrowSize + 5, arrowY - 5);
+                        ctx.lineTo(x - arrowSize, arrowY);
+                        ctx.lineTo(x - arrowSize + 5, arrowY + 5);
+                    }
+                    ctx.stroke();
+                }
+            }
+
+            updateInductionInfo(type, coilTurns, fluxRate) {
+                const infoDiv = document.getElementById('em-info');
+                if (!infoDiv) return;
+
+                const emf = coilTurns * fluxRate * Math.abs(Math.sin(this.simulationTime * 2 * Math.PI));
+                const frequency = 1.0; // Hz
+                
+                infoDiv.innerHTML = `
+                    <p><strong>电磁感应模拟</strong></p>
+                    <p>感应类型: ${this.getInductionTypeName(type)}</p>
+                    <p>线圈匝数: ${coilTurns}</p>
+                    <p>磁通变化率: ${fluxRate.toFixed(2)} Wb/s</p>
+                    <p>感应电动势: ${emf.toFixed(3)} V</p>
+                    <p>频率: ${frequency} Hz</p>
+                    <p>楞次定律: 感应电流产生的磁场阻碍磁通量的变化</p>
+                `;
+            }
+
+            getInductionTypeName(type) {
+                const names = {
+                    'moving-magnet': '运动磁铁',
+                    'changing-current': '变化电流',
+                    'rotating-coil': '旋转线圈',
+                    'transformer': '变压器'
+                };
+                return names[type] || '未知类型';
+            }
+
+            drawRotatingCoil(ctx, x, y, size, angle) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                
+                ctx.strokeStyle = '#cc6600';
+                ctx.lineWidth = 3;
+                
+                // 绘制旋转的矩形线圈
+                ctx.beginPath();
+                ctx.rect(-size/2, -size/4, size, size/2);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+
+            drawTransformer(ctx, x, y) {
+                // 绘制变压器铁芯
+                ctx.fillStyle = '#666';
+                ctx.fillRect(x - 5, y - 80, 10, 160);
+                
+                // 绘制主线圈
+                this.drawCoil(ctx, x - 40, y, 60, 120);
+                
+                // 绘制次级线圈
+                this.drawCoil(ctx, x + 40, y, 60, 120);
+                
+                // 标签
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('初级', x - 40, y + 80);
+                ctx.fillText('次级', x + 40, y + 80);
+            }
+
+            drawUniformMagneticField(ctx, canvas) {
+                ctx.strokeStyle = 'rgba(0, 100, 255, 0.4)';
+                ctx.lineWidth = 1;
+                
+                // 绘制均匀磁场（垂直向下的叉号）
+                const spacing = 30;
+                for (let x = spacing; x < canvas.width; x += spacing) {
+                    for (let y = spacing; y < canvas.height; y += spacing) {
+                        ctx.beginPath();
+                        ctx.moveTo(x - 5, y - 5);
+                        ctx.lineTo(x + 5, y + 5);
+                        ctx.moveTo(x + 5, y - 5);
+                        ctx.lineTo(x - 5, y + 5);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            drawTransformerFieldLines(ctx, canvas) {
+                ctx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+                ctx.lineWidth = 2;
+                
+                const centerX = canvas.width * 0.5;
+                const centerY = canvas.height * 0.5;
+                
+                // 绘制变压器的闭合磁场线
+                for (let i = 0; i < 3; i++) {
+                    const radius = 60 + i * 20;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+
+            drawUniformFieldLines(ctx, canvas) {
+                ctx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+                ctx.lineWidth = 2;
+                
+                // 绘制平行的磁场线
+                const spacing = 40;
+                for (let x = spacing; x < canvas.width; x += spacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                    
+                    // 添加箭头表示方向
+                    for (let y = 50; y < canvas.height; y += 100) {
+                        this.drawFieldArrow(ctx, x, y, 0, Math.PI/2);
+                    }
+                }
+            }
+
+            drawFieldArrow(ctx, x, y, angle, direction) {
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(angle);
+                
+                const arrowSize = 8;
+                ctx.beginPath();
+                ctx.moveTo(0, -arrowSize);
+                ctx.lineTo(-arrowSize/2, arrowSize/2);
+                ctx.lineTo(arrowSize/2, arrowSize/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+            }
+
+            // 为感应模拟添加兼容的磁场线绘制函数
+            drawMagnetFieldLines(ctx, canvas) {
+                if (typeof canvas === 'number') {
+                    // 如果第二个参数是数字，则调用原始版本
+                    return this.drawMagnetFieldLinesOriginal(ctx, canvas, arguments[2], arguments[3], arguments[4]);
+                }
+                
+                // 新版本：为运动磁铁感应绘制磁场线
+                const centerX = canvas.width * 0.5;
+                const centerY = canvas.height * 0.5;
+                const magnetX = centerX - 50 + 30 * Math.sin(this.simulationTime * 2);
+                
+                ctx.strokeStyle = 'rgba(0, 100, 255, 0.6)';
+                ctx.lineWidth = 2;
+                
+                // 绘制磁铁周围的磁场线
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * 2 * Math.PI;
+                    const startRadius = 40;
+                    const endRadius = 120;
+                    
+                    ctx.beginPath();
+                    for (let r = startRadius; r <= endRadius; r += 5) {
+                        const x = magnetX + r * Math.cos(angle);
+                        const y = centerY + r * Math.sin(angle);
+                        
+                        if (r === startRadius) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.stroke();
+                }
+            }
         }
 
         // 初始化模拟器
