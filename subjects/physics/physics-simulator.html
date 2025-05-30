@@ -3642,25 +3642,28 @@
                 const strengthSlider = document.getElementById('magnetic-strength');
                 const currentSlider = document.getElementById('current');
                 const wireShapeSelect = document.getElementById('wire-shape');
-                const chargeSlider = document.getElementById('charge-amount');
-                const runButton = document.getElementById('run-em');
-                const stopButton = document.getElementById('stop-em');
+                const chargeSlider = document.getElementById('charge-strength');
+                const startButton = document.getElementById('start-em');
                 const resetButton = document.getElementById('reset-em');
+                const addChargeButton = document.getElementById('add-charge');
 
                 if (typeSelect) {
                     typeSelect.addEventListener('change', () => {
+                        this.switchElectromagnetismType(typeSelect.value);
                         this.updateElectromagnetismSimulation();
                     });
                 }
 
                 if (strengthSlider) {
-                    strengthSlider.addEventListener('input', () => {
+                    strengthSlider.addEventListener('input', (e) => {
+                        document.getElementById('magnetic-strength-value').textContent = e.target.value;
                         this.updateElectromagnetismSimulation();
                     });
                 }
 
                 if (currentSlider) {
-                    currentSlider.addEventListener('input', () => {
+                    currentSlider.addEventListener('input', (e) => {
+                        document.getElementById('current-value').textContent = e.target.value;
                         this.updateElectromagnetismSimulation();
                     });
                 }
@@ -3672,26 +3675,45 @@
                 }
 
                 if (chargeSlider) {
-                    chargeSlider.addEventListener('input', () => {
+                    chargeSlider.addEventListener('input', (e) => {
+                        document.getElementById('charge-strength-value').textContent = e.target.value;
                         this.updateElectromagnetismSimulation();
                     });
                 }
 
-                if (runButton) {
-                    runButton.addEventListener('click', () => {
-                        this.startElectromagnetismSimulation();
+                // 添加其他滑块的事件监听器
+                const chargeCountSlider = document.getElementById('charge-count');
+                if (chargeCountSlider) {
+                    chargeCountSlider.addEventListener('input', (e) => {
+                        document.getElementById('charge-count-value').textContent = e.target.value;
+                        this.updateElectromagnetismSimulation();
                     });
                 }
 
-                if (stopButton) {
-                    stopButton.addEventListener('click', () => {
-                        this.stopElectromagnetismSimulation();
+                if (startButton) {
+                    startButton.addEventListener('click', () => {
+                        if (this.isRunning.em) {
+                            this.stopElectromagnetismSimulation();
+                            startButton.textContent = '开始模拟';
+                        } else {
+                            this.startElectromagnetismSimulation();
+                            startButton.textContent = '停止模拟';
+                        }
                     });
                 }
 
                 if (resetButton) {
                     resetButton.addEventListener('click', () => {
                         this.resetElectromagnetismSimulation();
+                        if (startButton) {
+                            startButton.textContent = '开始模拟';
+                        }
+                    });
+                }
+
+                if (addChargeButton) {
+                    addChargeButton.addEventListener('click', () => {
+                        this.addElectricCharge();
                     });
                 }
 
@@ -3789,7 +3811,7 @@
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                const chargeAmount = parseFloat(document.getElementById('charge-amount')?.value || 1);
+                const chargeAmount = parseFloat(document.getElementById('charge-strength')?.value || 1);
                 
                 // 如果没有电荷，创建一些默认电荷
                 if (this.electricCharges.length === 0) {
@@ -4354,6 +4376,85 @@
 
             calculateElectricFlux() {
                 return 1.0; // 简化返回
+            }
+
+            addElectricCharge() {
+                const canvas = this.canvases.em;
+                if (!canvas) return;
+                
+                // 启用点击添加电荷模式
+                this.addChargeMode = true;
+                
+                // 添加临时事件监听器
+                const addChargeHandler = (event) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const x = event.clientX - rect.left;
+                    const y = event.clientY - rect.top;
+                    
+                    // 获取当前电荷量设置
+                    const chargeAmount = parseFloat(document.getElementById('charge-strength')?.value || 1);
+                    
+                    // 添加新电荷（正负交替）
+                    const newCharge = {
+                        x: x,
+                        y: y,
+                        charge: this.electricCharges.length % 2 === 0 ? chargeAmount : -chargeAmount
+                    };
+                    
+                    this.electricCharges.push(newCharge);
+                    
+                    // 更新模拟
+                    if (this.isRunning.em) {
+                        this.updateElectromagnetismSimulation();
+                    }
+                    
+                    // 移除事件监听器
+                    canvas.removeEventListener('click', addChargeHandler);
+                    this.addChargeMode = false;
+                    
+                    // 更改鼠标样式回默认
+                    canvas.style.cursor = 'default';
+                };
+                
+                // 添加事件监听器
+                canvas.addEventListener('click', addChargeHandler);
+                
+                // 更改鼠标样式提示用户可以点击
+                canvas.style.cursor = 'crosshair';
+                
+                // 显示提示信息
+                const infoElement = document.getElementById('em-info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <strong>添加电荷模式</strong><br>
+                        点击画布添加电荷<br>
+                        电荷将正负交替添加
+                    `;
+                }
+            }
+
+            switchElectromagnetismType(type) {
+                // 隐藏所有控制组
+                document.getElementById('electric-field-controls').style.display = 'none';
+                document.getElementById('magnetic-field-controls').style.display = 'none';
+                document.getElementById('induction-controls').style.display = 'none';
+                document.getElementById('circuit-controls').style.display = 'none';
+                
+                // 显示对应的控制组
+                switch(type) {
+                    case 'electric-field':
+                        document.getElementById('electric-field-controls').style.display = 'block';
+                        break;
+                    case 'magnetic-field':
+                        document.getElementById('magnetic-field-controls').style.display = 'block';
+                        break;
+                    case 'electromagnetic-induction':
+                        document.getElementById('induction-controls').style.display = 'block';
+                        break;
+                    case 'circuit':
+                        document.getElementById('circuit-controls').style.display = 'block';
+                        break;
+                }
             }
         }
 
