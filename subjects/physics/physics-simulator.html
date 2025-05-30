@@ -1638,41 +1638,37 @@
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.fill();
-
-                // 运动模糊效果
-                if (Math.abs(angularVelocity) > 0.1) {
-                    ctx.fillStyle = `rgba(67, 97, 238, ${Math.min(0.4, Math.abs(angularVelocity) * 0.5)})`;
-                    ctx.beginPath();
-                    ctx.arc(x - angularVelocity * 50, y, radius * 1.2, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-
+                
+                // 运动轨迹效果
+                const speed = Math.abs(angularVelocity);
+                ctx.fillStyle = `rgba(67, 97, 238, ${Math.min(0.3, speed * 0.1)})`;
+                ctx.beginPath();
+                ctx.arc(x - angularVelocity * 10, y, radius * 0.8, 0, 2 * Math.PI);
+                ctx.fill();
+                
                 // 边框
                 ctx.strokeStyle = '#2c5aa0';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.stroke();
-
+                
                 // 高光效果
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
                 ctx.beginPath();
-                ctx.arc(x - 7, y - 7, 6, 0, 2 * Math.PI);
+                ctx.arc(x - 6, y - 6, 6, 0, 2 * Math.PI);
                 ctx.fill();
             }
 
             drawPendulumTrajectory(ctx, centerX, centerY, radius, currentAngle) {
                 // 绘制摆动轨迹弧线
-                ctx.strokeStyle = 'rgba(67, 97, 238, 0.8)';
-                ctx.lineWidth = 4;
-                ctx.setLineDash([]);
-                
-                const startAngle = -Math.PI/3; // -60度
-                const endAngle = Math.PI/3; // 60度
-                
+                ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
                 ctx.beginPath();
-                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.arc(centerX, centerY, radius, -Math.PI/3, Math.PI/3);
                 ctx.stroke();
+                ctx.setLineDash([]);
                 
                 // 高亮当前位置
                 ctx.strokeStyle = '#ff6b35';
@@ -2359,352 +2355,247 @@
                 ctx.fillText('当前动量', plotX + 10, plotY + plotHeight - 10);
             }
 
-            drawEnergyConservationChart(ctx, canvas, balls, initialKE, time) {
-                const plotX = 50;
-                const plotY = canvas.height - 120;
-                const plotWidth = 400;
-                const plotHeight = 80;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
-                
-                // 计算当前能量
-                const currentKE = balls.reduce((sum, ball) => 
-                    sum + 0.5 * ball.mass * (ball.vx * ball.vx + ball.vy * ball.vy), 0);
-                
-                // 能量条形图
-                const barWidth = 60;
-                const maxEnergy = Math.max(initialKE, currentKE);
-                
-                // 初始动能
-                const initialHeight = (initialKE / maxEnergy) * (plotHeight - 40);
-                ctx.fillStyle = '#ff6b35';
-                ctx.fillRect(plotX + 50, plotY + plotHeight - 20 - initialHeight, barWidth, initialHeight);
-                
-                // 当前动能
-                const currentHeight = (currentKE / maxEnergy) * (plotHeight - 40);
-                ctx.fillStyle = '#4361ee';
-                ctx.fillRect(plotX + 150, plotY + plotHeight - 20 - currentHeight, barWidth, currentHeight);
-                
-                // 损失的能量
-                const lossHeight = ((initialKE - currentKE) / maxEnergy) * (plotHeight - 40);
-                ctx.fillStyle = '#ff4444';
-                ctx.fillRect(plotX + 250, plotY + plotHeight - 20 - lossHeight, barWidth, lossHeight);
-                
-                // 标签
-                ctx.fillStyle = '#333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('初始', plotX + 80, plotY + plotHeight - 5);
-                ctx.fillText('当前', plotX + 180, plotY + plotHeight - 5);
-                ctx.fillText('损失', plotX + 280, plotY + plotHeight - 5);
-                
-                ctx.font = 'bold 12px Arial';
-                ctx.fillText('能量守恒分析', plotX + plotWidth/2, plotY + 15);
-            }
-
-            createCollisionEffect(ctx, x, y) {
-                // 创建爆炸式粒子效果
-                for (let i = 0; i < 20; i++) {
-                    const angle = (Math.PI * 2 * i) / 20;
-                    const distance = Math.random() * 30 + 10;
-                    const particleX = x + Math.cos(angle) * distance;
-                    const particleY = y + Math.sin(angle) * distance;
-                    
-                    ctx.fillStyle = `hsl(${Math.random() * 60 + 15}, 100%, 60%)`;
-                    ctx.beginPath();
-                    ctx.arc(particleX, particleY, Math.random() * 3 + 1, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-                
-                // 冲击波效果
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(x, y, 25, 0, 2 * Math.PI);
-                ctx.stroke();
-            }
-
-            createBounceEffect(ctx, x, y) {
-                // 反弹效果
-                for (let i = 0; i < 8; i++) {
-                    const angle = Math.PI + (Math.PI * i) / 8;
-                    const distance = Math.random() * 15 + 5;
-                    const particleX = x + Math.cos(angle) * distance;
-                    const particleY = y + Math.sin(angle) * distance;
-                    
-                    ctx.fillStyle = `rgba(255, 255, 255, ${0.8 - Math.random() * 0.4})`;
-                    ctx.beginPath();
-                    ctx.arc(particleX, particleY, Math.random() * 2 + 1, 0, 2 * Math.PI);
-                    ctx.fill();
-                }
-            }
-
-            drawGrid(ctx, canvas) {
-                ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([2, 2]);
-                
-                // 垂直线
-                for (let x = 0; x <= canvas.width; x += 40) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, canvas.height);
-                    ctx.stroke();
-                }
-                
-                // 水平线
-                for (let y = 0; y <= canvas.height; y += 40) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    ctx.lineTo(canvas.width, y);
-                    ctx.stroke();
-                }
-                
-                ctx.setLineDash([]);
-            }
-
-            simulateSpring() {
-                const canvas = this.canvases.mechanics;
-                const ctx = this.contexts.mechanics;
-                
-                const k = parseFloat(document.getElementById('spring-k').value);
-                const mass = parseFloat(document.getElementById('spring-mass').value);
-                const damping = parseFloat(document.getElementById('damping').value);
-                let displacement = parseFloat(document.getElementById('spring-displacement').value);
-                
-                let velocity = 0;
-                let time = 0;
-                const dt = 0.02;
-                const equilibriumY = canvas.height / 2;
-                const scale = 100; // 像素/米
-                
-                // 弹簧参数
-                const springX = canvas.width / 2;
-                const springTopY = 50;
-                const naturalLength = 200;
-                
-                const animate = () => {
-                    if (!this.isRunning.mechanics) return;
-
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 绘制背景网格
-                    this.drawGrid(ctx, canvas);
-
-                    // 计算当前位置
-                    const massY = equilibriumY + displacement * scale;
-                    const springLength = massY - springTopY;
-                    
-                    // 绘制固定点
-                    ctx.fillStyle = '#666';
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(springX, springTopY, 8, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.stroke();
-                    
-                    // 绘制弹簧 - 增强可视化
-                    this.drawSpring(ctx, springX, springTopY, springX, massY, springLength, naturalLength);
-                    
-                    // 绘制质量块 - 3D效果
-                    const massSize = Math.max(20, Math.min(40, mass * 15));
-                    this.drawMass(ctx, springX, massY, massSize, velocity);
-                    
-                    // 绘制速度和加速度矢量
-                    let acceleration = (-k * displacement - damping * velocity) / mass;
-                    this.drawVector(ctx, springX + massSize + 10, massY, velocity * 50, '#ff6b35', 'v', '速度');
-                    this.drawVector(ctx, springX + massSize + 60, massY, acceleration * 200, '#35ff6b', 'a', '加速度');
-                    
-                    // 绘制能量图表
-                    this.drawEnergyChart(ctx, displacement, velocity, k, mass);
-                    
-                    // 物理计算 - 阻尼简谐运动
-                    const force = -k * displacement - damping * velocity;
-                    acceleration = force / mass;
-                    velocity += acceleration * dt;
-                    displacement += velocity * dt;
-                    
-                    // 计算能量
-                    const kineticEnergy = 0.5 * mass * velocity * velocity;
-                    const potentialEnergy = 0.5 * k * displacement * displacement;
-                    const totalEnergy = kineticEnergy + potentialEnergy;
-                    const omega = Math.sqrt(k / mass);
-                    const period = 2 * Math.PI / omega;
-                    
-                    // 更新信息
-                    document.getElementById('mechanics-info').innerHTML = `
-                        <strong>简谐运动数据:</strong><br>
-                        时间: ${time.toFixed(2)}s<br>
-                        位移: ${displacement.toFixed(3)}m<br>
-                        速度: ${velocity.toFixed(3)}m/s<br>
-                        加速度: ${acceleration.toFixed(3)}m/s²<br>
-                        <strong>能量分析:</strong><br>
-                        动能: ${kineticEnergy.toFixed(3)}J<br>
-                        势能: ${potentialEnergy.toFixed(3)}J<br>
-                        总能量: ${totalEnergy.toFixed(3)}J<br>
-                        <strong>系统参数:</strong><br>
-                        角频率: ${omega.toFixed(2)} rad/s<br>
-                        周期: ${period.toFixed(2)}s<br>
-                        阻尼系数: ${damping}
-                    `;
-
-                    time += dt;
-                    this.animations.mechanics = requestAnimationFrame(animate);
-                };
-
-                animate();
-            }
-
-            drawSpring(ctx, x1, y1, x2, y2, currentLength, naturalLength) {
-                const coils = 12;
-                const amplitude = 15;
-                const compression = currentLength / naturalLength;
-                const actualAmplitude = amplitude * Math.max(0.3, Math.min(1.5, compression));
-                
-                ctx.strokeStyle = compression > 1 ? '#ff4444' : '#4361ee';
-                ctx.lineWidth = 3;
-                ctx.setLineDash([]);
-                
-                ctx.beginPath();
-                ctx.moveTo(x1, y1);
-                
-                for (let i = 0; i <= coils; i++) {
-                    const t = i / coils;
-                    const y = y1 + t * (y2 - y1);
-                    const x = x1 + Math.sin(i * Math.PI) * actualAmplitude;
-                    ctx.lineTo(x, y);
-                }
-                
-                ctx.stroke();
-                
-                // 弹簧端点连接
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(x1 - 20, y1);
-                ctx.lineTo(x1 + 20, y1);
-                ctx.moveTo(x2 - 20, y2);
-                ctx.lineTo(x2 + 20, y2);
-                ctx.stroke();
-            }
-
-            drawMass(ctx, x, y, size, velocity) {
-                // 主体
-                const gradient = ctx.createRadialGradient(x - size/3, y - size/3, 0, x, y, size);
-                gradient.addColorStop(0, '#8888ff');
+            drawPendulumBob(ctx, x, y, angularVelocity) {
+                // 主体摆球
+                const radius = 20;
+                const gradient = ctx.createRadialGradient(x - 6, y - 6, 0, x, y, radius);
+                gradient.addColorStop(0, '#88ccff');
                 gradient.addColorStop(1, '#4361ee');
                 
                 ctx.fillStyle = gradient;
-                ctx.fillRect(x - size/2, y - size/2, size, size);
-                
-                // 高光效果
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-                ctx.fillRect(x - size/2 + 2, y - size/2 + 2, size/3, size/3);
-                
-                // 边框
-                ctx.strokeStyle = velocity > 0 ? '#ff4444' : velocity < 0 ? '#44ff44' : '#333';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(x - size/2, y - size/2, size, size);
-                
-                // 运动模糊效果
-                if (Math.abs(velocity) > 0.1) {
-                    ctx.fillStyle = `rgba(67, 97, 238, ${Math.min(0.3, Math.abs(velocity) * 0.1)})`;
-                    const blurSize = Math.abs(velocity) * 20;
-                    ctx.fillRect(x - size/2 - blurSize/2, y - size/2, size + blurSize, size);
-                }
-            }
-
-            drawVector(ctx, x, y, magnitude, color, label, description) {
-                if (Math.abs(magnitude) < 2) return;
-                
-                const maxLength = 80;
-                const length = Math.min(maxLength, Math.abs(magnitude));
-                const direction = magnitude > 0 ? 1 : -1;
-                
-                ctx.strokeStyle = color;
-                ctx.fillStyle = color;
-                ctx.lineWidth = 3;
-                
-                // 矢量主体
                 ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x, y + length * direction);
-                ctx.stroke();
-                
-                // 箭头
-                const arrowSize = 8;
-                ctx.beginPath();
-                ctx.moveTo(x, y + length * direction);
-                ctx.lineTo(x - arrowSize/2, y + length * direction - arrowSize * direction);
-                ctx.lineTo(x + arrowSize/2, y + length * direction - arrowSize * direction);
-                ctx.closePath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.fill();
                 
-                // 标签
-                ctx.fillStyle = color;
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText(label, x, y + length * direction + 20 * direction);
+                // 运动轨迹效果
+                const speed = Math.abs(angularVelocity);
+                ctx.fillStyle = `rgba(67, 97, 238, ${Math.min(0.3, speed * 0.1)})`;
+                ctx.beginPath();
+                ctx.arc(x - angularVelocity * 10, y, radius * 0.8, 0, 2 * Math.PI);
+                ctx.fill();
                 
-                // 数值
-                ctx.font = '10px Arial';
-                ctx.fillText(`${(magnitude/50).toFixed(2)}`, x + 15, y + length * direction / 2);
+                // 边框
+                ctx.strokeStyle = '#2c5aa0';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // 高光效果
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(x - 6, y - 6, 6, 0, 2 * Math.PI);
+                ctx.fill();
             }
 
-            drawEnergyChart(ctx, displacement, velocity, k, mass) {
-                const chartX = 50;
-                const chartY = 50;
-                const chartWidth = 150;
-                const chartHeight = 80;
-                
-                // 图表背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.fillRect(chartX, chartY, chartWidth, chartHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(chartX, chartY, chartWidth, chartHeight);
-                
-                // 计算能量
-                const kineticEnergy = 0.5 * mass * velocity * velocity;
-                const potentialEnergy = 0.5 * k * displacement * displacement;
-                const totalEnergy = kineticEnergy + potentialEnergy;
-                const maxEnergy = Math.max(totalEnergy, 1);
-                
-                // 动能条
-                const keHeight = (kineticEnergy / maxEnergy) * (chartHeight - 20);
-                ctx.fillStyle = '#ff6b35';
-                ctx.fillRect(chartX + 10, chartY + chartHeight - 10 - keHeight, 30, keHeight);
-                
-                // 势能条
-                const peHeight = (potentialEnergy / maxEnergy) * (chartHeight - 20);
-                ctx.fillStyle = '#4361ee';
-                ctx.fillRect(chartX + 50, chartY + chartHeight - 10 - peHeight, 30, peHeight);
-                
-                // 总能量线
-                const teHeight = (totalEnergy / maxEnergy) * (chartHeight - 20);
-                ctx.strokeStyle = '#333';
+            drawPendulumTrajectory(ctx, centerX, centerY, length, currentAngle) {
+                // 绘制摆动轨迹弧线
+                ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([3, 3]);
                 ctx.beginPath();
-                ctx.moveTo(chartX + 5, chartY + chartHeight - 10 - teHeight);
-                ctx.lineTo(chartX + chartWidth - 5, chartY + chartHeight - 10 - teHeight);
+                ctx.arc(centerX, centerY, length, -Math.PI/3, Math.PI/3);
                 ctx.stroke();
                 ctx.setLineDash([]);
                 
-                // 标签
-                ctx.fillStyle = '#333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('KE', chartX + 25, chartY + chartHeight + 12);
-                ctx.fillText('PE', chartX + 65, chartY + chartHeight + 12);
-                ctx.fillText('能量图', chartX + chartWidth/2, chartY - 5);
+                // 当前位置标记
+                const x = centerX + length * Math.sin(currentAngle);
+                const y = centerY + length * Math.cos(currentAngle);
+                ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
             }
+
+            drawForceAnalysis(ctx, bobX, bobY, angle, length, gravity) {
+                const scale = 20;
+                const mass = 1; // kg
+                
+                // 重力
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX, bobY + gravity * scale);
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX, bobY + gravity * scale, Math.PI/2, '#ff4444');
+                
+                // 张力
+                const tension = gravity * Math.cos(angle);
+                ctx.strokeStyle = '#44ff44';
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX - tension * scale * Math.sin(angle), bobY - tension * scale * Math.cos(angle));
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX - tension * scale * Math.sin(angle), bobY - tension * scale * Math.cos(angle), -angle - Math.PI/2, '#44ff44');
+                
+                // 切向力
+                const tangentialForce = gravity * Math.sin(angle);
+                ctx.strokeStyle = '#4444ff';
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX + tangentialForce * scale * Math.cos(angle), bobY + tangentialForce * scale * Math.sin(angle));
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX + tangentialForce * scale * Math.cos(angle), bobY + tangentialForce * scale * Math.sin(angle), angle, '#4444ff');
+                
+                // 力的标签
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText('mg', bobX + 5, bobY + gravity * scale + 15);
+                ctx.fillText('T', bobX - tension * scale * Math.sin(angle) - 15, bobY - tension * scale * Math.cos(angle));
+                ctx.fillText('F_t', bobX + tangentialForce * scale * Math.cos(angle) + 5, bobY + tangentialForce * scale * Math.sin(angle));
+            }
+
+            drawAngularVelocity(ctx, canvas, bobX, bobY, angularVelocity, length) {
+                if (Math.abs(angularVelocity) < 0.01) return;
+                
+                const scale = 50;
+                const velocityMagnitude = Math.abs(angularVelocity) * length;
+                
+                // 线速度矢量（切向）
+                const angle = Math.atan2(bobY - 100, bobX - canvas.width/2) + Math.PI/2;
+                const vx = velocityMagnitude * scale * Math.cos(angle) * (angularVelocity > 0 ? 1 : -1);
+                const vy = velocityMagnitude * scale * Math.sin(angle) * (angularVelocity > 0 ? 1 : -1);
+                
+                ctx.strokeStyle = '#ff6b35';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX + vx, bobY + vy);
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX + vx, bobY + vy, Math.atan2(vy, vx), '#ff6b35');
+                
+                // 速度标签
+                ctx.fillStyle = '#ff6b35';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`v=${velocityMagnitude.toFixed(2)}m/s`, bobX + vx + 5, bobY + vy - 5);
+                ctx.fillText(`ω=${angularVelocity.toFixed(3)}rad/s`, bobX + 25, bobY - 25);
+            }
+
+            drawPhasePortrait(ctx, canvas, phaseData) {
+                if (phaseData.length < 2) return;
+                
+                const plotX = canvas.width - 200;
+                const plotY = 50;
+                const plotWidth = 150;
+                const plotHeight = 150;
+                
+                // 背景
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
+                
+                // 坐标轴
+                ctx.strokeStyle = '#666';
+                ctx.beginPath();
+                ctx.moveTo(plotX + plotWidth/2, plotY);
+                ctx.lineTo(plotX + plotWidth/2, plotY + plotHeight);
+                ctx.moveTo(plotX, plotY + plotHeight/2);
+                ctx.lineTo(plotX + plotWidth, plotY + plotHeight/2);
+                ctx.stroke();
+                
+                // 相位轨迹
+                ctx.strokeStyle = '#4361ee';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                phaseData.forEach((point, index) => {
+                    const x = plotX + plotWidth/2 + point.angle * plotWidth/4;
+                    const y = plotY + plotHeight/2 - point.velocity * plotHeight/10;
+                    
+                    if (index === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+                
+                // 标题
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('相位图', plotX + plotWidth/2, plotY - 5);
+                ctx.font = '10px Arial';
+                ctx.fillText('θ', plotX + plotWidth - 10, plotY + plotHeight - 5);
+                ctx.fillText('ω', plotX + 5, plotY + 10);
+            }
+
+            drawEnergyPlot(ctx, canvas, energyData, currentTime) {
+                if (energyData.length < 2) return;
+                
+                const plotX = canvas.width - 200;
+                const plotY = 220;
+                const plotWidth = 150;
+                const plotHeight = 100;
+                
+                // 背景
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
+                
+                // 找到最大能量值用于缩放
+                const maxEnergy = Math.max(...energyData.map(d => Math.max(d.ke, d.pe, d.total)));
+                
+                // 绘制能量曲线
+                const drawEnergyLine = (data, color, property) => {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    
+                    data.forEach((point, index) => {
+                        const x = plotX + (index / data.length) * plotWidth;
+                        const y = plotY + plotHeight - (point[property] / maxEnergy) * plotHeight;
+                        
+                        if (index === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    ctx.stroke();
+                };
+                
+                drawEnergyLine(energyData, '#ff4444', 'ke');  // 动能
+                drawEnergyLine(energyData, '#44ff44', 'pe');  // 势能
+                drawEnergyLine(energyData, '#4444ff', 'total'); // 总能量
+                
+                // 图例
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#ff4444';
+                ctx.fillText('动能', plotX + 5, plotY + 15);
+                ctx.fillStyle = '#44ff44';
+                ctx.fillText('势能', plotX + 5, plotY + 30);
+                ctx.fillStyle = '#4444ff';
+                ctx.fillText('总能量', plotX + 5, plotY + 45);
+                
+                // 标题
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('能量-时间图', plotX + plotWidth/2, plotY - 5);
+            }
+
+            calculatePeriod(angle, angularVelocity, currentTime) {
+                // 简化的周期计算（通过零点检测）
+                if (!this.lastZeroCrossing) this.lastZeroCrossing = 0;
+                
+                if (Math.abs(angle) < 0.01 && angularVelocity > 0) {
+                    const period = currentTime - this.lastZeroCrossing;
+                    this.lastZeroCrossing = currentTime;
+                    return period > 0.5 ? period : 0; // 过滤噪声
+                }
+                return 0;
+            }
+
+            // 电磁学模拟函数
 
             simulateRefraction() {
                 const canvas = this.canvases.optics;
@@ -3022,1790 +2913,96 @@
                 ctx.fillText('传播方向 →', canvas.width / 2, canvas.height - 10);
             }
 
-            drawAdvancedTransverseWave(ctx, canvas, amplitude, k, omega, time, particleData) {
-                // 绘制连续波形
-                ctx.strokeStyle = '#4361ee';
-                ctx.lineWidth = 4;
+            drawPendulumBob(ctx, x, y, angularVelocity) {
+                // 主体摆球
+                const radius = 20;
+                const gradient = ctx.createRadialGradient(x - 6, y - 6, 0, x, y, radius);
+                gradient.addColorStop(0, '#88ccff');
+                gradient.addColorStop(1, '#4361ee');
+                
+                ctx.fillStyle = gradient;
                 ctx.beginPath();
-                
-                const points = [];
-                for (let x = 0; x <= canvas.width; x += 2) {
-                    const y = canvas.height / 2 + amplitude * Math.sin(k * x / 10 - omega * time);
-                    points.push({x, y});
-                    if (x === 0) {
-                        ctx.moveTo(x, y);
-                    } else {
-                        ctx.lineTo(x, y);
-                    }
-                }
-                ctx.stroke();
-                
-                // 绘制波峰和波谷标记
-                ctx.fillStyle = '#ff4444';
-                points.forEach((point, index) => {
-                    if (index > 0 && index < points.length - 1) {
-                        const prev = points[index - 1];
-                        const next = points[index + 1];
-                        // 检测极值点
-                        if ((point.y < prev.y && point.y < next.y) || (point.y > prev.y && point.y > next.y)) {
-                            ctx.beginPath();
-                            ctx.arc(point.x, point.y, 6, 0, 2 * Math.PI);
-                            ctx.fill();
-                            
-                            // 标记类型
-                            ctx.fillStyle = '#333';
-                            ctx.font = '10px Arial';
-                            ctx.textAlign = 'center';
-                            const label = point.y < canvas.height / 2 ? '波峰' : '波谷';
-                            ctx.fillText(label, point.x, point.y - 15);
-                            ctx.fillStyle = '#ff4444';
-                        }
-                    }
-                });
-                
-                // 绘制质点运动
-                for (let i = 0; i < particleData.length; i += 10) {
-                    const particle = particleData[i];
-                    const x = particle.x;
-                    const y = canvas.height / 2 + amplitude * Math.sin(k * x / 10 - omega * time);
-                    const vy = -amplitude * omega * Math.cos(k * x / 10 - omega * time);
-                    
-                    // 粒子
-                    ctx.fillStyle = '#9c27b0';
-                    ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // 速度矢量
-                    ctx.strokeStyle = '#ff6b35';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(x, y);
-                    ctx.lineTo(x, y + vy * 0.1);
-                    ctx.stroke();
-                    this.drawArrowHead(ctx, x, y + vy * 0.1, vy > 0 ? Math.PI/2 : -Math.PI/2, '#ff6b35');
-                }
-                
-                // 绘制波长标记
-                const waveLength = 2 * Math.PI / k * 10;
-                ctx.strokeStyle = '#666';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                for (let i = 1; i <= 3; i++) {
-                    const x = i * waveLength;
-                    if (x < canvas.width) {
-                        ctx.beginPath();
-                        ctx.moveTo(x, canvas.height / 2 - amplitude - 20);
-                        ctx.lineTo(x, canvas.height / 2 + amplitude + 20);
-                        ctx.stroke();
-                    }
-                }
-                ctx.setLineDash([]);
-            }
-
-            drawAdvancedLongitudinalWave(ctx, canvas, amplitude, k, omega, time, particleData) {
-                const particles = 80;
-                const baseSpacing = canvas.width / particles;
-                
-                // 绘制压缩和稀疏区域
-                ctx.fillStyle = 'rgba(67, 97, 238, 0.2)';
-                for (let x = 0; x < canvas.width; x += 4) {
-                    const compression = Math.sin(k * x / 10 - omega * time);
-                    const intensity = Math.abs(compression);
-                    ctx.globalAlpha = intensity * 0.5;
-                    ctx.fillRect(x, canvas.height / 2 - 50, 4, 100);
-                }
-                ctx.globalAlpha = 1;
-                
-                // 绘制粒子和位移
-                for (let i = 0; i < particles; i++) {
-                    const x0 = i * baseSpacing;
-                    const displacement = amplitude * 0.8 * Math.sin(k * x0 / 10 - omega * time);
-                    const x = x0 + displacement;
-                    const density = 1 + 0.5 * Math.sin(k * x0 / 10 - omega * time);
-                    const velocity = -amplitude * 0.8 * omega * Math.cos(k * x0 / 10 - omega * time);
-                    
-                    // 粒子大小表示密度
-                    const radius = 3 + density * 2;
-                    ctx.fillStyle = density > 1 ? '#ff4444' : '#4444ff';
-                    ctx.globalAlpha = 0.7 + density * 0.3;
-                    ctx.beginPath();
-                    ctx.arc(x, canvas.height / 2, radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // 速度矢量
-                    if (Math.abs(velocity) > 0.1) {
-                        ctx.globalAlpha = 1;
-                        ctx.strokeStyle = velocity > 0 ? '#ff6b35' : '#35ff6b';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.moveTo(x, canvas.height / 2);
-                        ctx.lineTo(x + velocity * 2, canvas.height / 2);
-                        ctx.stroke();
-                        this.drawArrowHead(ctx, x + velocity * 2, canvas.height / 2, 
-                                         velocity > 0 ? 0 : Math.PI, velocity > 0 ? '#ff6b35' : '#35ff6b');
-                    }
-                }
-                ctx.globalAlpha = 1;
-                
-                // 绘制压力分布图
-                this.drawPressureDistribution(ctx, canvas, k, omega, time, amplitude);
-                
-                // 标记压缩和稀疏区域
-                ctx.fillStyle = '#333';
-                ctx.font = '12px Arial';
-                ctx.textAlign = 'center';
-                for (let i = 0; i < 3; i++) {
-                    const x = (i + 0.5) * 2 * Math.PI / k * 10;
-                    if (x < canvas.width) {
-                        const phase = k * x / 10 - omega * time;
-                        const label = Math.sin(phase) > 0 ? '压缩区' : '稀疏区';
-                        ctx.fillText(label, x, 30);
-                    }
-                }
-            }
-
-            drawPressureDistribution(ctx, canvas, k, omega, time, amplitude) {
-                const plotX = canvas.width - 150;
-                const plotY = 20;
-                const plotWidth = 120;
-                const plotHeight = 100;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.fillRect(plotX, plotY, plotWidth, plotHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
-                
-                // 压力波形
-                ctx.strokeStyle = '#e74c3c';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                
-                for (let x = 0; x <= plotWidth; x += 2) {
-                    const position = x / plotWidth * canvas.width;
-                    const pressure = amplitude * Math.cos(k * position / 10 - omega * time);
-                    const y = plotY + plotHeight / 2 - pressure * plotHeight / 4;
-                    
-                    if (x === 0) {
-                        ctx.moveTo(plotX + x, y);
-                    } else {
-                        ctx.lineTo(plotX + x, y);
-                    }
-                }
-                ctx.stroke();
-                
-                // 标签
-                ctx.fillStyle = '#333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('压力分布', plotX + plotWidth / 2, plotY - 5);
-                ctx.fillText('+P', plotX - 15, plotY + plotHeight / 4);
-                ctx.fillText('-P', plotX - 15, plotY + 3 * plotHeight / 4);
-            }
-
-            drawWaveformAnalysis(ctx, canvas, frequency, amplitude, speed, wavelength, period, time) {
-                const analysisX = 20;
-                const analysisY = canvas.height - 150;
-                const analysisWidth = 300;
-                const analysisHeight = 120;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.fillRect(analysisX, analysisY, analysisWidth, analysisHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(analysisX, analysisY, analysisWidth, analysisHeight);
-                
-                // 标题
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('波形分析', analysisX + analysisWidth / 2, analysisY + 15);
-                
-                // 时域波形
-                ctx.strokeStyle = '#4361ee';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                
-                const omega = 2 * Math.PI * frequency;
-                for (let t = 0; t < analysisWidth; t += 2) {
-                    const timePoint = t / analysisWidth * 3 * period;
-                    const y = analysisY + analysisHeight / 3 + amplitude / 2 * Math.sin(omega * timePoint);
-                    
-                    if (t === 0) {
-                        ctx.moveTo(analysisX + t, y);
-                    } else {
-                        ctx.lineTo(analysisX + t, y);
-                    }
-                }
-                ctx.stroke();
-                
-                // 当前时间指示器
-                const currentTimeX = analysisX + (time % (3 * period)) / (3 * period) * analysisWidth;
-                ctx.strokeStyle = '#e74c3c';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([3, 3]);
-                ctx.beginPath();
-                ctx.moveTo(currentTimeX, analysisY + 20);
-                ctx.lineTo(currentTimeX, analysisY + analysisHeight / 2);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // 空域波形
-                ctx.strokeStyle = '#ff6b35';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                
-                const k = 2 * Math.PI / wavelength;
-                for (let x = 0; x < analysisWidth; x += 2) {
-                    const position = x / analysisWidth * 3 * wavelength;
-                    const y = analysisY + 2 * analysisHeight / 3 + amplitude / 2 * Math.sin(k * position);
-                    
-                    if (x === 0) {
-                        ctx.moveTo(analysisX + x, y);
-                    } else {
-                        ctx.lineTo(analysisX + x, y);
-                    }
-                }
-                ctx.stroke();
-                
-                // 标签
-                ctx.fillStyle = '#333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText('时域: y(t) = A sin(ωt)', analysisX + 5, analysisY + 35);
-                ctx.fillText('空域: y(x) = A sin(kx)', analysisX + 5, analysisY + 80);
-                ctx.fillText(`f = ${frequency.toFixed(2)} Hz`, analysisX + 5, analysisY + 50);
-                ctx.fillText(`λ = ${wavelength.toFixed(1)} m`, analysisX + 5, analysisY + 95);
-            }
-
-            drawParticleMotionAnalysis(ctx, canvas, type, amplitude, k, omega, time, particleData) {
-                if (type === 'transverse') {
-                    // 绘制粒子运动轨迹
-                    ctx.strokeStyle = 'rgba(156, 39, 176, 0.6)';
-                    ctx.lineWidth = 1;
-                    
-                    for (let i = 0; i < particleData.length; i += 15) {
-                        const particle = particleData[i];
-                        const x = particle.x;
-                        
-                        // 绘制运动轨迹（时间历史）
-                        ctx.beginPath();
-                        for (let t = -2; t <= 0; t += 0.1) {
-                            const y = canvas.height / 2 + amplitude * Math.sin(k * x / 10 - omega * (time + t));
-                            if (t === -2) {
-                                ctx.moveTo(x, y);
-                            } else {
-                                ctx.lineTo(x, y);
-                            }
-                        }
-                        ctx.stroke();
-                        
-                        // 当前位置的速度和加速度矢量
-                        const currentY = canvas.height / 2 + amplitude * Math.sin(k * x / 10 - omega * time);
-                        const velocity = -amplitude * omega * Math.cos(k * x / 10 - omega * time);
-                        const acceleration = -amplitude * omega * omega * Math.sin(k * x / 10 - omega * time);
-                        
-                        // 速度矢量
-                        if (Math.abs(velocity) > 0.1) {
-                            ctx.strokeStyle = '#e74c3c';
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.moveTo(x, currentY);
-                            ctx.lineTo(x, currentY + velocity * 0.5);
-                            ctx.stroke();
-                            this.drawArrowHead(ctx, x, currentY + velocity * 0.5, 
-                                             velocity > 0 ? Math.PI/2 : -Math.PI/2, '#e74c3c');
-                        }
-                        
-                        // 加速度矢量
-                        if (Math.abs(acceleration) > 0.1) {
-                            ctx.strokeStyle = '#f39c12';
-                            ctx.lineWidth = 2;
-                            ctx.beginPath();
-                            ctx.moveTo(x + 10, currentY);
-                            ctx.lineTo(x + 10, currentY + acceleration * 0.1);
-                            ctx.stroke();
-                            this.drawArrowHead(ctx, x + 10, currentY + acceleration * 0.1, 
-                                             acceleration > 0 ? Math.PI/2 : -Math.PI/2, '#f39c12');
-                        }
-                    }
-                }
-                
-                // 绘制运动分析窗口
-                this.drawMotionAnalysisWindow(ctx, canvas, amplitude, omega, time);
-            }
-
-            drawMotionAnalysisWindow(ctx, canvas, amplitude, omega, time) {
-                const windowX = canvas.width - 200;
-                const windowY = canvas.height - 150;
-                const windowWidth = 180;
-                const windowHeight = 120;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.fillRect(windowX, windowY, windowWidth, windowHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(windowX, windowY, windowWidth, windowHeight);
-                
-                // 标题
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('质点运动分析', windowX + windowWidth / 2, windowY + 15);
-                
-                // 实时运动参数（取中心质点为例）
-                const centerX = canvas.width / 2;
-                const k = 2 * Math.PI / 100; // 简化的k值
-                const displacement = amplitude * Math.sin(k * centerX / 10 - omega * time);
-                const velocity = -amplitude * omega * Math.cos(k * centerX / 10 - omega * time);
-                const acceleration = -amplitude * omega * omega * Math.sin(k * centerX / 10 - omega * time);
-                const kineticEnergy = 0.5 * velocity * velocity;
-                const potentialEnergy = 0.5 * omega * omega * displacement * displacement;
-                const totalEnergy = kineticEnergy + potentialEnergy;
-                
-                // 绘制参数显示
-                ctx.fillStyle = '#333';
-                ctx.font = '10px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillText(`位移: ${displacement.toFixed(3)} m`, windowX + 5, windowY + 35);
-                ctx.fillText(`速度: ${velocity.toFixed(3)} m/s`, windowX + 5, windowY + 50);
-                ctx.fillText(`加速度: ${acceleration.toFixed(2)} m/s²`, windowX + 5, windowY + 65);
-                ctx.fillText(`动能: ${kineticEnergy.toFixed(3)} J`, windowX + 5, windowY + 80);
-                ctx.fillText(`势能: ${potentialEnergy.toFixed(3)} J`, windowX + 5, windowY + 95);
-                ctx.fillText(`总能量: ${totalEnergy.toFixed(3)} J`, windowX + 5, windowY + 110);
-                
-                // 绘制相位图
-                const phaseX = windowX + 120;
-                const phaseY = windowY + 40;
-                const phaseRadius = 25;
-                
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(phaseX, phaseY, phaseRadius, 0, 2 * Math.PI);
-                ctx.stroke();
-                
-                // 相位点
-                const phase = k * centerX / 10 - omega * time;
-                const phasePointX = phaseX + phaseRadius * 0.8 * Math.cos(phase);
-                const phasePointY = phaseY + phaseRadius * 0.8 * Math.sin(phase);
-                
-                ctx.fillStyle = '#e74c3c';
-                ctx.beginPath();
-                ctx.arc(phasePointX, phasePointY, 3, 0, 2 * Math.PI);
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.fill();
                 
-                ctx.fillStyle = '#333';
-                ctx.font = '8px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('相位图', phaseX, phaseY + phaseRadius + 15);
-            }
-
-            drawWaveEnergyAnalysis(ctx, canvas, type, amplitude, k, omega, time) {
-                // 绘制能量密度分布
-                ctx.fillStyle = 'rgba(241, 196, 15, 0.3)';
-                
-                for (let x = 0; x < canvas.width; x += 8) {
-                    let energyDensity = 0;
-                    
-                    if (type === 'transverse') {
-                        const displacement = amplitude * Math.sin(k * x / 10 - omega * time);
-                        const velocity = -amplitude * omega * Math.cos(k * x / 10 - omega * time);
-                        energyDensity = 0.5 * (velocity * velocity + omega * omega * displacement * displacement);
-                    } else if (type === 'longitudinal') {
-                        const pressure = amplitude * Math.cos(k * x / 10 - omega * time);
-                        energyDensity = 0.5 * pressure * pressure;
-                    } else if (type === 'standing') {
-                        const envelope = amplitude * Math.abs(Math.sin(k * x / 10));
-                        energyDensity = 0.5 * envelope * envelope * omega * omega;
-                    }
-                    
-                    const height = Math.min(50, energyDensity * 20);
-                    ctx.fillRect(x, canvas.height - height, 6, height);
-                }
-                
-                // 能量传播方向指示器
-                if (type !== 'standing') {
-                    ctx.strokeStyle = '#2ecc71';
-                    ctx.lineWidth = 3;
-                    const arrowY = canvas.height - 30;
-                    
-                    for (let x = 50; x < canvas.width - 50; x += 100) {
-                        ctx.beginPath();
-                        ctx.moveTo(x, arrowY);
-                        ctx.lineTo(x + 40, arrowY);
-                        ctx.stroke();
-                        this.drawArrowHead(ctx, x + 40, arrowY, 0, '#2ecc71');
-                    }
-                    
-                    ctx.fillStyle = '#2ecc71';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('能量传播方向', canvas.width / 2, canvas.height - 5);
-                }
-            }
-
-            drawFrequencySpectrumAnalysis(ctx, canvas, frequency, amplitude, time) {
-                const spectrumX = canvas.width - 200;
-                const spectrumY = 20;
-                const spectrumWidth = 180;
-                const spectrumHeight = 100;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.fillRect(spectrumX, spectrumY, spectrumWidth, spectrumHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(spectrumX, spectrumY, spectrumWidth, spectrumHeight);
-                
-                // 标题
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 12px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('频谱分析', spectrumX + spectrumWidth / 2, spectrumY + 15);
-                
-                // 坐标轴
-                ctx.strokeStyle = '#666';
-                ctx.lineWidth = 1;
+                // 运动轨迹效果
+                const speed = Math.abs(angularVelocity);
+                ctx.fillStyle = `rgba(67, 97, 238, ${Math.min(0.3, speed * 0.1)})`;
                 ctx.beginPath();
-                ctx.moveTo(spectrumX + 20, spectrumY + spectrumHeight - 20);
-                ctx.lineTo(spectrumX + spectrumWidth - 10, spectrumY + spectrumHeight - 20);
-                ctx.moveTo(spectrumX + 20, spectrumY + 20);
-                ctx.lineTo(spectrumX + 20, spectrumY + spectrumHeight - 20);
-                ctx.stroke();
-                
-                // 基频峰
-                const peakX = spectrumX + 20 + (frequency / 5) * (spectrumWidth - 30);
-                const peakHeight = amplitude * 1.5;
-                
-                ctx.fillStyle = '#4361ee';
-                ctx.fillRect(peakX - 2, spectrumY + spectrumHeight - 20 - peakHeight, 4, peakHeight);
-                
-                // 谐频（如果存在）
-                if (frequency > 0.5) {
-                    for (let harmonic = 2; harmonic <= 3; harmonic++) {
-                        const harmonicFreq = frequency * harmonic;
-                        if (harmonicFreq <= 5) {
-                            const harmonicX = spectrumX + 20 + (harmonicFreq / 5) * (spectrumWidth - 30);
-                            const harmonicHeight = amplitude / (harmonic * harmonic) * 1.5;
-                            
-                            ctx.fillStyle = 'rgba(67, 97, 238, 0.6)';
-                            ctx.fillRect(harmonicX - 1, spectrumY + spectrumHeight - 20 - harmonicHeight, 2, harmonicHeight);
-                        }
-                    }
-                }
-                
-                // 标签
-                ctx.fillStyle = '#333';
-                ctx.font = '8px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('频率 (Hz)', spectrumX + spectrumWidth / 2, spectrumY + spectrumHeight - 5);
-                ctx.save();
-                ctx.translate(spectrumX + 5, spectrumY + spectrumHeight / 2);
-                ctx.rotate(-Math.PI / 2);
-                ctx.fillText('幅度', 0, 0);
-                ctx.restore();
-                
-                // 频率标记
-                for (let f = 1; f <= 5; f++) {
-                    const x = spectrumX + 20 + (f / 5) * (spectrumWidth - 30);
-                    ctx.fillText(f.toString(), x, spectrumY + spectrumHeight - 8);
-                }
-            }
-
-            drawWaveInterferenceEffects(ctx, canvas, wavelength, amplitude, time) {
-                // 绘制波的叠加效应示意图
-                const effectX = 20;
-                const effectY = 150;
-                const effectWidth = 200;
-                const effectHeight = 80;
-                
-                // 背景
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-                ctx.fillRect(effectX, effectY, effectWidth, effectHeight);
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(effectX, effectY, effectWidth, effectHeight);
-                
-                // 标题
-                ctx.fillStyle = '#333';
-                ctx.font = 'bold 10px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('叠加原理演示', effectX + effectWidth / 2, effectY + 12);
-                
-                const omega = 2 * Math.PI / 2; // 简化频率
-                const k = 2 * Math.PI / wavelength;
-                
-                // 绘制两个独立波
-                ctx.strokeStyle = '#e74c3c';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([3, 3]);
-                ctx.beginPath();
-                for (let x = 0; x < effectWidth; x += 2) {
-                    const wave1 = amplitude * 0.3 * Math.sin(k * x / 20 - omega * time);
-                    const y = effectY + effectHeight / 2 + wave1;
-                    if (x === 0) {
-                        ctx.moveTo(effectX + x, y);
-                    } else {
-                        ctx.lineTo(effectX + x, y);
-                    }
-                }
-                ctx.stroke();
-                
-                ctx.strokeStyle = '#3498db';
-                ctx.beginPath();
-                for (let x = 0; x < effectWidth; x += 2) {
-                    const wave2 = amplitude * 0.3 * Math.sin(k * x / 20 - omega * time + Math.PI / 4);
-                    const y = effectY + effectHeight / 2 + wave2;
-                    if (x === 0) {
-                        ctx.moveTo(effectX + x, y);
-                    } else {
-                        ctx.lineTo(effectX + x, y);
-                    }
-                }
-                ctx.stroke();
-                ctx.setLineDash([]);
-                
-                // 绘制叠加结果
-                ctx.strokeStyle = '#2ecc71';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                for (let x = 0; x < effectWidth; x += 2) {
-                    const wave1 = amplitude * 0.3 * Math.sin(k * x / 20 - omega * time);
-                    const wave2 = amplitude * 0.3 * Math.sin(k * x / 20 - omega * time + Math.PI / 4);
-                    const resultant = wave1 + wave2;
-                    const y = effectY + effectHeight / 2 + resultant;
-                    if (x === 0) {
-                        ctx.moveTo(effectX + x, y);
-                    } else {
-                        ctx.lineTo(effectX + x, y);
-                    }
-                }
-                ctx.stroke();
-                
-                // 图例
-                ctx.font = '8px Arial';
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#e74c3c';
-                ctx.fillText('波1', effectX + 5, effectY + effectHeight - 25);
-                ctx.fillStyle = '#3498db';
-                ctx.fillText('波2', effectX + 5, effectY + effectHeight - 15);
-                ctx.fillStyle = '#2ecc71';
-                ctx.fillText('叠加', effectX + 5, effectY + effectHeight - 5);
-            }
-
-            resetWavesSimulation() {
-                this.isRunning.waves = false;
-                if (this.animations.waves) {
-                    cancelAnimationFrame(this.animations.waves);
-                }
-                this.contexts.waves.clearRect(0, 0, this.canvases.waves.width, this.canvases.waves.height);
-                document.getElementById('waves-info').innerHTML = '波长: 100m<br>周期: 1.0s';
-            }
-
-            pauseWavesSimulation() {
-                this.isRunning.waves = !this.isRunning.waves;
-                if (this.isRunning.waves) {
-                    this.simulateWaves();
-                }
-            }
-
-            setupThermodynamicsControls() {
-                const typeSelect = document.getElementById('thermo-type');
-                const startBtn = document.getElementById('start-thermo');
-                const resetBtn = document.getElementById('reset-thermo');
-                const pauseBtn = document.getElementById('pause-thermo');
-
-                if (typeSelect) {
-                    typeSelect.addEventListener('change', (e) => {
-                        this.switchThermodynamicsType(e.target.value);
-                    });
-                }
-
-                // Add event listeners for all thermodynamics sliders
-                const sliders = [
-                    'temperature', 'pressure', 'molecule-count',
-                    'heat-source-temp', 'cold-source-temp', 'thermal-conductivity',
-                    'initial-temp', 'heating-power',
-                    'hot-reservoir', 'cold-reservoir', 'gas-volume'
-                ];
-
-                sliders.forEach(sliderId => {
-                    const slider = document.getElementById(sliderId);
-                    if (slider) {
-                        slider.addEventListener('input', (e) => {
-                            const valueSpan = document.getElementById(sliderId + '-value');
-                            if (valueSpan) {
-                                valueSpan.textContent = e.target.value;
-                            }
-                        });
-                    }
-                });
-
-                if (startBtn) startBtn.addEventListener('click', () => this.startThermodynamicsSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetThermodynamicsSimulation());
-                if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseThermodynamicsSimulation());
-            }
-
-            switchThermodynamicsType(type) {
-                document.getElementById('gas-controls').style.display = 
-                    type === 'gas-particles' ? 'block' : 'none';
-                document.getElementById('heat-conduction-controls').style.display = 
-                    type === 'heat-conduction' ? 'block' : 'none';
-                document.getElementById('phase-transition-controls').style.display = 
-                    type === 'phase-transition' ? 'block' : 'none';
-                document.getElementById('carnot-cycle-controls').style.display = 
-                    type === 'carnot-cycle' ? 'block' : 'none';
-            }
-
-            startThermodynamicsSimulation() {
-                const type = document.getElementById('thermo-type').value;
-                this.isRunning.thermo = true;
-
-                if (type === 'gas-particles') {
-                    this.simulateGasParticles();
-                } else if (type === 'heat-conduction') {
-                    this.simulateHeatConduction();
-                } else if (type === 'phase-transition') {
-                    this.simulatePhaseTransition();
-                } else if (type === 'carnot-cycle') {
-                    this.simulateCarnotCycle();
-                }
-            }
-
-            simulateGasParticles() {
-                const canvas = this.canvases.thermo;
-                const ctx = this.contexts.thermo;
-                
-                const temperature = parseFloat(document.getElementById('temperature').value || '300');
-                const pressure = parseFloat(document.getElementById('pressure').value || '1.0');
-                const moleculeCount = parseInt(document.getElementById('molecule-count').value || '100');
-                
-                // Initialize particles
-                if (!this.gasParticles) {
-                    this.gasParticles = [];
-                    for (let i = 0; i < moleculeCount; i++) {
-                        const speed = Math.sqrt(temperature / 100); // Simplified kinetic theory
-                        this.gasParticles.push({
-                            x: Math.random() * canvas.width,
-                            y: Math.random() * canvas.height,
-                            vx: (Math.random() - 0.5) * speed,
-                            vy: (Math.random() - 0.5) * speed,
-                            radius: 3
-                        });
-                    }
-                }
-                
-                const animate = () => {
-                    if (!this.isRunning.thermo) return;
-                    
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Update and draw particles
-                    this.gasParticles.forEach(particle => {
-                        // Update position
-                        particle.x += particle.vx;
-                        particle.y += particle.vy;
-                        
-                        // Boundary collisions
-                        if (particle.x <= particle.radius || particle.x >= canvas.width - particle.radius) {
-                            particle.vx *= -1;
-                            particle.x = Math.max(particle.radius, Math.min(canvas.width - particle.radius, particle.x));
-                        }
-                        if (particle.y <= particle.radius || particle.y >= canvas.height - particle.radius) {
-                            particle.vy *= -1;
-                            particle.y = Math.max(particle.radius, Math.min(canvas.height - particle.radius, particle.y));
-                        }
-                        
-                        // Draw particle
-                        ctx.fillStyle = '#4361ee';
-                        ctx.beginPath();
-                        ctx.arc(particle.x, particle.y, particle.radius, 0, 2 * Math.PI);
-                        ctx.fill();
-                    });
-                    
-                    // Calculate average kinetic energy
-                    const avgKE = this.gasParticles.reduce((sum, p) => 
-                        sum + 0.5 * (p.vx * p.vx + p.vy * p.vy), 0) / this.gasParticles.length;
-                    
-                    document.getElementById('thermo-info').innerHTML = `
-                        平均动能: ${avgKE.toFixed(3)}<br>
-                        体积: ${(canvas.width * canvas.height / 10000).toFixed(2)}m²<br>
-                        分子数: ${moleculeCount}<br>
-                        温度: ${temperature}K<br>
-                        压强: ${pressure}atm
-                    `;
-                    
-                    this.animations.thermo = requestAnimationFrame(animate);
-                };
-                
-                animate();
-            }
-
-            resetThermodynamicsSimulation() {
-                this.isRunning.thermo = false;
-                if (this.animations.thermo) {
-                    cancelAnimationFrame(this.animations.thermo);
-                }
-                this.contexts.thermo.clearRect(0, 0, this.canvases.thermo.width, this.canvases.thermo.height);
-                this.temperatureGrid = null;
-                this.gasParticles = null;
-                document.getElementById('thermo-info').innerHTML = '平均动能: --<br>体积: --';
-            }
-
-            pauseThermodynamicsSimulation() {
-                this.isRunning.thermo = !this.isRunning.thermo;
-                if (this.isRunning.thermo) {
-                    this.startThermodynamicsSimulation();
-                }
-            }
-
-            setupOpticsControls() {
-                const typeSelect = document.getElementById('optics-type');
-                const startBtn = document.getElementById('start-optics');
-                const resetBtn = document.getElementById('reset-optics');
-
-                if (typeSelect) {
-                    typeSelect.addEventListener('change', (e) => {
-                        this.switchOpticsType(e.target.value);
-                    });
-                }
-
-                // Add event listeners for optics sliders
-                const sliders = [
-                    'incident-angle', 'refractive-index-1', 'refractive-index-2',
-                    'focal-length', 'object-distance', 'light-wavelength', 
-                    'slit-spacing', 'screen-distance'
-                ];
-
-                sliders.forEach(sliderId => {
-                    const slider = document.getElementById(sliderId);
-                    if (slider) {
-                        slider.addEventListener('input', (e) => {
-                            const valueSpan = document.getElementById(sliderId.replace('-', '-') + '-value') ||
-                                             document.getElementById('incident-angle-value') ||
-                                             document.getElementById('n1-value') ||
-                                             document.getElementById('n2-value') ||
-                                             document.getElementById('focal-length-value') ||
-                                             document.getElementById('object-distance-value') ||
-                                             document.getElementById('wavelength-value') ||
-                                             document.getElementById('slit-spacing-value') ||
-                                             document.getElementById('screen-distance-value');
-                            if (valueSpan) {
-                                valueSpan.textContent = e.target.value;
-                            }
-                        });
-                    }
-                });
-
-                if (startBtn) startBtn.addEventListener('click', () => this.startOpticsSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetOpticsSimulation());
-            }
-
-            switchOpticsType(type) {
-                document.getElementById('reflection-controls').style.display = 
-                    type === 'reflection' ? 'block' : 'none';
-                document.getElementById('refraction-controls').style.display = 
-                    type === 'refraction' ? 'block' : 'none';
-                document.getElementById('lens-controls').style.display = 
-                    type === 'lens' ? 'block' : 'none';
-                document.getElementById('interference-controls').style.display = 
-                    type === 'interference' ? 'block' : 'none';
-            }
-
-            startOpticsSimulation() {
-                const type = document.getElementById('optics-type').value;
-                
-                if (type === 'reflection') {
-                    this.simulateReflection();
-                } else if (type === 'refraction') {
-                    this.simulateRefraction();
-                } else if (type === 'lens') {
-                    this.simulateLens();
-                } else if (type === 'interference') {
-                    this.simulateInterference();
-                }
-            }
-
-            setupElectromagnetismControls() {
-                const typeSelect = document.getElementById('em-type');
-                const startBtn = document.getElementById('start-em');
-                const resetBtn = document.getElementById('reset-em');
-                const addChargeBtn = document.getElementById('add-charge');
-
-                if (typeSelect) {
-                    typeSelect.addEventListener('change', (e) => {
-                        this.switchElectromagnetismType(e.target.value);
-                    });
-                }
-
-                // Add event listeners for EM sliders
-                const sliders = [
-                    'charge-count', 'charge-strength', 'magnetic-strength', 'current',
-                    'coil-turns', 'magnet-speed', 'magnet-strength', 'voltage', 'resistance'
-                ];
-
-                sliders.forEach(sliderId => {
-                    const slider = document.getElementById(sliderId);
-                    if (slider) {
-                        slider.addEventListener('input', (e) => {
-                            const valueSpan = document.getElementById(sliderId + '-value');
-                            if (valueSpan) {
-                                valueSpan.textContent = e.target.value;
-                            }
-                        });
-                    }
-                });
-
-                if (startBtn) startBtn.addEventListener('click', () => this.startElectromagnetismSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetElectromagnetismSimulation());
-                if (addChargeBtn) addChargeBtn.addEventListener('click', () => this.addElectricCharge());
-            }
-
-            switchElectromagnetismType(type) {
-                document.getElementById('electric-field-controls').style.display = 
-                    type === 'electric-field' ? 'block' : 'none';
-                document.getElementById('magnetic-field-controls').style.display = 
-                    type === 'magnetic-field' ? 'block' : 'none';
-                document.getElementById('induction-controls').style.display = 
-                    type === 'electromagnetic-induction' ? 'block' : 'none';
-                document.getElementById('circuit-controls').style.display = 
-                    type === 'circuit' ? 'block' : 'none';
-            }
-
-            startElectromagnetismSimulation() {
-                const type = document.getElementById('em-type').value;
-                this.isRunning.em = true;
-
-                if (type === 'electric-field') {
-                    this.simulateElectricField();
-                } else if (type === 'magnetic-field') {
-                    this.simulateMagneticField();
-                } else if (type === 'electromagnetic-induction') {
-                    this.simulateElectromagneticInduction();
-                } else if (type === 'circuit') {
-                    this.simulateCircuit();
-                }
-            }
-
-            simulateElectricField() {
-                const canvas = this.canvases.em;
-                const ctx = this.contexts.em;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // 初始化高级电荷系统
-                if (!this.electricCharges) {
-                    this.electricCharges = [
-                        { x: canvas.width * 0.3, y: canvas.height * 0.5, charge: 2, radius: 25, label: 'Q₁' },
-                        { x: canvas.width * 0.7, y: canvas.height * 0.5, charge: -1, radius: 20, label: 'Q₂' }
-                    ];
-                }
-                
-                // 绘制高级电场线和等势线
-                if (document.getElementById('show-field-lines').checked) {
-                    this.drawAdvancedElectricFieldLines(ctx, canvas);
-                    this.drawEquipotentialLines(ctx, canvas);
-                }
-                
-                // 绘制电场强度热力图
-                this.drawElectricFieldHeatmap(ctx, canvas);
-                
-                // 绘制增强的电荷
-                this.drawAdvancedElectricCharges(ctx, canvas);
-                
-                // 绘制试探电荷轨迹
-                this.drawTestChargeTrajectory(ctx, canvas);
-                
-                // 绘制电场分析面板
-                this.drawElectricFieldAnalysis(ctx, canvas);
-                
-                // 绘制电势分布图
-                this.drawElectricPotentialDistribution(ctx, canvas);
-                
-                // 绘制高斯面演示
-                this.drawGaussianSurfaceDemo(ctx, canvas);
-                
-                // 计算系统总能量和相互作用力
-                const systemEnergy = this.calculateElectrostaticEnergy();
-                const forces = this.calculateInteractionForces();
-                
-                document.getElementById('em-info').innerHTML = `
-                    <strong>电场系统分析:</strong><br>
-                    电荷数量: ${this.electricCharges.length}<br>
-                    系统总能量: ${systemEnergy.toFixed(3)} J<br>
-                    <strong>场强分析:</strong><br>
-                    最大场强: ${this.maxFieldStrength.toFixed(2)} N/C<br>
-                    场强方向: 从正电荷指向负电荷<br>
-                    <strong>相互作用力:</strong><br>
-                    库仑力: ${forces.coulomb.toFixed(3)} N<br>
-                    作用距离: ${forces.distance.toFixed(2)} m<br>
-                    <strong>电势特性:</strong><br>
-                    零势点位置: 计算中...<br>
-                    等势线分布: 可视化显示<br>
-                    <strong>高斯定律验证:</strong><br>
-                    ∮E⋅dA = Q/ε₀<br>
-                    通量计算: ${this.calculateElectricFlux().toFixed(3)} N⋅m²/C<br>
-                    <strong>应用实例:</strong><br>
-                    • 静电屏蔽原理<br>
-                    • 电容器储能<br>
-                    • 范德格拉夫起电机<br>
-                    • 雷电形成机制
-                `;
-            }
-
-            drawAdvancedElectricFieldLines(ctx, canvas) {
-                const lineCount = 16;
-                ctx.strokeStyle = 'rgba(67, 97, 238, 0.8)';
-                ctx.lineWidth = 2;
-                
-                this.maxFieldStrength = 0;
-                
-                // 从每个正电荷发出电场线
-                this.electricCharges.forEach(charge => {
-                    if (charge.charge > 0) {
-                        for (let i = 0; i < lineCount; i++) {
-                            const angle = (2 * Math.PI * i) / lineCount;
-                            this.drawAdvancedFieldLine(ctx, charge.x, charge.y, angle, canvas, charge.charge);
-                        }
-                    }
-                });
-            }
-
-            drawAdvancedFieldLine(ctx, startX, startY, angle, canvas, sourceCharge) {
-                let x = startX + 30 * Math.cos(angle);
-                let y = startY + 30 * Math.sin(angle);
-                
-                const points = [{x: x, y: y}];
-                const maxSteps = 200;
-                const stepSize = 3;
-                
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                
-                for (let step = 0; step < maxSteps && x > 0 && x < canvas.width && y > 0 && y < canvas.height; step++) {
-                    const field = this.calculateElectricField(x, y);
-                    const magnitude = Math.sqrt(field.x * field.x + field.y * field.y);
-                    
-                    if (magnitude < 0.01) break;
-                    
-                    // 更新最大场强
-                    this.maxFieldStrength = Math.max(this.maxFieldStrength, magnitude);
-                    
-                    // 根据场强调整线条粗细和颜色
-                    const intensity = Math.min(1, magnitude / 10);
-                    ctx.lineWidth = 1 + intensity * 3;
-                    ctx.strokeStyle = `rgba(67, 97, 238, ${0.4 + intensity * 0.6})`;
-                    
-                    const direction = sourceCharge > 0 ? 1 : -1;
-                    x += direction * (field.x / magnitude) * stepSize;
-                    y += direction * (field.y / magnitude) * stepSize;
-                    
-                    ctx.lineTo(x, y);
-                    points.push({x: x, y: y});
-                    
-                    // 检查是否到达负电荷
-                    const nearNegativeCharge = this.electricCharges.some(charge => {
-                        if (charge.charge < 0) {
-                            const dist = Math.sqrt((x - charge.x) ** 2 + (y - charge.y) ** 2);
-                            return dist < charge.radius;
-                        }
-                        return false;
-                    });
-                    
-                    if (nearNegativeCharge) break;
-                }
-                
-                ctx.stroke();
-                
-                // 绘制场线方向箭头
-                if (points.length > 10) {
-                    const midPoint = Math.floor(points.length / 2);
-                    const p1 = points[midPoint - 1];
-                    const p2 = points[midPoint + 1];
-                    const arrowAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                    this.drawArrowHead(ctx, points[midPoint].x, points[midPoint].y, arrowAngle, ctx.strokeStyle);
-                }
-            }
-
-            drawEquipotentialLines(ctx, canvas) {
-                ctx.strokeStyle = 'rgba(231, 76, 60, 0.6)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                
-                const potentialLevels = [-10, -5, -2, -1, 1, 2, 5, 10];
-                
-                potentialLevels.forEach(level => {
-                    this.drawEquipotentialContour(ctx, canvas, level);
-                });
-                
-                ctx.setLineDash([]);
-            }
-
-            drawEquipotentialContour(ctx, canvas, targetPotential) {
-                const resolution = 5;
-                const tolerance = 0.5;
-                
-                for (let x = 0; x < canvas.width; x += resolution) {
-                    for (let y = 0; y < canvas.height; y += resolution) {
-                        const potential = this.calculateElectricPotential(x, y);
-                        
-                        if (Math.abs(potential - targetPotential) < tolerance) {
-                            // 查找连续的等势点
-                            const contourPoints = this.traceEquipotentialContour(x, y, targetPotential, tolerance);
-                            
-                            if (contourPoints.length > 5) {
-                                ctx.beginPath();
-                                contourPoints.forEach((point, index) => {
-                                    if (index === 0) {
-                                        ctx.moveTo(point.x, point.y);
-                                    } else {
-                                        ctx.lineTo(point.x, point.y);
-                                    }
-                                });
-                                ctx.stroke();
-                                
-                                // 标记电势值
-                                if (contourPoints.length > 20) {
-                                    const midPoint = contourPoints[Math.floor(contourPoints.length / 2)];
-                                    ctx.fillStyle = '#e74c3c';
-                                    ctx.font = '10px Arial';
-                                    ctx.textAlign = 'center';
-                                    ctx.fillText(`${targetPotential}V`, midPoint.x, midPoint.y - 5);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            traceEquipotentialContour(startX, startY, targetPotential, tolerance) {
-                // 简化的等势线追踪算法
-                const points = [];
-                const maxPoints = 50;
-                const stepSize = 3;
-                
-                let x = startX;
-                let y = startY;
-                
-                for (let i = 0; i < maxPoints; i++) {
-                    points.push({x: x, y: y});
-                    
-                    // 寻找下一个等势点
-                    let found = false;
-                    for (let angle = 0; angle < 2 * Math.PI; angle += Math.PI / 8) {
-                        const nextX = x + stepSize * Math.cos(angle);
-                        const nextY = y + stepSize * Math.sin(angle);
-                        
-                        if (nextX > 0 && nextX < 800 && nextY > 0 && nextY < 600) {
-                            const potential = this.calculateElectricPotential(nextX, nextY);
-                            
-                            if (Math.abs(potential - targetPotential) < tolerance) {
-                                x = nextX;
-                                y = nextY;
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                    
-                    if (!found) break;
-                }
-                
-                return points;
-            }
-
-            drawElectricFieldHeatmap(ctx, canvas) {
-                const imageData = ctx.createImageData(canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                for (let x = 0; x < canvas.width; x += 2) {
-                    for (let y = 0; y < canvas.height; y += 2) {
-                        const field = this.calculateElectricField(x, y);
-                        const magnitude = Math.sqrt(field.x * field.x + field.y * field.y);
-                        
-                        // 归一化场强用于颜色映射
-                        const normalized = Math.min(1, magnitude / 20);
-                        const hue = (1 - normalized) * 240; // 从蓝色(240°)到红色(0°)
-                        const saturation = 100;
-                        const lightness = 50 + normalized * 30;
-                        
-                        const rgb = this.hslToRgb(hue / 360, saturation / 100, lightness / 100);
-                        
-                        const index = (y * canvas.width + x) * 4;
-                        if (index < data.length) {
-                            data[index] = rgb.r;
-                            data[index + 1] = rgb.g;
-                            data[index + 2] = rgb.b;
-                            data[index + 3] = normalized * 30; // 透明度基于场强
-                        }
-                    }
-                }
-                
-                ctx.putImageData(imageData, 0, 0);
-            }
-
-            hslToRgb(h, s, l) {
-                let r, g, b;
-                
-                if (s === 0) {
-                    r = g = b = l;
-                } else {
-                    const hue2rgb = (p, q, t) => {
-                        if (t < 0) t += 1;
-                        if (t > 1) t -= 1;
-                        if (t < 1/6) return p + (q - p) * 6 * t;
-                        if (t < 1/2) return q;
-                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-                        return p;
-                    };
-                    
-                    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                    const p = 2 * l - q;
-                    r = hue2rgb(p, q, h + 1/3);
-                    g = hue2rgb(p, q, h);
-                    b = hue2rgb(p, q, h - 1/3);
-                }
-                
-                return {
-                    r: Math.round(r * 255),
-                    g: Math.round(g * 255),
-                    b: Math.round(b * 255)
-                };
-            }
-
-            drawAdvancedElectricCharges(ctx, canvas) {
-                this.electricCharges.forEach(charge => {
-                    // 3D效果的电荷绘制
-                    const gradient = ctx.createRadialGradient(
-                        charge.x - charge.radius * 0.3, 
-                        charge.y - charge.radius * 0.3, 
-                        0,
-                        charge.x, 
-                        charge.y, 
-                        charge.radius
-                    );
-                    
-                    if (charge.charge > 0) {
-                        gradient.addColorStop(0, '#ff8888');
-                        gradient.addColorStop(0.7, '#ff4444');
-                        gradient.addColorStop(1, '#cc0000');
-                    } else {
-                        gradient.addColorStop(0, '#8888ff');
-                        gradient.addColorStop(0.7, '#4444ff');
-                        gradient.addColorStop(1, '#0000cc');
-                    }
-                    
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(charge.x, charge.y, charge.radius, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // 高光效果
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                    ctx.beginPath();
-                    ctx.arc(charge.x - charge.radius * 0.3, charge.y - charge.radius * 0.3, charge.radius * 0.2, 0, 2 * Math.PI);
-                    ctx.fill();
-                    
-                    // 边框和电荷符号
-                    ctx.strokeStyle = charge.charge > 0 ? '#990000' : '#000099';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.arc(charge.x, charge.y, charge.radius, 0, 2 * Math.PI);
-                    ctx.stroke();
-                    
-                    // 电荷符号和标签
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 16px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(charge.charge > 0 ? '+' : '−', charge.x, charge.y + 5);
-                    
-                    ctx.fillStyle = '#333';
-                    ctx.font = 'bold 12px Arial';
-                    ctx.fillText(charge.label, charge.x, charge.y + charge.radius + 20);
-                    ctx.fillText(`${charge.charge}C`, charge.x, charge.y + charge.radius + 35);
-                });
-            }
-
-            drawTestChargeTrajectory(ctx, canvas) {
-                // 绘制测试电荷在电场中的运动轨迹
-                if (!this.testCharge) {
-                    this.testCharge = {
-                        x: canvas.width * 0.1,
-                        y: canvas.height * 0.3,
-                        vx: 2,
-                        vy: 0,
-                        charge: 0.1,
-                        mass: 1,
-                        trail: []
-                    };
-                }
-                
-                // 计算测试电荷受到的电场力
-                const field = this.calculateElectricField(this.testCharge.x, this.testCharge.y);
-                const fx = field.x * this.testCharge.charge;
-                const fy = field.y * this.testCharge.charge;
-                
-                // 更新测试电荷运动
-                const dt = 0.02;
-                this.testCharge.vx += (fx / this.testCharge.mass) * dt;
-                this.testCharge.vy += (fy / this.testCharge.mass) * dt;
-                this.testCharge.x += this.testCharge.vx * dt;
-                this.testCharge.y += this.testCharge.vy * dt;
-                
-                // 记录轨迹
-                this.testCharge.trail.push({x: this.testCharge.x, y: this.testCharge.y});
-                if (this.testCharge.trail.length > 200) {
-                    this.testCharge.trail.shift();
-                }
-                
-                // 绘制轨迹
-                if (this.testCharge.trail.length > 1) {
-                    ctx.strokeStyle = '#2ecc71';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    this.testCharge.trail.forEach((point, index) => {
-                        if (index === 0) {
-                            ctx.moveTo(point.x, point.y);
-                        } else {
-                            ctx.lineTo(point.x, point.y);
-                        }
-                    });
-                    ctx.stroke();
-                }
-                
-                // 绘制测试电荷
-                ctx.fillStyle = '#f39c12';
-                ctx.beginPath();
-                ctx.arc(this.testCharge.x, this.testCharge.y, 8, 0, 2 * Math.PI);
+                ctx.arc(x - angularVelocity * 10, y, radius * 0.8, 0, 2 * Math.PI);
                 ctx.fill();
                 
-                ctx.strokeStyle = '#e67e22';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(this.testCharge.x, this.testCharge.y, 8, 0, 2 * Math.PI);
-                ctx.stroke();
-                
-                // 绘制速度矢量
-                const speed = Math.sqrt(this.testCharge.vx ** 2 + this.testCharge.vy ** 2);
-                if (speed > 0.1) {
-                    ctx.strokeStyle = '#e67e22';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(this.testCharge.x, this.testCharge.y);
-                    ctx.lineTo(this.testCharge.x + this.testCharge.vx * 10, this.testCharge.y + this.testCharge.vy * 10);
-                    ctx.stroke();
-                    
-                    const angle = Math.atan2(this.testCharge.vy, this.testCharge.vx);
-                    this.drawArrowHead(ctx, this.testCharge.x + this.testCharge.vx * 10, this.testCharge.y + this.testCharge.vy * 10, angle, '#e67e22');
-                }
-                
-                // 重置测试电荷位置（如果超出边界）
-                if (this.testCharge.x < 0 || this.testCharge.x > canvas.width || 
-                    this.testCharge.y < 0 || this.testCharge.y > canvas.height) {
-                    this.testCharge.x = canvas.width * 0.1;
-                    this.testCharge.y = canvas.height * 0.3;
-                    this.testCharge.vx = 2;
-                    this.testCharge.vy = 0;
-                    this.testCharge.trail = [];
-                }
-            }
-
-            simulateMagneticField() {
-                const canvas = this.canvases.em;
-                const ctx = this.contexts.em;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw magnetic field visualization
-                ctx.fillStyle = '#333';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('磁场模拟', canvas.width / 2, 50);
-                ctx.fillText('(开发中)', canvas.width / 2, 80);
-                
-                document.getElementById('em-info').innerHTML = `
-                    磁场强度设置<br>
-                    电流设置<br>
-                    磁场可视化
-                `;
-            }
-
-            simulateElectromagneticInduction() {
-                const canvas = this.canvases.em;
-                const ctx = this.contexts.em;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.fillStyle = '#333';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('电磁感应模拟', canvas.width / 2, 50);
-                ctx.fillText('(开发中)', canvas.width / 2, 80);
-                
-                document.getElementById('em-info').innerHTML = `
-                    线圈匝数设置<br>
-                    磁铁运动<br>
-                    感应电流分析
-                `;
-            }
-
-            simulateCircuit() {
-                const canvas = this.canvases.em;
-                const ctx = this.contexts.em;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                ctx.fillStyle = '#333';
-                ctx.font = '16px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('电路模拟', canvas.width / 2, 50);
-                ctx.fillText('(开发中)', canvas.width / 2, 80);
-                
-                document.getElementById('em-info').innerHTML = `
-                    电压设置<br>
-                    电阻分析<br>
-                    电路特性
-                `;
-            }
-
-            addElectricCharge() {
-                if (!this.electricCharges) {
-                    this.electricCharges = [];
-                }
-                
-                const canvas = this.canvases.em;
-                const charge = Math.random() > 0.5 ? 1 : -1;
-                
-                this.electricCharges.push({
-                    x: Math.random() * (canvas.width - 40) + 20,
-                    y: Math.random() * (canvas.height - 40) + 20,
-                    charge: charge,
-                    radius: 20
-                });
-                
-                this.simulateElectricField();
-            }
-
-            resetElectromagnetismSimulation() {
-                this.isRunning.em = false;
-                if (this.animations.em) {
-                    cancelAnimationFrame(this.animations.em);
-                }
-                this.contexts.em.clearRect(0, 0, this.canvases.em.width, this.canvases.em.height);
-                this.electricCharges = null;
-                document.getElementById('em-info').textContent = '点击画布添加电荷，观察电场分布';
-            }
-
-            simulateRefraction() {
-                const canvas = this.canvases.optics;
-                const ctx = this.contexts.optics;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                const incidentAngle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
-                const n1 = parseFloat(document.getElementById('refractive-index-1').value);
-                const n2 = parseFloat(document.getElementById('refractive-index-2').value);
-
-                // 计算折射角 (斯涅尔定律)
-                const sinRefracted = (n1 / n2) * Math.sin(incidentAngle);
-                const refractedAngle = Math.asin(Math.min(1, Math.abs(sinRefracted)));
-
-                // 绘制界面
-                ctx.fillStyle = 'rgba(67, 97, 238, 0.1)';
-                ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
-                
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, canvas.height / 2);
-                ctx.lineTo(canvas.width, canvas.height / 2);
-                ctx.stroke();
-
-                // 绘制法线
-                ctx.strokeStyle = '#ccc';
-                ctx.lineWidth = 1;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                ctx.moveTo(canvas.width / 2, 100);
-                ctx.lineTo(canvas.width / 2, canvas.height - 100);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                // 绘制入射光线
-                const incidentX = canvas.width / 2 - 150 * Math.sin(incidentAngle);
-                const incidentY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
-                
-                ctx.strokeStyle = '#ffeb3b';
+                // 边框
+                ctx.strokeStyle = '#2c5aa0';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
-                ctx.moveTo(incidentX, incidentY);
-                ctx.lineTo(canvas.width / 2, canvas.height / 2);
+                ctx.arc(x, y, radius, 0, 2 * Math.PI);
                 ctx.stroke();
-
-                // 绘制折射光线
-                if (sinRefracted <= 1) {
-                    const refractedX = canvas.width / 2 + 150 * Math.sin(refractedAngle);
-                    const refractedY = canvas.height / 2 + 150 * Math.cos(refractedAngle);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, canvas.height / 2);
-                    ctx.lineTo(refractedX, refractedY);
-                    ctx.stroke();
-                }
-
-                // 更新信息
-                document.getElementById('optics-info').innerHTML = `
-                    入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
-                    折射角: ${sinRefracted <= 1 ? (refractedAngle * 180 / Math.PI).toFixed(1) + '°' : '全反射'}<br>
-                    n₁ = ${n1}, n₂ = ${n2}<br>
-                    ${sinRefracted > 1 ? '发生全反射！' : ''}
-                `;
+                
+                // 高光效果
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(x - 6, y - 6, 6, 0, 2 * Math.PI);
+                ctx.fill();
             }
 
-            simulateHeatConduction() {
-                const canvas = this.canvases.thermo;
-                const ctx = this.contexts.thermo;
+            drawPendulumTrajectory(ctx, centerX, centerY, length, currentAngle) {
+                // 绘制摆动轨迹弧线
+                ctx.strokeStyle = 'rgba(67, 97, 238, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, length, -Math.PI/3, Math.PI/3);
+                ctx.stroke();
+                ctx.setLineDash([]);
                 
-                const hotTemp = parseFloat(document.getElementById('heat-source-temp').value || '400');
-                const coldTemp = parseFloat(document.getElementById('cold-source-temp').value || '200');
-                const conductivity = parseFloat(document.getElementById('thermal-conductivity').value || '1.0');
-                
-                // 创建温度分布网格
-                const gridSize = 20;
-                const cols = Math.floor(canvas.width / gridSize);
-                const rows = Math.floor(canvas.height / gridSize);
-                
-                if (!this.temperatureGrid) {
-                    this.temperatureGrid = [];
-                    for (let i = 0; i < rows; i++) {
-                        this.temperatureGrid[i] = [];
-                        for (let j = 0; j < cols; j++) {
-                            // 初始化温度分布
-                            if (j < cols * 0.2) {
-                                this.temperatureGrid[i][j] = hotTemp;
-                            } else if (j > cols * 0.8) {
-                                this.temperatureGrid[i][j] = coldTemp;
-                            } else {
-                                this.temperatureGrid[i][j] = (hotTemp + coldTemp) / 2;
-                            }
-                        }
-                    }
-                }
-                
-                const animate = () => {
-                    if (!this.isRunning.thermo) return;
-                    
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 更新温度分布
-                    const newGrid = JSON.parse(JSON.stringify(this.temperatureGrid));
-                    for (let i = 1; i < rows - 1; i++) {
-                        for (let j = 1; j < cols - 1; j++) {
-                            if (j !== 0 && j !== cols - 1) { // 不更新边界
-                                const avg = (this.temperatureGrid[i-1][j] + this.temperatureGrid[i+1][j] + 
-                                           this.temperatureGrid[i][j-1] + this.temperatureGrid[i][j+1]) / 4;
-                                newGrid[i][j] = this.temperatureGrid[i][j] + conductivity * 0.1 * (avg - this.temperatureGrid[i][j]);
-                            }
-                        }
-                    }
-                    this.temperatureGrid = newGrid;
-                    
-                    // 绘制温度分布
-                    for (let i = 0; i < rows; i++) {
-                        for (let j = 0; j < cols; j++) {
-                            const temp = this.temperatureGrid[i][j];
-                            const normalizedTemp = (temp - coldTemp) / (hotTemp - coldTemp);
-                            const red = Math.floor(255 * normalizedTemp);
-                            const blue = Math.floor(255 * (1 - normalizedTemp));
-                            
-                            ctx.fillStyle = `rgb(${red}, 50, ${blue})`;
-                            ctx.fillRect(j * gridSize, i * gridSize, gridSize, gridSize);
-                        }
-                    }
-                    
-                    // 绘制温度标签
-                    ctx.fillStyle = 'white';
-                    ctx.font = 'bold 14px Arial';
-                    ctx.fillText(`热源: ${hotTemp}K`, 10, 30);
-                    ctx.fillText(`冷源: ${coldTemp}K`, canvas.width - 100, 30);
-                    
-                    document.getElementById('thermo-info').innerHTML = `
-                        热传导模拟<br>
-                        导热系数: ${conductivity}<br>
-                        温度梯度: ${(hotTemp - coldTemp).toFixed(1)}K
-                    `;
-                    
-                    this.animations.thermo = requestAnimationFrame(animate);
-                };
-                
-                animate();
+                // 当前位置标记
+                const x = centerX + length * Math.sin(currentAngle);
+                const y = centerY + length * Math.cos(currentAngle);
+                ctx.fillStyle = 'rgba(255, 107, 107, 0.8)';
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, 2 * Math.PI);
+                ctx.fill();
             }
 
-            simulatePhaseTransition() {
-                const canvas = this.canvases.thermo;
-                const ctx = this.contexts.thermo;
+            drawForceAnalysis(ctx, bobX, bobY, angle, length, gravity) {
+                const scale = 20;
+                const mass = 1; // kg
                 
-                let currentTemp = parseFloat(document.getElementById('initial-temp').value || '250');
-                const heatingPower = parseFloat(document.getElementById('heating-power').value || '100');
-                const substance = document.getElementById('substance-type').value || 'water';
+                // 重力
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX, bobY + gravity * scale);
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX, bobY + gravity * scale, Math.PI/2, '#ff4444');
                 
-                let time = 0;
-                const meltingPoint = substance === 'water' ? 273 : substance === 'alcohol' ? 159 : 273;
-                const boilingPoint = substance === 'water' ? 373 : substance === 'alcohol' ? 351 : 373;
+                // 张力
+                const tension = gravity * Math.cos(angle);
+                ctx.strokeStyle = '#44ff44';
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX - tension * scale * Math.sin(angle), bobY - tension * scale * Math.cos(angle));
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX - tension * scale * Math.sin(angle), bobY - tension * scale * Math.cos(angle), -angle - Math.PI/2, '#44ff44');
                 
-                const animate = () => {
-                    if (!this.isRunning.thermo) return;
-                    
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 更新温度
-                    currentTemp += heatingPower * 0.01;
-                    
-                    // 确定相态
-                    let phase = 'solid';
-                    let color = '#87CEEB'; // 固体蓝色
-                    if (currentTemp > meltingPoint && currentTemp < boilingPoint) {
-                        phase = 'liquid';
-                        color = '#4169E1'; // 液体深蓝色
-                    } else if (currentTemp >= boilingPoint) {
-                        phase = 'gas';
-                        color = '#FF6347'; // 气体红色
-                    }
-                    
-                    // 绘制物质
-                    ctx.fillStyle = color;
-                    if (phase === 'solid') {
-                        // 绘制晶体结构
-                        for (let i = 0; i < 10; i++) {
-                            for (let j = 0; j < 8; j++) {
-                                ctx.fillRect(200 + i * 20, 200 + j * 20, 15, 15);
-                            }
-                        }
-                    } else if (phase === 'liquid') {
-                        // 绘制流体
-                        ctx.beginPath();
-                        ctx.arc(canvas.width / 2, canvas.height / 2, 100, 0, 2 * Math.PI);
-                        ctx.fill();
-                        
-                        // 添加波动效果
-                        for (let i = 0; i < 20; i++) {
-                            const x = canvas.width / 2 + Math.random() * 200 - 100;
-                            const y = canvas.height / 2 + Math.random() * 200 - 100;
-                            ctx.beginPath();
-                            ctx.arc(x, y, 5, 0, 2 * Math.PI);
-                            ctx.fill();
-                        }
-                    } else {
-                        // 绘制气体分子
-                        for (let i = 0; i < 50; i++) {
-                            const x = Math.random() * canvas.width;
-                            const y = Math.random() * canvas.height;
-                            ctx.beginPath();
-                            ctx.arc(x, y, 3, 0, 2 * Math.PI);
-                            ctx.fill();
-                        }
-                    }
-                    
-                    // 绘制温度计
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.rect(50, 100, 20, 400);
-                    ctx.stroke();
-                    
-                    const tempHeight = Math.min(400, (currentTemp - 200) * 2);
-                    ctx.fillStyle = currentTemp > boilingPoint ? '#ff4444' : currentTemp > meltingPoint ? '#ffaa44' : '#4444ff';
-                    ctx.fillRect(52, 500 - tempHeight, 16, tempHeight);
-                    
-                    document.getElementById('thermo-info').innerHTML = `
-                        当前温度: ${currentTemp.toFixed(1)}K<br>
-                        相态: ${phase === 'solid' ? '固体' : phase === 'liquid' ? '液体' : '气体'}<br>
-                        熔点: ${meltingPoint}K<br>
-                        沸点: ${boilingPoint}K<br>
-                        加热功率: ${heatingPower}W
-                    `;
-                    
-                    time += 0.1;
-                    this.animations.thermo = requestAnimationFrame(animate);
-                };
+                // 切向力
+                const tangentialForce = gravity * Math.sin(angle);
+                ctx.strokeStyle = '#4444ff';
+                ctx.beginPath();
+                ctx.moveTo(bobX, bobY);
+                ctx.lineTo(bobX + tangentialForce * scale * Math.cos(angle), bobY + tangentialForce * scale * Math.sin(angle));
+                ctx.stroke();
+                this.drawArrowHead(ctx, bobX + tangentialForce * scale * Math.cos(angle), bobY + tangentialForce * scale * Math.sin(angle), angle, '#4444ff');
                 
-                animate();
-            }
-
-            simulateCarnotCycle() {
-                const canvas = this.canvases.thermo;
-                const ctx = this.contexts.thermo;
-                
-                const hotTemp = parseFloat(document.getElementById('hot-reservoir').value || '400');
-                const coldTemp = parseFloat(document.getElementById('cold-reservoir').value || '300');
-                const volume = parseFloat(document.getElementById('gas-volume').value || '1.0');
-                
-                let cyclePhase = 0; // 0: 等温膨胀, 1: 绝热膨胀, 2: 等温压缩, 3: 绝热压缩
-                let currentVolume = volume;
-                let currentPressure = 100; // 简化压强
-                let currentTemp = hotTemp;
-                
-                const animate = () => {
-                    if (!this.isRunning.thermo) return;
-                    
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // 绘制P-V图
-                    const graphX = 50;
-                    const graphY = 50;
-                    const graphWidth = 300;
-                    const graphHeight = 200;
-                    
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.rect(graphX, graphY, graphWidth, graphHeight);
-                    ctx.stroke();
-                    
-                    // 坐标轴标签
-                    ctx.fillStyle = '#333';
-                    ctx.font = '12px Arial';
-                    ctx.fillText('P', graphX - 20, graphY + 10);
-                    ctx.fillText('V', graphX + graphWidth + 10, graphY + graphHeight + 20);
-                    
-                    // 绘制卡诺循环
-                    ctx.strokeStyle = '#4361ee';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    
-                    // 4个过程的路径点
-                    const points = [
-                        {v: 1, p: 100}, // 点1
-                        {v: 2, p: 50},  // 点2
-                        {v: 3, p: 33},  // 点3
-                        {v: 1.5, p: 66} // 点4
-                    ];
-                    
-                    for (let i = 0; i < points.length; i++) {
-                        const x = graphX + (points[i].v - 0.5) * 80;
-                        const y = graphY + graphHeight - (points[i].p / 100) * (graphHeight - 20);
-                        
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                        
-                        // 高亮当前阶段
-                        if (i === cyclePhase) {
-                            ctx.fillStyle = '#ff4444';
-                            ctx.beginPath();
-                            ctx.arc(x, y, 6, 0, 2 * Math.PI);
-                            ctx.fill();
-                        }
-                    }
-                    ctx.closePath();
-                    ctx.stroke();
-                    
-                    // 绘制热机示意图
-                    const engineX = 450;
-                    const engineY = 150;
-                    
-                    // 热源
-                    ctx.fillStyle = '#ff4444';
-                    ctx.fillRect(engineX, engineY - 50, 100, 30);
-                    ctx.fillStyle = 'white';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`热源 ${hotTemp}K`, engineX + 50, engineY - 30);
-                    
-                    // 冷源
-                    ctx.fillStyle = '#4444ff';
-                    ctx.fillRect(engineX, engineY + 80, 100, 30);
-                    ctx.fillStyle = 'white';
-                    ctx.fillText(`冷源 ${coldTemp}K`, engineX + 50, engineY + 100);
-                    
-                    // 工作物质
-                    ctx.fillStyle = '#44ff44';
-                    ctx.fillRect(engineX + 20, engineY, 60, 50);
-                    ctx.fillStyle = 'black';
-                    ctx.fillText('工作物质', engineX + 50, engineY + 30);
-                    
-                    // 计算效率
-                    const efficiency = 1 - coldTemp / hotTemp;
-                    
-                    document.getElementById('thermo-info').innerHTML = `
-                        卡诺循环<br>
-                        高温热源: ${hotTemp}K<br>
-                        低温热源: ${coldTemp}K<br>
-                        理论效率: ${(efficiency * 100).toFixed(1)}%<br>
-                        当前阶段: ${['等温膨胀', '绝热膨胀', '等温压缩', '绝热压缩'][cyclePhase]}
-                    `;
-                    
-                    // 循环阶段更新
-                    cyclePhase = (cyclePhase + 1) % 4;
-                    
-                    setTimeout(() => {
-                        if (this.isRunning.thermo) {
-                            this.animations.thermo = requestAnimationFrame(animate);
-                        }
-                    }, 2000); // 每2秒切换一个阶段
-                };
-                
-                animate();
-            }
-
-            simulateReflection() {
-                const canvas = this.canvases.optics;
-                const ctx = this.contexts.optics;
-                
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                const incidentAngle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
-                const mirrorType = document.getElementById('mirror-type').value;
-
-                if (mirrorType === 'plane') {
-                    // 平面镜反射
-                    ctx.strokeStyle = '#666';
-                    ctx.lineWidth = 5;
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, 100);
-                    ctx.lineTo(canvas.width / 2, canvas.height - 100);
-                    ctx.stroke();
-
-                    // 法线
-                    ctx.strokeStyle = '#ccc';
-                    ctx.lineWidth = 1;
-                    ctx.setLineDash([5, 5]);
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2);
-                    ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // 入射光线
-                    const incidentX = canvas.width / 2 - 150 * Math.sin(incidentAngle);
-                    const incidentY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
-                    
-                    ctx.strokeStyle = '#ffeb3b';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(incidentX, incidentY);
-                    ctx.lineTo(canvas.width / 2, canvas.height / 2);
-                    ctx.stroke();
-
-                    // 反射光线
-                    const reflectedX = canvas.width / 2 + 150 * Math.sin(incidentAngle);
-                    const reflectedY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2, canvas.height / 2);
-                    ctx.lineTo(reflectedX, reflectedY);
-                    ctx.stroke();
-
-                    document.getElementById('optics-info').innerHTML = `
-                        入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
-                        反射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
-                        反射定律: 入射角 = 反射角
-                    `;
-                }
+                // 力的标签
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText('mg', bobX + 5, bobY + gravity * scale + 15);
+                ctx.fillText('T', bobX - tension * scale * Math.sin(angle) - 15, bobY - tension * scale * Math.cos(angle));
+                ctx.fillText('F_t', bobX + tangentialForce * scale * Math.cos(angle) + 5, bobY + tangentialForce * scale * Math.sin(angle));
             }
 
             simulateLens() {
@@ -5440,8 +3637,719 @@
                 return 1.0; // 简化返回
             }
 
+            setupElectromagnetismControls() {
+                const typeSelect = document.getElementById('em-type');
+                const strengthSlider = document.getElementById('magnetic-strength');
+                const currentSlider = document.getElementById('current');
+                const wireShapeSelect = document.getElementById('wire-shape');
+                const chargeSlider = document.getElementById('charge-amount');
+                const runButton = document.getElementById('run-em');
+                const stopButton = document.getElementById('stop-em');
+                const resetButton = document.getElementById('reset-em');
+
+                if (typeSelect) {
+                    typeSelect.addEventListener('change', () => {
+                        this.updateElectromagnetismSimulation();
+                    });
+                }
+
+                if (strengthSlider) {
+                    strengthSlider.addEventListener('input', () => {
+                        this.updateElectromagnetismSimulation();
+                    });
+                }
+
+                if (currentSlider) {
+                    currentSlider.addEventListener('input', () => {
+                        this.updateElectromagnetismSimulation();
+                    });
+                }
+
+                if (wireShapeSelect) {
+                    wireShapeSelect.addEventListener('change', () => {
+                        this.updateElectromagnetismSimulation();
+                    });
+                }
+
+                if (chargeSlider) {
+                    chargeSlider.addEventListener('input', () => {
+                        this.updateElectromagnetismSimulation();
+                    });
+                }
+
+                if (runButton) {
+                    runButton.addEventListener('click', () => {
+                        this.startElectromagnetismSimulation();
+                    });
+                }
+
+                if (stopButton) {
+                    stopButton.addEventListener('click', () => {
+                        this.stopElectromagnetismSimulation();
+                    });
+                }
+
+                if (resetButton) {
+                    resetButton.addEventListener('click', () => {
+                        this.resetElectromagnetismSimulation();
+                    });
+                }
+
+                // 初始化电荷数组
+                this.electricCharges = [];
+                this.magneticSources = [];
+            }
+
+            updateElectromagnetismSimulation() {
+                if (!this.isRunning.em) return;
+                
+                const type = document.getElementById('em-type')?.value || 'magnetic';
+                
+                if (type === 'magnetic') {
+                    this.simulateMagneticField();
+                } else if (type === 'electric') {
+                    this.simulateElectricField();
+                } else if (type === 'induction') {
+                    this.simulateElectromagneticInduction();
+                }
+            }
+
+            startElectromagnetismSimulation() {
+                this.isRunning.em = true;
+                this.updateElectromagnetismSimulation();
+                
+                // 开始动画循环
+                if (!this.animations.em) {
+                    this.animations.em = setInterval(() => {
+                        this.updateElectromagnetismSimulation();
+                    }, 50);
+                }
+            }
+
+            stopElectromagnetismSimulation() {
+                this.isRunning.em = false;
+                if (this.animations.em) {
+                    clearInterval(this.animations.em);
+                    this.animations.em = null;
+                }
+            }
+
+            resetElectromagnetismSimulation() {
+                this.stopElectromagnetismSimulation();
+                this.electricCharges = [];
+                this.magneticSources = [];
+                
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                if (canvas && ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            simulateMagneticField() {
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                
+                if (!canvas || !ctx) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const magneticStrength = parseFloat(document.getElementById('magnetic-strength')?.value || 1);
+                const current = parseFloat(document.getElementById('current')?.value || 1);
+                const wireShape = document.getElementById('wire-shape')?.value || 'straight';
+                
+                // 绘制磁场背景
+                this.drawMagneticFieldBackground(ctx, canvas);
+                
+                if (wireShape === 'straight') {
+                    this.drawStraightWireMagneticField(ctx, canvas, current, magneticStrength);
+                } else if (wireShape === 'loop') {
+                    this.drawLoopMagneticField(ctx, canvas, current, magneticStrength);
+                } else if (wireShape === 'solenoid') {
+                    this.drawSolenoidMagneticField(ctx, canvas, current, magneticStrength);
+                }
+                
+                // 更新信息显示
+                const infoElement = document.getElementById('em-info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <strong>磁场模拟</strong><br>
+                        电流: ${current.toFixed(1)} A<br>
+                        磁场强度: ${magneticStrength.toFixed(1)}<br>
+                        导线形状: ${wireShape === 'straight' ? '直导线' : wireShape === 'loop' ? '环形' : '螺线管'}
+                    `;
+                }
+            }
+
+            simulateElectricField() {
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                
+                if (!canvas || !ctx) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const chargeAmount = parseFloat(document.getElementById('charge-amount')?.value || 1);
+                
+                // 如果没有电荷，创建一些默认电荷
+                if (this.electricCharges.length === 0) {
+                    this.electricCharges = [
+                        { x: canvas.width * 0.3, y: canvas.height * 0.5, charge: chargeAmount },
+                        { x: canvas.width * 0.7, y: canvas.height * 0.5, charge: -chargeAmount }
+                    ];
+                }
+                
+                // 绘制电场线
+                this.drawElectricFieldLines(ctx, canvas);
+                
+                // 绘制电荷
+                this.drawElectricCharges(ctx);
+                
+                // 绘制电场矢量
+                this.drawElectricFieldVectors(ctx, canvas);
+                
+                // 更新信息显示
+                const infoElement = document.getElementById('em-info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <strong>电场模拟</strong><br>
+                        电荷量: ±${Math.abs(chargeAmount).toFixed(1)} C<br>
+                        电荷数量: ${this.electricCharges.length}<br>
+                        库仑常数: k = 8.99×10⁹ N⋅m²/C²
+                    `;
+                }
+            }
+
+            simulateElectromagneticInduction() {
+                const canvas = this.canvases.em;
+                const ctx = this.contexts.em;
+                
+                if (!canvas || !ctx) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const time = Date.now() * 0.001;
+                const frequency = 0.5; // Hz
+                const magneticFlux = Math.sin(2 * Math.PI * frequency * time);
+                const inducedEMF = -2 * Math.PI * frequency * Math.cos(2 * Math.PI * frequency * time);
+                
+                // 绘制变化的磁场
+                this.drawChangingMagneticField(ctx, canvas, magneticFlux);
+                
+                // 绘制感应电流
+                this.drawInducedCurrent(ctx, canvas, inducedEMF);
+                
+                // 更新信息显示
+                const infoElement = document.getElementById('em-info');
+                if (infoElement) {
+                    infoElement.innerHTML = `
+                        <strong>电磁感应</strong><br>
+                        磁通量: Φ = ${magneticFlux.toFixed(2)} Wb<br>
+                        感应电动势: ε = ${inducedEMF.toFixed(2)} V<br>
+                        法拉第定律: ε = -dΦ/dt
+                    `;
+                }
+            }
+
+            drawMagneticFieldBackground(ctx, canvas) {
+                // 绘制网格背景
+                ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+                ctx.lineWidth = 1;
+                
+                for (let x = 0; x < canvas.width; x += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                
+                for (let y = 0; y < canvas.height; y += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+            }
+
+            drawStraightWireMagneticField(ctx, canvas, current, strength) {
+                const wireX = canvas.width / 2;
+                
+                // 绘制导线
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(wireX, 0);
+                ctx.lineTo(wireX, canvas.height);
+                ctx.stroke();
+                
+                // 绘制磁场线（同心圆）
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                
+                for (let r = 30; r < canvas.width / 2; r += 30) {
+                    ctx.beginPath();
+                    ctx.arc(wireX, canvas.height / 2, r, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    
+                    // 绘制磁场方向箭头
+                    const arrowAngle = current > 0 ? Math.PI / 4 : -Math.PI / 4;
+                    const arrowX = wireX + r * Math.cos(arrowAngle);
+                    const arrowY = canvas.height / 2 + r * Math.sin(arrowAngle);
+                    this.drawMagneticFieldArrow(ctx, arrowX, arrowY, arrowAngle + Math.PI / 2);
+                }
+                
+                // 电流方向指示
+                ctx.fillStyle = current > 0 ? '#ff4444' : '#4444ff';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(current > 0 ? '⊙' : '⊗', wireX, 30);
+            }
+
+            drawLoopMagneticField(ctx, canvas, current, strength) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const loopRadius = 80;
+                
+                // 绘制线圈
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, loopRadius, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // 绘制磁场线
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                
+                // 中心轴上的磁场线
+                for (let i = -3; i <= 3; i++) {
+                    if (i === 0) continue;
+                    const y = centerY + i * 40;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - 20, y);
+                    ctx.lineTo(centerX + 20, y);
+                    ctx.stroke();
+                    this.drawMagneticFieldArrow(ctx, centerX + 15, y, 0);
+                }
+                
+                // 环形磁场线
+                for (let r = loopRadius + 30; r < canvas.width / 2; r += 40) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, r, -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, r, 2 * Math.PI / 3, 4 * Math.PI / 3);
+                    ctx.stroke();
+                }
+            }
+
+            drawSolenoidMagneticField(ctx, canvas, current, strength) {
+                const centerX = canvas.width / 2;
+                const solenoidHeight = 200;
+                const solenoidTop = (canvas.height - solenoidHeight) / 2;
+                
+                // 绘制螺线管
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 3;
+                
+                for (let i = 0; i < 8; i++) {
+                    const y = solenoidTop + i * 25;
+                    ctx.beginPath();
+                    ctx.arc(centerX, y, 15, 0, Math.PI);
+                    ctx.stroke();
+                }
+                
+                // 内部磁场线（均匀）
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                
+                for (let x = centerX - 40; x <= centerX + 40; x += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, solenoidTop);
+                    ctx.lineTo(x, solenoidTop + solenoidHeight);
+                    ctx.stroke();
+                    this.drawMagneticFieldArrow(ctx, x, solenoidTop + solenoidHeight / 2, Math.PI / 2);
+                }
+                
+                // 外部磁场线
+                for (let i = 1; i <= 3; i++) {
+                    const offset = i * 60;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX - offset, solenoidTop + solenoidHeight);
+                    ctx.quadraticCurveTo(centerX - offset - 30, centerY, centerX - offset, solenoidTop);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + offset, solenoidTop);
+                    ctx.quadraticCurveTo(centerX + offset + 30, centerY, centerX + offset, solenoidTop + solenoidHeight);
+                    ctx.stroke();
+                }
+            }
+
+            drawMagneticFieldArrow(ctx, x, y, direction) {
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 15 * Math.cos(direction), y + 15 * Math.sin(direction));
+                ctx.stroke();
+                this.drawArrowHead(ctx, x + 15 * Math.cos(direction), y + 15 * Math.sin(direction), direction, '#0066ff');
+            }
+
+            drawChangingMagneticField(ctx, canvas, flux) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const intensity = Math.abs(flux);
+                
+                // 绘制磁场区域
+                ctx.fillStyle = `rgba(0, 102, 255, ${intensity * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 100, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                // 绘制磁场线
+                ctx.strokeStyle = '#0066ff';
+                ctx.lineWidth = 2;
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * 2 * Math.PI;
+                    const x1 = centerX + 60 * Math.cos(angle);
+                    const y1 = centerY + 60 * Math.sin(angle);
+                    const x2 = centerX + 90 * Math.cos(angle);
+                    const y2 = centerY + 90 * Math.sin(angle);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    
+                    if (flux > 0) {
+                        this.drawArrowHead(ctx, x2, y2, angle, '#0066ff');
+                    }
+                }
+            }
+
+            drawInducedCurrent(ctx, canvas, emf) {
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const loopRadius = 120;
+                
+                // 绘制导体环
+                ctx.strokeStyle = emf > 0 ? '#ff4444' : '#44ff44';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, loopRadius, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // 绘制感应电流方向
+                if (Math.abs(emf) > 0.1) {
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * 2 * Math.PI;
+                        const x = centerX + loopRadius * Math.cos(angle);
+                        const y = centerY + loopRadius * Math.sin(angle);
+                        const currentDirection = emf > 0 ? angle + Math.PI / 2 : angle - Math.PI / 2;
+                        this.drawCurrentArrow(ctx, x, y, 0, currentDirection);
+                    }
+                }
+            }
+
+            drawCurrentArrow(ctx, x, y, offset, direction) {
+                ctx.strokeStyle = '#ff4444';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(x + offset, y);
+                ctx.lineTo(x + offset + 20 * Math.cos(direction), y + 20 * Math.sin(direction));
+                ctx.stroke();
+                this.drawArrowHead(ctx, x + offset + 20 * Math.cos(direction), y + 20 * Math.sin(direction), direction, '#ff4444');
+            }
+
             calculateInteractionForces() {
                 return { coulomb: 1.0, distance: 1.0 }; // 简化返回
+            }
+
+            setupOpticsControls() {
+                const typeSelect = document.getElementById('optics-type');
+                const incidentAngleSlider = document.getElementById('incident-angle');
+                const refractiveIndexSlider = document.getElementById('refractive-index');
+                const focalLengthSlider = document.getElementById('focal-length');
+                const objectDistanceSlider = document.getElementById('object-distance');
+                const lensTypeSelect = document.getElementById('lens-type');
+                const runButton = document.getElementById('run-optics');
+                const stopButton = document.getElementById('stop-optics');
+                const resetButton = document.getElementById('reset-optics');
+
+                if (typeSelect) {
+                    typeSelect.addEventListener('change', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (incidentAngleSlider) {
+                    incidentAngleSlider.addEventListener('input', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (refractiveIndexSlider) {
+                    refractiveIndexSlider.addEventListener('input', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (focalLengthSlider) {
+                    focalLengthSlider.addEventListener('input', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (objectDistanceSlider) {
+                    objectDistanceSlider.addEventListener('input', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (lensTypeSelect) {
+                    lensTypeSelect.addEventListener('change', () => {
+                        this.updateOpticsSimulation();
+                    });
+                }
+
+                if (runButton) {
+                    runButton.addEventListener('click', () => {
+                        this.startOpticsSimulation();
+                    });
+                }
+
+                if (stopButton) {
+                    stopButton.addEventListener('click', () => {
+                        this.stopOpticsSimulation();
+                    });
+                }
+
+                if (resetButton) {
+                    resetButton.addEventListener('click', () => {
+                        this.resetOpticsSimulation();
+                    });
+                }
+            }
+
+            updateOpticsSimulation() {
+                if (!this.isRunning.optics) return;
+                
+                const type = document.getElementById('optics-type')?.value || 'reflection';
+                
+                if (type === 'reflection') {
+                    this.simulateReflection();
+                } else if (type === 'refraction') {
+                    this.simulateRefraction();
+                } else if (type === 'lens') {
+                    this.simulateLens();
+                }
+            }
+
+            startOpticsSimulation() {
+                this.isRunning.optics = true;
+                this.updateOpticsSimulation();
+                
+                if (!this.animations.optics) {
+                    this.animations.optics = setInterval(() => {
+                        this.updateOpticsSimulation();
+                    }, 50);
+                }
+            }
+
+            stopOpticsSimulation() {
+                this.isRunning.optics = false;
+                if (this.animations.optics) {
+                    clearInterval(this.animations.optics);
+                    this.animations.optics = null;
+                }
+            }
+
+            resetOpticsSimulation() {
+                this.stopOpticsSimulation();
+                const canvas = this.canvases.optics;
+                const ctx = this.contexts.optics;
+                if (canvas && ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            setupThermodynamicsControls() {
+                const temperatureSlider = document.getElementById('temperature');
+                const pressureSlider = document.getElementById('pressure');
+                const volumeSlider = document.getElementById('volume');
+                const gasTypeSelect = document.getElementById('gas-type');
+                const runButton = document.getElementById('run-thermo');
+                const stopButton = document.getElementById('stop-thermo');
+                const resetButton = document.getElementById('reset-thermo');
+
+                if (temperatureSlider) {
+                    temperatureSlider.addEventListener('input', () => {
+                        this.updateThermoSimulation();
+                    });
+                }
+
+                if (pressureSlider) {
+                    pressureSlider.addEventListener('input', () => {
+                        this.updateThermoSimulation();
+                    });
+                }
+
+                if (volumeSlider) {
+                    volumeSlider.addEventListener('input', () => {
+                        this.updateThermoSimulation();
+                    });
+                }
+
+                if (gasTypeSelect) {
+                    gasTypeSelect.addEventListener('change', () => {
+                        this.updateThermoSimulation();
+                    });
+                }
+
+                if (runButton) {
+                    runButton.addEventListener('click', () => {
+                        this.startThermoSimulation();
+                    });
+                }
+
+                if (stopButton) {
+                    stopButton.addEventListener('click', () => {
+                        this.stopThermoSimulation();
+                    });
+                }
+
+                if (resetButton) {
+                    resetButton.addEventListener('click', () => {
+                        this.resetThermoSimulation();
+                    });
+                }
+
+                // 初始化气体分子数组
+                this.gasMolecules = [];
+            }
+
+            updateThermoSimulation() {
+                if (!this.isRunning.thermo) return;
+                this.simulateIdealGas();
+            }
+
+            startThermoSimulation() {
+                this.isRunning.thermo = true;
+                this.initializeGasMolecules();
+                
+                if (!this.animations.thermo) {
+                    this.animations.thermo = setInterval(() => {
+                        this.updateThermoSimulation();
+                    }, 50);
+                }
+            }
+
+            stopThermoSimulation() {
+                this.isRunning.thermo = false;
+                if (this.animations.thermo) {
+                    clearInterval(this.animations.thermo);
+                    this.animations.thermo = null;
+                }
+            }
+
+            resetThermoSimulation() {
+                this.stopThermoSimulation();
+                this.gasMolecules = [];
+                const canvas = this.canvases.thermo;
+                const ctx = this.contexts.thermo;
+                if (canvas && ctx) {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            initializeGasMolecules() {
+                const canvas = this.canvases.thermo;
+                if (!canvas) return;
+                
+                this.gasMolecules = [];
+                const numMolecules = 50;
+                
+                for (let i = 0; i < numMolecules; i++) {
+                    this.gasMolecules.push({
+                        x: Math.random() * (canvas.width - 20) + 10,
+                        y: Math.random() * (canvas.height - 20) + 10,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        radius: 3
+                    });
+                }
+            }
+
+            simulateIdealGas() {
+                const canvas = this.canvases.thermo;
+                const ctx = this.contexts.thermo;
+                
+                if (!canvas || !ctx) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const temperature = parseFloat(document.getElementById('temperature')?.value || 300);
+                const pressure = parseFloat(document.getElementById('pressure')?.value || 1);
+                const volume = parseFloat(document.getElementById('volume')?.value || 1);
+                
+                // 根据温度调整分子速度
+                const speedFactor = Math.sqrt(temperature / 300);
+                
+                // 更新分子位置
+                this.gasMolecules.forEach(molecule => {
+                    molecule.x += molecule.vx * speedFactor;
+                    molecule.y += molecule.vy * speedFactor;
+                    
+                    // 边界碰撞
+                    if (molecule.x <= molecule.radius || molecule.x >= canvas.width - molecule.radius) {
+                        molecule.vx *= -1;
+                        molecule.x = Math.max(molecule.radius, Math.min(canvas.width - molecule.radius, molecule.x));
+                    }
+                    if (molecule.y <= molecule.radius || molecule.y >= canvas.height - molecule.radius) {
+                        molecule.vy *= -1;
+                        molecule.y = Math.max(molecule.radius, Math.min(canvas.height - molecule.radius, molecule.y));
+                    }
+                });
+                
+                // 绘制分子
+                ctx.fillStyle = '#e74c3c';
+                this.gasMolecules.forEach(molecule => {
+                    ctx.beginPath();
+                    ctx.arc(molecule.x, molecule.y, molecule.radius, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+                
+                // 绘制容器
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                
+                // 显示信息
+                const infoElement = document.getElementById('thermo-info');
+                if (infoElement) {
+                    const avgKineticEnergy = this.calculateAverageKineticEnergy();
+                    infoElement.innerHTML = `
+                        <strong>理想气体模拟</strong><br>
+                        温度: ${temperature.toFixed(1)} K<br>
+                        压强: ${pressure.toFixed(1)} atm<br>
+                        体积: ${volume.toFixed(1)} L<br>
+                        分子数: ${this.gasMolecules.length}<br>
+                        平均动能: ${avgKineticEnergy.toFixed(2)} J
+                    `;
+                }
+            }
+
+            calculateAverageKineticEnergy() {
+                if (this.gasMolecules.length === 0) return 0;
+                
+                const totalKE = this.gasMolecules.reduce((sum, molecule) => {
+                    const speed = Math.sqrt(molecule.vx * molecule.vx + molecule.vy * molecule.vy);
+                    return sum + 0.5 * speed * speed; // 假设质量为1
+                }, 0);
+                
+                return totalKE / this.gasMolecules.length;
             }
 
             calculateElectricFlux() {
