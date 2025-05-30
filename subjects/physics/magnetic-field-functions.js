@@ -137,4 +137,87 @@ if (typeof PhysicsSimulator !== 'undefined') {
         ctx.textAlign = 'center';
         ctx.fillText('亥姆霍兹线圈 I = ' + current.toFixed(1) + ' A', centerX, centerY + coilRadius + 35);
     };
+    
+    PhysicsSimulator.prototype.updateMagneticFieldInfo = function(current, wireType) {
+        const infoElement = document.getElementById('em-info');
+        if (!infoElement) return;
+        
+        // 物理常数
+        const mu0 = 4 * Math.PI * 1e-7; // 真空磁导率 H/m
+        
+        // 根据导线类型计算相关参数
+        let maxFieldStrength = 0;
+        let fieldDescription = '';
+        let physicsFormula = '';
+        let practicalInfo = '';
+        
+        switch (wireType) {
+            case 'straight':
+                maxFieldStrength = mu0 * current / (2 * Math.PI * 0.01); // 距离1cm处
+                fieldDescription = '无限长直导线磁场';
+                physicsFormula = 'B = μ₀I/(2πr)';
+                practicalInfo = '磁场呈同心圆分布，距离导线越远磁场越弱';
+                break;
+                
+            case 'loop':
+                const loopRadius = 0.05; // 5cm
+                maxFieldStrength = mu0 * current / (2 * loopRadius);
+                fieldDescription = '圆形载流线圈磁场';
+                physicsFormula = 'B = μ₀I/(2R) (中心处)';
+                practicalInfo = '线圈中心磁场最强，沿轴线方向分布';
+                break;
+                
+            case 'solenoid':
+                const turnsPerMeter = 1000; // 假设1000匝/米
+                maxFieldStrength = mu0 * turnsPerMeter * current;
+                fieldDescription = '螺线管内部磁场';
+                physicsFormula = 'B = μ₀nI (内部均匀)';
+                practicalInfo = '内部磁场均匀，外部磁场很弱';
+                break;
+                
+            case 'helmholtz':
+                const helmholtzRadius = 0.05; // 5cm
+                maxFieldStrength = (8/125) * mu0 * current / helmholtzRadius;
+                fieldDescription = '亥姆霍兹线圈磁场';
+                physicsFormula = 'B = (8/5√5) × μ₀I/R (中心处)';
+                practicalInfo = '中心区域磁场高度均匀，常用于精密测量';
+                break;
+        }
+        
+        // 计算其他相关量
+        const magneticFlux = maxFieldStrength * 0.01; // 假设面积1cm²
+        const magneticEnergy = (maxFieldStrength * maxFieldStrength) / (2 * mu0);
+        
+        // 安全提示
+        let safetyWarning = '';
+        if (current > 10) {
+            safetyWarning = '<span style="color: #ff6600;">⚠️ 大电流警告：注意散热和安全</span><br>';
+        }
+        
+        infoElement.innerHTML = `
+            <strong>磁场分析</strong><br>
+            <strong>基本信息:</strong><br>
+            磁场类型: ${fieldDescription}<br>
+            电流强度: ${current.toFixed(2)} A<br>
+            最大磁感应强度: ${(maxFieldStrength * 1000).toFixed(2)} mT<br>
+            磁通量: ${(magneticFlux * 1000).toFixed(2)} mWb<br>
+            磁能密度: ${(magneticEnergy / 1000).toFixed(2)} kJ/m³<br>
+            <br>
+            <strong>核心公式:</strong><br>
+            ${physicsFormula}<br>
+            <br>
+            <strong>物理常数:</strong><br>
+            真空磁导率: μ₀ = 4π×10⁻⁷ H/m<br>
+            <br>
+            <strong>特性说明:</strong><br>
+            ${practicalInfo}<br>
+            <br>
+            ${safetyWarning}
+            <strong>操作提示:</strong><br>
+            • 调节电流滑块观察磁场变化<br>
+            • 切换磁场类型对比不同形态<br>
+            • 磁感线密度反映磁场强度<br>
+            • 蓝色线为磁感应强度等值线
+        `;
+    };
 } 
