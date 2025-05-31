@@ -38,7 +38,7 @@
             display: flex;
             align-items: center;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .title-icon {
@@ -166,6 +166,7 @@
             border-left: 4px solid #4361ee;
             transition: all 0.3s ease;
             cursor: pointer;
+            overflow-x: auto;
         }
 
         .formula-item:hover {
@@ -179,6 +180,9 @@
             font-size: 1.2rem;
             margin-bottom: 0.8rem;
             font-weight: 500;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 0.5rem;
         }
 
         .formula-description {
@@ -206,6 +210,7 @@
             border-left: 3px solid #22c55e;
             font-size: 0.9rem;
             line-height: 1.5;
+            overflow-x: auto;
         }
 
         .formula-example-title {
@@ -232,11 +237,21 @@
             color: #4361ee;
         }
 
+        /* MathJax mobile optimization */
+        .MathJax {
+            font-size: 1rem !important;
+        }
+
         @media (max-width: 768px) {
+            .hero-section {
+                padding: 1rem 0;
+            }
+
             .title-section {
                 flex-direction: column;
                 text-align: center;
                 gap: 1rem;
+                margin-bottom: 1.5rem;
             }
 
             .title-icon {
@@ -249,17 +264,64 @@
                 font-size: 2rem;
             }
 
+            .subtitle {
+                font-size: 1rem;
+                text-align: center;
+            }
+
             .formula-container {
-                padding: 1.5rem;
+                padding: 1rem;
                 margin: 1rem 0;
             }
 
             .formula-section h2 {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
+                flex-wrap: wrap;
+            }
+
+            .formula-section h3 {
+                font-size: 1.1rem;
+                padding-left: 0.8rem;
             }
 
             .formula-item {
                 padding: 1rem;
+                margin: 0.8rem 0;
+            }
+
+            .formula-text {
+                font-size: 1rem;
+                overflow-x: auto;
+                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+                scrollbar-color: #4361ee #f1f5f9;
+            }
+
+            /* Custom scrollbar for webkit browsers */
+            .formula-text::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .formula-text::-webkit-scrollbar-track {
+                background: #f1f5f9;
+                border-radius: 2px;
+            }
+
+            .formula-text::-webkit-scrollbar-thumb {
+                background: #4361ee;
+                border-radius: 2px;
+            }
+
+            .formula-example {
+                font-size: 0.85rem;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .formula-explanation {
+                font-size: 0.85rem;
+                padding: 0.8rem;
             }
 
             .category-filters {
@@ -270,6 +332,27 @@
             .filter-btn {
                 padding: 0.6rem 1rem;
                 font-size: 0.8rem;
+                min-width: 60px;
+            }
+
+            /* Math expressions mobile handling */
+            .MathJax {
+                font-size: 0.9rem !important;
+                max-width: 100%;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+            }
+
+            .MathJax_Display {
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* Long formula handling */
+            .formula-item mjx-container {
+                overflow-x: auto !important;
+                max-width: 100% !important;
             }
         }
     </style>
@@ -319,10 +402,6 @@
                             <h1>数学<span class="gradient-text">公式参考</span></h1>
                             <p class="subtitle">中学数学核心公式速查手册，涵盖代数、几何、三角函数、统计等重要内容</p>
                         </div>
-                    </div>
-                    
-                    <div class="search-container">
-                        <input type="text" class="search-box" id="formulaSearch" placeholder="搜索公式...">
                     </div>
 
                     <div class="category-filters">
@@ -858,38 +937,9 @@
     <script src="../../js/navigation.js"></script>
     
     <script>
-        // 搜索功能
-        const searchBox = document.getElementById('formulaSearch');
-        const formulaItems = document.querySelectorAll('.formula-item');
-        const formulaContainers = document.querySelectorAll('.formula-container');
-
-        searchBox.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase();
-            
-            formulaItems.forEach(item => {
-                const formulaText = item.querySelector('.formula-text').textContent.toLowerCase();
-                const description = item.querySelector('.formula-description').textContent.toLowerCase();
-                
-                if (formulaText.includes(searchTerm) || description.includes(searchTerm)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            // 隐藏空的容器
-            formulaContainers.forEach(container => {
-                const visibleItems = container.querySelectorAll('.formula-item[style="display: flex;"], .formula-item:not([style*="display: none"])');
-                if (visibleItems.length === 0) {
-                    container.style.display = 'none';
-                } else {
-                    container.style.display = 'block';
-                }
-            });
-        });
-
         // 分类筛选功能
         const filterButtons = document.querySelectorAll('.filter-btn');
+        const formulaContainers = document.querySelectorAll('.formula-container');
 
         filterButtons.forEach(button => {
             button.addEventListener('click', function() {
@@ -907,12 +957,6 @@
                         container.style.display = 'none';
                     }
                 });
-
-                // 清空搜索框
-                searchBox.value = '';
-                formulaItems.forEach(item => {
-                    item.style.display = 'flex';
-                });
             });
         });
 
@@ -926,6 +970,33 @@
                 this.classList.toggle('active');
             });
         }
+
+        // 优化 MathJax 在移动端的显示
+        window.MathJax = window.MathJax || {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: {
+                fontCache: 'global'
+            },
+            startup: {
+                ready: function () {
+                    MathJax.startup.defaultReady();
+                    // 在移动设备上优化公式显示
+                    if (window.innerWidth <= 768) {
+                        const style = document.createElement('style');
+                        style.innerHTML = `
+                            mjx-container {
+                                overflow-x: auto !important;
+                                max-width: 100% !important;
+                            }
+                        `;
+                        document.head.appendChild(style);
+                    }
+                }
+            }
+        };
     </script>
 </body>
 </html> 
