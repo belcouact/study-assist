@@ -2,524 +2,358 @@
  * 光学模拟器模块
  */
 class OpticsSimulator {
-    constructor() {
-        this.currentType = 'refraction';
-        this.refractiveIndex1 = 1.0; // 空气
-        this.refractiveIndex2 = 1.5; // 玻璃
-        this.incidentAngle = 30;
-        this.wavelength = 550; // 纳米
-        this.lightRays = [];
+    constructor(physicsSimulator) {
+        this.physicsSimulator = physicsSimulator;
+        this.currentType = 'reflection';
+        this.isRunning = false;
+        this.animationId = null;
         
         this.init();
     }
 
     init() {
         this.setupControls();
-        this.createInitialRays();
     }
 
     setupControls() {
         const typeSelect = document.getElementById('optics-type');
-        const startBtn = document.getElementById('optics-start');
-        const pauseBtn = document.getElementById('optics-pause');
-        const resetBtn = document.getElementById('optics-reset');
+        const startBtn = document.getElementById('start-optics');
+        const resetBtn = document.getElementById('reset-optics');
 
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => {
-                this.currentType = e.target.value;
-                this.updateSpecificControls();
+                this.switchOpticsType(e.target.value);
             });
         }
 
-        if (startBtn) startBtn.addEventListener('click', () => this.startSimulation());
-        if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseSimulation());
-        if (resetBtn) resetBtn.addEventListener('click', () => this.resetSimulation());
-
-        this.updateSpecificControls();
-    }
-
-    updateSpecificControls() {
-        const container = document.getElementById('optics-specific-controls');
-        if (!container) return;
-
-        let html = '';
-        
-        switch (this.currentType) {
-            case 'refraction':
-                html = `
-                    <div class="control-group">
-                        <label for="n1">介质1折射率</label>
-                        <input type="range" id="n1" class="control-slider" 
-                               min="1.0" max="2.0" step="0.1" value="${this.refractiveIndex1}">
-                        <span id="n1-value">${this.refractiveIndex1}</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="n2">介质2折射率</label>
-                        <input type="range" id="n2" class="control-slider" 
-                               min="1.0" max="3.0" step="0.1" value="${this.refractiveIndex2}">
-                        <span id="n2-value">${this.refractiveIndex2}</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="incident-angle">入射角 (度)</label>
-                        <input type="range" id="incident-angle" class="control-slider" 
-                               min="0" max="90" step="1" value="${this.incidentAngle}">
-                        <span id="angle-value">${this.incidentAngle}°</span>
-                    </div>
-                `;
-                break;
-                
-            case 'reflection':
-                html = `
-                    <div class="control-group">
-                        <label for="mirror-type">镜面类型</label>
-                        <select id="mirror-type" class="control-input">
-                            <option value="plane">平面镜</option>
-                            <option value="concave">凹面镜</option>
-                            <option value="convex">凸面镜</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label for="focal-length">焦距 (cm)</label>
-                        <input type="range" id="focal-length" class="control-slider" 
-                               min="10" max="100" step="5" value="50">
-                        <span id="focal-value">50 cm</span>
-                    </div>
-                `;
-                break;
-                
-            case 'interference':
-                html = `
-                    <div class="control-group">
-                        <label for="slit-separation">双缝间距 (μm)</label>
-                        <input type="range" id="slit-separation" class="control-slider" 
-                               min="1" max="100" step="1" value="20">
-                        <span id="separation-value">20 μm</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="screen-distance">屏幕距离 (m)</label>
-                        <input type="range" id="screen-distance" class="control-slider" 
-                               min="0.5" max="5" step="0.1" value="2">
-                        <span id="distance-value">2 m</span>
-                    </div>
-                `;
-                break;
-                
-            case 'diffraction':
-                html = `
-                    <div class="control-group">
-                        <label for="slit-width">单缝宽度 (μm)</label>
-                        <input type="range" id="slit-width" class="control-slider" 
-                               min="1" max="50" step="1" value="10">
-                        <span id="width-value">10 μm</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="wavelength">光波长 (nm)</label>
-                        <input type="range" id="wavelength" class="control-slider" 
-                               min="400" max="700" step="10" value="${this.wavelength}">
-                        <span id="wavelength-value">${this.wavelength} nm</span>
-                    </div>
-                `;
-                break;
-        }
-
-        container.innerHTML = html;
-        this.setupDynamicControls();
-    }
-
-    setupDynamicControls() {
-        const sliders = document.querySelectorAll('#optics-specific-controls .control-slider');
-        sliders.forEach(slider => {
-            slider.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                const valueSpan = document.getElementById(e.target.id + '-value');
-                
-                if (valueSpan) {
-                    switch (e.target.id) {
-                        case 'n1':
-                            this.refractiveIndex1 = value;
-                            valueSpan.textContent = value.toFixed(1);
-                            break;
-                        case 'n2':
-                            this.refractiveIndex2 = value;
-                            valueSpan.textContent = value.toFixed(1);
-                            break;
-                        case 'incident-angle':
-                            this.incidentAngle = value;
-                            valueSpan.textContent = `${value}°`;
-                            break;
-                        case 'focal-length':
-                            valueSpan.textContent = `${value} cm`;
-                            break;
-                        case 'slit-separation':
-                            valueSpan.textContent = `${value} μm`;
-                            break;
-                        case 'screen-distance':
-                            valueSpan.textContent = `${value} m`;
-                            break;
-                        case 'slit-width':
-                            valueSpan.textContent = `${value} μm`;
-                            break;
-                        case 'wavelength':
-                            this.wavelength = value;
-                            valueSpan.textContent = `${value} nm`;
-                            break;
-                    }
-                    
-                    this.updateOpticsInfo();
-                }
-            });
-        });
-    }
-
-    createInitialRays() {
-        this.lightRays = [
-            { x: 50, y: 200, angle: this.incidentAngle * Math.PI / 180, intensity: 1.0 }
+        // Add event listeners for optics sliders
+        const sliders = [
+            'incident-angle', 'refractive-index-1', 'refractive-index-2',
+            'focal-length', 'object-distance', 'light-wavelength', 
+            'slit-spacing', 'screen-distance'
         ];
-    }
 
-    startSimulation() {
-        physicsSimulator.startAnimation('optics', () => {
-            this.updateSimulation();
-            this.drawSimulation();
+        sliders.forEach(sliderId => {
+            const slider = document.getElementById(sliderId);
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    const valueSpan = document.getElementById('incident-angle-value') ||
+                                     document.getElementById('n1-value') ||
+                                     document.getElementById('n2-value') ||
+                                     document.getElementById('focal-length-value') ||
+                                     document.getElementById('object-distance-value') ||
+                                     document.getElementById('wavelength-value') ||
+                                     document.getElementById('slit-spacing-value') ||
+                                     document.getElementById('screen-distance-value');
+                    if (valueSpan) {
+                        valueSpan.textContent = e.target.value;
+                    }
+                });
+            }
         });
+
+        if (startBtn) startBtn.addEventListener('click', () => this.startOpticsSimulation());
+        if (resetBtn) resetBtn.addEventListener('click', () => this.resetOpticsSimulation());
     }
 
-    pauseSimulation() {
-        physicsSimulator.pauseAnimation('optics');
+    switchOpticsType(type) {
+        document.getElementById('reflection-controls').style.display = 
+            type === 'reflection' ? 'block' : 'none';
+        document.getElementById('refraction-controls').style.display = 
+            type === 'refraction' ? 'block' : 'none';
+        document.getElementById('lens-controls').style.display = 
+            type === 'lens' ? 'block' : 'none';
+        document.getElementById('interference-controls').style.display = 
+            type === 'interference' ? 'block' : 'none';
     }
 
-    resetSimulation() {
-        physicsSimulator.resetSimulation('optics');
-        this.createInitialRays();
-    }
-
-    updateSimulation() {
-        physicsSimulator.simulationTime += physicsSimulator.timeStep;
-    }
-
-    drawSimulation() {
-        const canvas = physicsSimulator.canvases.optics;
-        const ctx = physicsSimulator.contexts.optics;
+    startOpticsSimulation() {
+        const type = document.getElementById('optics-type').value;
         
-        if (!canvas || !ctx) return;
+        if (type === 'reflection') {
+            this.simulateReflection();
+        } else if (type === 'refraction') {
+            this.simulateRefraction();
+        } else if (type === 'lens') {
+            this.simulateLens();
+        } else if (type === 'interference') {
+            this.simulateInterference();
+        }
+    }
 
+    simulateReflection() {
+        const canvas = this.physicsSimulator.canvases.optics;
+        const ctx = this.physicsSimulator.contexts.optics;
+        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        switch (this.currentType) {
-            case 'refraction':
-                this.drawRefraction(ctx, canvas);
-                break;
-            case 'reflection':
-                this.drawReflection(ctx, canvas);
-                break;
-            case 'interference':
-                this.drawInterference(ctx, canvas);
-                break;
-            case 'diffraction':
-                this.drawDiffraction(ctx, canvas);
-                break;
+        const incidentAngle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
+        const mirrorType = document.getElementById('mirror-type').value;
+
+        if (mirrorType === 'plane') {
+            // 平面镜反射
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 100);
+            ctx.lineTo(canvas.width / 2, canvas.height - 100);
+            ctx.stroke();
+
+            // 法线
+            ctx.strokeStyle = '#ccc';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2);
+            ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 入射光线
+            const incidentX = canvas.width / 2 - 150 * Math.sin(incidentAngle);
+            const incidentY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
+            
+            ctx.strokeStyle = '#ffeb3b';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(incidentX, incidentY);
+            ctx.lineTo(canvas.width / 2, canvas.height / 2);
+            ctx.stroke();
+
+            // 反射光线
+            const reflectedX = canvas.width / 2 + 150 * Math.sin(incidentAngle);
+            const reflectedY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
+            
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, canvas.height / 2);
+            ctx.lineTo(reflectedX, reflectedY);
+            ctx.stroke();
+
+            document.getElementById('optics-info').innerHTML = `
+                入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
+                反射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
+                反射定律: 入射角 = 反射角
+            `;
         }
     }
 
-    drawRefraction(ctx, canvas) {
-        const interfaceX = canvas.width / 2;
+    simulateRefraction() {
+        const canvas = this.physicsSimulator.canvases.optics;
+        const ctx = this.physicsSimulator.contexts.optics;
         
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const incidentAngle = parseFloat(document.getElementById('incident-angle').value) * Math.PI / 180;
+        const n1 = parseFloat(document.getElementById('refractive-index-1').value);
+        const n2 = parseFloat(document.getElementById('refractive-index-2').value);
+
+        // 计算折射角 (斯涅尔定律)
+        const sinRefracted = (n1 / n2) * Math.sin(incidentAngle);
+        const refractedAngle = Math.asin(Math.min(1, Math.abs(sinRefracted)));
+
         // 绘制界面
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 3;
+        ctx.fillStyle = 'rgba(67, 97, 238, 0.1)';
+        ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+        
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2);
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+
+        // 绘制法线
+        ctx.strokeStyle = '#ccc';
+        ctx.lineWidth = 1;
         ctx.setLineDash([5, 5]);
         ctx.beginPath();
-        ctx.moveTo(interfaceX, 0);
-        ctx.lineTo(interfaceX, canvas.height);
+        ctx.moveTo(canvas.width / 2, 100);
+        ctx.lineTo(canvas.width / 2, canvas.height - 100);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 法线
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(interfaceX, 0);
-        ctx.lineTo(interfaceX, canvas.height);
-        ctx.stroke();
-
-        const incidentY = canvas.height / 2;
-        const rayLength = 150;
+        // 绘制入射光线
+        const incidentX = canvas.width / 2 - 150 * Math.sin(incidentAngle);
+        const incidentY = canvas.height / 2 - 150 * Math.cos(incidentAngle);
         
-        // 入射光线
-        ctx.strokeStyle = '#ff4444';
-        ctx.lineWidth = 3;
-        const incidentAngleRad = this.incidentAngle * Math.PI / 180;
-        const startX = interfaceX - rayLength * Math.cos(incidentAngleRad);
-        const startY = incidentY - rayLength * Math.sin(incidentAngleRad);
-        
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(interfaceX, incidentY);
-        ctx.stroke();
-
-        // 计算折射角
-        const sinRefracted = (this.refractiveIndex1 / this.refractiveIndex2) * Math.sin(incidentAngleRad);
-        
-        if (Math.abs(sinRefracted) <= 1) {
-            // 折射光线
-            const refractedAngle = Math.asin(sinRefracted);
-            ctx.strokeStyle = '#4444ff';
-            const endX = interfaceX + rayLength * Math.cos(refractedAngle);
-            const endY = incidentY + rayLength * Math.sin(refractedAngle);
-            
-            ctx.beginPath();
-            ctx.moveTo(interfaceX, incidentY);
-            ctx.lineTo(endX, endY);
-            ctx.stroke();
-        }
-
-        // 反射光线
-        ctx.strokeStyle = '#44ff44';
-        ctx.lineWidth = 2;
-        const reflectedEndX = interfaceX - rayLength * Math.cos(incidentAngleRad);
-        const reflectedEndY = incidentY + rayLength * Math.sin(incidentAngleRad);
-        
-        ctx.beginPath();
-        ctx.moveTo(interfaceX, incidentY);
-        ctx.lineTo(reflectedEndX, reflectedEndY);
-        ctx.stroke();
-
-        // 标签
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`n₁ = ${this.refractiveIndex1}`, interfaceX - 80, 30);
-        ctx.fillText(`n₂ = ${this.refractiveIndex2}`, interfaceX + 80, 30);
-        ctx.fillText(`θ₁ = ${this.incidentAngle}°`, startX - 20, startY - 10);
-        
-        if (Math.abs(sinRefracted) <= 1) {
-            const refractedAngleDeg = Math.asin(sinRefracted) * 180 / Math.PI;
-            ctx.fillText(`θ₂ = ${refractedAngleDeg.toFixed(1)}°`, interfaceX + 60, incidentY + 30);
-        }
-    }
-
-    drawReflection(ctx, canvas) {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        
-        // 绘制镜面
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(centerX - 100, centerY + 50);
-        ctx.lineTo(centerX + 100, centerY + 50);
-        ctx.stroke();
-
-        // 入射光线
         ctx.strokeStyle = '#ffeb3b';
         ctx.lineWidth = 3;
-        const rayStartX = centerX - 80;
-        const rayStartY = centerY - 60;
-        
         ctx.beginPath();
-        ctx.moveTo(rayStartX, rayStartY);
-        ctx.lineTo(centerX, centerY + 50);
+        ctx.moveTo(incidentX, incidentY);
+        ctx.lineTo(canvas.width / 2, canvas.height / 2);
         ctx.stroke();
 
-        // 反射光线
-        const reflectedEndX = centerX + 80;
-        const reflectedEndY = centerY - 60;
-        
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY + 50);
-        ctx.lineTo(reflectedEndX, reflectedEndY);
-        ctx.stroke();
+        // 绘制折射光线
+        if (sinRefracted <= 1) {
+            const refractedX = canvas.width / 2 + 150 * Math.sin(refractedAngle);
+            const refractedY = canvas.height / 2 + 150 * Math.cos(refractedAngle);
+            
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, canvas.height / 2);
+            ctx.lineTo(refractedX, refractedY);
+            ctx.stroke();
+        }
 
-        // 法线
-        ctx.strokeStyle = '#999';
+        // 更新信息
+        document.getElementById('optics-info').innerHTML = `
+            入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
+            折射角: ${sinRefracted <= 1 ? (refractedAngle * 180 / Math.PI).toFixed(1) + '°' : '全反射'}<br>
+            n₁ = ${n1}, n₂ = ${n2}<br>
+            ${sinRefracted > 1 ? '发生全反射！' : ''}
+        `;
+    }
+
+    simulateLens() {
+        const canvas = this.physicsSimulator.canvases.optics;
+        const ctx = this.physicsSimulator.contexts.optics;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const focalLength = parseFloat(document.getElementById('focal-length').value);
+        const objectDistance = parseFloat(document.getElementById('object-distance').value);
+        const lensType = document.getElementById('lens-type').value;
+
+        const lensX = canvas.width / 2;
+        const scale = 5; // 像素/cm
+
+        // 绘制透镜
+        ctx.strokeStyle = '#4361ee';
+        ctx.lineWidth = 4;
+        if (lensType === 'convex') {
+            // 凸透镜
+            ctx.beginPath();
+            ctx.arc(lensX - 20, canvas.height / 2, 100, -Math.PI/6, Math.PI/6);
+            ctx.arc(lensX + 20, canvas.height / 2, 100, Math.PI - Math.PI/6, Math.PI + Math.PI/6);
+            ctx.stroke();
+        } else {
+            // 凹透镜
+            ctx.beginPath();
+            ctx.arc(lensX + 60, canvas.height / 2, 100, Math.PI - Math.PI/6, Math.PI + Math.PI/6);
+            ctx.arc(lensX - 60, canvas.height / 2, 100, -Math.PI/6, Math.PI/6);
+            ctx.stroke();
+        }
+
+        // 绘制光轴
+        ctx.strokeStyle = '#ccc';
         ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
+        ctx.setLineDash([5, 5]);
         ctx.beginPath();
-        ctx.moveTo(centerX, centerY + 50);
-        ctx.lineTo(centerX, centerY - 80);
+        ctx.moveTo(50, canvas.height / 2);
+        ctx.lineTo(canvas.width - 50, canvas.height / 2);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('平面镜反射', centerX, centerY + 80);
+        // 绘制物体
+        const objectX = lensX - objectDistance * scale;
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(objectX, canvas.height / 2);
+        ctx.lineTo(objectX, canvas.height / 2 - 40);
+        ctx.stroke();
+
+        // 计算像距
+        let imageDistance;
+        if (lensType === 'convex') {
+            imageDistance = (focalLength * objectDistance) / (objectDistance - focalLength);
+        } else {
+            imageDistance = -(focalLength * objectDistance) / (objectDistance + focalLength);
+        }
+
+        if (isFinite(imageDistance)) {
+            const imageX = lensX + imageDistance * scale;
+            const magnification = -imageDistance / objectDistance;
+            
+            // 绘制像
+            ctx.strokeStyle = magnification > 0 ? '#4361ee' : '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(imageX, canvas.height / 2);
+            ctx.lineTo(imageX, canvas.height / 2 - 40 * magnification);
+            ctx.stroke();
+
+            document.getElementById('optics-info').innerHTML = `
+                物距: ${objectDistance}cm<br>
+                焦距: ${focalLength}cm<br>
+                像距: ${imageDistance.toFixed(1)}cm<br>
+                放大倍数: ${magnification.toFixed(2)}<br>
+                像的性质: ${magnification > 0 ? '正立' : '倒立'}，${Math.abs(magnification) > 1 ? '放大' : '缩小'}
+            `;
+        } else {
+            document.getElementById('optics-info').innerHTML = `
+                物距: ${objectDistance}cm<br>
+                焦距: ${focalLength}cm<br>
+                无法成像（物体在焦点上）
+            `;
+        }
     }
 
-    drawInterference(ctx, canvas) {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
+    simulateInterference() {
+        const canvas = this.physicsSimulator.canvases.optics;
+        const ctx = this.physicsSimulator.contexts.optics;
         
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const wavelength = parseFloat(document.getElementById('light-wavelength').value);
+        const slitSpacing = parseFloat(document.getElementById('slit-spacing').value);
+        const screenDistance = parseFloat(document.getElementById('screen-distance').value);
+
         // 绘制双缝
+        const slitX = 200;
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 8;
-        const slitX = centerX - 150;
-        
-        // 上缝
+        ctx.lineWidth = 10;
         ctx.beginPath();
-        ctx.moveTo(slitX, centerY - 50);
-        ctx.lineTo(slitX, centerY - 10);
-        ctx.stroke();
-        
-        // 下缝
-        ctx.beginPath();
-        ctx.moveTo(slitX, centerY + 10);
-        ctx.lineTo(slitX, centerY + 50);
+        ctx.moveTo(slitX, 100);
+        ctx.lineTo(slitX, canvas.height / 2 - 30);
+        ctx.moveTo(slitX, canvas.height / 2 + 30);
+        ctx.lineTo(slitX, canvas.height - 100);
         ctx.stroke();
 
-        // 入射光
-        ctx.strokeStyle = '#ff6b6b';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 5; i++) {
-            const y = centerY - 40 + i * 20;
-            ctx.beginPath();
-            ctx.moveTo(50, y);
-            ctx.lineTo(slitX - 20, y);
-            ctx.stroke();
-        }
-
-        // 从两缝发出的光
-        ctx.strokeStyle = '#4ecdc4';
-        ctx.lineWidth = 1;
-        
-        const slit1Y = centerY - 5;
-        const slit2Y = centerY + 5;
-        const screenX = centerX + 150;
-        
-        // 干涉图样
-        for (let i = 0; i < 20; i++) {
-            const screenY = centerY - 100 + i * 10;
-            const path1 = Math.sqrt((screenX - slitX) ** 2 + (screenY - slit1Y) ** 2);
-            const path2 = Math.sqrt((screenX - slitX) ** 2 + (screenY - slit2Y) ** 2);
-            const pathDiff = Math.abs(path1 - path2);
-            const phase = (pathDiff / (this.wavelength * 1e-9)) * 2 * Math.PI;
-            const intensity = Math.cos(phase / 2) ** 2;
-            
-            ctx.fillStyle = `rgba(255, 255, 0, ${intensity})`;
-            ctx.fillRect(screenX, screenY - 2, 10, 4);
-        }
-
-        // 屏幕
+        // 绘制屏幕
+        const screenX = slitX + screenDistance * 100;
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(screenX, centerY - 120);
-        ctx.lineTo(screenX, centerY + 120);
+        ctx.moveTo(screenX, 100);
+        ctx.lineTo(screenX, canvas.height - 100);
         ctx.stroke();
 
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('双缝干涉', centerX, 30);
+        // 计算干涉条纹
+        const k = 2 * Math.PI / wavelength;
+        const slitSeparation = slitSpacing / 1000; // 转换为mm
+
+        // 绘制干涉条纹
+        for (let y = 100; y < canvas.height - 100; y += 2) {
+            const screenY = y - canvas.height / 2;
+            const pathDiff = slitSeparation * screenY / (screenDistance * 1000);
+            const phase = k * pathDiff;
+            const intensity = Math.pow(Math.cos(phase / 2), 2);
+            
+            const brightness = Math.floor(255 * intensity);
+            ctx.fillStyle = `rgb(${brightness}, ${brightness}, ${brightness})`;
+            ctx.fillRect(screenX - 5, y, 10, 2);
+        }
+
+        document.getElementById('optics-info').innerHTML = `
+            波长: ${wavelength}nm<br>
+            缝间距: ${slitSpacing}μm<br>
+            屏幕距离: ${screenDistance}m<br>
+            观察到明暗相间的干涉条纹
+        `;
     }
 
-    drawDiffraction(ctx, canvas) {
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        
-        // 绘制单缝
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 8;
-        const slitX = centerX - 100;
-        
-        // 缝隙上方
-        ctx.beginPath();
-        ctx.moveTo(slitX, 50);
-        ctx.lineTo(slitX, centerY - 10);
-        ctx.stroke();
-        
-        // 缝隙下方
-        ctx.beginPath();
-        ctx.moveTo(slitX, centerY + 10);
-        ctx.lineTo(slitX, canvas.height - 50);
-        ctx.stroke();
-
-        // 入射平行光
-        ctx.strokeStyle = '#ff9800';
-        ctx.lineWidth = 2;
-        for (let i = 0; i < 10; i++) {
-            const y = 80 + i * 30;
-            if (y < centerY - 10 || y > centerY + 10) continue;
-            ctx.beginPath();
-            ctx.moveTo(50, y);
-            ctx.lineTo(slitX - 20, y);
-            ctx.stroke();
+    resetOpticsSimulation() {
+        this.isRunning = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
-
-        // 衍射图样
-        const screenX = centerX + 120;
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(screenX, 50);
-        ctx.lineTo(screenX, canvas.height - 50);
-        ctx.stroke();
-
-        // 衍射强度分布
-        for (let i = 0; i < 50; i++) {
-            const screenY = 80 + i * 8;
-            const angle = Math.atan((screenY - centerY) / (screenX - slitX));
-            const beta = Math.PI * 10e-6 * Math.sin(angle) / (this.wavelength * 1e-9);
-            let intensity = 1;
-            
-            if (beta !== 0) {
-                intensity = (Math.sin(beta) / beta) ** 2;
-            }
-            
-            ctx.fillStyle = `rgba(255, 255, 0, ${intensity})`;
-            ctx.fillRect(screenX + 5, screenY - 2, 15, 4);
-        }
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('单缝衍射', centerX, 30);
-    }
-
-    updateOpticsInfo() {
-        const infoElement = document.getElementById('optics-info');
-        if (!infoElement) return;
-        
-        let content = '<h4>光学信息</h4>';
-        
-        switch (this.currentType) {
-            case 'refraction':
-                const criticalAngle = this.refractiveIndex1 > this.refractiveIndex2 ? 
-                    Math.asin(this.refractiveIndex2 / this.refractiveIndex1) * 180 / Math.PI : null;
-                
-                content += `
-                    <p><strong>斯涅尔定律:</strong> n₁sinθ₁ = n₂sinθ₂</p>
-                    <p><strong>入射角:</strong> ${this.incidentAngle}°</p>
-                    <p><strong>折射率比:</strong> ${(this.refractiveIndex2/this.refractiveIndex1).toFixed(2)}</p>
-                    ${criticalAngle ? `<p><strong>临界角:</strong> ${criticalAngle.toFixed(1)}°</p>` : ''}
-                `;
-                break;
-                
-            case 'reflection':
-                content += `
-                    <p><strong>反射定律:</strong> 入射角 = 反射角</p>
-                    <p><strong>镜面反射遵循几何光学原理</strong></p>
-                `;
-                break;
-                
-            case 'interference':
-                content += `
-                    <p><strong>干涉条件:</strong> 相干光源</p>
-                    <p><strong>光程差:</strong> Δ = d·sinθ</p>
-                    <p><strong>明纹条件:</strong> Δ = mλ (m = 0,±1,±2...)</p>
-                `;
-                break;
-                
-            case 'diffraction':
-                content += `
-                    <p><strong>衍射条件:</strong> 障碍物尺寸 ≈ 波长</p>
-                    <p><strong>波长:</strong> ${this.wavelength} nm</p>
-                    <p><strong>衍射角度与波长成正比</strong></p>
-                `;
-                break;
-        }
-        
-        infoElement.innerHTML = content;
+        this.physicsSimulator.contexts.optics.clearRect(
+            0, 0, 
+            this.physicsSimulator.canvases.optics.width, 
+            this.physicsSimulator.canvases.optics.height
+        );
+        document.getElementById('optics-info').textContent = '调整参数观察光线传播规律';
     }
 }
 
@@ -527,7 +361,7 @@ class OpticsSimulator {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (window.physicsSimulator) {
-            window.opticsSimulator = new OpticsSimulator();
+            window.opticsSimulator = new OpticsSimulator(window.physicsSimulator);
         }
     }, 100);
 }); 

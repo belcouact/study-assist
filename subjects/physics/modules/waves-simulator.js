@@ -2,547 +2,371 @@
  * 波动模拟器模块
  */
 class WavesSimulator {
-    constructor() {
-        this.currentType = 'mechanical';
-        this.frequency = 2.0; // Hz
-        this.amplitude = 50; // pixels
-        this.wavelength = 100; // pixels
-        this.waveSpeed = 200; // pixels/second
-        this.dampingFactor = 0.98;
-        this.waveData = [];
+    constructor(physicsSimulator) {
+        this.physicsSimulator = physicsSimulator;
+        this.currentType = 'transverse';
+        this.isRunning = false;
+        this.animationId = null;
+        this.time = 0;
         
         this.init();
     }
 
     init() {
         this.setupControls();
-        this.initializeWave();
+        this.updateWaveInfo();
     }
 
     setupControls() {
-        const typeSelect = document.getElementById('waves-type');
-        const startBtn = document.getElementById('waves-start');
-        const pauseBtn = document.getElementById('waves-pause');
-        const resetBtn = document.getElementById('waves-reset');
+        const typeSelect = document.getElementById('wave-type');
+        const startBtn = document.getElementById('start-waves');
+        const resetBtn = document.getElementById('reset-waves');
+        const pauseBtn = document.getElementById('pause-waves');
 
         if (typeSelect) {
             typeSelect.addEventListener('change', (e) => {
                 this.currentType = e.target.value;
-                this.updateSpecificControls();
             });
         }
 
-        if (startBtn) startBtn.addEventListener('click', () => this.startSimulation());
-        if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseSimulation());
-        if (resetBtn) resetBtn.addEventListener('click', () => this.resetSimulation());
+        if (document.getElementById('wave-frequency')) {
+            document.getElementById('wave-frequency').addEventListener('input', (e) => {
+                document.getElementById('frequency-value').textContent = e.target.value;
+                this.updateWaveInfo();
+            });
+        }
 
-        this.updateSpecificControls();
+        if (document.getElementById('wave-amplitude')) {
+            document.getElementById('wave-amplitude').addEventListener('input', (e) => {
+                document.getElementById('amplitude-value').textContent = e.target.value;
+            });
+        }
+
+        if (document.getElementById('wave-speed')) {
+            document.getElementById('wave-speed').addEventListener('input', (e) => {
+                document.getElementById('wave-speed-value').textContent = e.target.value;
+                this.updateWaveInfo();
+            });
+        }
+
+        if (startBtn) startBtn.addEventListener('click', () => this.startWavesSimulation());
+        if (resetBtn) resetBtn.addEventListener('click', () => this.resetWavesSimulation());
+        if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseWavesSimulation());
     }
 
-    updateSpecificControls() {
-        const container = document.getElementById('waves-specific-controls');
-        if (!container) return;
+    updateWaveInfo() {
+        const frequencyEl = document.getElementById('wave-frequency');
+        const speedEl = document.getElementById('wave-speed');
+        const wavelengthEl = document.getElementById('wavelength');
+        const periodEl = document.getElementById('period');
 
-        let html = '';
+        if (frequencyEl && speedEl && wavelengthEl && periodEl) {
+            const frequency = parseFloat(frequencyEl.value);
+            const speed = parseFloat(speedEl.value);
+            const wavelength = speed / frequency;
+            const period = 1 / frequency;
+
+            wavelengthEl.textContent = wavelength.toFixed(1) + 'm';
+            periodEl.textContent = period.toFixed(2) + 's';
+        }
+    }
+
+    startWavesSimulation() {
+        this.isRunning = true;
+        this.simulateWaves();
+    }
+
+    simulateWaves() {
+        const canvas = this.physicsSimulator.canvases.waves;
+        const ctx = this.physicsSimulator.contexts.waves;
         
-        switch (this.currentType) {
-            case 'mechanical':
-                html = `
-                    <div class="control-group">
-                        <label for="wave-frequency">频率 (Hz)</label>
-                        <input type="range" id="wave-frequency" class="control-slider" 
-                               min="0.5" max="5" step="0.1" value="${this.frequency}">
-                        <span id="frequency-value">${this.frequency} Hz</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="wave-amplitude">振幅</label>
-                        <input type="range" id="wave-amplitude" class="control-slider" 
-                               min="10" max="100" step="5" value="${this.amplitude}">
-                        <span id="amplitude-value">${this.amplitude}</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="wave-speed">波速 (m/s)</label>
-                        <input type="range" id="wave-speed" class="control-slider" 
-                               min="50" max="400" step="10" value="${this.waveSpeed}">
-                        <span id="speed-value">${this.waveSpeed}</span>
-                    </div>
-                `;
-                break;
-                
-            case 'sound':
-                html = `
-                    <div class="control-group">
-                        <label for="sound-frequency">音频 (Hz)</label>
-                        <input type="range" id="sound-frequency" class="control-slider" 
-                               min="100" max="2000" step="50" value="440">
-                        <span id="sound-freq-value">440 Hz</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="medium-density">介质密度</label>
-                        <input type="range" id="medium-density" class="control-slider" 
-                               min="0.5" max="2.0" step="0.1" value="1.0">
-                        <span id="density-value">1.0</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="temperature">温度 (°C)</label>
-                        <input type="range" id="temperature" class="control-slider" 
-                               min="-20" max="50" step="1" value="20">
-                        <span id="temp-value">20°C</span>
-                    </div>
-                `;
-                break;
-                
-            case 'standing':
-                html = `
-                    <div class="control-group">
-                        <label for="standing-frequency">频率 (Hz)</label>
-                        <input type="range" id="standing-frequency" class="control-slider" 
-                               min="1" max="10" step="0.5" value="3">
-                        <span id="standing-freq-value">3 Hz</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="boundary-type">边界条件</label>
-                        <select id="boundary-type" class="control-input">
-                            <option value="fixed">固定端</option>
-                            <option value="free">自由端</option>
-                            <option value="mixed">混合</option>
-                        </select>
-                    </div>
-                `;
-                break;
-                
-            case 'doppler':
-                html = `
-                    <div class="control-group">
-                        <label for="source-speed">波源速度 (m/s)</label>
-                        <input type="range" id="source-speed" class="control-slider" 
-                               min="0" max="100" step="5" value="30">
-                        <span id="source-speed-value">30 m/s</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="observer-speed">观察者速度 (m/s)</label>
-                        <input type="range" id="observer-speed" class="control-slider" 
-                               min="0" max="50" step="2" value="10">
-                        <span id="observer-speed-value">10 m/s</span>
-                    </div>
-                    <div class="control-group">
-                        <label for="original-frequency">原始频率 (Hz)</label>
-                        <input type="range" id="original-frequency" class="control-slider" 
-                               min="100" max="1000" step="50" value="500">
-                        <span id="original-freq-value">500 Hz</span>
-                    </div>
-                `;
-                break;
-        }
+        const frequency = parseFloat(document.getElementById('wave-frequency').value);
+        const amplitude = parseFloat(document.getElementById('wave-amplitude').value);
+        const speed = parseFloat(document.getElementById('wave-speed').value);
+        const type = document.getElementById('wave-type').value;
 
-        container.innerHTML = html;
-        this.setupDynamicControls();
-    }
+        const wavelength = speed / frequency;
+        const period = 1 / frequency;
+        const omega = 2 * Math.PI * frequency;
+        const k = 2 * Math.PI / wavelength;
 
-    setupDynamicControls() {
-        const sliders = document.querySelectorAll('#waves-specific-controls .control-slider');
-        sliders.forEach(slider => {
-            slider.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value);
-                const valueSpan = document.getElementById(e.target.id.replace(/^(.+)$/, '$1-value'));
-                
-                if (valueSpan) {
-                    switch (e.target.id) {
-                        case 'wave-frequency':
-                        case 'standing-frequency':
-                            this.frequency = value;
-                            valueSpan.textContent = `${value} Hz`;
-                            break;
-                        case 'wave-amplitude':
-                            this.amplitude = value;
-                            valueSpan.textContent = value;
-                            break;
-                        case 'wave-speed':
-                            this.waveSpeed = value;
-                            valueSpan.textContent = value;
-                            break;
-                        case 'sound-frequency':
-                            valueSpan.textContent = `${value} Hz`;
-                            break;
-                        case 'medium-density':
-                            valueSpan.textContent = value.toFixed(1);
-                            break;
-                        case 'temperature':
-                            valueSpan.textContent = `${value}°C`;
-                            break;
-                        case 'source-speed':
-                            valueSpan.textContent = `${value} m/s`;
-                            break;
-                        case 'observer-speed':
-                            valueSpan.textContent = `${value} m/s`;
-                            break;
-                        case 'original-frequency':
-                            valueSpan.textContent = `${value} Hz`;
-                            break;
-                    }
-                    
-                    this.updateWavesInfo();
-                }
-            });
-        });
-    }
+        const animate = () => {
+            if (!this.isRunning) return;
 
-    initializeWave() {
-        const canvas = physicsSimulator.canvases.waves;
-        if (canvas) {
-            this.waveData = [];
-            for (let x = 0; x < canvas.width; x += 2) {
-                this.waveData.push({
-                    x: x,
-                    y: canvas.height / 2,
-                    velocity: 0,
-                    phase: 0
-                });
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制坐标系和网格
+            this.drawWaveCoordinateSystem(ctx, canvas);
+
+            if (type === 'transverse') {
+                this.drawTransverseWave(ctx, canvas, amplitude, k, omega, this.time);
+            } else if (type === 'longitudinal') {
+                this.drawLongitudinalWave(ctx, canvas, amplitude, k, omega, this.time);
+            } else if (type === 'standing') {
+                this.drawStandingWave(ctx, canvas, amplitude, k, omega, this.time);
+            } else if (type === 'interference') {
+                this.drawWaveInterference(ctx, canvas, amplitude, k, omega, this.time);
             }
-        }
+
+            // 绘制波的参数信息
+            this.drawWaveParameters(ctx, canvas, frequency, amplitude, speed, wavelength, period);
+
+            // 绘制粒子运动轨迹
+            this.drawParticleMotion(ctx, canvas, type, amplitude, k, omega, this.time);
+
+            // 绘制能量密度分布
+            this.drawEnergyDensity(ctx, canvas, type, amplitude, k, omega, this.time);
+
+            // 绘制频谱分析
+            this.drawFrequencySpectrum(ctx, canvas, frequency, amplitude);
+
+            // 实时更新波的物理量
+            const instantaneousPower = this.calculateInstantaneousPower(amplitude, omega);
+            const energyDensity = this.calculateEnergyDensity(amplitude, frequency);
+            const intensity = this.calculateWaveIntensity(amplitude, frequency, speed);
+
+            document.getElementById('waves-info').innerHTML = `
+                <strong>波动分析:</strong><br>
+                频率: ${frequency.toFixed(2)} Hz<br>
+                波长: ${wavelength.toFixed(1)} m<br>
+                周期: ${period.toFixed(2)} s<br>
+                波速: ${speed} m/s<br>
+                振幅: ${amplitude} 单位<br>
+                <strong>能量分析:</strong><br>
+                瞬时功率: ${instantaneousPower.toFixed(3)} W<br>
+                能量密度: ${energyDensity.toFixed(3)} J/m³<br>
+                波强: ${intensity.toFixed(3)} W/m²<br>
+                <strong>波动类型:</strong><br>
+                ${this.getWaveTypeDescription(type)}<br>
+                <strong>物理现象:</strong><br>
+                • 波的反射和透射<br>
+                • 干涉和衍射效应<br>
+                • 多普勒效应<br>
+                • 能量传播分析
+            `;
+
+            this.time += 0.02;
+            this.animationId = requestAnimationFrame(animate);
+        };
+
+        animate();
     }
 
-    startSimulation() {
-        physicsSimulator.startAnimation('waves', () => {
-            this.updateSimulation();
-            this.drawSimulation();
-        });
-    }
-
-    pauseSimulation() {
-        physicsSimulator.pauseAnimation('waves');
-    }
-
-    resetSimulation() {
-        physicsSimulator.resetSimulation('waves');
-        this.initializeWave();
-    }
-
-    updateSimulation() {
-        physicsSimulator.simulationTime += physicsSimulator.timeStep;
-        
-        // 更新波的相位
-        const canvas = physicsSimulator.canvases.waves;
-        if (canvas && this.waveData.length > 0) {
-            const omega = 2 * Math.PI * this.frequency;
-            const k = 2 * Math.PI / this.wavelength;
-            
-            this.waveData.forEach((point, index) => {
-                switch (this.currentType) {
-                    case 'mechanical':
-                        point.phase = omega * physicsSimulator.simulationTime - k * point.x;
-                        point.y = canvas.height / 2 + this.amplitude * Math.sin(point.phase);
-                        break;
-                        
-                    case 'sound':
-                        // 声波压缩和稀疏
-                        point.phase = omega * physicsSimulator.simulationTime - k * point.x;
-                        const density = 1 + 0.3 * Math.sin(point.phase);
-                        point.density = density;
-                        break;
-                        
-                    case 'standing':
-                        // 驻波
-                        const amplitude = 2 * this.amplitude * Math.sin(k * point.x);
-                        point.y = canvas.height / 2 + amplitude * Math.cos(omega * physicsSimulator.simulationTime);
-                        break;
-                        
-                    case 'doppler':
-                        // 多普勒效应
-                        const sourcePosition = 100 + 50 * physicsSimulator.simulationTime;
-                        const distance = Math.abs(point.x - sourcePosition);
-                        const effectiveFreq = this.frequency * (1 + 0.3 * Math.sin(distance / 50));
-                        point.phase = 2 * Math.PI * effectiveFreq * physicsSimulator.simulationTime;
-                        point.y = canvas.height / 2 + this.amplitude * Math.sin(point.phase) * Math.exp(-distance / 200);
-                        break;
-                }
-            });
-        }
-    }
-
-    drawSimulation() {
-        const canvas = physicsSimulator.canvases.waves;
-        const ctx = physicsSimulator.contexts.waves;
-        
-        if (!canvas || !ctx) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        switch (this.currentType) {
-            case 'mechanical':
-                this.drawMechanicalWave(ctx, canvas);
-                break;
-            case 'sound':
-                this.drawSoundWave(ctx, canvas);
-                break;
-            case 'standing':
-                this.drawStandingWave(ctx, canvas);
-                break;
-            case 'doppler':
-                this.drawDopplerEffect(ctx, canvas);
-                break;
-        }
-
-        this.drawWaveInfo(ctx, canvas);
-    }
-
-    drawMechanicalWave(ctx, canvas) {
-        // 绘制波形
-        ctx.strokeStyle = '#4361ee';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-
-        this.waveData.forEach((point, index) => {
-            if (index === 0) {
-                ctx.moveTo(point.x, point.y);
-            } else {
-                ctx.lineTo(point.x, point.y);
-            }
-        });
-        ctx.stroke();
-
-        // 绘制参考线
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+    drawWaveCoordinateSystem(ctx, canvas) {
+        // Grid
+        ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
         ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([2, 2]);
+        
+        for (let x = 0; x <= canvas.width; x += 50) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+            ctx.stroke();
+        }
+        
+        for (let y = 0; y <= canvas.height; y += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // Axes
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, canvas.height / 2);
         ctx.lineTo(canvas.width, canvas.height / 2);
         ctx.stroke();
-        ctx.setLineDash([]);
-
-        // 绘制波长指示
-        const waveStartX = 50;
-        const waveEndX = waveStartX + this.wavelength;
-        
-        ctx.strokeStyle = '#ff6600';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(waveStartX, canvas.height - 40);
-        ctx.lineTo(waveEndX, canvas.height - 40);
-        ctx.stroke();
-
-        // 箭头
-        physicsSimulator.drawArrow(ctx, waveStartX, canvas.height - 40, waveEndX, canvas.height - 40, 6);
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('λ', (waveStartX + waveEndX) / 2, canvas.height - 20);
     }
 
-    drawSoundWave(ctx, canvas) {
-        // 绘制声波的压缩和稀疏
-        this.waveData.forEach((point, index) => {
-            const density = point.density || 1;
-            const alpha = Math.min(density, 1);
-            const radius = 2 + density;
-            
-            ctx.fillStyle = `rgba(67, 97, 238, ${alpha * 0.7})`;
-            ctx.beginPath();
-            ctx.arc(point.x, canvas.height / 2, radius, 0, 2 * Math.PI);
-            ctx.fill();
-        });
-
-        // 绘制压力波形
-        ctx.strokeStyle = '#e74c3c';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        this.waveData.forEach((point, index) => {
-            const pressure = (point.density || 1) - 1;
-            const y = canvas.height * 0.75 + pressure * 50;
-            
-            if (index === 0) {
-                ctx.moveTo(point.x, y);
-            } else {
-                ctx.lineTo(point.x, y);
-            }
-        });
-        ctx.stroke();
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('声波传播', 20, 30);
-        ctx.fillText('压力变化', 20, canvas.height * 0.75 - 20);
-    }
-
-    drawStandingWave(ctx, canvas) {
-        // 绘制驻波
-        ctx.strokeStyle = '#9c27b0';
+    drawTransverseWave(ctx, canvas, amplitude, k, omega, time) {
+        ctx.strokeStyle = '#4361ee';
         ctx.lineWidth = 3;
         ctx.beginPath();
 
-        this.waveData.forEach((point, index) => {
-            if (index === 0) {
-                ctx.moveTo(point.x, point.y);
+        for (let x = 0; x <= canvas.width; x += 2) {
+            const y = canvas.height / 2 + amplitude * Math.sin(k * x / 10 - omega * time);
+            if (x === 0) {
+                ctx.moveTo(x, y);
             } else {
-                ctx.lineTo(point.x, point.y);
+                ctx.lineTo(x, y);
             }
-        });
+        }
         ctx.stroke();
-
-        // 绘制节点和反节点
-        const nodeSpacing = this.wavelength / 2;
-        
-        for (let x = 0; x < canvas.width; x += nodeSpacing) {
-            // 节点（振幅为0的点）
-            ctx.fillStyle = '#e74c3c';
-            ctx.beginPath();
-            ctx.arc(x, canvas.height / 2, 4, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            ctx.fillStyle = '#333';
-            ctx.font = '10px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('N', x, canvas.height / 2 - 10);
-        }
-
-        // 反节点标记
-        for (let x = nodeSpacing / 2; x < canvas.width; x += nodeSpacing) {
-            ctx.fillStyle = '#27ae60';
-            ctx.beginPath();
-            ctx.arc(x, canvas.height / 2, 3, 0, 2 * Math.PI);
-            ctx.fill();
-            
-            ctx.fillStyle = '#333';
-            ctx.font = '10px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('A', x, canvas.height / 2 - 10);
-        }
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('驻波模式', 20, 30);
-        ctx.fillText('N-节点  A-反节点', 20, 50);
     }
 
-    drawDopplerEffect(ctx, canvas) {
-        // 绘制移动的波源
-        const sourceX = 100 + 50 * physicsSimulator.simulationTime;
-        const sourceY = canvas.height / 2;
+    drawLongitudinalWave(ctx, canvas, amplitude, k, omega, time) {
+        const particles = 50;
+        ctx.fillStyle = '#4361ee';
         
-        ctx.fillStyle = '#e74c3c';
-        ctx.beginPath();
-        ctx.arc(sourceX % canvas.width, sourceY, 8, 0, 2 * Math.PI);
-        ctx.fill();
+        for (let i = 0; i < particles; i++) {
+            const x0 = (i / particles) * canvas.width;
+            const displacement = amplitude * 0.5 * Math.sin(k * x0 / 10 - omega * time);
+            const x = x0 + displacement;
+            const density = 1 + 0.5 * Math.sin(k * x0 / 10 - omega * time);
+            
+            ctx.globalAlpha = density;
+            ctx.beginPath();
+            ctx.arc(x, canvas.height / 2, 5, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+    }
 
-        // 绘制波圈
-        for (let i = 0; i < 10; i++) {
-            const radius = (physicsSimulator.simulationTime * 100 - i * 20) % 200;
-            if (radius > 0 && radius < 150) {
-                ctx.strokeStyle = `rgba(67, 97, 238, ${1 - radius / 150})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(sourceX % canvas.width, sourceY, radius, 0, 2 * Math.PI);
-                ctx.stroke();
+    drawStandingWave(ctx, canvas, amplitude, k, omega, time) {
+        ctx.strokeStyle = '#ff6b35';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        
+        for (let x = 0; x <= canvas.width; x += 2) {
+            const envelope = amplitude * Math.abs(Math.sin(k * x / 10));
+            const y = canvas.height / 2 + envelope * Math.cos(omega * time);
+            if (x === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
             }
         }
+        ctx.stroke();
+    }
 
-        // 绘制观察者
-        const observerX = canvas.width - 100;
-        ctx.fillStyle = '#27ae60';
-        ctx.beginPath();
-        ctx.arc(observerX, sourceY, 6, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // 绘制波形
-        ctx.strokeStyle = '#4361ee';
+    drawWaveInterference(ctx, canvas, amplitude, k, omega, time) {
+        // Two wave sources
+        const source1X = canvas.width * 0.3;
+        const source2X = canvas.width * 0.7;
+        
+        ctx.strokeStyle = 'rgba(67, 97, 238, 0.6)';
         ctx.lineWidth = 2;
-        ctx.beginPath();
-
-        this.waveData.forEach((point, index) => {
-            if (index === 0) {
-                ctx.moveTo(point.x, point.y);
+        
+        for (let x = 0; x <= canvas.width; x += 2) {
+            const d1 = Math.abs(x - source1X);
+            const d2 = Math.abs(x - source2X);
+            const wave1 = amplitude * Math.sin(k * d1 / 10 - omega * time);
+            const wave2 = amplitude * Math.sin(k * d2 / 10 - omega * time);
+            const y = canvas.height / 2 + wave1 + wave2;
+            
+            if (x === 0) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
             } else {
-                ctx.lineTo(point.x, point.y);
+                ctx.lineTo(x, y);
             }
-        });
+        }
         ctx.stroke();
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('波源', sourceX % canvas.width, sourceY + 25);
-        ctx.fillText('观察者', observerX, sourceY + 25);
     }
 
-    drawWaveInfo(ctx, canvas) {
-        // 在右上角显示波的参数
-        const infoX = canvas.width - 150;
-        const infoY = 30;
+    drawWaveParameters(ctx, canvas, frequency, amplitude, speed, wavelength, period) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.fillRect(10, 10, 200, 100);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(10, 10, 200, 100);
+        
+        ctx.fillStyle = '#333';
+        ctx.font = '12px Arial';
+        ctx.fillText(`频率: ${frequency.toFixed(2)} Hz`, 20, 30);
+        ctx.fillText(`波长: ${wavelength.toFixed(1)} m`, 20, 50);
+        ctx.fillText(`周期: ${period.toFixed(2)} s`, 20, 70);
+        ctx.fillText(`波速: ${speed} m/s`, 20, 90);
+    }
+
+    drawParticleMotion(ctx, canvas, type, amplitude, k, omega, time) {
+        // Simplified particle motion visualization
+        const particles = 10;
+        ctx.fillStyle = '#ff6b35';
+        
+        for (let i = 0; i < particles; i++) {
+            const x = (i / particles) * canvas.width;
+            let y = canvas.height / 2;
+            
+            if (type === 'transverse') {
+                y += amplitude * 0.5 * Math.sin(k * x / 10 - omega * time);
+            }
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+    }
+
+    drawEnergyDensity(ctx, canvas, type, amplitude, k, omega, time) {
+        // Energy density visualization
+        ctx.fillStyle = 'rgba(255, 107, 53, 0.3)';
+        
+        for (let x = 0; x < canvas.width; x += 10) {
+            const energy = Math.pow(amplitude * Math.cos(k * x / 10 - omega * time), 2);
+            const height = energy * 50;
+            ctx.fillRect(x, canvas.height - height, 8, height);
+        }
+    }
+
+    drawFrequencySpectrum(ctx, canvas, frequency, amplitude) {
+        const spectrumX = canvas.width - 150;
+        const spectrumY = 10;
+        const spectrumWidth = 130;
+        const spectrumHeight = 80;
         
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.fillRect(infoX - 10, infoY - 10, 140, 80);
+        ctx.fillRect(spectrumX, spectrumY, spectrumWidth, spectrumHeight);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(spectrumX, spectrumY, spectrumWidth, spectrumHeight);
         
-        ctx.strokeStyle = '#4361ee';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(infoX - 10, infoY - 10, 140, 80);
-
+        // Draw frequency peak
+        const peakX = spectrumX + (frequency / 5) * spectrumWidth;
+        const peakHeight = amplitude * 0.5;
+        
+        ctx.fillStyle = '#4361ee';
+        ctx.fillRect(peakX, spectrumY + spectrumHeight - peakHeight, 4, peakHeight);
+        
         ctx.fillStyle = '#333';
-        ctx.font = '11px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText(`频率: ${this.frequency.toFixed(1)} Hz`, infoX, infoY);
-        ctx.fillText(`振幅: ${this.amplitude}`, infoX, infoY + 15);
-        ctx.fillText(`波长: ${this.wavelength.toFixed(0)}px`, infoX, infoY + 30);
-        ctx.fillText(`波速: ${this.waveSpeed}px/s`, infoX, infoY + 45);
-        ctx.fillText(`时间: ${physicsSimulator.simulationTime.toFixed(1)}s`, infoX, infoY + 60);
+        ctx.font = '10px Arial';
+        ctx.fillText('频谱', spectrumX + 5, spectrumY + 15);
     }
 
-    updateWavesInfo() {
-        const infoElement = document.getElementById('waves-info');
-        if (!infoElement) return;
-        
-        let content = '<h4>波动信息</h4>';
-        
-        switch (this.currentType) {
-            case 'mechanical':
-                const period = 1 / this.frequency;
-                const angularFreq = 2 * Math.PI * this.frequency;
-                
-                content += `
-                    <p><strong>频率:</strong> f = ${this.frequency.toFixed(1)} Hz</p>
-                    <p><strong>周期:</strong> T = ${period.toFixed(2)} s</p>
-                    <p><strong>角频率:</strong> ω = ${angularFreq.toFixed(1)} rad/s</p>
-                    <p><strong>波长:</strong> λ = ${this.wavelength}px</p>
-                    <p><strong>波速:</strong> v = fλ = ${(this.frequency * this.wavelength).toFixed(0)}px/s</p>
-                `;
-                break;
-                
-            case 'sound':
-                content += `
-                    <p><strong>声波特性:</strong></p>
-                    <p>• 纵波传播</p>
-                    <p>• 压缩和稀疏交替</p>
-                    <p>• 速度受介质影响</p>
-                    <p><strong>空气中声速:</strong> ~343 m/s (20°C)</p>
-                `;
-                break;
-                
-            case 'standing':
-                content += `
-                    <p><strong>驻波特征:</strong></p>
-                    <p>• 节点：振幅始终为0</p>
-                    <p>• 反节点：振幅最大</p>
-                    <p>• 相邻节点距离：λ/2</p>
-                    <p><strong>共振条件:</strong> L = nλ/2</p>
-                `;
-                break;
-                
-            case 'doppler':
-                content += `
-                    <p><strong>多普勒效应:</strong></p>
-                    <p>f' = f(v±v₀)/(v±vₛ)</p>
-                    <p>• 波源接近：频率增高</p>
-                    <p>• 波源远离：频率降低</p>
-                    <p><strong>应用:</strong> 雷达、医学超声</p>
-                `;
-                break;
+    calculateInstantaneousPower(amplitude, omega) {
+        return 0.5 * amplitude * amplitude * omega * omega;
+    }
+
+    calculateEnergyDensity(amplitude, frequency) {
+        return 0.5 * amplitude * amplitude * frequency * frequency;
+    }
+
+    calculateWaveIntensity(amplitude, frequency, speed) {
+        return 0.5 * amplitude * amplitude * frequency * frequency * speed;
+    }
+
+    getWaveTypeDescription(type) {
+        const descriptions = {
+            'transverse': '横波：振动方向垂直于传播方向',
+            'longitudinal': '纵波：振动方向平行于传播方向',
+            'standing': '驻波：两个相向传播的波的叠加',
+            'interference': '干涉：两个或多个波的叠加现象'
+        };
+        return descriptions[type] || '未知波型';
+    }
+
+    resetWavesSimulation() {
+        this.isRunning = false;
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
-        
-        infoElement.innerHTML = content;
+        this.physicsSimulator.contexts.waves.clearRect(
+            0, 0, 
+            this.physicsSimulator.canvases.waves.width, 
+            this.physicsSimulator.canvases.waves.height
+        );
+        this.time = 0;
+        document.getElementById('waves-info').innerHTML = '波长: 100m<br>周期: 1.0s';
+    }
+
+    pauseWavesSimulation() {
+        this.isRunning = !this.isRunning;
+        if (this.isRunning) {
+            this.simulateWaves();
+        }
     }
 }
 
@@ -550,7 +374,7 @@ class WavesSimulator {
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
         if (window.physicsSimulator) {
-            window.wavesSimulator = new WavesSimulator();
+            window.wavesSimulator = new WavesSimulator(window.physicsSimulator);
         }
     }, 100);
 }); 
