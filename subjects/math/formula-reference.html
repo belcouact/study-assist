@@ -12,13 +12,47 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script>
+        // MathJax configuration - must be defined before loading MathJax
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true,
+                tags: 'none'
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'],
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            },
+            startup: {
+                ready() {
+                    MathJax.startup.defaultReady();
+                    MathJax.startup.document.setRenderer('svg');
+                }
+            },
+            svg: {
+                fontCache: 'local',
+                scale: 1,
+                minScale: 0.5,
+                matchFontHeight: false,
+                displayAlign: 'center',
+                displayIndent: '0'
+            },
+            loader: {
+                load: ['[tex]/html']
+            }
+        };
+    </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
     <style>
         .formulas-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 2rem 0;
+            padding: 1rem 0;
         }
 
         .formulas-container {
@@ -26,26 +60,28 @@
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
-            margin: 2rem auto;
+            margin: 1rem auto;
             max-width: 1400px;
+            width: calc(100% - 2rem);
         }
 
         .formulas-header {
             background: linear-gradient(135deg, #4361ee, #7209b7);
             color: white;
-            padding: 2rem;
+            padding: 1.5rem;
             text-align: center;
         }
 
         .formulas-header h1 {
             margin: 0;
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 4vw, 2.5rem);
             font-weight: 700;
+            word-wrap: break-word;
         }
 
         .formulas-header p {
             margin: 1rem 0 0 0;
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
             opacity: 0.9;
         }
 
@@ -54,16 +90,32 @@
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            scrollbar-color: #ccc transparent;
+        }
+
+        .formulas-tabs::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .formulas-tabs::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .formulas-tabs::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 2px;
         }
 
         .formulas-tab {
             flex: 1;
-            min-width: 150px;
-            padding: 1rem 1.5rem;
+            min-width: 120px;
+            padding: 1rem 1rem;
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: clamp(0.85rem, 2vw, 1rem);
             font-weight: 500;
             color: #6c757d;
             transition: all 0.3s ease;
@@ -71,6 +123,8 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .formulas-tab.active {
@@ -79,14 +133,16 @@
             border-bottom: 3px solid #4361ee;
         }
 
-        .formulas-tab:hover {
+        .formulas-tab:hover,
+        .formulas-tab:focus {
             background: rgba(67, 97, 238, 0.1);
             color: #4361ee;
+            outline: none;
         }
 
         .formulas-content {
-            padding: 2rem;
-            min-height: 600px;
+            padding: 1.5rem;
+            min-height: 400px;
         }
 
         .formula-panel {
@@ -99,7 +155,7 @@
 
         .formula-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(350px, 100%), 1fr));
             gap: 1.5rem;
             margin-bottom: 2rem;
         }
@@ -111,6 +167,9 @@
             padding: 1.5rem;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             transition: all 0.3s ease;
+            overflow: hidden;
+            word-wrap: break-word;
+            position: relative;
         }
 
         .formula-card:hover {
@@ -120,13 +179,14 @@
         }
 
         .formula-title {
-            font-size: 1.2rem;
+            font-size: clamp(1.1rem, 3vw, 1.2rem);
             font-weight: 600;
             color: #333;
             margin-bottom: 1rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            word-wrap: break-word;
         }
 
         .formula-equation {
@@ -135,15 +195,50 @@
             padding: 1rem;
             margin: 1rem 0;
             text-align: center;
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
             border-left: 4px solid #4361ee;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            position: relative;
+        }
+
+        .formula-equation::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .formula-equation::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 2px;
+        }
+
+        .formula-equation::-webkit-scrollbar-thumb {
+            background: #4361ee;
+            border-radius: 2px;
+        }
+
+        /* MathJax container responsive adjustments */
+        .formula-equation .MathJax,
+        .formula-equation .MathJax_Display {
+            font-size: inherit !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            max-width: 100% !important;
+            text-align: center !important;
+        }
+
+        .formula-equation .MathJax_Display > .MathJax > .math > .mrow {
+            display: inline-block !important;
+            white-space: nowrap !important;
         }
 
         .formula-description {
             color: #666;
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: clamp(0.85rem, 2.2vw, 0.95rem);
+            line-height: 1.6;
             margin-bottom: 1rem;
+            word-wrap: break-word;
+            hyphens: auto;
         }
 
         .formula-variables {
@@ -151,12 +246,13 @@
             border-radius: 8px;
             padding: 1rem;
             margin: 1rem 0;
+            overflow: hidden;
         }
 
         .formula-variables h5 {
             margin: 0 0 0.5rem 0;
             color: #4361ee;
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
             font-weight: 600;
         }
 
@@ -168,8 +264,9 @@
 
         .variable-list li {
             padding: 0.25rem 0;
-            font-size: 0.85rem;
+            font-size: clamp(0.75rem, 2vw, 0.85rem);
             color: #666;
+            word-wrap: break-word;
         }
 
         .variable-list li strong {
@@ -182,13 +279,20 @@
             border-radius: 10px;
             padding: 1rem;
             margin-top: 1rem;
+            overflow: hidden;
         }
 
         .example-title {
-            font-size: 0.9rem;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
             font-weight: 600;
             color: #1976d2;
             margin-bottom: 0.5rem;
+        }
+
+        .formula-example .MathJax {
+            font-size: clamp(0.8rem, 2vw, 0.9rem) !important;
+            overflow-x: auto !important;
+            max-width: 100% !important;
         }
 
         .formula-tags {
@@ -203,22 +307,161 @@
             color: #4361ee;
             padding: 0.25rem 0.75rem;
             border-radius: 15px;
-            font-size: 0.75rem;
+            font-size: clamp(0.7rem, 1.8vw, 0.75rem);
             font-weight: 500;
+            white-space: nowrap;
         }
 
+        /* Mobile-specific optimizations */
         @media (max-width: 768px) {
+            .formulas-page {
+                padding: 0.5rem 0;
+            }
+
+            .formulas-container {
+                margin: 0.5rem auto;
+                width: calc(100% - 1rem);
+                border-radius: 15px;
+            }
+
+            .formulas-header {
+                padding: 1rem;
+            }
+
+            .formulas-tabs {
+                flex-wrap: nowrap;
+                justify-content: flex-start;
+            }
+
+            .formulas-tab {
+                min-width: 100px;
+                padding: 0.75rem 0.5rem;
+                font-size: 0.85rem;
+            }
+
+            .formulas-tab i {
+                display: none;
+            }
+
+            .formulas-content {
+                padding: 1rem;
+            }
+
             .formula-grid {
                 grid-template-columns: 1fr;
+                gap: 1rem;
             }
-            
-            .formulas-tabs {
-                flex-wrap: wrap;
+
+            .formula-card {
+                padding: 1rem;
             }
-            
-            .formulas-tab {
-                min-width: 120px;
+
+            .formula-equation {
+                padding: 0.75rem;
                 font-size: 0.9rem;
+            }
+
+            /* Force MathJax to be more responsive on mobile */
+            .formula-equation .MathJax {
+                font-size: 14px !important;
+                transform-origin: left center;
+            }
+
+            .formula-equation .MathJax_Display {
+                margin: 0.5em 0 !important;
+            }
+
+            /* Enable horizontal scrolling for long formulas on mobile */
+            .formula-equation .MathJax_Display .math {
+                white-space: nowrap !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                max-width: 100% !important;
+                display: block !important;
+            }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 480px) {
+            .formulas-container {
+                width: calc(100% - 0.5rem);
+                margin: 0.25rem auto;
+                border-radius: 10px;
+            }
+
+            .formulas-header {
+                padding: 0.75rem;
+            }
+
+            .formulas-tab {
+                min-width: 80px;
+                padding: 0.6rem 0.4rem;
+                font-size: 0.8rem;
+            }
+
+            .formulas-content {
+                padding: 0.75rem;
+            }
+
+            .formula-card {
+                padding: 0.75rem;
+            }
+
+            .formula-equation {
+                padding: 0.5rem;
+                margin: 0.75rem 0;
+            }
+
+            .formula-equation .MathJax {
+                font-size: 12px !important;
+            }
+        }
+
+        /* Landscape orientation on mobile */
+        @media (max-width: 768px) and (orientation: landscape) {
+            .formula-grid {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            }
+        }
+
+        /* High DPI displays */
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .formula-equation {
+                border-left-width: 2px;
+            }
+        }
+
+        /* Ensure proper touch targets */
+        @media (pointer: coarse) {
+            .formulas-tab {
+                min-height: 44px;
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            .formulas-page {
+                background: white !important;
+                padding: 0 !important;
+            }
+
+            .formulas-container {
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+            }
+
+            .formulas-tabs {
+                display: none !important;
+            }
+
+            .formula-panel {
+                display: block !important;
+            }
+
+            .formula-card {
+                break-inside: avoid;
+                margin-bottom: 1rem;
             }
         }
     </style>
@@ -1304,52 +1547,283 @@
         class MathFormulas {
             constructor() {
                 this.currentTab = 'algebra';
+                this.isMobile = window.innerWidth <= 768;
                 this.initializeEventListeners();
+                this.setupResponsiveHandling();
                 this.initializeMathJax();
+                this.handleFormulaOverflow();
             }
 
             initializeEventListeners() {
                 // 标签切换
                 document.querySelectorAll('.formulas-tab').forEach(tab => {
                     tab.addEventListener('click', (e) => {
-                        this.switchTab(e.target.dataset.tab);
+                        e.preventDefault();
+                        this.switchTab(e.target.closest('.formulas-tab').dataset.tab);
                     });
+
+                    // Add touch support for better mobile interaction
+                    tab.addEventListener('touchstart', (e) => {
+                        e.target.style.backgroundColor = 'rgba(67, 97, 238, 0.1)';
+                    });
+
+                    tab.addEventListener('touchend', (e) => {
+                        setTimeout(() => {
+                            e.target.style.backgroundColor = '';
+                        }, 150);
+                    });
+                });
+
+                // Window resize handler
+                window.addEventListener('resize', this.debounce(() => {
+                    this.handleResize();
+                }, 250));
+
+                // Orientation change handler for mobile
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => {
+                        this.handleResize();
+                        this.rerenderMathJax();
+                    }, 500);
                 });
             }
 
+            setupResponsiveHandling() {
+                // Check if device has touch capability
+                this.hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                
+                // Add responsive classes
+                document.body.classList.toggle('touch-device', this.hasTouch);
+                document.body.classList.toggle('mobile-device', this.isMobile);
+            }
+
             initializeMathJax() {
-                if (window.MathJax) {
-                    MathJax.typesetPromise();
+                if (typeof MathJax !== 'undefined') {
+                    // Wait for MathJax to be fully loaded
+                    MathJax.startup.promise.then(() => {
+                        this.rerenderMathJax();
+                        this.handleFormulaOverflow();
+                    }).catch((err) => {
+                        console.warn('MathJax initialization error:', err);
+                    });
+                } else {
+                    // Fallback: retry after a delay
+                    setTimeout(() => this.initializeMathJax(), 1000);
                 }
             }
 
             switchTab(tabName) {
-                // 更新标签状态
+                if (!tabName || this.currentTab === tabName) return;
+
+                // Update tab states
                 document.querySelectorAll('.formulas-tab').forEach(tab => {
                     tab.classList.remove('active');
+                    tab.setAttribute('aria-selected', 'false');
                 });
-                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+                
+                const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+                if (activeTab) {
+                    activeTab.classList.add('active');
+                    activeTab.setAttribute('aria-selected', 'true');
+                }
 
-                // 更新面板显示
+                // Update panel visibility
                 document.querySelectorAll('.formula-panel').forEach(panel => {
                     panel.classList.remove('active');
+                    panel.setAttribute('aria-hidden', 'true');
                 });
-                document.getElementById(`${tabName}-panel`).classList.add('active');
+                
+                const activePanel = document.getElementById(`${tabName}-panel`);
+                if (activePanel) {
+                    activePanel.classList.add('active');
+                    activePanel.setAttribute('aria-hidden', 'false');
+                }
 
                 this.currentTab = tabName;
 
-                // 重新渲染数学公式
-                setTimeout(() => {
-                    if (window.MathJax) {
-                        MathJax.typesetPromise();
+                // Re-render MathJax for the new tab
+                this.rerenderMathJax();
+                
+                // Scroll tab into view on mobile
+                if (this.isMobile) {
+                    activeTab?.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'nearest', 
+                        inline: 'center' 
+                    });
+                }
+            }
+
+            rerenderMathJax() {
+                if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                    // Clear and re-render MathJax
+                    const activePanel = document.querySelector('.formula-panel.active');
+                    if (activePanel) {
+                        MathJax.typesetClear([activePanel]);
+                        MathJax.typesetPromise([activePanel]).then(() => {
+                            this.handleFormulaOverflow();
+                            this.optimizeMathJaxForMobile();
+                        }).catch((err) => {
+                            console.warn('MathJax typeset error:', err);
+                        });
                     }
-                }, 100);
+                }
+            }
+
+            handleFormulaOverflow() {
+                // Handle overflow for formula equations
+                const equations = document.querySelectorAll('.formula-equation');
+                equations.forEach(equation => {
+                    const mathElements = equation.querySelectorAll('.MathJax, .MathJax_Display');
+                    mathElements.forEach(math => {
+                        const rect = math.getBoundingClientRect();
+                        const containerRect = equation.getBoundingClientRect();
+                        
+                        if (rect.width > containerRect.width) {
+                            equation.style.overflowX = 'auto';
+                            equation.classList.add('scrollable-formula');
+                            
+                            // Add scroll indicators for mobile
+                            if (this.isMobile) {
+                                this.addScrollIndicators(equation);
+                            }
+                        }
+                    });
+                });
+            }
+
+            addScrollIndicators(element) {
+                if (element.querySelector('.scroll-indicator')) return;
+                
+                const indicator = document.createElement('div');
+                indicator.className = 'scroll-indicator';
+                indicator.innerHTML = '← 滑动查看完整公式 →';
+                indicator.style.cssText = `
+                    position: absolute;
+                    top: -20px;
+                    right: 0;
+                    font-size: 10px;
+                    color: #999;
+                    background: rgba(255,255,255,0.9);
+                    padding: 2px 6px;
+                    border-radius: 3px;
+                    pointer-events: none;
+                    z-index: 10;
+                `;
+                
+                element.style.position = 'relative';
+                element.appendChild(indicator);
+                
+                // Hide indicator after scrolling starts
+                element.addEventListener('scroll', () => {
+                    indicator.style.opacity = '0.5';
+                }, { once: true });
+            }
+
+            optimizeMathJaxForMobile() {
+                if (!this.isMobile) return;
+                
+                const mathElements = document.querySelectorAll('.MathJax svg');
+                mathElements.forEach(svg => {
+                    // Ensure SVG is responsive
+                    svg.style.maxWidth = '100%';
+                    svg.style.height = 'auto';
+                    
+                    // Scale down if too large
+                    const rect = svg.getBoundingClientRect();
+                    if (rect.width > window.innerWidth * 0.9) {
+                        const scale = (window.innerWidth * 0.9) / rect.width;
+                        svg.style.transform = `scale(${scale})`;
+                        svg.style.transformOrigin = 'left center';
+                    }
+                });
+            }
+
+            handleResize() {
+                const newIsMobile = window.innerWidth <= 768;
+                
+                if (newIsMobile !== this.isMobile) {
+                    this.isMobile = newIsMobile;
+                    document.body.classList.toggle('mobile-device', this.isMobile);
+                    
+                    // Re-render MathJax with new size constraints
+                    setTimeout(() => {
+                        this.rerenderMathJax();
+                    }, 100);
+                }
+                
+                this.handleFormulaOverflow();
+            }
+
+            // Utility function for debouncing
+            debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
+            }
+
+            // Add keyboard navigation support
+            setupKeyboardNavigation() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.classList.contains('formulas-tab')) {
+                        const tabs = Array.from(document.querySelectorAll('.formulas-tab'));
+                        const currentIndex = tabs.indexOf(e.target);
+                        
+                        let newIndex = currentIndex;
+                        
+                        switch (e.key) {
+                            case 'ArrowLeft':
+                                newIndex = currentIndex > 0 ? currentIndex - 1 : tabs.length - 1;
+                                break;
+                            case 'ArrowRight':
+                                newIndex = currentIndex < tabs.length - 1 ? currentIndex + 1 : 0;
+                                break;
+                            case 'Enter':
+                            case ' ':
+                                e.preventDefault();
+                                this.switchTab(e.target.dataset.tab);
+                                return;
+                        }
+                        
+                        if (newIndex !== currentIndex) {
+                            e.preventDefault();
+                            tabs[newIndex].focus();
+                        }
+                    }
+                });
             }
         }
 
-        // 初始化数学公式参考
+        // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
-            new MathFormulas();
+            const mathFormulas = new MathFormulas();
+            mathFormulas.setupKeyboardNavigation();
+            
+            // Additional mobile optimizations
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                document.body.classList.add('mobile-browser');
+                
+                // Prevent zoom on input focus for iOS
+                const viewport = document.querySelector('meta[name="viewport"]');
+                if (viewport) {
+                    viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                }
+            }
+        });
+
+        // Handle page visibility changes to re-render MathJax if needed
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && typeof MathJax !== 'undefined') {
+                setTimeout(() => {
+                    MathJax.typesetPromise().catch(err => console.warn('MathJax re-render error:', err));
+                }, 100);
+            }
         });
     </script>
 </body>
