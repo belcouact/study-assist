@@ -809,11 +809,15 @@
                                 <div id="gas-controls">
                                     <div class="control-group">
                                         <label>温度 (K): <span id="temperature-value">300</span></label>
-                                        <input type="range" class="control-slider" id="temperature" min="100" max="800" value="300">
+                                        <input type="range" class="control-slider" id="gas-temperature" min="100" max="800" value="300">
                                     </div>
                                     <div class="control-group">
                                         <label>压强 (atm): <span id="pressure-value">1.0</span></label>
-                                        <input type="range" class="control-slider" id="pressure" min="0.1" max="5" value="1.0" step="0.1">
+                                        <input type="range" class="control-slider" id="gas-pressure" min="0.1" max="5" value="1.0" step="0.1">
+                                    </div>
+                                    <div class="control-group">
+                                        <label>体积 (L): <span id="gas-volume-value">2.0</span></label>
+                                        <input type="range" class="control-slider" id="gas-volume" min="0.5" max="3" value="2.0" step="0.1">
                                     </div>
                                     <div class="control-group">
                                         <label>分子数量: <span id="molecule-count-value">100</span></label>
@@ -884,6 +888,14 @@
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     
+    <!-- Load modular physics simulators -->
+    <script src="modules/physics-utils.js"></script>
+    <script src="modules/core-simulator.js"></script>
+    <script src="modules/electromagnetic-simulator.js"></script>
+    <script src="modules/optics-simulator.js"></script>
+    <script src="modules/waves-simulator.js"></script>
+    <script src="modules/thermodynamics-simulator.js"></script>
+    
     <script>
         // 物理模拟器主要功能 - 重构为模块化架构
         class PhysicsSimulator {
@@ -899,6 +911,7 @@
                 };
                 this.initializeCanvases();
                 this.initializeEventListeners();
+                this.initializeModules();
             }
 
             initializeEventListeners() {
@@ -909,12 +922,9 @@
                     });
                 });
 
-                // 设置各模块控制
+                // 设置各模块控制 - 先设置备用控制，模块加载后会覆盖
                 this.setupMechanicsControls();
-                this.setupElectromagnetismControls();
-                this.setupOpticsControls();
-                this.setupWavesControls();
-                this.setupThermodynamicsControls();
+                this.setupFallbackControls();
             }
 
             initializeCanvases() {
@@ -932,6 +942,43 @@
                         this.contexts[key] = this.canvases[key].getContext('2d');
                     }
                 });
+            }
+
+            initializeModules() {
+                // 初始化各物理模块，延迟确保DOM已加载
+                setTimeout(() => {
+                    try {
+                        // 初始化外部模块
+                        if (typeof ElectromagneticSimulator !== 'undefined') {
+                            this.electromagneticSimulator = new ElectromagneticSimulator(this);
+                            console.log('ElectromagneticSimulator loaded');
+                        }
+                        if (typeof OpticsSimulator !== 'undefined') {
+                            this.opticsSimulator = new OpticsSimulator(this);
+                            console.log('OpticsSimulator loaded');
+                        }
+                        if (typeof WavesSimulator !== 'undefined') {
+                            this.wavesSimulator = new WavesSimulator(this);
+                            console.log('WavesSimulator loaded');
+                        }
+                        if (typeof ThermodynamicsSimulator !== 'undefined') {
+                            this.thermodynamicsSimulator = new ThermodynamicsSimulator(this);
+                            console.log('ThermodynamicsSimulator loaded');
+                        }
+                        console.log('Physics modules loaded successfully');
+                    } catch (error) {
+                        console.error('Error loading physics modules:', error);
+                        // 如果模块加载失败，备用控制已经设置好了
+                    }
+                }, 200);
+            }
+
+            setupFallbackControls() {
+                // 备用控制设置，如果外部模块不可用
+                this.setupElectromagnetismControls();
+                this.setupOpticsControls();
+                this.setupWavesControls();
+                this.setupThermodynamicsControls();
             }
 
             switchTab(tabName) {
@@ -955,7 +1002,7 @@
                 this.currentTab = tabName;
             }
 
-            // 电磁学控制设置
+            // 电磁学控制设置 - 备用方法
             setupElectromagnetismControls() {
                 const startBtn = document.getElementById('start-em');
                 const resetBtn = document.getElementById('reset-em');
@@ -967,8 +1014,23 @@
                     });
                 }
 
-                if (startBtn) startBtn.addEventListener('click', () => this.startElectromagnetismSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetElectromagnetismSimulation());
+                if (startBtn) startBtn.addEventListener('click', () => {
+                    if (this.electromagneticSimulator) {
+                        // 使用外部模块
+                        this.electromagneticSimulator.startElectromagnetismSimulation();
+                    } else {
+                        // 使用备用方法
+                        this.startElectromagnetismSimulation();
+                    }
+                });
+                
+                if (resetBtn) resetBtn.addEventListener('click', () => {
+                    if (this.electromagneticSimulator) {
+                        this.electromagneticSimulator.resetElectromagnetismSimulation();
+                    } else {
+                        this.resetElectromagnetismSimulation();
+                    }
+                });
             }
 
             switchElectromagnetismType(type) {
@@ -996,10 +1058,10 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('电磁学模拟', canvas.width / 2, canvas.height / 2 - 50);
                 ctx.font = '16px Arial';
-                ctx.fillText('功能开发中...', canvas.width / 2, canvas.height / 2);
-                ctx.fillText('敬请期待更多电磁现象模拟', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText('正在加载模块...', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('请稍候', canvas.width / 2, canvas.height / 2 + 30);
                 
-                document.getElementById('em-info').innerHTML = '电磁学模拟功能正在开发中，敬请期待！';
+                document.getElementById('em-info').innerHTML = '电磁学模拟正在加载...';
             }
 
             resetElectromagnetismSimulation() {
@@ -1013,7 +1075,7 @@
                 document.getElementById('em-info').innerHTML = '选择模拟类型开始探索电磁现象';
             }
 
-            // 光学控制设置
+            // 光学控制设置 - 备用方法
             setupOpticsControls() {
                 const startBtn = document.getElementById('start-optics');
                 const resetBtn = document.getElementById('reset-optics');
@@ -1025,8 +1087,21 @@
                     });
                 }
 
-                if (startBtn) startBtn.addEventListener('click', () => this.startOpticsSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetOpticsSimulation());
+                if (startBtn) startBtn.addEventListener('click', () => {
+                    if (this.opticsSimulator) {
+                        this.opticsSimulator.startOpticsSimulation();
+                    } else {
+                        this.startOpticsSimulation();
+                    }
+                });
+                
+                if (resetBtn) resetBtn.addEventListener('click', () => {
+                    if (this.opticsSimulator) {
+                        this.opticsSimulator.resetOpticsSimulation();
+                    } else {
+                        this.resetOpticsSimulation();
+                    }
+                });
             }
 
             switchOpticsType(type) {
@@ -1048,16 +1123,14 @@
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 简单的光学演示
                 ctx.fillStyle = '#333';
                 ctx.font = '24px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText('光学模拟', canvas.width / 2, canvas.height / 2 - 50);
                 ctx.font = '16px Arial';
-                ctx.fillText('功能开发中...', canvas.width / 2, canvas.height / 2);
-                ctx.fillText('敬请期待光线追踪和光学现象模拟', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText('正在加载模块...', canvas.width / 2, canvas.height / 2);
                 
-                document.getElementById('optics-info').innerHTML = '光学模拟功能正在开发中，敬请期待！';
+                document.getElementById('optics-info').innerHTML = '光学模拟正在加载...';
             }
 
             resetOpticsSimulation() {
@@ -1071,15 +1144,35 @@
                 document.getElementById('optics-info').innerHTML = '调整参数观察光线传播规律';
             }
 
-            // 波动控制设置
+            // 波动控制设置 - 备用方法
             setupWavesControls() {
                 const startBtn = document.getElementById('start-waves');
                 const resetBtn = document.getElementById('reset-waves');
                 const pauseBtn = document.getElementById('pause-waves');
 
-                if (startBtn) startBtn.addEventListener('click', () => this.startWavesSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetWavesSimulation());
-                if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseWavesSimulation());
+                if (startBtn) startBtn.addEventListener('click', () => {
+                    if (this.wavesSimulator) {
+                        this.wavesSimulator.startWavesSimulation();
+                    } else {
+                        this.startWavesSimulation();
+                    }
+                });
+                
+                if (resetBtn) resetBtn.addEventListener('click', () => {
+                    if (this.wavesSimulator) {
+                        this.wavesSimulator.resetWavesSimulation();
+                    } else {
+                        this.resetWavesSimulation();
+                    }
+                });
+                
+                if (pauseBtn) pauseBtn.addEventListener('click', () => {
+                    if (this.wavesSimulator) {
+                        this.wavesSimulator.pauseWavesSimulation();
+                    } else {
+                        this.pauseWavesSimulation();
+                    }
+                });
             }
 
             startWavesSimulation() {
@@ -1090,16 +1183,14 @@
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 简单的波动演示
                 ctx.fillStyle = '#333';
                 ctx.font = '24px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText('波动模拟', canvas.width / 2, canvas.height / 2 - 50);
                 ctx.font = '16px Arial';
-                ctx.fillText('功能开发中...', canvas.width / 2, canvas.height / 2);
-                ctx.fillText('敬请期待波动现象和干涉模拟', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText('正在加载模块...', canvas.width / 2, canvas.height / 2);
                 
-                document.getElementById('waves-info').innerHTML = '波动模拟功能正在开发中，敬请期待！';
+                document.getElementById('waves-info').innerHTML = '波动模拟正在加载...';
             }
 
             resetWavesSimulation() {
@@ -1120,7 +1211,7 @@
                 }
             }
 
-            // 热力学控制设置
+            // 热力学控制设置 - 备用方法
             setupThermodynamicsControls() {
                 const startBtn = document.getElementById('start-thermo');
                 const resetBtn = document.getElementById('reset-thermo');
@@ -1133,9 +1224,29 @@
                     });
                 }
 
-                if (startBtn) startBtn.addEventListener('click', () => this.startThermodynamicsSimulation());
-                if (resetBtn) resetBtn.addEventListener('click', () => this.resetThermodynamicsSimulation());
-                if (pauseBtn) pauseBtn.addEventListener('click', () => this.pauseThermodynamicsSimulation());
+                if (startBtn) startBtn.addEventListener('click', () => {
+                    if (this.thermodynamicsSimulator) {
+                        this.thermodynamicsSimulator.startThermodynamicsSimulation();
+                    } else {
+                        this.startThermodynamicsSimulation();
+                    }
+                });
+                
+                if (resetBtn) resetBtn.addEventListener('click', () => {
+                    if (this.thermodynamicsSimulator) {
+                        this.thermodynamicsSimulator.resetThermodynamicsSimulation();
+                    } else {
+                        this.resetThermodynamicsSimulation();
+                    }
+                });
+                
+                if (pauseBtn) pauseBtn.addEventListener('click', () => {
+                    if (this.thermodynamicsSimulator) {
+                        this.thermodynamicsSimulator.pauseThermodynamicsSimulation();
+                    } else {
+                        this.pauseThermodynamicsSimulation();
+                    }
+                });
             }
 
             switchThermodynamicsType(type) {
@@ -1157,16 +1268,14 @@
                 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // 简单的热力学演示
                 ctx.fillStyle = '#333';
                 ctx.font = '24px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText('热力学模拟', canvas.width / 2, canvas.height / 2 - 50);
                 ctx.font = '16px Arial';
-                ctx.fillText('功能开发中...', canvas.width / 2, canvas.height / 2);
-                ctx.fillText('敬请期待分子运动和热传导模拟', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText('正在加载模块...', canvas.width / 2, canvas.height / 2);
                 
-                document.getElementById('thermo-info').innerHTML = '热力学模拟功能正在开发中，敬请期待！';
+                document.getElementById('thermo-info').innerHTML = '热力学模拟正在加载...';
             }
 
             resetThermodynamicsSimulation() {
