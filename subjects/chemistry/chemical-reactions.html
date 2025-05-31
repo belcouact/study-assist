@@ -2192,36 +2192,56 @@
                 this.touchStartX = 0;
                 this.touchStartY = 0;
                 this.searchTimeout = null;
+                
+                console.log('ChemicalReactions 初始化开始');
                 this.initializeEventListeners();
                 this.initializeMathJax();
                 this.setupMobileOptimizations();
+                console.log('ChemicalReactions 初始化完成');
             }
 
             initializeEventListeners() {
+                console.log('开始绑定事件监听器');
+                
                 // 标签切换
-                document.querySelectorAll('.reactions-tab').forEach(tab => {
+                const tabs = document.querySelectorAll('.reactions-tab');
+                console.log('找到标签页数量:', tabs.length);
+                
+                tabs.forEach((tab, index) => {
+                    console.log(`绑定第${index + 1}个标签:`, tab.dataset.tab);
+                    
                     tab.addEventListener('click', (e) => {
-                        const tabId = e.target.dataset.tab;
-                        this.switchTab(tabId);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const tabId = e.target.dataset.tab || e.currentTarget.dataset.tab;
+                        console.log('点击标签:', tabId);
+                        
+                        if (tabId) {
+                            this.switchTab(tabId);
+                        } else {
+                            console.error('未找到标签ID');
+                        }
                     });
 
                     // 添加触控事件支持
                     if ('ontouchstart' in window) {
                         tab.addEventListener('touchstart', (e) => {
                             e.target.style.transform = 'scale(0.95)';
-                        });
+                        }, { passive: true });
 
                         tab.addEventListener('touchend', (e) => {
                             setTimeout(() => {
                                 e.target.style.transform = '';
                             }, 150);
-                        });
+                        }, { passive: true });
                     }
                 });
 
                 // 搜索功能优化
                 const searchInput = document.getElementById('searchInput');
                 if (searchInput) {
+                    console.log('绑定搜索功能');
                     // 优化搜索性能，避免频繁触发
                     searchInput.addEventListener('input', (e) => {
                         clearTimeout(this.searchTimeout);
@@ -2242,6 +2262,8 @@
                             }, 300);
                         }
                     });
+                } else {
+                    console.error('未找到搜索输入框');
                 }
 
                 // 响应式处理
@@ -2263,6 +2285,8 @@
                         }
                     }, 300);
                 });
+                
+                console.log('事件监听器绑定完成');
             }
 
             setupTouchNavigation() {
@@ -2342,49 +2366,79 @@
             }
 
             switchTab(tabId) {
-                // 更新标签样式
-                document.querySelectorAll('.reactions-tab').forEach(tab => {
-                    tab.classList.remove('active');
-                });
-                document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
+                console.log('切换到标签页:', tabId);
+                
+                try {
+                    // 验证目标面板是否存在
+                    const targetPanel = document.getElementById(tabId);
+                    if (!targetPanel) {
+                        console.error('未找到目标面板:', tabId);
+                        return;
+                    }
+                    
+                    console.log('找到目标面板:', targetPanel);
 
-                // 更新面板显示
-                document.querySelectorAll('.reactions-panel').forEach(panel => {
-                    panel.classList.remove('active');
+                    // 更新标签样式
+                    document.querySelectorAll('.reactions-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                        console.log('移除活动状态:', tab.dataset.tab);
+                    });
+                    
+                    const activeTab = document.querySelector(`[data-tab="${tabId}"]`);
+                    if (activeTab) {
+                        activeTab.classList.add('active');
+                        console.log('添加活动状态:', tabId);
+                    } else {
+                        console.error('未找到活动标签:', tabId);
+                    }
+
+                    // 更新面板显示
+                    document.querySelectorAll('.reactions-panel').forEach(panel => {
+                        panel.classList.remove('active');
+                        if (this.isMobile) {
+                            panel.style.display = 'none';
+                        }
+                        console.log('隐藏面板:', panel.id);
+                    });
+                    
+                    targetPanel.classList.add('active');
+                    targetPanel.style.display = 'block';
+                    console.log('显示目标面板:', tabId);
+
+                    this.currentTab = tabId;
+                    
+                    // 移动端滚动到顶部
                     if (this.isMobile) {
-                        panel.style.display = 'none';
+                        const contentArea = document.querySelector('.reactions-content');
+                        if (contentArea) {
+                            contentArea.scrollTop = 0;
+                        }
                     }
-                });
-                
-                const targetPanel = document.getElementById(tabId);
-                targetPanel.classList.add('active');
-                targetPanel.style.display = 'block';
+                    
+                    // 重新渲染MathJax
+                    setTimeout(() => {
+                        if (window.MathJax) {
+                            console.log('重新渲染MathJax');
+                            MathJax.typesetPromise().catch(err => {
+                                console.error('MathJax渲染失败:', err);
+                            });
+                        }
+                    }, 100);
 
-                this.currentTab = tabId;
-                
-                // 移动端滚动到顶部
-                if (this.isMobile) {
-                    const contentArea = document.querySelector('.reactions-content');
-                    if (contentArea) {
-                        contentArea.scrollTop = 0;
-                    }
+                    // 添加标签切换动画
+                    targetPanel.style.opacity = '0';
+                    targetPanel.style.transform = 'translateY(10px)';
+                    setTimeout(() => {
+                        targetPanel.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                        targetPanel.style.opacity = '1';
+                        targetPanel.style.transform = 'translateY(0)';
+                    }, 50);
+                    
+                    console.log('标签切换完成:', tabId);
+                    
+                } catch (error) {
+                    console.error('标签切换出错:', error);
                 }
-                
-                // 重新渲染MathJax
-                setTimeout(() => {
-                    if (window.MathJax) {
-                        MathJax.typesetPromise();
-                    }
-                }, 100);
-
-                // 添加标签切换动画
-                targetPanel.style.opacity = '0';
-                targetPanel.style.transform = 'translateY(10px)';
-                setTimeout(() => {
-                    targetPanel.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                    targetPanel.style.opacity = '1';
-                    targetPanel.style.transform = 'translateY(0)';
-                }, 50);
             }
 
             searchReactions(query) {
@@ -2472,11 +2526,14 @@
 
             initializeMathJax() {
                 if (window.MathJax) {
+                    console.log('初始化MathJax');
                     MathJax.typesetPromise().then(() => {
                         console.log('化学方程式渲染完成');
                     }).catch((err) => {
                         console.error('MathJax渲染错误:', err);
                     });
+                } else {
+                    console.warn('MathJax未加载');
                 }
             }
 
@@ -2513,17 +2570,49 @@
             }
         }
 
-        // 页面加载完成后初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            new ChemicalReactions();
-        });
+        // 确保DOM完全加载后再初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM加载完成，开始初始化');
+                try {
+                    window.chemicalReactions = new ChemicalReactions();
+                } catch (error) {
+                    console.error('初始化失败:', error);
+                }
+            });
+        } else {
+            console.log('DOM已加载，直接初始化');
+            try {
+                window.chemicalReactions = new ChemicalReactions();
+            } catch (error) {
+                console.error('初始化失败:', error);
+            }
+        }
 
         // MathJax加载完成后重新渲染
         window.addEventListener('load', () => {
+            console.log('页面完全加载');
             if (window.MathJax) {
-                MathJax.typesetPromise();
+                MathJax.typesetPromise().catch(err => {
+                    console.error('页面加载后MathJax渲染失败:', err);
+                });
             }
         });
+
+        // 添加全局错误处理
+        window.addEventListener('error', (e) => {
+            console.error('全局错误:', e.error);
+        });
+
+        // 添加简单的调试函数
+        window.debugTabs = function() {
+            console.log('=== 调试信息 ===');
+            console.log('标签页:', document.querySelectorAll('.reactions-tab'));
+            console.log('面板:', document.querySelectorAll('.reactions-panel'));
+            console.log('当前活动标签:', document.querySelector('.reactions-tab.active'));
+            console.log('当前活动面板:', document.querySelector('.reactions-panel.active'));
+            console.log('ChemicalReactions实例:', window.chemicalReactions);
+        };
     </script>
 </body>
 </html> 
