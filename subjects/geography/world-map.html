@@ -2275,25 +2275,60 @@
             }
 
             createCountryOutline(geometry, countryGroup) {
-                const outlinePoints = [];
-                
-                // Process different geometry types
+                // Process different geometry types with improved border rendering
                 if (geometry.type === 'Polygon') {
-                    this.processPolygon(geometry.coordinates, outlinePoints);
+                    this.createSmoothPolygonBorder(geometry.coordinates, countryGroup);
                 } else if (geometry.type === 'MultiPolygon') {
-                    geometry.coordinates.forEach(polygon => {
-                        this.processPolygon(polygon, outlinePoints);
+                    // Only render major polygons (avoid tiny islands that create noise)
+                    const sortedPolygons = geometry.coordinates
+                        .map((polygon, index) => ({ polygon, index, area: this.calculatePolygonArea(polygon[0]) }))
+                        .filter(item => item.area > 0.01) // Filter out very small polygons
+                        .sort((a, b) => b.area - a.area)
+                        .slice(0, 5); // Only keep the 5 largest polygons per country
+                    
+                    sortedPolygons.forEach(({ polygon }) => {
+                        this.createSmoothPolygonBorder(polygon, countryGroup);
                     });
                 }
+            }
+
+            createSmoothPolygonBorder(coordinates, countryGroup) {
+                if (!coordinates[0] || coordinates[0].length < 3) return;
                 
-                // Create line geometry for country borders
+                // Simplify the polygon to reduce noise
+                const simplifiedCoords = this.simplifyPolygon(coordinates[0], 0.5); // Tolerance for simplification
+                
+                if (simplifiedCoords.length < 3) return;
+                
+                const outlinePoints = [];
+                
+                // Create smooth curves between points
+                for (let i = 0; i < simplifiedCoords.length - 1; i++) {
+                    const current = simplifiedCoords[i];
+                    const next = simplifiedCoords[i + 1];
+                    
+                    // Add interpolated points for smoother curves
+                    const steps = Math.max(2, Math.min(8, Math.floor(this.calculateDistance(current, next) * 100)));
+                    
+                    for (let j = 0; j <= steps; j++) {
+                        const t = j / steps;
+                        const lat = current[1] + (next[1] - current[1]) * t;
+                        const lon = current[0] + (next[0] - current[0]) * t;
+                        
+                        const point = this.latLonToVector3(lat, lon, 1.002); // Closer to surface
+                        outlinePoints.push(point);
+                    }
+                }
+                
+                // Create line geometry with improved material
                 if (outlinePoints.length > 0) {
                     const lineGeometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
                     const lineMaterial = new THREE.LineBasicMaterial({
-                        color: 0xffffff,
+                        color: 0x4a90e2, // Subtle blue color instead of harsh white
                         transparent: true,
-                        opacity: 1.0,
-                        linewidth: 3
+                        opacity: 0.6, // More subtle opacity
+                        linewidth: 1, // Thinner lines
+                        fog: true // Respond to fog for depth
                     });
                     
                     const countryLine = new THREE.Line(lineGeometry, lineMaterial);
@@ -2301,14 +2336,89 @@
                 }
             }
 
-            processPolygon(coordinates, outlinePoints) {
-                // Process outer ring (first array in coordinates)
-                if (coordinates[0]) {
-                    coordinates[0].forEach(coord => {
-                        const point = this.latLonToVector3(coord[1], coord[0], 1.005); // Slightly above surface
-                        outlinePoints.push(point);
-                    });
+            simplifyPolygon(coordinates, tolerance) {
+                // Douglas-Peucker algorithm for polygon simplification
+                if (coordinates.length <= 2) return coordinates;
+                
+                const simplified = this.douglasPeucker(coordinates, tolerance);
+                return simplified.length >= 3 ? simplified : coordinates.slice(0, 3);
+            }
+
+            douglasPeucker(points, tolerance) {
+                if (points.length <= 2) return points;
+                
+                // Find the point with maximum distance from line between first and last
+                let maxDistance = 0;
+                let maxIndex = 0;
+                
+                for (let i = 1; i < points.length - 1; i++) {
+                    const distance = this.perpendicularDistance(points[i], points[0], points[points.length - 1]);
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                        maxIndex = i;
+                    }
                 }
+                
+                // If max distance is greater than tolerance, recursively simplify
+                if (maxDistance > tolerance) {
+                    const left = this.douglasPeucker(points.slice(0, maxIndex + 1), tolerance);
+                    const right = this.douglasPeucker(points.slice(maxIndex), tolerance);
+                    
+                    return left.slice(0, -1).concat(right);
+                } else {
+                    return [points[0], points[points.length - 1]];
+                }
+            }
+
+            perpendicularDistance(point, lineStart, lineEnd) {
+                // Calculate perpendicular distance from point to line
+                const A = point[0] - lineStart[0];
+                const B = point[1] - lineStart[1];
+                const C = lineEnd[0] - lineStart[0];
+                const D = lineEnd[1] - lineStart[1];
+                
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                
+                if (lenSq === 0) return Math.sqrt(A * A + B * B);
+                
+                const param = dot / lenSq;
+                let xx, yy;
+                
+                if (param < 0) {
+                    xx = lineStart[0];
+                    yy = lineStart[1];
+                } else if (param > 1) {
+                    xx = lineEnd[0];
+                    yy = lineEnd[1];
+                } else {
+                    xx = lineStart[0] + param * C;
+                    yy = lineStart[1] + param * D;
+                }
+                
+                const dx = point[0] - xx;
+                const dy = point[1] - yy;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            calculatePolygonArea(coordinates) {
+                // Calculate approximate area of polygon for filtering
+                if (!coordinates || coordinates.length < 3) return 0;
+                
+                let area = 0;
+                for (let i = 0; i < coordinates.length - 1; i++) {
+                    const current = coordinates[i];
+                    const next = coordinates[i + 1];
+                    area += (next[0] - current[0]) * (next[1] + current[1]);
+                }
+                return Math.abs(area) / 2;
+            }
+
+            calculateDistance(coord1, coord2) {
+                // Calculate distance between two coordinates
+                const dx = coord2[0] - coord1[0];
+                const dy = coord2[1] - coord1[1];
+                return Math.sqrt(dx * dx + dy * dy);
             }
 
             createCountryClickArea(geometry, countryGroup) {
