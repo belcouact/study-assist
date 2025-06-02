@@ -1449,8 +1449,8 @@
                     // Generate procedural terrain height based on position
                     const height = this.generateTerrainHeight(vertex);
                     
-                    // Apply displacement
-                    const displacement = height * this.terrainHeight * 0.1;
+                    // Apply much more subtle displacement for realistic terrain
+                    const displacement = height * this.terrainHeight * 0.008; // Reduced from 0.1 to 0.008
                     vertex.normalize().multiplyScalar(1 + displacement);
                     
                     positions.setXYZ(i, vertex.x, vertex.y, vertex.z);
@@ -1465,39 +1465,39 @@
                 const lat = Math.asin(vertex.y) * 180 / Math.PI;
                 const lon = Math.atan2(vertex.z, vertex.x) * 180 / Math.PI;
                 
-                // Generate realistic terrain using multiple noise functions
+                // Generate realistic terrain using multiple noise functions with reduced intensity
                 let height = 0;
                 
-                // Continental scale features (large landmasses)
-                height += this.noise(lat * 0.008, lon * 0.008) * 1.0;
+                // Continental scale features (large landmasses) - reduced intensity
+                height += this.noise(lat * 0.008, lon * 0.008) * 0.3; // Reduced from 1.0
                 
-                // Mountain ranges and major terrain features
-                height += this.noise(lat * 0.03, lon * 0.03) * 0.6;
+                // Mountain ranges and major terrain features - reduced intensity
+                height += this.noise(lat * 0.03, lon * 0.03) * 0.2; // Reduced from 0.6
                 
-                // Hills and medium terrain features
-                height += this.noise(lat * 0.08, lon * 0.08) * 0.3;
+                // Hills and medium terrain features - reduced intensity
+                height += this.noise(lat * 0.08, lon * 0.08) * 0.1; // Reduced from 0.3
                 
-                // Local terrain details
-                height += this.noise(lat * 0.15, lon * 0.15) * 0.15;
+                // Local terrain details - reduced intensity
+                height += this.noise(lat * 0.15, lon * 0.15) * 0.05; // Reduced from 0.15
                 
-                // Add some specific geographic features
-                height += this.addGeographicFeatures(lat, lon);
+                // Add some specific geographic features with reduced intensity
+                height += this.addGeographicFeatures(lat, lon) * 0.3; // Scale down geographic features
                 
                 // Add realistic continental shelf and ocean floor features
-                height += this.addOceanFeatures(lat, lon, height);
+                height += this.addOceanFeatures(lat, lon, height) * 0.5; // Scale down ocean features
                 
                 // Apply realistic elevation distribution
                 height = this.applyElevationCurve(height);
                 
-                // Ocean depth (negative values for underwater)
-                if (height < -0.1) {
-                    height *= this.oceanDepth * 2; // Deeper oceans
+                // Ocean depth (negative values for underwater) - reduced intensity
+                if (height < -0.05) { // Changed threshold from -0.1
+                    height *= this.oceanDepth * 0.5; // Reduced ocean depth effect
                 } else if (height < 0) {
-                    height *= 0.5; // Shallow seas
+                    height *= 0.2; // Shallow seas - reduced effect
                 }
                 
-                // Clamp extreme values
-                height = Math.max(-1, Math.min(1, height));
+                // Clamp to much smaller values for realistic terrain
+                height = Math.max(-0.3, Math.min(0.3, height)); // Reduced from -1,1 to -0.3,0.3
                 
                 return height;
             }
@@ -1550,31 +1550,31 @@
                 // Himalayas (around 28°N, 84°E)
                 const himalayaDist = Math.sqrt(Math.pow(lat - 28, 2) + Math.pow(lon - 84, 2));
                 if (himalayaDist < 15) {
-                    features += (1 - himalayaDist / 15) * 0.8;
+                    features += (1 - himalayaDist / 15) * 0.2; // Reduced from 0.8
                 }
                 
                 // Andes Mountains (along western South America)
                 if (lon > -80 && lon < -60 && lat > -55 && lat < 15) {
-                    const andesFactor = Math.sin((lat + 20) * Math.PI / 70) * 0.6;
+                    const andesFactor = Math.sin((lat + 20) * Math.PI / 70) * 0.15; // Reduced from 0.6
                     features += Math.max(0, andesFactor);
                 }
                 
                 // Rocky Mountains (western North America)
                 if (lon > -125 && lon < -100 && lat > 30 && lat < 60) {
-                    const rockiesFactor = Math.sin((lat - 30) * Math.PI / 30) * 0.5;
+                    const rockiesFactor = Math.sin((lat - 30) * Math.PI / 30) * 0.12; // Reduced from 0.5
                     features += Math.max(0, rockiesFactor);
                 }
                 
                 // Alps (central Europe)
                 const alpsDist = Math.sqrt(Math.pow(lat - 46, 2) + Math.pow(lon - 8, 2));
                 if (alpsDist < 8) {
-                    features += (1 - alpsDist / 8) * 0.4;
+                    features += (1 - alpsDist / 8) * 0.1; // Reduced from 0.4
                 }
                 
                 // Mariana Trench (deep ocean trench)
                 const trenchDist = Math.sqrt(Math.pow(lat - 11, 2) + Math.pow(lon - 142, 2));
                 if (trenchDist < 5) {
-                    features -= (1 - trenchDist / 5) * 0.8;
+                    features -= (1 - trenchDist / 5) * 0.15; // Reduced from 0.8
                 }
                 
                 return features;
@@ -1628,7 +1628,7 @@
                         // Always use procedural height texture for displacement in terrain mode
                         if (this.proceduralHeightTexture) {
                             materialOptions.displacementMap = this.proceduralHeightTexture;
-                            materialOptions.displacementScale = this.terrainHeight * 0.05;
+                            materialOptions.displacementScale = this.terrainHeight * 0.002; // Much more subtle displacement
                         }
                         
                         // Add more realistic terrain material properties
