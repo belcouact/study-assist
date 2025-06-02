@@ -1535,10 +1535,6 @@
                                         }
                                     " class="search-btn">🔍 搜索</button>
                                 </div>
-                                <div class="gaode-info">
-                                    <div>🗺️ 高德地图 - 实时地图服务</div>
-                                    <div>支持全球城市搜索和定位</div>
-                                </div>
                             </div>
                             <div id="gaode-map" class="gaode-map-display"></div>
                         </div>
@@ -3473,6 +3469,9 @@
 
                 this.currentMapType = type;
                 
+                // Clean up any active drag operations before switching
+                this.cleanupMapEvents();
+                
                 // Hide all map containers first
                 document.getElementById('globe-container').style.display = 'none';
                 document.getElementById('world-2d-container').style.display = 'none';
@@ -3487,6 +3486,44 @@
                     document.getElementById('globe-container').style.display = 'block';
                     this.createGlobeWithTerrain(); // This will apply the new material
                     this.updateGlobeInfo();
+                }
+            }
+
+            cleanupMapEvents() {
+                // Reset any drag states that might be active
+                const body = document.body;
+                body.classList.remove('dragging');
+                
+                // Reset map-specific drag states
+                const wrapper2D = document.getElementById('map-2d-wrapper');
+                if (wrapper2D) {
+                    wrapper2D.classList.remove('dragging');
+                }
+                
+                // Clear any active mouse captures
+                if (document.exitPointerLock) {
+                    document.exitPointerLock();
+                }
+                
+                // Force stop any ongoing GaoDe map operations
+                if (this.gaodeMap) {
+                    try {
+                        // Stop any ongoing map animations
+                        this.gaodeMap.setStatus({
+                            animateEnable: false
+                        });
+                        
+                        // Re-enable animations after a brief pause
+                        setTimeout(() => {
+                            if (this.gaodeMap) {
+                                this.gaodeMap.setStatus({
+                                    animateEnable: true
+                                });
+                            }
+                        }, 100);
+                    } catch (error) {
+                        console.warn('清理高德地图状态时出错:', error);
+                    }
                 }
             }
 
@@ -3508,7 +3545,7 @@
 
             initializeGaodeMap() {
                 try {
-                    // Initialize GaoDe map
+                    // Initialize GaoDe map with proper event isolation
                     this.gaodeMap = new AMap.Map('gaode-map', {
                         zoom: 4,                  // Default zoom level
                         center: [116.397428, 39.90923],  // Center of China
@@ -3517,7 +3554,60 @@
                         rotateEnable: true,
                         pitchEnable: true,
                         zoomEnable: true,
-                        dragEnable: true
+                        dragEnable: true,
+                        // Add explicit control settings to prevent conflicts
+                        doubleClickZoom: true,
+                        keyboardEnable: false,  // Disable keyboard to prevent conflicts
+                        scrollWheel: true,
+                        touchZoom: true,
+                        touchZoomCenter: 1,
+                        // Add animation settings to control movement
+                        animateEnable: true,
+                        jogEnable: false,      // Disable momentum scrolling
+                        isHotspot: false       // Disable hotspot detection
+                    });
+
+                    // Add event isolation to prevent interference with other maps
+                    const gaodeContainer = document.getElementById('gaode-map');
+                    if (gaodeContainer) {
+                        // Stop event propagation from GaoDe map to parent elements
+                        gaodeContainer.addEventListener('mousedown', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('mousemove', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('mouseup', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('touchstart', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('touchmove', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('touchend', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                        
+                        gaodeContainer.addEventListener('wheel', (e) => {
+                            e.stopPropagation();
+                        }, true);
+                    }
+
+                    // Add map event listeners to ensure proper behavior
+                    this.gaodeMap.on('complete', () => {
+                        console.log('高德地图加载完成');
+                    });
+
+                    this.gaodeMap.on('moveend', () => {
+                        // Ensure map movement stops properly
+                        console.log('地图移动结束');
                     });
 
                     // Create place search service
