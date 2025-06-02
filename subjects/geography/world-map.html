@@ -1151,6 +1151,104 @@
             transform: translate(-50%, -50%) !important;
             z-index: 1000 !important;
         }
+
+        /* GaoDe Map Styles */
+        .gaode-map-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .gaode-search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .gaode-search-box input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .gaode-search-box button {
+            padding: 8px 16px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .gaode-info {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .gaode-map-display {
+            width: 100%;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* GaoDe map container styling */
+        #gaode-map-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .gaode-map-display {
+            flex: 1;
+            min-height: 400px;
+            height: 70vh;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+
+        .search-btn {
+            transition: all 0.2s ease;
+        }
+
+        .search-btn:hover {
+            background: #20c997 !important;
+            transform: scale(1.05);
+        }
+
+        /* Mobile responsive for GaoDe map */
+        @media (max-width: 768px) {
+            .gaode-map-controls {
+                padding: 15px;
+            }
+            
+            .gaode-search-box {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .gaode-search-box input[type="text"] {
+                width: 100%;
+            }
+            
+            .gaode-map-display {
+                min-height: 300px;
+                height: 60vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1206,6 +1304,7 @@
                             <button class="map-type-btn" data-type="population">人口密度</button>
                             <button class="map-type-btn" data-type="economy">经济发展</button>
                             <button class="map-type-btn" data-type="2d-world">2D世界地图</button>
+                            <button class="map-type-btn" data-type="gaode-map">高德地图</button>
                         </div>
                 
                 <div class="terrain-controls">
@@ -1392,6 +1491,46 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- GaoDe Map Container -->
+                        <div id="gaode-map-container" style="display: none;">
+                            <div class="gaode-map-controls">
+                                <div class="gaode-search-box">
+                                    <input type="text" id="gaode-keyword" placeholder="输入城市或国家名称搜索" />
+                                    <button onclick="
+                                        const keyword = document.getElementById('gaode-keyword').value.trim();
+                                        if (!keyword) { alert('请输入位置名称'); return; }
+                                        if (window.worldGlobe && worldGlobe.gaodePlaceSearch) {
+                                            worldGlobe.gaodePlaceSearch.search(keyword, function(status, result) {
+                                                if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
+                                                    const firstResult = result.poiList.pois[0];
+                                                    const location = firstResult.location;
+                                                    worldGlobe.gaodeMap.setZoomAndCenter(13, [location.lng, location.lat]);
+                                                    const marker = new AMap.Marker({
+                                                        position: [location.lng, location.lat],
+                                                        title: firstResult.name
+                                                    });
+                                                    worldGlobe.gaodeMap.add(marker);
+                                                    const infoWindow = new AMap.InfoWindow({
+                                                        content: '<div style=&quot;padding: 10px;&quot;><h4>' + firstResult.name + '</h4><p>地址: ' + (firstResult.address || '未知') + '</p><p>坐标: ' + location.lng.toFixed(4) + ', ' + location.lat.toFixed(4) + '</p></div>'
+                                                    });
+                                                    infoWindow.open(worldGlobe.gaodeMap, [location.lng, location.lat]);
+                                                } else {
+                                                    alert('未找到相关位置: ' + keyword);
+                                                }
+                                            });
+                                        } else {
+                                            alert('地图服务尚未初始化，请稍候再试');
+                                        }
+                                    " class="search-btn">🔍 搜索</button>
+                                </div>
+                                <div class="gaode-info">
+                                    <div>🗺️ 高德地图 - 实时地图服务</div>
+                                    <div>支持全球城市搜索和定位</div>
+                                </div>
+                            </div>
+                            <div id="gaode-map" class="gaode-map-display"></div>
+                        </div>
                     </div>
 
                     <!-- Legend moved below the map -->
@@ -1487,6 +1626,10 @@
 
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
+
+    <!-- Load GaoDe JS API + Place Plugin -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=f8c6aa54dc33b2c8e6ae5dd6f0c85e1e&plugin=AMap.PlaceSearch"></script>
+
     <script>
         // 3D 世界地球功能
         class WorldGlobe {
@@ -1505,6 +1648,7 @@
                 this.raycaster = new THREE.Raycaster();
                 this.mouse = new THREE.Vector2();
                 this.map2DInitialized = false;
+                this.gaodeMapInitialized = false;
                 
                 // Initialize search functionality
                 this.initializeSearch();
@@ -3398,14 +3542,71 @@
                 // Hide all map containers first
                 document.getElementById('globe-container').style.display = 'none';
                 document.getElementById('world-2d-container').style.display = 'none';
+                document.getElementById('gaode-map-container').style.display = 'none';
                 
                 if (type === '2d-world') {
                     this.show2DWorldMap();
+                } else if (type === 'gaode-map') {
+                    this.showGaodeMap();
                 } else {
                     // Show 3D globe and update its appearance
                     document.getElementById('globe-container').style.display = 'block';
                     this.createGlobeWithTerrain(); // This will apply the new material
                     this.updateGlobeInfo();
+                }
+            }
+
+            showGaodeMap() {
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                const globeContainer = document.getElementById('globe-container');
+                const container2D = document.getElementById('world-2d-container');
+                
+                globeContainer.style.display = 'none';
+                container2D.style.display = 'none';
+                gaodeContainer.style.display = 'block';
+                
+                // Initialize GaoDe map if not already done
+                if (!this.gaodeMapInitialized) {
+                    this.initializeGaodeMap();
+                    this.gaodeMapInitialized = true;
+                }
+            }
+
+            initializeGaodeMap() {
+                try {
+                    // Initialize GaoDe map
+                    this.gaodeMap = new AMap.Map('gaode-map', {
+                        zoom: 4,                  // Default zoom level
+                        center: [116.397428, 39.90923],  // Center of China
+                        mapStyle: 'amap://styles/normal', // Normal style
+                        resizeEnable: true,
+                        rotateEnable: true,
+                        pitchEnable: true,
+                        zoomEnable: true,
+                        dragEnable: true
+                    });
+
+                    // Create place search service
+                    this.gaodePlaceSearch = new AMap.PlaceSearch({
+                        pageSize: 1,
+                        pageIndex: 1,
+                        city: "全国",  // Search nationwide
+                        cityLimit: false
+                    });
+
+                    console.log('高德地图初始化成功');
+                } catch (error) {
+                    console.error('高德地图初始化失败:', error);
+                    // Show fallback message
+                    document.getElementById('gaode-map').innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa; color: #666;">
+                            <div style="text-align: center;">
+                                <h3>🗺️ 高德地图服务</h3>
+                                <p>正在加载地图服务...</p>
+                                <p style="font-size: 0.8rem;">请稍候或检查网络连接</p>
+                            </div>
+                        </div>
+                    `;
                 }
             }
 
