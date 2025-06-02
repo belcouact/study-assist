@@ -696,6 +696,35 @@
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
 
+        /* Continent color classes for legend */
+        .continent-asia {
+            background-color: #ff6b6b !important;
+        }
+
+        .continent-europe {
+            background-color: #4ecdc4 !important;
+        }
+
+        .continent-africa {
+            background-color: #45b7d1 !important;
+        }
+
+        .continent-north-america {
+            background-color: #f9ca24 !important;
+        }
+
+        .continent-south-america {
+            background-color: #6c5ce7 !important;
+        }
+
+        .continent-oceania {
+            background-color: #a29bfe !important;
+        }
+
+        .continent-antarctica {
+            background-color: #95a5a6 !important;
+        }
+
         /* Country Information Panel */
         .country-info-panel {
             position: absolute;
@@ -3825,49 +3854,93 @@
                         }
                     };
 
-                    // Mouse/Touch event handlers
+                    // Mouse/Touch event handlers - Fixed for proper zoomed dragging
                     const handleStart = (e) => {
+                        // Prevent default to avoid conflicts
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
                         isDragging = true;
                         wrapper.classList.add('dragging');
                         
-                        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                        const clientX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX);
+                        const clientY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY);
                         
-                        startX = clientX - translateX;
-                        startY = clientY - translateY;
-                        lastX = clientX;
-                        lastY = clientY;
-                        
-                        e.preventDefault();
+                        if (clientX !== undefined && clientY !== undefined) {
+                            startX = clientX - translateX;
+                            startY = clientY - translateY;
+                            lastX = clientX;
+                            lastY = clientY;
+                        }
                     };
 
                     const handleMove = (e) => {
                         if (!isDragging) return;
                         
-                        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-                        
-                        translateX = clientX - startX;
-                        translateY = clientY - startY;
-                        
-                        updateTransform();
                         e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const clientX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX);
+                        const clientY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY);
+                        
+                        if (clientX !== undefined && clientY !== undefined) {
+                            translateX = clientX - startX;
+                            translateY = clientY - startY;
+                            updateTransform();
+                        }
                     };
 
-                    const handleEnd = () => {
+                    const handleEnd = (e) => {
+                        if (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }
                         isDragging = false;
                         wrapper.classList.remove('dragging');
                     };
 
-                    // Mouse events
-                    wrapper.addEventListener('mousedown', handleStart);
-                    document.addEventListener('mousemove', handleMove);
-                    document.addEventListener('mouseup', handleEnd);
+                    // Improved event listeners - using capture for better control
+                    wrapper.addEventListener('mousedown', handleStart, true);
+                    document.addEventListener('mousemove', handleMove, true);
+                    document.addEventListener('mouseup', handleEnd, true);
 
-                    // Touch events
-                    wrapper.addEventListener('touchstart', handleStart, { passive: false });
-                    wrapper.addEventListener('touchmove', handleMove, { passive: false });
-                    wrapper.addEventListener('touchend', handleEnd);
+                    // Enhanced touch events with better conflict resolution
+                    wrapper.addEventListener('touchstart', (e) => {
+                        if (e.touches.length === 1) {
+                            handleStart(e);
+                        } else if (e.touches.length === 2) {
+                            // Pinch zoom handling
+                            initialTouchDistance = getTouchDistance(e.touches);
+                            initialScale = scale;
+                            e.preventDefault();
+                        }
+                    }, { passive: false });
+                    
+                    wrapper.addEventListener('touchmove', (e) => {
+                        if (e.touches.length === 1 && isDragging) {
+                            handleMove(e);
+                        } else if (e.touches.length === 2) {
+                            // Continue with pinch zoom logic...
+                            const currentDistance = getTouchDistance(e.touches);
+                            const scaleFactor = currentDistance / initialTouchDistance;
+                            const newScale = Math.max(0.2, Math.min(20, initialScale * scaleFactor));
+                            
+                            if (newScale !== scale) {
+                                const rect = wrapper.getBoundingClientRect();
+                                const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+                                const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+                                
+                                const scaleChange = newScale / scale;
+                                translateX = centerX - (centerX - translateX) * scaleChange;
+                                translateY = centerY - (centerY - translateY) * scaleChange;
+                                scale = newScale;
+                                updateTransform();
+                            }
+                            e.preventDefault();
+                        }
+                    }, { passive: false });
+                    
+                    wrapper.addEventListener('touchend', handleEnd, { passive: false });
 
                     // Zoom controls - Enhanced for vector maps
                     document.getElementById('zoom-in').addEventListener('click', () => {
@@ -4286,6 +4359,151 @@
             
             onMapLoadSuccess();
         };
+
+        // Global popup functions for country interaction
+        window.closeCountryPopup = function() {
+            const popup = document.getElementById('country-popup');
+            if (popup) {
+                popup.style.display = 'none';
+                popup.classList.remove('center-popup');
+            }
+        };
+
+        window.closeCountryInfo = function() {
+            const panel = document.getElementById('country-info-panel');
+            if (panel) {
+                panel.style.display = 'none';
+            }
+        };
+
+        window.showCenteredCountryPopup = function(countryData) {
+            const popup = document.getElementById('country-popup');
+            if (popup) {
+                // Update popup content
+                document.getElementById('popup-country-flag').textContent = countryData.flag || '🏳️';
+                document.getElementById('popup-country-name').textContent = countryData.name || '未知国家';
+                document.getElementById('popup-country-capital').textContent = countryData.capital || '未知';
+                document.getElementById('popup-country-population').textContent = countryData.population || '未知';
+                document.getElementById('popup-country-continent').textContent = countryData.continent || '未知';
+                
+                // Show popup in center of screen
+                popup.style.display = 'block';
+                popup.classList.add('center-popup');
+                
+                // Auto-hide popup after 8 seconds
+                setTimeout(() => {
+                    closeCountryPopup();
+                }, 8000);
+            }
+        };
+
+        // Enhanced country database with more countries
+        const countryDatabase = {
+            'cn': { name: '中华人民共和国', flag: '🇨🇳', continent: '亚洲', capital: '北京', population: '14.4亿' },
+            'china': { name: '中华人民共和国', flag: '🇨🇳', continent: '亚洲', capital: '北京', population: '14.4亿' },
+            'us': { name: '美利坚合众国', flag: '🇺🇸', continent: '北美洲', capital: '华盛顿特区', population: '3.3亿' },
+            'usa': { name: '美利坚合众国', flag: '🇺🇸', continent: '北美洲', capital: '华盛顿特区', population: '3.3亿' },
+            'ru': { name: '俄罗斯联邦', flag: '🇷🇺', continent: '亚洲/欧洲', capital: '莫斯科', population: '1.46亿' },
+            'russia': { name: '俄罗斯联邦', flag: '🇷🇺', continent: '亚洲/欧洲', capital: '莫斯科', population: '1.46亿' },
+            'in': { name: '印度共和国', flag: '🇮🇳', continent: '亚洲', capital: '新德里', population: '14.2亿' },
+            'india': { name: '印度共和国', flag: '🇮🇳', continent: '亚洲', capital: '新德里', population: '14.2亿' },
+            'br': { name: '巴西联邦共和国', flag: '🇧🇷', continent: '南美洲', capital: '巴西利亚', population: '2.15亿' },
+            'brazil': { name: '巴西联邦共和国', flag: '🇧🇷', continent: '南美洲', capital: '巴西利亚', population: '2.15亿' },
+            'au': { name: '澳大利亚联邦', flag: '🇦🇺', continent: '大洋洲', capital: '堪培拉', population: '2580万' },
+            'australia': { name: '澳大利亚联邦', flag: '🇦🇺', continent: '大洋洲', capital: '堪培拉', population: '2580万' },
+            'ca': { name: '加拿大', flag: '🇨🇦', continent: '北美洲', capital: '渥太华', population: '3840万' },
+            'canada': { name: '加拿大', flag: '🇨🇦', continent: '北美洲', capital: '渥太华', population: '3840万' },
+            'gb': { name: '英国', flag: '🇬🇧', continent: '欧洲', capital: '伦敦', population: '6720万' },
+            'uk': { name: '英国', flag: '🇬🇧', continent: '欧洲', capital: '伦敦', population: '6720万' },
+            'fr': { name: '法兰西共和国', flag: '🇫🇷', continent: '欧洲', capital: '巴黎', population: '6780万' },
+            'france': { name: '法兰西共和国', flag: '🇫🇷', continent: '欧洲', capital: '巴黎', population: '6780万' },
+            'de': { name: '德意志联邦共和国', flag: '🇩🇪', continent: '欧洲', capital: '柏林', population: '8320万' },
+            'germany': { name: '德意志联邦共和国', flag: '🇩🇪', continent: '欧洲', capital: '柏林', population: '8320万' },
+            'jp': { name: '日本', flag: '🇯🇵', continent: '亚洲', capital: '东京', population: '1.25亿' },
+            'japan': { name: '日本', flag: '🇯🇵', continent: '亚洲', capital: '东京', population: '1.25亿' },
+            'kr': { name: '大韩民国', flag: '🇰🇷', continent: '亚洲', capital: '首尔', population: '5170万' },
+            'south_korea': { name: '大韩民国', flag: '🇰🇷', continent: '亚洲', capital: '首尔', population: '5170万' },
+            'it': { name: '意大利共和国', flag: '🇮🇹', continent: '欧洲', capital: '罗马', population: '6030万' },
+            'italy': { name: '意大利共和国', flag: '🇮🇹', continent: '欧洲', capital: '罗马', population: '6030万' },
+            'es': { name: '西班牙王国', flag: '🇪🇸', continent: '欧洲', capital: '马德里', population: '4740万' },
+            'spain': { name: '西班牙王国', flag: '🇪🇸', continent: '欧洲', capital: '马德里', population: '4740万' },
+            'mx': { name: '墨西哥合众国', flag: '🇲🇽', continent: '北美洲', capital: '墨西哥城', population: '1.28亿' },
+            'mexico': { name: '墨西哥合众国', flag: '🇲🇽', continent: '北美洲', capital: '墨西哥城', population: '1.28亿' }
+        };
+
+        // Function to show popup for any country click
+        window.showCountryPopupForClick = function(event, countryCode) {
+            const code = (countryCode || '').toLowerCase();
+            const info = countryDatabase[code] || {
+                name: countryCode || '未知国家',
+                flag: '🌍',
+                continent: '未知',
+                capital: '未知',
+                population: '未知'
+            };
+            showCenteredCountryPopup(info);
+        };
+
+        // Override displayCountryInfo method when WorldGlobe is ready
+        setTimeout(() => {
+            if (window.worldGlobe && worldGlobe.displayCountryInfo) {
+                worldGlobe.displayCountryInfo = function(countryCode) {
+                    let country = this.countries[countryCode];
+                    
+                    if (!country) {
+                        const continent = this.getContinent ? this.getContinent(countryCode) : 'unknown';
+                        country = {
+                            name: this.getCountryNameFromCode ? this.getCountryNameFromCode(countryCode) : countryCode.toUpperCase(),
+                            capital: '未知',
+                            population: '未知',
+                            area: '未知',
+                            continent: continent === 'unknown' ? '未知' : (this.getContinentName ? this.getContinentName(continent) : continent),
+                            currency: '未知',
+                            language: '未知',
+                            flag: this.getCountryFlag ? this.getCountryFlag(countryCode) : '🏳️',
+                            description: '暂无详细信息'
+                        };
+                    }
+                    showCenteredCountryPopup(country);
+                };
+            }
+
+            // Enhanced SVG interaction after map loads
+            setTimeout(() => {
+                const svgContainer = document.getElementById('svg-map-container');
+                if (svgContainer) {
+                    svgContainer.addEventListener('click', (e) => {
+                        const countryData = {
+                            name: '世界地图',
+                            flag: '🌍',
+                            continent: '全球',
+                            capital: '探索世界',
+                            population: '欢迎点击!'
+                        };
+                        showCenteredCountryPopup(countryData);
+                    });
+
+                    const allElements = svgContainer.querySelectorAll('*');
+                    allElements.forEach(element => {
+                        element.style.cursor = 'pointer';
+                        element.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const countryCode = e.target.id || 
+                                              e.target.getAttribute('data-country') || 
+                                              e.target.getAttribute('data-name') || 
+                                              e.target.className ||
+                                              'unknown';
+                            
+                            if (window.worldGlobe && countryCode && countryCode !== 'unknown') {
+                                worldGlobe.selectCountry(countryCode.toLowerCase());
+                            } else {
+                                showCountryPopupForClick(e, countryCode);
+                            }
+                        });
+                    });
+                }
+            }, 3000);
+        }, 2000);
     </script>
 </body>
 </html> 
