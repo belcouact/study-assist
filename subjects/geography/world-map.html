@@ -1651,33 +1651,43 @@
                         break;
                         
                     case 'population':
-                        // Population density visualization - use warm colors
-                        materialOptions.color = 0xff6b6b; // Warm red for population density
-                        materialOptions.emissive = 0x330000; // Slight red glow
-                        materialOptions.emissiveIntensity = 0.3;
-                        materialOptions.shininess = 25;
-                        materialOptions.specular = 0x444444;
-                        
-                        // Add subtle bump mapping to show populated areas
-                        if (this.proceduralHeightTexture) {
-                            materialOptions.bumpMap = this.proceduralHeightTexture;
-                            materialOptions.bumpScale = 0.03; // Subtle for population data
+                        // Population density visualization - realistic data-based approach
+                        if (this.populationTexture) {
+                            materialOptions.map = this.populationTexture;
+                        } else {
+                            // Base Earth color with population overlay
+                            materialOptions.color = 0x2c5234; // Dark green base for low population
                         }
+                        
+                        // Use emissive colors to show population hotspots
+                        materialOptions.emissive = 0xff4444; // Red glow for populated areas
+                        materialOptions.emissiveIntensity = 0.6;
+                        materialOptions.shininess = 15;
+                        materialOptions.specular = 0x222222;
+                        
+                        // NO terrain displacement - this is data visualization
+                        materialOptions.displacementMap = null;
+                        materialOptions.bumpMap = null;
                         break;
                         
                     case 'economy':
-                        // Economic development visualization - use golden colors
-                        materialOptions.color = 0xffd700; // Gold for economic activity
-                        materialOptions.emissive = 0x332200; // Golden glow
-                        materialOptions.emissiveIntensity = 0.4;
-                        materialOptions.shininess = 40; // More reflective for wealth
-                        materialOptions.specular = 0x666600;
-                        
-                        // Add moderate bump mapping for economic regions
-                        if (this.proceduralHeightTexture) {
-                            materialOptions.bumpMap = this.proceduralHeightTexture;
-                            materialOptions.bumpScale = 0.04;
+                        // Economic development visualization - realistic data-based approach
+                        if (this.economicTexture) {
+                            materialOptions.map = this.economicTexture;
+                        } else {
+                            // Base color representing economic base level
+                            materialOptions.color = 0x1a4a3a; // Dark green-blue for low economic activity
                         }
+                        
+                        // Use golden emissive for economic centers
+                        materialOptions.emissive = 0xffaa00; // Golden glow for economic activity
+                        materialOptions.emissiveIntensity = 0.8;
+                        materialOptions.shininess = 35; // More reflective for wealth/development
+                        materialOptions.specular = 0x444400;
+                        
+                        // NO terrain displacement - this is data visualization
+                        materialOptions.displacementMap = null;
+                        materialOptions.bumpMap = null;
                         break;
                         
                     case 'climate':
@@ -1687,6 +1697,10 @@
                         materialOptions.emissiveIntensity = 0.25;
                         materialOptions.shininess = 20;
                         materialOptions.specular = 0x222244;
+                        
+                        // NO terrain displacement for climate data
+                        materialOptions.displacementMap = null;
+                        materialOptions.bumpMap = null;
                         break;
                 }
             }
@@ -1728,6 +1742,183 @@
                 
                 this.proceduralHeightTexture = texture;
                 console.log('Procedural height map created successfully');
+                
+                // Also create data visualizations
+                this.createPopulationDataTexture();
+                this.createEconomicDataTexture();
+            }
+
+            createPopulationDataTexture() {
+                const size = 512;
+                const data = new Uint8Array(size * size * 4);
+                
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const index = (i * size + j) * 4;
+                        
+                        // Convert texture coordinates to lat/lon
+                        const lat = (i / size - 0.5) * 180;
+                        const lon = (j / size - 0.5) * 360;
+                        
+                        // Generate realistic population density based on location
+                        let population = this.generatePopulationDensity(lat, lon);
+                        
+                        // Convert to color values
+                        const intensity = Math.max(0, Math.min(255, population * 255));
+                        
+                        // Use red channel for population intensity
+                        data[index] = intensity;     // R - population level
+                        data[index + 1] = 50;        // G - base green
+                        data[index + 2] = 50;        // B - base blue
+                        data[index + 3] = 255;       // A - full opacity
+                    }
+                }
+                
+                const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+                texture.needsUpdate = true;
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                
+                this.populationTexture = texture;
+            }
+
+            createEconomicDataTexture() {
+                const size = 512;
+                const data = new Uint8Array(size * size * 4);
+                
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        const index = (i * size + j) * 4;
+                        
+                        // Convert texture coordinates to lat/lon
+                        const lat = (i / size - 0.5) * 180;
+                        const lon = (j / size - 0.5) * 360;
+                        
+                        // Generate realistic economic development based on location
+                        let economic = this.generateEconomicDevelopment(lat, lon);
+                        
+                        // Convert to color values
+                        const intensity = Math.max(0, Math.min(255, economic * 255));
+                        
+                        // Use gold/yellow colors for economic activity
+                        data[index] = intensity;          // R - economic level
+                        data[index + 1] = intensity * 0.8; // G - golden tint
+                        data[index + 2] = 30;             // B - low blue for gold color
+                        data[index + 3] = 255;            // A - full opacity
+                    }
+                }
+                
+                const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+                texture.needsUpdate = true;
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                
+                this.economicTexture = texture;
+            }
+
+            generatePopulationDensity(lat, lon) {
+                let density = 0;
+                
+                // Major population centers around the world
+                const populationCenters = [
+                    // Asia - highest population density
+                    { lat: 35, lon: 139, intensity: 1.0, radius: 15 }, // Tokyo-Yokohama
+                    { lat: 28, lon: 77, intensity: 0.9, radius: 12 },  // Delhi
+                    { lat: 39, lon: 116, intensity: 0.8, radius: 10 }, // Beijing
+                    { lat: 31, lon: 121, intensity: 0.8, radius: 8 },  // Shanghai
+                    { lat: 19, lon: 73, intensity: 0.7, radius: 8 },   // Mumbai
+                    { lat: 1.3, lon: 103.8, intensity: 0.6, radius: 5 }, // Singapore
+                    
+                    // Europe
+                    { lat: 51.5, lon: 0, intensity: 0.6, radius: 8 },    // London
+                    { lat: 48.9, lon: 2.3, intensity: 0.5, radius: 6 },  // Paris
+                    { lat: 52.5, lon: 13.4, intensity: 0.4, radius: 6 }, // Berlin
+                    
+                    // North America
+                    { lat: 40.7, lon: -74, intensity: 0.7, radius: 8 },   // New York
+                    { lat: 34.1, lon: -118.2, intensity: 0.5, radius: 6 }, // Los Angeles
+                    { lat: 41.9, lon: -87.6, intensity: 0.4, radius: 5 },  // Chicago
+                    
+                    // South America
+                    { lat: -23.5, lon: -46.6, intensity: 0.6, radius: 8 }, // São Paulo
+                    { lat: -34.6, lon: -58.4, intensity: 0.4, radius: 6 }, // Buenos Aires
+                    
+                    // Africa
+                    { lat: 30.0, lon: 31.2, intensity: 0.5, radius: 6 },   // Cairo
+                    { lat: 6.5, lon: 3.4, intensity: 0.4, radius: 5 },     // Lagos
+                ];
+                
+                // Calculate density based on distance to population centers
+                populationCenters.forEach(center => {
+                    const distance = Math.sqrt(
+                        Math.pow(lat - center.lat, 2) + Math.pow(lon - center.lon, 2)
+                    );
+                    if (distance < center.radius) {
+                        const influence = (1 - distance / center.radius) * center.intensity;
+                        density = Math.max(density, influence);
+                    }
+                });
+                
+                // Add regional population patterns
+                // High density in coastal and temperate areas
+                if (Math.abs(lat) < 60) { // Exclude polar regions
+                    density += 0.1 * Math.exp(-Math.abs(lat) / 30); // Higher near equator
+                }
+                
+                return Math.min(1.0, density);
+            }
+
+            generateEconomicDevelopment(lat, lon) {
+                let development = 0;
+                
+                // Major economic centers
+                const economicCenters = [
+                    // Developed regions
+                    { lat: 40.7, lon: -74, intensity: 1.0, radius: 12 },   // New York Financial
+                    { lat: 51.5, lon: 0, intensity: 0.9, radius: 10 },     // London Financial
+                    { lat: 35.7, lon: 139.7, intensity: 0.9, radius: 10 }, // Tokyo Financial
+                    { lat: 1.3, lon: 103.8, intensity: 0.8, radius: 8 },   // Singapore
+                    { lat: 22.3, lon: 114.2, intensity: 0.8, radius: 6 },  // Hong Kong
+                    { lat: 37.8, lon: -122.4, intensity: 0.8, radius: 8 }, // San Francisco Tech
+                    { lat: 47.6, lon: -122.3, intensity: 0.7, radius: 6 }, // Seattle Tech
+                    
+                    // European financial centers
+                    { lat: 50.1, lon: 8.7, intensity: 0.7, radius: 6 },    // Frankfurt
+                    { lat: 47.4, lon: 8.5, intensity: 0.7, radius: 5 },    // Zurich
+                    
+                    // Emerging markets
+                    { lat: 39.9, lon: 116.4, intensity: 0.6, radius: 8 },  // Beijing
+                    { lat: 31.2, lon: 121.5, intensity: 0.6, radius: 6 },  // Shanghai
+                    { lat: 19.4, lon: -99.1, intensity: 0.4, radius: 6 },  // Mexico City
+                    { lat: -23.5, lon: -46.6, intensity: 0.5, radius: 6 }, // São Paulo
+                ];
+                
+                // Calculate development based on distance to economic centers
+                economicCenters.forEach(center => {
+                    const distance = Math.sqrt(
+                        Math.pow(lat - center.lat, 2) + Math.pow(lon - center.lon, 2)
+                    );
+                    if (distance < center.radius) {
+                        const influence = (1 - distance / center.radius) * center.intensity;
+                        development = Math.max(development, influence);
+                    }
+                });
+                
+                // Regional development patterns
+                // Higher development in temperate zones with infrastructure
+                if (lat > 30 && lat < 60) { // Northern developed regions
+                    development += 0.3;
+                } else if (lat > -40 && lat < -20) { // Southern developed regions
+                    development += 0.2;
+                }
+                
+                // Resource-rich areas
+                if ((lon > -70 && lon < -50 && lat > -20 && lat < 10) || // Oil regions
+                    (lon > 45 && lon < 55 && lat > 20 && lat < 30)) {     // Middle East oil
+                    development += 0.4;
+                }
+                
+                return Math.min(1.0, development);
             }
 
             createAtmosphere() {
