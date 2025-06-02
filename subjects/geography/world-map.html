@@ -1212,10 +1212,20 @@
             box-sizing: border-box;
         }
 
+        .gaode-search-controls {
+            flex-shrink: 0;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e5e5e5;
+            overflow: hidden;
+        }
+
         .gaode-map-display {
             flex: 1;
-            min-height: 400px;
-            height: 70vh;
+            min-height: 500px;
+            height: calc(100vh - 300px);
             max-height: calc(100vh - 200px);
             border: 2px solid #ddd;
             border-radius: 12px;
@@ -1224,21 +1234,11 @@
             position: relative;
         }
 
-        .gaode-map-controls {
-            flex-shrink: 0;
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border: 1px solid #e5e5e5;
-            overflow: hidden;
-        }
-
         .gaode-search-box {
             display: flex;
             gap: 10px;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             flex-wrap: wrap;
         }
 
@@ -1253,10 +1253,16 @@
             outline: none;
         }
 
+        .gaode-search-box input[type="text"]:focus {
+            border-color: #28a745;
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.2);
+        }
+
         .gaode-info {
             font-size: 0.9rem;
             color: #666;
             line-height: 1.4;
+            text-align: center;
         }
 
         .search-btn {
@@ -1286,6 +1292,21 @@
             .gaode-map-display {
                 min-height: 300px;
                 height: 60vh;
+            }
+            
+            .gaode-search-controls {
+                padding: 10px 15px;
+                margin-bottom: 10px;
+            }
+            
+            #gaode-map-container {
+                padding: 15px;
+                gap: 10px;
+            }
+            
+            .gaode-map-display {
+                height: calc(100vh - 250px);
+                max-height: calc(100vh - 200px);
             }
         }
     </style>
@@ -1503,7 +1524,8 @@
 
                         <!-- GaoDe Map Container -->
                         <div id="gaode-map-container" style="display: none;">
-                            <div class="gaode-map-controls">
+                            <!-- Move search controls outside and above the map -->
+                            <div class="gaode-search-controls">
                                 <div class="gaode-search-box">
                                     <input type="text" id="gaode-keyword" placeholder="输入城市或国家名称搜索" />
                                     <button onclick="
@@ -1533,7 +1555,12 @@
                                         }
                                     " class="search-btn">🔍 搜索</button>
                                 </div>
+                                <div class="gaode-info">
+                                    <div>🗺️ 高德地图 - 实时地图服务 | 支持全球城市搜索和定位</div>
+                                </div>
                             </div>
+                            
+                            <!-- Map display area - now takes full available space -->
                             <div id="gaode-map" class="gaode-map-display"></div>
                         </div>
                     </div>
@@ -3314,57 +3341,60 @@
                         dragEnable: true,
                         // Add explicit control settings to prevent conflicts
                         doubleClickZoom: true,
-                        keyboardEnable: false,  // Disable keyboard to prevent conflicts
+                        keyboardEnable: true,    // Re-enable keyboard for better interaction
                         scrollWheel: true,
                         touchZoom: true,
                         touchZoomCenter: 1,
                         // Add animation settings to control movement
                         animateEnable: true,
                         jogEnable: false,      // Disable momentum scrolling
-                        isHotspot: false       // Disable hotspot detection
+                        isHotspot: false,      // Disable hotspot detection
+                        viewMode: '2D'         // Ensure 2D mode for better performance
                     });
 
-                    // Add event isolation to prevent interference with other maps
-                    const gaodeContainer = document.getElementById('gaode-map');
-                    if (gaodeContainer) {
-                        // Stop event propagation from GaoDe map to parent elements
-                        gaodeContainer.addEventListener('mousedown', (e) => {
-                            e.stopPropagation();
-                        }, true);
+                    // Add Canvas2D willReadFrequently attribute to prevent console warnings
+                    const mapContainer = document.getElementById('gaode-map');
+                    if (mapContainer) {
+                        // Find canvas elements and set willReadFrequently after map loads
+                        const setupCanvas = () => {
+                            setTimeout(() => {
+                                const canvases = mapContainer.querySelectorAll('canvas');
+                                canvases.forEach(canvas => {
+                                    try {
+                                        // Set willReadFrequently attribute
+                                        canvas.getContext('2d', { willReadFrequently: true });
+                                        console.log('设置Canvas willReadFrequently属性');
+                                    } catch (e) {
+                                        console.warn('无法设置Canvas属性:', e);
+                                    }
+                                });
+                            }, 500);
+                        };
                         
-                        gaodeContainer.addEventListener('mousemove', (e) => {
-                            e.stopPropagation();
-                        }, true);
-                        
-                        gaodeContainer.addEventListener('mouseup', (e) => {
-                            e.stopPropagation();
-                        }, true);
-                        
-                        gaodeContainer.addEventListener('touchstart', (e) => {
-                            e.stopPropagation();
-                        }, true);
-                        
-                        gaodeContainer.addEventListener('touchmove', (e) => {
-                            e.stopPropagation();
-                        }, true);
-                        
-                        gaodeContainer.addEventListener('touchend', (e) => {
-                            e.stopPropagation();
-                        }, true);
-                        
-                        gaodeContainer.addEventListener('wheel', (e) => {
-                            e.stopPropagation();
-                        }, true);
+                        this.gaodeMap.on('complete', setupCanvas);
                     }
 
-                    // Add map event listeners to ensure proper behavior
+                    // Remove the problematic event isolation that prevents mouse interaction
+                    // The original event stopPropagation calls were causing mouse/zoom issues
+
+                    // Add essential map event listeners
                     this.gaodeMap.on('complete', () => {
                         console.log('高德地图加载完成');
+                        
+                        // Ensure map container has proper focus handling
+                        const container = document.getElementById('gaode-map');
+                        if (container) {
+                            container.style.outline = 'none';
+                            container.setAttribute('tabindex', '0');
+                        }
                     });
 
                     this.gaodeMap.on('moveend', () => {
-                        // Ensure map movement stops properly
                         console.log('地图移动结束');
+                    });
+
+                    this.gaodeMap.on('zoomend', () => {
+                        console.log('地图缩放结束');
                     });
 
                     // Create place search service
