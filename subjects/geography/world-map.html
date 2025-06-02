@@ -1660,8 +1660,8 @@
                         }
                         
                         // Use emissive colors to show population hotspots
-                        materialOptions.emissive = 0xff4444; // Red glow for populated areas
-                        materialOptions.emissiveIntensity = 0.6;
+                        materialOptions.emissive = 0x220000; // Much reduced red glow
+                        materialOptions.emissiveIntensity = 0.1; // Reduced from 0.6 to 0.1
                         materialOptions.shininess = 15;
                         materialOptions.specular = 0x222222;
                         
@@ -1680,8 +1680,8 @@
                         }
                         
                         // Use golden emissive for economic centers
-                        materialOptions.emissive = 0xffaa00; // Golden glow for economic activity
-                        materialOptions.emissiveIntensity = 0.8;
+                        materialOptions.emissive = 0x331100; // Much reduced golden glow
+                        materialOptions.emissiveIntensity = 0.2; // Reduced from 0.8 to 0.2
                         materialOptions.shininess = 35; // More reflective for wealth/development
                         materialOptions.specular = 0x444400;
                         
@@ -1763,14 +1763,36 @@
                         // Generate realistic population density based on location
                         let population = this.generatePopulationDensity(lat, lon);
                         
-                        // Convert to color values
+                        // Apply much stronger contrast - most areas should be very dark
+                        population = Math.pow(population, 3); // Cube for stronger contrast
+                        
+                        // Convert to color values with very dark base
                         const intensity = Math.max(0, Math.min(255, population * 255));
                         
-                        // Use red channel for population intensity
-                        data[index] = intensity;     // R - population level
-                        data[index + 1] = 50;        // G - base green
-                        data[index + 2] = 50;        // B - base blue
-                        data[index + 3] = 255;       // A - full opacity
+                        // Create realistic population density colors
+                        if (population < 0.1) {
+                            // Unpopulated areas - very dark
+                            data[index] = 5;      // R - almost black
+                            data[index + 1] = 10; // G - slight blue tint
+                            data[index + 2] = 15; // B - dark blue
+                        } else if (population < 0.3) {
+                            // Low population - dark with slight warmth
+                            data[index] = 20;     // R - low red
+                            data[index + 1] = 15; // G - low green
+                            data[index + 2] = 10; // B - minimal blue
+                        } else if (population < 0.6) {
+                            // Medium population - orange glow
+                            data[index] = intensity * 0.8;     // R - orange
+                            data[index + 1] = intensity * 0.4; // G - orange
+                            data[index + 2] = 10;              // B - minimal blue
+                        } else {
+                            // High population - bright red/white
+                            data[index] = intensity;           // R - full red
+                            data[index + 1] = intensity * 0.6; // G - slight orange
+                            data[index + 2] = intensity * 0.2; // B - minimal blue
+                        }
+                        
+                        data[index + 3] = 255; // A - full opacity
                     }
                 }
                 
@@ -1797,14 +1819,36 @@
                         // Generate realistic economic development based on location
                         let economic = this.generateEconomicDevelopment(lat, lon);
                         
-                        // Convert to color values
+                        // Apply strong contrast for economic visualization
+                        economic = Math.pow(economic, 2.5); // Strong contrast
+                        
+                        // Convert to color values with very dark base
                         const intensity = Math.max(0, Math.min(255, economic * 255));
                         
-                        // Use gold/yellow colors for economic activity
-                        data[index] = intensity;          // R - economic level
-                        data[index + 1] = intensity * 0.8; // G - golden tint
-                        data[index + 2] = 30;             // B - low blue for gold color
-                        data[index + 3] = 255;            // A - full opacity
+                        // Create realistic economic development colors
+                        if (economic < 0.05) {
+                            // Very low economic activity - very dark
+                            data[index] = 2;       // R - almost black
+                            data[index + 1] = 5;   // G - slight green tint
+                            data[index + 2] = 8;   // B - dark blue-green
+                        } else if (economic < 0.2) {
+                            // Low economic activity - dark green
+                            data[index] = 10;      // R - low red
+                            data[index + 1] = 20;  // G - dark green
+                            data[index + 2] = 10;  // B - low blue
+                        } else if (economic < 0.5) {
+                            // Medium economic activity - yellow-green
+                            data[index] = intensity * 0.6;     // R - yellow component
+                            data[index + 1] = intensity * 0.8; // G - strong green
+                            data[index + 2] = 5;               // B - minimal blue
+                        } else {
+                            // High economic activity - bright gold/yellow
+                            data[index] = intensity;           // R - full yellow
+                            data[index + 1] = intensity * 0.9; // G - golden
+                            data[index + 2] = intensity * 0.1; // B - minimal blue for gold
+                        }
+                        
+                        data[index + 3] = 255; // A - full opacity
                     }
                 }
                 
@@ -1859,11 +1903,8 @@
                     }
                 });
                 
-                // Add regional population patterns
-                // High density in coastal and temperate areas
-                if (Math.abs(lat) < 60) { // Exclude polar regions
-                    density += 0.1 * Math.exp(-Math.abs(lat) / 30); // Higher near equator
-                }
+                // Most areas should remain completely dark - no background population
+                // Only specific city centers should be visible
                 
                 return Math.min(1.0, density);
             }
@@ -1904,18 +1945,19 @@
                     }
                 });
                 
-                // Regional development patterns
-                // Higher development in temperate zones with infrastructure
-                if (lat > 30 && lat < 60) { // Northern developed regions
-                    development += 0.3;
-                } else if (lat > -40 && lat < -20) { // Southern developed regions
-                    development += 0.2;
+                // Regional development patterns - much more selective
+                // Only add development to specific regions that actually have it
+                if (lat > 40 && lat < 65 && lon > -10 && lon < 30) { // Western Europe
+                    development += 0.1;
+                } else if (lat > 30 && lat < 50 && lon > -130 && lon < -60) { // North America
+                    development += 0.1;
+                } else if (lat > 30 && lat < 45 && lon > 120 && lon < 145) { // Japan/Korea
+                    development += 0.1;
                 }
                 
-                // Resource-rich areas
-                if ((lon > -70 && lon < -50 && lat > -20 && lat < 10) || // Oil regions
-                    (lon > 45 && lon < 55 && lat > 20 && lat < 30)) {     // Middle East oil
-                    development += 0.4;
+                // Oil-rich regions - very specific areas only
+                if ((lon > 45 && lon < 55 && lat > 20 && lat < 30)) { // Middle East Gulf
+                    development += 0.2;
                 }
                 
                 return Math.min(1.0, development);
