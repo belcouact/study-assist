@@ -1527,33 +1527,8 @@
                             <!-- Move search controls outside and above the map -->
                             <div class="gaode-search-controls">
                                 <div class="gaode-search-box">
-                                    <input type="text" id="gaode-keyword" placeholder="输入城市或国家名称搜索" />
-                                    <button onclick="
-                                        const keyword = document.getElementById('gaode-keyword').value.trim();
-                                        if (!keyword) { alert('请输入位置名称'); return; }
-                                        if (window.worldGlobe && worldGlobe.gaodePlaceSearch) {
-                                            worldGlobe.gaodePlaceSearch.search(keyword, function(status, result) {
-                                                if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
-                                                    const firstResult = result.poiList.pois[0];
-                                                    const location = firstResult.location;
-                                                    worldGlobe.gaodeMap.setZoomAndCenter(13, [location.lng, location.lat]);
-                                                    const marker = new AMap.Marker({
-                                                        position: [location.lng, location.lat],
-                                                        title: firstResult.name
-                                                    });
-                                                    worldGlobe.gaodeMap.add(marker);
-                                                    const infoWindow = new AMap.InfoWindow({
-                                                        content: '<div style=&quot;padding: 10px;&quot;><h4>' + firstResult.name + '</h4><p>地址: ' + (firstResult.address || '未知') + '</p><p>坐标: ' + location.lng.toFixed(4) + ', ' + location.lat.toFixed(4) + '</p></div>'
-                                                    });
-                                                    infoWindow.open(worldGlobe.gaodeMap, [location.lng, location.lat]);
-                                                } else {
-                                                    alert('未找到相关位置: ' + keyword);
-                                                }
-                                            });
-                                        } else {
-                                            alert('地图服务尚未初始化，请稍候再试');
-                                        }
-                                    " class="search-btn">🔍 搜索</button>
+                                    <input type="text" id="gaode-keyword" placeholder="输入城市或国家名称搜索" onkeypress="if(event.key==='Enter') performGaodeSearch()" />
+                                    <button onclick="performGaodeSearch()" class="search-btn">🔍 搜索</button>
                                 </div>
                                 <div class="gaode-info">
                                     <div>🗺️ 高德地图 - 实时地图服务 | 支持全球城市搜索和定位</div>
@@ -4325,6 +4300,8 @@
         let worldGlobe;
         document.addEventListener('DOMContentLoaded', () => {
             worldGlobe = new WorldGlobe();
+            // Assign to window for global access
+            window.worldGlobe = worldGlobe;
         });
 
         const createSVGFromTopoJSON = (data) => {
@@ -4516,6 +4493,88 @@
                 }
             }, 3000);
         }, 2000);
+
+        // Enhanced GaoDe search function with better error handling
+        window.performGaodeSearch = function() {
+            const keyword = document.getElementById('gaode-keyword').value.trim();
+            
+            if (!keyword) {
+                alert('请输入位置名称');
+                return;
+            }
+
+            // Check if WorldGlobe is initialized
+            if (!window.worldGlobe) {
+                alert('地图系统正在初始化，请稍候再试...');
+                return;
+            }
+
+            // Check if GaoDe map is initialized
+            if (!window.worldGlobe.gaodeMapInitialized) {
+                alert('高德地图正在加载，请稍候再试...');
+                return;
+            }
+
+            // Check if search service is available
+            if (!window.worldGlobe.gaodePlaceSearch) {
+                alert('搜索服务正在初始化，请稍候再试...');
+                return;
+            }
+
+            // Check if map instance is available
+            if (!window.worldGlobe.gaodeMap) {
+                alert('地图实例尚未创建，请稍候再试...');
+                return;
+            }
+
+            console.log('开始搜索:', keyword);
+
+            // Perform the search
+            try {
+                window.worldGlobe.gaodePlaceSearch.search(keyword, function(status, result) {
+                    console.log('搜索状态:', status, '结果:', result);
+                    
+                    if (status === 'complete' && result.poiList && result.poiList.pois.length > 0) {
+                        const firstResult = result.poiList.pois[0];
+                        const location = firstResult.location;
+                        
+                        console.log('找到位置:', firstResult.name, location);
+                        
+                        // Clear existing markers
+                        window.worldGlobe.gaodeMap.clearMap();
+                        
+                        // Set map center and zoom
+                        window.worldGlobe.gaodeMap.setZoomAndCenter(13, [location.lng, location.lat]);
+                        
+                        // Add marker
+                        const marker = new AMap.Marker({
+                            position: [location.lng, location.lat],
+                            title: firstResult.name
+                        });
+                        window.worldGlobe.gaodeMap.add(marker);
+                        
+                        // Add info window
+                        const infoWindow = new AMap.InfoWindow({
+                            content: `<div style="padding: 10px;">
+                                <h4>${firstResult.name}</h4>
+                                <p>地址: ${firstResult.address || '未知'}</p>
+                                <p>坐标: ${location.lng.toFixed(4)}, ${location.lat.toFixed(4)}</p>
+                            </div>`
+                        });
+                        infoWindow.open(window.worldGlobe.gaodeMap, [location.lng, location.lat]);
+                        
+                        // Clear search input
+                        document.getElementById('gaode-keyword').value = '';
+                        
+                    } else {
+                        alert('未找到相关位置: ' + keyword);
+                    }
+                });
+            } catch (error) {
+                console.error('搜索出错:', error);
+                alert('搜索服务出现错误，请稍后重试');
+            }
+        };
     </script>
 </body>
 </html> 
