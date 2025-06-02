@@ -1625,11 +1625,8 @@
                             materialOptions.bumpScale = 0.05;
                         }
                         
-                        // Use height texture for displacement if available
-                        if (this.heightTexture) {
-                            materialOptions.displacementMap = this.heightTexture;
-                            materialOptions.displacementScale = this.terrainHeight * 0.1;
-                        } else if (this.proceduralHeightTexture) {
+                        // Always use procedural height texture for displacement in terrain mode
+                        if (this.proceduralHeightTexture) {
                             materialOptions.displacementMap = this.proceduralHeightTexture;
                             materialOptions.displacementScale = this.terrainHeight * 0.05;
                         }
@@ -1648,21 +1645,48 @@
                         }
                         materialOptions.shininess = 30;
                         materialOptions.specular = 0x333333;
+                        // Clear any displacement/bump maps for clean political view
+                        materialOptions.displacementMap = null;
+                        materialOptions.bumpMap = null;
                         break;
                         
                     case 'population':
-                        materialOptions.color = 0x88aa88;
-                        materialOptions.shininess = 20;
+                        // Population density visualization - use warm colors
+                        materialOptions.color = 0xff6b6b; // Warm red for population density
+                        materialOptions.emissive = 0x330000; // Slight red glow
+                        materialOptions.emissiveIntensity = 0.3;
+                        materialOptions.shininess = 25;
+                        materialOptions.specular = 0x444444;
+                        
+                        // Add subtle bump mapping to show populated areas
+                        if (this.proceduralHeightTexture) {
+                            materialOptions.bumpMap = this.proceduralHeightTexture;
+                            materialOptions.bumpScale = 0.03; // Subtle for population data
+                        }
                         break;
                         
                     case 'economy':
-                        materialOptions.color = 0xaa8888;
-                        materialOptions.shininess = 20;
+                        // Economic development visualization - use golden colors
+                        materialOptions.color = 0xffd700; // Gold for economic activity
+                        materialOptions.emissive = 0x332200; // Golden glow
+                        materialOptions.emissiveIntensity = 0.4;
+                        materialOptions.shininess = 40; // More reflective for wealth
+                        materialOptions.specular = 0x666600;
+                        
+                        // Add moderate bump mapping for economic regions
+                        if (this.proceduralHeightTexture) {
+                            materialOptions.bumpMap = this.proceduralHeightTexture;
+                            materialOptions.bumpScale = 0.04;
+                        }
                         break;
                         
                     case 'climate':
-                        materialOptions.color = 0x8888aa;
+                        // Climate visualization - use cool blue-green colors
+                        materialOptions.color = 0x4ecdc4; // Cool blue-green
+                        materialOptions.emissive = 0x002222; // Cool glow
+                        materialOptions.emissiveIntensity = 0.25;
                         materialOptions.shininess = 20;
+                        materialOptions.specular = 0x222244;
                         break;
                 }
             }
@@ -2791,7 +2815,7 @@
             }
 
             switchMapType(type) {
-                // 更新按钮状态
+                // Update button states
                 document.querySelectorAll('.map-type-btn').forEach(btn => {
                     btn.classList.remove('active');
                 });
@@ -2806,7 +2830,10 @@
                 if (type === '2d-world') {
                     this.show2DWorldMap();
                 } else {
-                    this.updateMapDisplay();
+                    // Show 3D globe and update its appearance
+                    document.getElementById('globe-container').style.display = 'block';
+                    this.createGlobeWithTerrain(); // This will apply the new material
+                    this.updateGlobeInfo();
                 }
             }
 
@@ -3232,22 +3259,28 @@
 
             updateTerrainHeight(value) {
                 this.terrainHeight = parseFloat(value);
-                if (this.currentMapType === 'terrain') {
-                    this.updateMapDisplay();
+                // Update display for terrain mode or any mode that uses displacement
+                if (this.currentMapType === 'terrain' && this.globe) {
+                    this.createGlobeWithTerrain();
+                    this.updateGlobeInfo();
                 }
             }
 
             updateOceanDepth(value) {
                 this.oceanDepth = parseFloat(value);
-                if (this.currentMapType === 'terrain') {
-                    this.updateMapDisplay();
+                // Update display for terrain mode or any mode that uses displacement
+                if (this.currentMapType === 'terrain' && this.globe) {
+                    this.createGlobeWithTerrain();
+                    this.updateGlobeInfo();
                 }
             }
 
             updateTerrainDetail(value) {
                 this.terrainDetail = parseInt(value);
-                if (this.currentMapType === 'terrain') {
-                    this.updateMapDisplay();
+                // Update display for terrain mode or any mode that uses displacement
+                if (this.currentMapType === 'terrain' && this.globe) {
+                    this.createGlobeWithTerrain();
+                    this.updateGlobeInfo();
                 }
             }
 
@@ -3258,8 +3291,9 @@
                 button.style.background = this.showTerrainWireframe ? '#28a745' : 'white';
                 button.style.color = this.showTerrainWireframe ? 'white' : '#28a745';
                 
-                if (this.currentMapType === 'terrain') {
-                    this.updateMapDisplay();
+                // Update wireframe for current globe
+                if (this.globe && this.globe.material) {
+                    this.globe.material.wireframe = this.showTerrainWireframe;
                 }
             }
         }
