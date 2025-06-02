@@ -1061,10 +1061,10 @@
                             
                             <div class="map-2d-wrapper" id="map-2d-wrapper">
                                 <div class="map-2d-content" id="map-2d-content">
-                                    <!-- High Resolution World Map -->
+                                    <!-- High Resolution World Map from Internet -->
                                     <img 
                                         id="world-map-image" 
-                                        src="../../assets/images/world_map.jpg"
+                                        src="https://gisgeography.com/wp-content/uploads/2021/05/high-resolution-world-map.jpg"
                                         alt="High Resolution World Map"
                                         crossorigin="anonymous"
                                         loading="lazy"
@@ -1085,9 +1085,10 @@
                             <!-- Loading indicator -->
                             <div class="map-loading" id="map-loading">
                                 <div class="loading-spinner">
-                                    <i class="fas fa-globe-americas fa-spin"></i>
+                                    <i class="fas fa-download fa-spin"></i>
                                 </div>
-                                <p>正在加载高清世界地图...</p>
+                                <p>正在下载高分辨率世界地图...</p>
+                                <p style="font-size: 0.8rem; opacity: 0.8;">从互联网获取最新地图数据 (可能需要几秒钟)</p>
                             </div>
                         </div>
                     </div>
@@ -3100,25 +3101,68 @@
                 let lastX = 0;
                 let lastY = 0;
 
-                // Show loading initially
+                // Show enhanced loading initially with download progress
                 loading.style.display = 'block';
+                loading.innerHTML = `
+                    <div class="loading-spinner">
+                        <i class="fas fa-download fa-spin"></i>
+                    </div>
+                    <p>正在下载高分辨率世界地图...</p>
+                    <p style="font-size: 0.8rem; opacity: 0.8;">从互联网获取最新地图数据 (可能需要几秒钟)</p>
+                `;
 
-                // Hide loading when image loads
+                // Add progress tracking
+                let startTime = Date.now();
+                const progressInterval = setInterval(() => {
+                    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+                    const loadingText = loading.querySelector('p');
+                    if (loadingText && loading.style.display !== 'none') {
+                        loadingText.innerHTML = `正在下载高分辨率世界地图... (${elapsed}秒)`;
+                    }
+                }, 100);
+
+                // Hide loading when image loads successfully
                 image.onload = () => {
+                    clearInterval(progressInterval);
                     loading.style.display = 'none';
+                    console.log('🌍 高分辨率世界地图加载成功！图片来源：', image.src);
                     this.addCountryMarkers();
                 };
 
-                // Simple error handling for image load - no fallback sources
+                // Enhanced error handling with multiple high-resolution fallback sources
                 image.onerror = () => {
-                    loading.innerHTML = `
-                        <div class="loading-spinner">
-                            <i class="fas fa-exclamation-triangle" style="color: #ff6b6b;"></i>
-                        </div>
-                        <p>无法加载地图文件：../../assets/images/world_map.jpg</p>
-                        <p>请确认文件存在并刷新页面</p>
-                        <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">重新加载</button>
-                    `;
+                    const highQualitySources = [
+                        'https://www.mapsofindia.com/world-map/world-political-map-2020.jpg', // 高质量政治地图
+                        'https://equal-earth.com/physical/equal-earth-physical-map-2025.jpg', // Equal Earth Physical Map
+                        'https://www.h-schmidt.net/map/world_shaded_43k.jpg', // Blue Marble高分辨率
+                        'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/raster/natural_earth_2_shaded_relief.tif', // Natural Earth
+                        'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/raster/ne_50m_land.jpg', // Natural Earth备用
+                        '../../assets/images/world_map.jpg' // 本地备用
+                    ];
+                    
+                    let currentSourceIndex = 0;
+                    
+                    const tryNextSource = () => {
+                        if (currentSourceIndex < highQualitySources.length) {
+                            console.log(`尝试加载备用地图源 ${currentSourceIndex + 1}: ${highQualitySources[currentSourceIndex]}`);
+                            image.src = highQualitySources[currentSourceIndex];
+                            currentSourceIndex++;
+                        } else {
+                            // 所有源都失败了，显示错误信息
+                            loading.innerHTML = `
+                                <div class="loading-spinner">
+                                    <i class="fas fa-exclamation-triangle" style="color: #ff6b6b;"></i>
+                                </div>
+                                <p>无法加载高分辨率世界地图</p>
+                                <p>已尝试多个地图源，请检查网络连接</p>
+                                <button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">重新加载</button>
+                            `;
+                        }
+                    };
+                    
+                    // 为新图片源设置错误处理
+                    image.onerror = tryNextSource;
+                    tryNextSource();
                 };
 
                 // Update transform
