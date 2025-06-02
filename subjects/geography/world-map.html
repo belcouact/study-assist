@@ -30,6 +30,15 @@
             max-width: 1600px;
         }
 
+        /* Special full-width layout for GaoDe map */
+        .map-container.gaode-fullwidth {
+            max-width: none;
+            margin: 0;
+            border-radius: 0;
+            box-shadow: none;
+            width: 100%;
+        }
+
         .map-header {
             background: linear-gradient(135deg, #28a745, #20c997);
             color: white;
@@ -166,6 +175,12 @@
             position: relative;
         }
 
+        .map-workspace.gaode-fullwidth {
+            padding: 0;
+            gap: 0;
+            min-height: 100vh;
+        }
+
         .map-display {
             background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             border-radius: 15px;
@@ -179,6 +194,12 @@
 
         .map-display.panning {
             cursor: grabbing;
+        }
+
+        .map-display.gaode-fullwidth {
+            border-radius: 0;
+            border: none;
+            height: 100vh;
         }
 
         #globe-container {
@@ -1213,6 +1234,21 @@
             box-sizing: border-box;
         }
 
+        /* Full-width GaoDe map styles */
+        #gaode-map-container.fullwidth {
+            padding: 0;
+            gap: 0;
+            background: transparent;
+        }
+
+        .gaode-map-display.fullwidth {
+            width: 100%;
+            height: 100vh;
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+        }
+
         .gaode-search-controls {
             flex-shrink: 0;
             background: white;
@@ -1266,27 +1302,51 @@
         /* Mobile responsive for GaoDe map */
         @media (max-width: 768px) {
             #gaode-map-container {
-                padding: 0; /* Remove padding to use full width */
+                padding: 0;
                 gap: 0;
-                margin: 0; /* Remove margin */
-                background: transparent; /* Remove background to avoid visual conflicts */
+                margin: 0;
+                background: transparent;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 1000;
             }
             
             .gaode-map-display {
-                min-height: 400px;
-                height: 75vh; /* Use more viewport height */
-                width: 100vw; /* Use full viewport width */
-                margin-left: calc(-50vw + 50%); /* Center and expand to full width */
-                border-radius: 0; /* Remove border radius for full width */
-                border: none; /* Remove border */
-                box-shadow: none; /* Remove box shadow */
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+
+            /* Hide other elements when GaoDe map is active on mobile */
+            body.gaode-mobile-active .map-header,
+            body.gaode-mobile-active .map-controls {
+                display: none;
+            }
+
+            body.gaode-mobile-active .map-container {
+                margin: 0;
+                max-width: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            body.gaode-mobile-active .map-workspace {
+                padding: 0;
             }
         }
 
         @media (max-width: 480px) {
             .gaode-map-display {
-                height: 70vh; /* Adjust for smaller screens */
-                min-height: 350px;
+                height: 100vh;
+                min-height: 100vh;
             }
         }
     </style>
@@ -1555,8 +1615,37 @@
                 // Initialize map type buttons
                 this.initializeMapTypeButtons();
                 
+                // Add window resize listener for responsive layout
+                this.initializeResizeHandler();
+                
                 // Initialize 3D globe by default
                 this.init3DGlobe();
+            }
+
+            initializeResizeHandler() {
+                window.addEventListener('resize', () => {
+                    // Handle GaoDe map resize if it's currently active
+                    if (this.currentMapType === 'gaode-map') {
+                        const isMobile = window.innerWidth <= 768;
+                        const wasDesktop = !document.body.classList.contains('gaode-mobile-active');
+                        
+                        if (isMobile && wasDesktop) {
+                            // Switched from desktop to mobile
+                            this.showGaodeMap();
+                        } else if (!isMobile && !wasDesktop) {
+                            // Switched from mobile to desktop
+                            this.showGaodeMap();
+                        }
+                        
+                        // Resize map if it exists
+                        if (this.gaodeMap) {
+                            setTimeout(() => {
+                                this.gaodeMap.getSize();
+                                this.gaodeMap.setFitView();
+                            }, 300);
+                        }
+                    }
+                });
             }
 
             initializeSearch() {
@@ -3200,6 +3289,22 @@
                 // Clean up any active drag operations before switching
                 this.cleanupMapEvents();
                 
+                // Remove full-width classes from all elements first
+                const mapContainer = document.querySelector('.map-container');
+                const mapWorkspace = document.querySelector('.map-workspace');
+                const mapDisplay = document.querySelector('.map-display');
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                const gaodeDisplay = document.getElementById('gaode-map');
+                
+                mapContainer.classList.remove('gaode-fullwidth');
+                mapWorkspace.classList.remove('gaode-fullwidth');
+                mapDisplay.classList.remove('gaode-fullwidth');
+                if (gaodeContainer) gaodeContainer.classList.remove('fullwidth');
+                if (gaodeDisplay) gaodeDisplay.classList.remove('fullwidth');
+                
+                // Remove mobile body class
+                document.body.classList.remove('gaode-mobile-active');
+                
                 // Hide all map containers first
                 document.getElementById('globe-container').style.display = 'none';
                 document.getElementById('world-2d-container').style.display = 'none';
@@ -3264,10 +3369,41 @@
                 container2D.style.display = 'none';
                 gaodeContainer.style.display = 'block';
                 
+                // Apply full-width classes for better layout
+                const mapContainer = document.querySelector('.map-container');
+                const mapWorkspace = document.querySelector('.map-workspace');
+                const mapDisplay = document.querySelector('.map-display');
+                const gaodeDisplay = document.getElementById('gaode-map');
+                
+                // Check if mobile (screen width <= 768px)
+                const isMobile = window.innerWidth <= 768;
+                
+                if (isMobile) {
+                    // Apply mobile full-screen mode
+                    document.body.classList.add('gaode-mobile-active');
+                } else {
+                    // Apply PC full-width mode
+                    mapContainer.classList.add('gaode-fullwidth');
+                    mapWorkspace.classList.add('gaode-fullwidth');
+                    mapDisplay.classList.add('gaode-fullwidth');
+                }
+                
+                // Apply container classes
+                gaodeContainer.classList.add('fullwidth');
+                gaodeDisplay.classList.add('fullwidth');
+                
                 // Initialize GaoDe map if not already done
                 if (!this.gaodeMapInitialized) {
                     this.initializeGaodeMap();
                     this.gaodeMapInitialized = true;
+                } else {
+                    // Resize existing map to fit new container
+                    setTimeout(() => {
+                        if (this.gaodeMap) {
+                            this.gaodeMap.getSize();
+                            this.gaodeMap.setFitView();
+                        }
+                    }, 300);
                 }
             }
 
