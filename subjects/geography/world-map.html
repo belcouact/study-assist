@@ -1320,6 +1320,131 @@
                 min-height: 100vh;
             }
         }
+
+        /* Mobile responsive for 3D Globe - Full Screen Mode */
+        @media (max-width: 768px) {
+            /* Full-screen 3D globe styles */
+            body.globe-mobile-active {
+                overflow: hidden;
+            }
+
+            /* Hide other elements when 3D globe is active on mobile */
+            body.globe-mobile-active .map-header,
+            body.globe-mobile-active .map-controls {
+                display: none;
+            }
+
+            body.globe-mobile-active .map-container {
+                margin: 0;
+                max-width: none;
+                border-radius: 0;
+                box-shadow: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 1000;
+            }
+
+            body.globe-mobile-active .map-workspace {
+                padding: 0;
+                min-height: 100vh;
+                height: 100vh;
+                gap: 0;
+            }
+
+            body.globe-mobile-active .map-display {
+                border-radius: 0;
+                border: none;
+                height: 100vh;
+                width: 100vw;
+            }
+
+            body.globe-mobile-active #globe-container {
+                width: 100vw;
+                height: 100vh;
+                min-height: 100vh;
+                border-radius: 0;
+            }
+
+            /* Enhanced globe controls for mobile */
+            body.globe-mobile-active .globe-controls {
+                top: 20px;
+                left: 20px;
+                z-index: 1001;
+            }
+
+            body.globe-mobile-active .globe-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+                background: rgba(255, 255, 255, 0.9);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+
+            body.globe-mobile-active .globe-info {
+                bottom: 20px;
+                left: 20px;
+                background: rgba(255, 255, 255, 0.9);
+                z-index: 1001;
+                font-size: 14px;
+                padding: 12px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* Mobile responsive for GaoDe map */
+        @media (max-width: 768px) {
+            #gaode-map-container {
+                padding: 0;
+                gap: 0;
+                margin: 0;
+                background: transparent;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 1000;
+            }
+            
+            .gaode-map-display {
+                width: 100vw;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+
+            /* Hide other elements when GaoDe map is active on mobile */
+            body.gaode-mobile-active .map-header,
+            body.gaode-mobile-active .map-controls {
+                display: none;
+            }
+
+            body.gaode-mobile-active .map-container {
+                margin: 0;
+                max-width: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            body.gaode-mobile-active .map-workspace {
+                padding: 0;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .gaode-map-display {
+                height: 100vh;
+                min-height: 100vh;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1488,6 +1613,32 @@
                             }, 300);
                         }
                     }
+                    // Handle 3D Globe resize and mobile mode switching
+                    else if (this.currentMapType === 'political' || this.currentMapType === 'terrain') {
+                        const isMobile = window.innerWidth <= 768;
+                        const wasDesktop = !document.body.classList.contains('globe-mobile-active');
+                        
+                        if (isMobile && wasDesktop) {
+                            // Switched from desktop to mobile - apply mobile mode
+                            this.show3DGlobe();
+                        } else if (!isMobile && !wasDesktop) {
+                            // Switched from mobile to desktop - remove mobile mode
+                            this.show3DGlobe();
+                        }
+                        
+                        // Resize 3D renderer if it exists
+                        if (this.renderer && this.camera) {
+                            setTimeout(() => {
+                                const container = document.getElementById('globe-container');
+                                const width = container.clientWidth;
+                                const height = container.clientHeight;
+                                
+                                this.camera.aspect = width / height;
+                                this.camera.updateProjectionMatrix();
+                                this.renderer.setSize(width, height);
+                            }, 300);
+                        }
+                    }
                 });
             }
 
@@ -1525,6 +1676,12 @@
                     // Hide loading indicator and show success message
                     const loadingDiv = document.getElementById('globe-loading');
                     loadingDiv.style.display = 'none';
+                    
+                    // Apply mobile mode if on mobile device
+                    const isMobile = window.innerWidth <= 768;
+                    if (isMobile) {
+                        document.body.classList.add('globe-mobile-active');
+                    }
                     
                     // Show terrain status in globe info
                     this.updateGlobeInfo();
@@ -3163,7 +3320,7 @@
                 // Clean up any active drag operations before switching
                 this.cleanupMapEvents();
                 
-                // Remove full-width classes from all elements first
+                // Remove all full-width classes and mobile classes first
                 const mapContainer = document.querySelector('.map-container');
                 const mapWorkspace = document.querySelector('.map-workspace');
                 const mapDisplay = document.querySelector('.map-display');
@@ -3176,8 +3333,9 @@
                 if (gaodeContainer) gaodeContainer.classList.remove('fullwidth');
                 if (gaodeDisplay) gaodeDisplay.classList.remove('fullwidth');
                 
-                // Remove mobile body class
+                // Remove mobile body classes
                 document.body.classList.remove('gaode-mobile-active');
+                document.body.classList.remove('globe-mobile-active');
                 
                 // Hide all map containers first
                 document.getElementById('globe-container').style.display = 'none';
@@ -3186,10 +3344,8 @@
                 if (type === 'gaode-map') {
                     this.showGaodeMap();
                 } else {
-                    // Show 3D globe and update its appearance
-                    document.getElementById('globe-container').style.display = 'block';
-                    this.createGlobeWithTerrain(); // This will apply the new material
-                    this.updateGlobeInfo();
+                    // Show 3D globe with mobile full-screen support
+                    this.show3DGlobe();
                 }
             }
 
@@ -4267,6 +4423,42 @@
                 if (this.globe && this.globe.material) {
                     this.globe.material.wireframe = this.showTerrainWireframe;
                 }
+            }
+
+            show3DGlobe() {
+                const globeContainer = document.getElementById('globe-container');
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                
+                gaodeContainer.style.display = 'none';
+                globeContainer.style.display = 'block';
+                
+                // Check if mobile (screen width <= 768px)
+                const isMobile = window.innerWidth <= 768;
+                
+                if (isMobile) {
+                    // Apply mobile full-screen mode for 3D globe
+                    document.body.classList.add('globe-mobile-active');
+                } else {
+                    // Regular desktop view - no special classes needed
+                    // The existing CSS handles desktop layout properly
+                }
+                
+                // Update globe appearance and ensure it's properly sized
+                this.createGlobeWithTerrain(); // This will apply the new material
+                this.updateGlobeInfo();
+                
+                // Resize renderer if needed
+                setTimeout(() => {
+                    if (this.renderer && this.camera) {
+                        const container = document.getElementById('globe-container');
+                        const width = container.clientWidth;
+                        const height = container.clientHeight;
+                        
+                        this.camera.aspect = width / height;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(width, height);
+                    }
+                }, 100);
             }
         }
 
