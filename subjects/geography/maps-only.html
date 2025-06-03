@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地图导航 - 地理学习助手</title>
+    <link rel="icon" href="../../assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="../../css/common.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/utilities.css">
+    <link rel="stylesheet" href="../../css/responsive.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        .map-page {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            margin: 0;
+            max-width: none;
+            width: 100%;
+            height: 100vh;
+        }
+
+        .map-header {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .map-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .map-header p {
+            margin: 0.5rem 0 0 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .map-controls {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .map-type-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .map-type-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #28a745;
+            background: white;
+            color: #28a745;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .map-type-btn.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .map-type-btn:hover {
+            background: #28a745;
+            color: white;
+        }
+
+        .map-workspace {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+            padding: 0;
+            height: calc(100vh - 120px);
+            position: relative;
+        }
+
+        .map-workspace.fullscreen {
+            height: 100vh;
+        }
+
+        .map-display {
+            background: #f8f9fa;
+            border-radius: 0;
+            position: relative;
+            overflow: hidden;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* GaoDe Map Styles */
+        #gaode-map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .gaode-map-display {
+            width: 100%;
+            height: 100%;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+
+        .gaode-map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 200px;
+        }
+
+        .gaode-map-type-selector {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .gaode-type-btn {
+            padding: 8px 12px;
+            border: 1px solid #28a745;
+            background: white;
+            color: #28a745;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-align: center;
+            flex: 1;
+        }
+
+        .gaode-type-btn.active {
+            background: #28a745;
+            color: white;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .gaode-type-btn:hover {
+            background: #28a745;
+            color: white;
+        }
+
+        /* Geovisearth Container Styles */
+        #geovisearth-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        #geovisearth-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+
+        .fullscreen-btn:hover {
+            background: #28a745;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .map-header {
+                padding: 0.75rem;
+            }
+
+            .map-header h1 {
+                font-size: 1.2rem;
+            }
+
+            .map-header p {
+                font-size: 0.8rem;
+            }
+
+            .map-controls {
+                padding: 0.5rem;
+            }
+
+            .map-type-btn {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.75rem;
+            }
+
+            .fullscreen-btn {
+                width: 40px;
+                height: 40px;
+                bottom: 15px;
+                right: 15px;
+                font-size: 1rem;
+            }
+
+            .gaode-map-controls {
+                top: 5px;
+                right: 5px;
+                padding: 8px;
+                gap: 5px;
+                max-width: 150px;
+            }
+
+            .gaode-type-btn {
+                padding: 6px 8px;
+                font-size: 0.7rem;
+            }
+        }
+
+        /* Fullscreen mode */
+        .fullscreen-mode .map-header,
+        .fullscreen-mode .map-controls {
+            display: none;
+        }
+
+        .fullscreen-mode .map-workspace {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <a href="../../index.html">
+                        <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                        <span>Alex的学习助手</span>
+                    </a>
+                </div>
+                <nav class="main-nav">
+                    <ul>
+                        <li><a href="../../index.html">首页</a></li>
+                        <li><a href="main.html">地理</a></li>
+                        <li><a href="../../index.html#subjects">科目</a></li>
+                        <li><a href="../../tts.html">语音</a></li>
+                        <li><a href="../../draw.html">绘图</a></li>
+                    </ul>
+                </nav>
+                <button class="mobile-menu-toggle" aria-label="切换菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="map-page">
+        <div class="container">
+            <div class="map-container">
+                <div class="map-header">
+                    <h1><i class="fas fa-globe"></i> 地图导航</h1>
+                    <p>高德地图和Geovisearth全屏体验</p>
+                </div>
+
+                <div class="map-controls">
+                    <div class="control-group">
+                        <label>地图视图</label>
+                        <div class="map-type-buttons">
+                            <button class="map-type-btn active" data-type="gaode-map">高德地图</button>
+                            <button class="map-type-btn" data-type="geovisearth">Geovisearth</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="map-workspace">
+                    <div class="map-display" id="map-display">
+                        <!-- GaoDe Map Container -->
+                        <div id="gaode-map-container" style="display: block;">
+                            <!-- Map type controls for GaoDe -->
+                            <div class="gaode-map-controls">
+                                <div class="gaode-map-type-selector">
+                                    <button class="gaode-type-btn active" data-gaode-type="normal">标准地图</button>
+                                    <button class="gaode-type-btn" data-gaode-type="satellite">卫星地图</button>
+                                </div>
+                            </div>
+                            <!-- Map display area -->
+                            <div id="gaode-map" class="gaode-map-display"></div>
+                        </div>
+                        
+                        <!-- Geovisearth Map Container -->
+                        <div id="geovisearth-container" style="display: none;">
+                            <iframe 
+                                id="geovisearth-iframe" 
+                                src="https://online.geovisearth.com/browser" 
+                                frameborder="0"
+                                allowfullscreen>
+                            </iframe>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Fullscreen toggle button -->
+                <div class="fullscreen-btn" id="fullscreen-toggle">
+                    <i class="fas fa-expand"></i>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="main-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/common.js"></script>
+    <script src="../../js/navigation.js"></script>
+
+    <!-- Load GaoDe JS API + Place Plugin -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=a8d31bfd3d1f7c567b30bb20409e8916&plugin=AMap.PlaceSearch"></script>
+
+    <script>
+        // Maps functionality
+        class MapsViewer {
+            constructor() {
+                this.currentMapType = 'gaode-map'; // Start with GaoDe map as default
+                this.gaodeMapInitialized = false;
+                this.isFullscreen = false;
+                
+                // Initialize map type buttons
+                this.initializeMapTypeButtons();
+                
+                // Add window resize listener for responsive layout
+                this.initializeResizeHandler();
+                
+                // Initialize fullscreen toggle
+                this.initializeFullscreenToggle();
+                
+                // Initialize GaoDe map as default
+                this.showGaodeMap();
+            }
+
+            initializeResizeHandler() {
+                window.addEventListener('resize', () => {
+                    // Handle GaoDe map resize if it's currently active
+                    if (this.currentMapType === 'gaode-map' && this.gaodeMap) {
+                        setTimeout(() => {
+                            this.gaodeMap.getSize();
+                            this.gaodeMap.setFitView();
+                        }, 300);
+                    }
+                });
+            }
+
+            initializeMapTypeButtons() {
+                const buttons = document.querySelectorAll('.map-type-btn');
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        // Remove active class from all buttons
+                        buttons.forEach(btn => btn.classList.remove('active'));
+                        // Add active class to clicked button
+                        button.classList.add('active');
+                        
+                        const type = button.dataset.type;
+                        this.switchMapType(type);
+                    });
+                });
+            }
+            
+            initializeFullscreenToggle() {
+                const fullscreenBtn = document.getElementById('fullscreen-toggle');
+                fullscreenBtn.addEventListener('click', () => {
+                    this.toggleFullscreen();
+                });
+            }
+            
+            toggleFullscreen() {
+                const body = document.body;
+                const icon = document.querySelector('#fullscreen-toggle i');
+                
+                this.isFullscreen = !this.isFullscreen;
+                
+                if (this.isFullscreen) {
+                    body.classList.add('fullscreen-mode');
+                    icon.classList.remove('fa-expand');
+                    icon.classList.add('fa-compress');
+                } else {
+                    body.classList.remove('fullscreen-mode');
+                    icon.classList.remove('fa-compress');
+                    icon.classList.add('fa-expand');
+                }
+                
+                // Resize map if needed
+                if (this.currentMapType === 'gaode-map' && this.gaodeMap) {
+                    setTimeout(() => {
+                        this.gaodeMap.getSize();
+                        this.gaodeMap.setFitView();
+                    }, 300);
+                }
+            }
+
+            switchMapType(type) {
+                this.currentMapType = type;
+                
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                const geovisContainer = document.getElementById('geovisearth-container');
+                
+                // Hide all map containers first
+                gaodeContainer.style.display = 'none';
+                geovisContainer.style.display = 'none';
+                
+                if (type === 'gaode-map') {
+                    this.showGaodeMap();
+                } else if (type === 'geovisearth') {
+                    this.showGeovisearth();
+                }
+                
+                // Update map type buttons
+                const buttons = document.querySelectorAll('.map-type-btn');
+                buttons.forEach(button => {
+                    if (button.dataset.type === type) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                });
+            }
+
+            showGaodeMap() {
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                const geovisContainer = document.getElementById('geovisearth-container');
+                
+                geovisContainer.style.display = 'none';
+                gaodeContainer.style.display = 'block';
+                
+                // Initialize GaoDe map if not already done
+                if (!this.gaodeMapInitialized) {
+                    this.initializeGaodeMap();
+                    this.gaodeMapInitialized = true;
+                    
+                    // Initialize GaoDe map type controls
+                    this.initializeGaodeMapTypeControls();
+                } else {
+                    // Refresh map size after display change
+                    setTimeout(() => {
+                        if (this.gaodeMap) {
+                            this.gaodeMap.getSize();
+                            this.gaodeMap.setFitView();
+                        }
+                    }, 300);
+                }
+            }
+
+            showGeovisearth() {
+                const geovisContainer = document.getElementById('geovisearth-container');
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                
+                gaodeContainer.style.display = 'none';
+                geovisContainer.style.display = 'block';
+            }
+
+            initializeGaodeMapTypeControls() {
+                const gaodeTypeButtons = document.querySelectorAll('.gaode-type-btn');
+                gaodeTypeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        // Remove active class from all buttons
+                        gaodeTypeButtons.forEach(btn => btn.classList.remove('active'));
+                        // Add active class to clicked button
+                        button.classList.add('active');
+                        
+                        const mapType = button.getAttribute('data-gaode-type');
+                        this.switchGaodeMapType(mapType);
+                    });
+                });
+            }
+
+            switchGaodeMapType(mapType) {
+                if (this.gaodeMap) {
+                    // Switch map style based on type
+                    if (mapType === 'satellite') {
+                        this.gaodeMap.setMapStyle('amap://styles/satellite');
+                    } else {
+                        this.gaodeMap.setMapStyle('amap://styles/normal');
+                    }
+                }
+            }
+
+            initializeGaodeMap() {
+                try {
+                    // Create new GaoDe map instance
+                    this.gaodeMap = new AMap.Map('gaode-map', {
+                        viewMode: '3D',
+                        zoom: 5,
+                        center: [108.946609, 34.262324], // Center on China
+                        resizeEnable: true,
+                    });
+                    
+                    // Add scale control
+                    this.gaodeMap.addControl(new AMap.Scale());
+                    
+                    // Add toolbar with more controls
+                    this.gaodeMap.addControl(new AMap.ToolBar({
+                        position: 'RB'
+                    }));
+                    
+                    console.log('GaoDe map initialized successfully');
+                } catch (error) {
+                    console.error('Failed to initialize GaoDe map:', error);
+                }
+            }
+        }
+
+        // Initialize Maps Viewer when document is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            const mapsViewer = new MapsViewer();
+            
+            // Handle mobile-specific setup
+            if (window.innerWidth <= 768) {
+                // Auto-enable fullscreen on mobile
+                setTimeout(() => {
+                    mapsViewer.toggleFullscreen();
+                }, 1000);
+            }
+        });
+    </script>
+</body>
+</html> 
