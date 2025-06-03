@@ -1445,6 +1445,175 @@
                 min-height: 100vh;
             }
         }
+
+        /* Welcome Screen Styles */
+        .welcome-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .welcome-content {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .welcome-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .welcome-content h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff, #e3f2fd);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-content > p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+
+        .welcome-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .welcome-option {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 2rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .welcome-option:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .option-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .welcome-option h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.5rem;
+            color: white;
+            font-weight: 600;
+        }
+
+        .welcome-option p {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            line-height: 1.4;
+            margin: 0;
+        }
+
+        .welcome-footer {
+            margin-top: 2rem;
+            opacity: 0.7;
+        }
+
+        .welcome-footer small {
+            font-size: 0.9rem;
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* Mobile responsive for welcome screen */
+        @media (max-width: 768px) {
+            .welcome-content {
+                padding: 1.5rem;
+            }
+
+            .welcome-content h2 {
+                font-size: 2rem;
+            }
+
+            .welcome-content > p {
+                font-size: 1rem;
+            }
+
+            .welcome-options {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .welcome-option {
+                padding: 1.5rem 1rem;
+            }
+
+            .option-icon {
+                font-size: 2.5rem;
+            }
+
+            .welcome-option h3 {
+                font-size: 1.2rem;
+            }
+
+            .welcome-option p {
+                font-size: 0.9rem;
+            }
+
+            .welcome-footer small {
+                font-size: 0.8rem;
+                padding: 0.4rem 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .welcome-icon {
+                font-size: 3rem;
+            }
+
+            .welcome-content h2 {
+                font-size: 1.75rem;
+            }
+
+            .welcome-content > p {
+                font-size: 0.95rem;
+            }
+
+            .option-icon {
+                font-size: 2rem;
+            }
+
+            .welcome-option h3 {
+                font-size: 1.1rem;
+            }
+
+            .welcome-option p {
+                font-size: 0.85rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1565,7 +1734,7 @@
         class WorldGlobe {
             constructor() {
                 this.selectedCountry = null;
-                this.currentMapType = 'political';
+                this.currentMapType = null; // Start with no map type selected
                 this.countries = this.initializeCountries();
                 this.scene = null;
                 this.camera = null;
@@ -1586,12 +1755,17 @@
                 // Add window resize listener for responsive layout
                 this.initializeResizeHandler();
                 
-                // Initialize 3D globe by default
-                this.init3DGlobe();
+                // Show welcome screen instead of auto-initializing 3D globe
+                this.showWelcomeScreen();
             }
 
             initializeResizeHandler() {
                 window.addEventListener('resize', () => {
+                    // Skip resize handling if no map type is selected (welcome screen)
+                    if (this.currentMapType === null) {
+                        return;
+                    }
+                    
                     // Handle GaoDe map resize if it's currently active
                     if (this.currentMapType === 'gaode-map') {
                         const isMobile = window.innerWidth <= 768;
@@ -3315,6 +3489,39 @@
                 });
                 document.querySelector(`[data-type="${type}"]`).classList.add('active');
 
+                // If switching from welcome screen, clear the welcome content
+                if (this.currentMapType === null) {
+                    const mapDisplay = document.getElementById('map-display');
+                    mapDisplay.innerHTML = `
+                        <!-- 3D Globe Container -->
+                        <div id="globe-container">
+                            <!-- Globe controls for 3D view -->
+                            <div class="globe-controls">
+                                <button class="globe-btn" id="auto-rotate" title="自动旋转">🔄</button>
+                                <button class="globe-btn" id="reset-view" title="重置视图">🏠</button>
+                                <button class="globe-btn" id="toggle-wireframe" title="线框模式">📐</button>
+                            </div>
+                            
+                            <div class="globe-info">
+                                <div>🌍 3D 交互式地球</div>
+                                <div>拖拽旋转 | 滚轮缩放</div>
+                            </div>
+                            
+                            <!-- 3D Globe will be rendered here -->
+                            <div id="globe-loading" style="display: flex; align-items: center; justify-content: center; height: 100%; color: white;">
+                                <i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i>
+                                加载3D地球中...
+                            </div>
+                        </div>
+                        
+                        <!-- GaoDe Map Container -->
+                        <div id="gaode-map-container" style="display: none;">
+                            <!-- Map display area - now takes full available space -->
+                            <div id="gaode-map" class="gaode-map-display"></div>
+                        </div>
+                    `;
+                }
+
                 this.currentMapType = type;
                 
                 // Clean up any active drag operations before switching
@@ -3345,7 +3552,12 @@
                     this.showGaodeMap();
                 } else {
                     // Show 3D globe with mobile full-screen support
-                    this.show3DGlobe();
+                    // Initialize 3D globe if not already done
+                    if (!this.scene) {
+                        this.init3DGlobe();
+                    } else {
+                        this.show3DGlobe();
+                    }
                 }
             }
 
@@ -4459,6 +4671,68 @@
                         this.renderer.setSize(width, height);
                     }
                 }, 100);
+            }
+
+            showWelcomeScreen() {
+                // Hide all map containers
+                document.getElementById('globe-container').style.display = 'none';
+                document.getElementById('gaode-map-container').style.display = 'none';
+                
+                // Remove any active classes from buttons
+                document.querySelectorAll('.map-type-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                // Show welcome message in the map display area
+                const mapDisplay = document.getElementById('map-display');
+                mapDisplay.innerHTML = `
+                    <div class="welcome-screen">
+                        <div class="welcome-content">
+                            <div class="welcome-icon">🗺️</div>
+                            <h2>欢迎使用交互式世界地图</h2>
+                            <p>请选择您想要使用的地图视图类型：</p>
+                            <div class="welcome-options">
+                                <div class="welcome-option" data-type="political">
+                                    <div class="option-icon">🌍</div>
+                                    <h3>政治地图</h3>
+                                    <p>3D 交互式地球，查看各国政治边界</p>
+                                </div>
+                                <div class="welcome-option" data-type="terrain">
+                                    <div class="option-icon">⛰️</div>
+                                    <h3>3D地形</h3>
+                                    <p>带有地形高度的 3D 地球视图</p>
+                                </div>
+                                <div class="welcome-option" data-type="gaode-map">
+                                    <div class="option-icon">🗺️</div>
+                                    <h3>高德地图</h3>
+                                    <p>实时高德地图，支持搜索和导航</p>
+                                </div>
+                            </div>
+                            <div class="welcome-footer">
+                                <small>💡 您可以随时在上方控制栏切换不同的地图视图</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add click event listeners to welcome options
+                const welcomeOptions = document.querySelectorAll('.welcome-option');
+                welcomeOptions.forEach(option => {
+                    option.addEventListener('click', () => {
+                        const type = option.getAttribute('data-type');
+                        this.switchMapType(type);
+                    });
+                });
+            }
+
+            initializeMapTypeButtons() {
+                const buttons = document.querySelectorAll('.map-type-btn');
+                buttons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const type = button.dataset.type;
+                        this.switchMapType(type);
+                    });
+                });
             }
         }
 
