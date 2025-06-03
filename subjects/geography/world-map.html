@@ -1149,10 +1149,111 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding: 10px;
-            background: rgba(255, 255, 255, 0.9);
-            border-radius: 8px;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .gaode-map-type-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gaode-type-btn {
+            padding: 8px 16px;
+            border: 2px solid #28a745;
+            background: white;
+            color: #28a745;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .gaode-type-btn.active {
+            background: #28a745;
+            color: white;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .gaode-type-btn:hover {
+            background: #28a745;
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        /* Geovisearth Container Styles */
+        #geovisearth-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            border-radius: 15px;
+            background: #f8f9fa;
+        }
+
+        #geovisearth-iframe {
+            border-radius: 15px;
+            transition: all 0.3s ease;
+        }
+
+        /* Mobile responsive for GaoDe controls */
+        @media (max-width: 768px) {
+            .gaode-map-controls {
+                padding: 12px 15px;
+                margin-bottom: 10px;
+            }
+
+            .gaode-map-type-selector {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .gaode-type-btn {
+                width: 100%;
+                max-width: 200px;
+                font-size: 0.85rem;
+                padding: 10px 16px;
+            }
+
+            /* Full-screen Geovisearth on mobile */
+            body.geovisearth-mobile-active #geovisearth-container {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 1000;
+                border-radius: 0;
+            }
+
+            body.geovisearth-mobile-active #geovisearth-iframe {
+                border-radius: 0;
+            }
+
+            body.geovisearth-mobile-active .map-header,
+            body.geovisearth-mobile-active .map-controls {
+                display: none;
+            }
+
+            body.geovisearth-mobile-active .map-container {
+                margin: 0;
+                max-width: none;
+                border-radius: 0;
+                box-shadow: none;
+            }
+
+            body.geovisearth-mobile-active .map-workspace {
+                padding: 0;
+            }
         }
 
         .gaode-search-box {
@@ -1190,6 +1291,7 @@
             border-radius: 8px;
             overflow: hidden;
             box-sizing: border-box;
+            position: relative;
         }
 
         /* GaoDe map container styling */
@@ -1203,6 +1305,7 @@
             background: #f8f9fa;
             overflow: hidden;
             box-sizing: border-box;
+            position: relative;
         }
 
         /* Full-width GaoDe map styles */
@@ -1210,14 +1313,19 @@
             padding: 0;
             gap: 0;
             background: transparent;
+            height: 100vh;
+            width: 100vw;
         }
 
         .gaode-map-display.fullwidth {
-            width: 100%;
+            width: 100vw;
             height: 100vh;
             border-radius: 0;
             border: none;
             box-shadow: none;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .gaode-search-controls {
@@ -1659,6 +1767,7 @@
                             <button class="map-type-btn active" data-type="political">政治地图</button>
                     <button class="map-type-btn" data-type="terrain">3D地形</button>
                             <button class="map-type-btn" data-type="gaode-map">高德地图</button>
+                            <button class="map-type-btn" data-type="geovisearth">Geovisearth</button>
                         </div>
                 
                 <div class="terrain-controls">
@@ -1704,8 +1813,26 @@
                         
                         <!-- GaoDe Map Container -->
                         <div id="gaode-map-container" style="display: none;">
-                            <!-- Map display area - now takes full available space -->
+                            <!-- Map type controls for GaoDe -->
+                            <div class="gaode-map-controls">
+                                <div class="gaode-map-type-selector">
+                                    <button class="gaode-type-btn active" data-gaode-type="normal">标准地图</button>
+                                    <button class="gaode-type-btn" data-gaode-type="satellite">卫星地图</button>
+                                </div>
+                            </div>
+                            <!-- Map display area -->
                             <div id="gaode-map" class="gaode-map-display"></div>
+                        </div>
+                        
+                        <!-- Geovisearth Map Container -->
+                        <div id="geovisearth-container" style="display: none;">
+                            <iframe 
+                                id="geovisearth-iframe" 
+                                src="https://online.geovisearth.com/browser" 
+                                style="width: 100%; height: 100%; border: none; border-radius: 15px;"
+                                frameborder="0"
+                                allowfullscreen>
+                            </iframe>
                         </div>
                     </div>
 
@@ -1785,6 +1912,19 @@
                                 this.gaodeMap.getSize();
                                 this.gaodeMap.setFitView();
                             }, 300);
+                        }
+                    }
+                    // Handle Geovisearth resize and mobile mode switching
+                    else if (this.currentMapType === 'geovisearth') {
+                        const isMobile = window.innerWidth <= 768;
+                        const wasDesktop = !document.body.classList.contains('geovisearth-mobile-active');
+                        
+                        if (isMobile && wasDesktop) {
+                            // Switched from desktop to mobile
+                            this.showGeovisearth();
+                        } else if (!isMobile && !wasDesktop) {
+                            // Switched from mobile to desktop
+                            this.showGeovisearth();
                         }
                     }
                     // Handle 3D Globe resize and mobile mode switching
@@ -3516,8 +3656,26 @@
                         
                         <!-- GaoDe Map Container -->
                         <div id="gaode-map-container" style="display: none;">
-                            <!-- Map display area - now takes full available space -->
+                            <!-- Map type controls for GaoDe -->
+                            <div class="gaode-map-controls">
+                                <div class="gaode-map-type-selector">
+                                    <button class="gaode-type-btn active" data-gaode-type="normal">标准地图</button>
+                                    <button class="gaode-type-btn" data-gaode-type="satellite">卫星地图</button>
+                                </div>
+                            </div>
+                            <!-- Map display area -->
                             <div id="gaode-map" class="gaode-map-display"></div>
+                        </div>
+                        
+                        <!-- Geovisearth Map Container -->
+                        <div id="geovisearth-container" style="display: none;">
+                            <iframe 
+                                id="geovisearth-iframe" 
+                                src="https://online.geovisearth.com/browser" 
+                                style="width: 100%; height: 100%; border: none; border-radius: 15px;"
+                                frameborder="0"
+                                allowfullscreen>
+                            </iframe>
                         </div>
                     `;
                 }
@@ -3533,6 +3691,7 @@
                 const mapDisplay = document.querySelector('.map-display');
                 const gaodeContainer = document.getElementById('gaode-map-container');
                 const gaodeDisplay = document.getElementById('gaode-map');
+                const geovisContainer = document.getElementById('geovisearth-container');
                 
                 mapContainer.classList.remove('gaode-fullwidth');
                 mapWorkspace.classList.remove('gaode-fullwidth');
@@ -3543,13 +3702,17 @@
                 // Remove mobile body classes
                 document.body.classList.remove('gaode-mobile-active');
                 document.body.classList.remove('globe-mobile-active');
+                document.body.classList.remove('geovisearth-mobile-active');
                 
                 // Hide all map containers first
                 document.getElementById('globe-container').style.display = 'none';
                 document.getElementById('gaode-map-container').style.display = 'none';
+                if (geovisContainer) geovisContainer.style.display = 'none';
                 
                 if (type === 'gaode-map') {
                     this.showGaodeMap();
+                } else if (type === 'geovisearth') {
+                    this.showGeovisearth();
                 } else {
                     // Show 3D globe with mobile full-screen support
                     // Initialize 3D globe if not already done
@@ -3602,15 +3765,11 @@
             showGaodeMap() {
                 const gaodeContainer = document.getElementById('gaode-map-container');
                 const globeContainer = document.getElementById('globe-container');
+                const geovisContainer = document.getElementById('geovisearth-container');
                 
                 globeContainer.style.display = 'none';
+                if (geovisContainer) geovisContainer.style.display = 'none';
                 gaodeContainer.style.display = 'block';
-                
-                // Apply full-width classes for better layout
-                const mapContainer = document.querySelector('.map-container');
-                const mapWorkspace = document.querySelector('.map-workspace');
-                const mapDisplay = document.querySelector('.map-display');
-                const gaodeDisplay = document.getElementById('gaode-map');
                 
                 // Check if mobile (screen width <= 768px)
                 const isMobile = window.innerWidth <= 768;
@@ -3620,6 +3779,10 @@
                     document.body.classList.add('gaode-mobile-active');
                 } else {
                     // Apply PC full-width mode
+                    const mapContainer = document.querySelector('.map-container');
+                    const mapWorkspace = document.querySelector('.map-workspace');
+                    const mapDisplay = document.querySelector('.map-display');
+                    
                     mapContainer.classList.add('gaode-fullwidth');
                     mapWorkspace.classList.add('gaode-fullwidth');
                     mapDisplay.classList.add('gaode-fullwidth');
@@ -3627,37 +3790,15 @@
                 
                 // Apply container classes
                 gaodeContainer.classList.add('fullwidth');
+                const gaodeDisplay = document.getElementById('gaode-map');
                 gaodeDisplay.classList.add('fullwidth');
+                
+                // Initialize GaoDe map type controls
+                this.initializeGaodeMapTypeControls();
                 
                 // Initialize GaoDe map if not already done
                 if (!this.gaodeMapInitialized) {
                     this.initializeGaodeMap();
-                    
-                    // Initialize map type buttons for GaoDe map
-                    const gaodeTypeButtons = document.querySelectorAll('.gaode-type-btn');
-                    gaodeTypeButtons.forEach(button => {
-                        button.addEventListener('click', () => {
-                            // Remove active class from all buttons
-                            gaodeTypeButtons.forEach(btn => btn.classList.remove('active'));
-                            // Add active class to clicked button
-                            button.classList.add('active');
-                            
-                            // Get map type
-                            const mapType = button.dataset.gaodeType;
-                            
-                            // Switch map style
-                            if (this.gaodeMap) {
-                                if (mapType === 'normal') {
-                                    this.gaodeMap.setMapStyle('amap://styles/normal');
-                                } else if (mapType === 'satellite') {
-                                    this.gaodeMap.setMapStyle('amap://styles/satellite');
-                                }
-                                
-                                console.log(`GaoDe map switched to ${mapType} style`);
-                            }
-                        });
-                    });
-                    
                     this.gaodeMapInitialized = true;
                 } else {
                     // Resize existing map to fit new container
@@ -3667,6 +3808,50 @@
                             this.gaodeMap.setFitView();
                         }
                     }, 300);
+                }
+            }
+
+            showGeovisearth() {
+                const geovisContainer = document.getElementById('geovisearth-container');
+                const globeContainer = document.getElementById('globe-container');
+                const gaodeContainer = document.getElementById('gaode-map-container');
+                
+                globeContainer.style.display = 'none';
+                gaodeContainer.style.display = 'none';
+                geovisContainer.style.display = 'block';
+                
+                // Check if mobile (screen width <= 768px)
+                const isMobile = window.innerWidth <= 768;
+                
+                if (isMobile) {
+                    // Apply mobile full-screen mode for Geovisearth
+                    document.body.classList.add('geovisearth-mobile-active');
+                }
+            }
+
+            initializeGaodeMapTypeControls() {
+                const gaodeTypeButtons = document.querySelectorAll('.gaode-type-btn');
+                gaodeTypeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        // Remove active class from all buttons
+                        gaodeTypeButtons.forEach(btn => btn.classList.remove('active'));
+                        // Add active class to clicked button
+                        button.classList.add('active');
+                        
+                        const mapType = button.getAttribute('data-gaode-type');
+                        this.switchGaodeMapType(mapType);
+                    });
+                });
+            }
+
+            switchGaodeMapType(mapType) {
+                if (this.gaodeMap) {
+                    // Switch map style based on type
+                    if (mapType === 'satellite') {
+                        this.gaodeMap.setMapStyle('amap://styles/satellite');
+                    } else {
+                        this.gaodeMap.setMapStyle('amap://styles/normal');
+                    }
                 }
             }
 
@@ -4732,6 +4917,11 @@
                                     <div class="option-icon">🗺️</div>
                                     <h3>高德地图</h3>
                                     <p>实时高德地图，支持搜索和导航</p>
+                                </div>
+                                <div class="welcome-option" data-type="geovisearth">
+                                    <div class="option-icon">🌍</div>
+                                    <h3>Geovisearth</h3>
+                                    <p>Geovisearth 地图，支持搜索和导航</p>
                                 </div>
                             </div>
                             <div class="welcome-footer">
