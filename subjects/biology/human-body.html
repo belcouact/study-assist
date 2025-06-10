@@ -296,10 +296,140 @@
 
         .health-analyzer {
             background: #f8f9fa;
+            padding: 1.5rem;
             border-radius: 15px;
-            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-
+        
+        .health-input {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .input-field label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .input-field input, .input-field select {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .health-results {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        }
+        
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #4caf50;
+        }
+        
+        /* 生理功能模拟相关样式 */
+        .physiology-simulator {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+        
+        .physiology-chart {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            width: 100%;
+            height: 350px;
+        }
+        
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .vital-signs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .vital-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-top: 4px solid #4caf50;
+            transition: transform 0.3s ease;
+        }
+        
+        .vital-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .vital-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .vital-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .action-btn {
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0.5rem;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .action-btn:hover {
+            background: #388e3c;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        
+        .action-btn.secondary {
+            background: #757575;
+        }
+        
+                 .action-btn.secondary:hover {
+             background: #616161;
+         }
+        
         .health-input {
             background: white;
             border-radius: 10px;
@@ -677,8 +807,6 @@
                                 </div>
                             </div>
                             
-                            <!-- 已移除原来的简单画布，使用详细文本内容替代 -->
-                            
                             <div class="system-controls">
                                 <h3><i class="fas fa-search"></i> 人体系统</h3>
                                 
@@ -940,6 +1068,7 @@
 
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // 人体系统功能
         class HumanBodySystems {
@@ -1406,6 +1535,344 @@
                     connection.textContent = systemData.connection;
                 } else {
                     connection.textContent = '该系统与其他系统的关系详情尚未添加。';
+                }
+            }
+            
+            // 生理模拟功能初始化
+            initSimulation() {
+                // 获取按钮和图表元素
+                const startBtn = document.getElementById('start-simulation');
+                const resetBtn = document.getElementById('reset-simulation');
+                
+                // 初始化图表
+                if (this.chartCtx) {
+                    this.initChart();
+                }
+                
+                // 绑定按钮事件
+                if (startBtn) {
+                    startBtn.addEventListener('click', () => {
+                        if (!this.simulating) {
+                            this.startSimulation();
+                            startBtn.textContent = '停止模拟';
+                        } else {
+                            this.stopSimulation();
+                            startBtn.textContent = '开始生理模拟';
+                        }
+                        this.simulating = !this.simulating;
+                    });
+                }
+                
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', () => {
+                        this.resetSimulation();
+                        if (this.simulating) {
+                            this.stopSimulation();
+                            if (startBtn) {
+                                startBtn.textContent = '开始生理模拟';
+                            }
+                            this.simulating = false;
+                        }
+                    });
+                }
+            }
+            
+            initChart() {
+                // 创建一个模拟的生理数据图表
+                const data = {
+                    labels: Array.from({length: 60}, (_, i) => i),
+                    datasets: [{
+                        label: '心电图',
+                        data: this.generateBaselineData(),
+                        borderColor: '#e74c3c',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    }]
+                };
+                
+                const options = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '时间 (秒)'
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: '振幅'
+                            },
+                            min: -2,
+                            max: 2
+                        }
+                    },
+                    animation: {
+                        duration: 0
+                    }
+                };
+                
+                // 如果Chart.js已加载，创建图表
+                if (typeof Chart !== 'undefined') {
+                    this.chart = new Chart(this.chartCtx, {
+                        type: 'line',
+                        data: data,
+                        options: options
+                    });
+                } else {
+                    // 如果Chart.js未加载，显示一个提示
+                    if (this.physiologyChart) {
+                        const ctx = this.physiologyChart.getContext('2d');
+                        ctx.font = '14px Arial';
+                        ctx.fillStyle = '#333';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('图表库未加载，请确保连接到互联网', this.physiologyChart.width/2, this.physiologyChart.height/2);
+                    }
+                }
+            }
+            
+            generateBaselineData() {
+                // 生成基础的心电图数据
+                return Array.from({length: 60}, () => Math.random() * 0.2);
+            }
+            
+            startSimulation() {
+                // 生理数据模拟更新
+                this.simulationInterval = setInterval(() => {
+                    // 更新生命体征数据
+                    this.updateVitalSigns();
+                    
+                    // 更新图表数据
+                    if (this.chart) {
+                        const data = this.chart.data.datasets[0].data;
+                        data.push(...this.generateECGSegment());
+                        data.splice(0, 5);
+                        this.chart.update();
+                    }
+                }, 1000);
+            }
+            
+            stopSimulation() {
+                // 停止数据模拟
+                if (this.simulationInterval) {
+                    clearInterval(this.simulationInterval);
+                    this.simulationInterval = null;
+                }
+            }
+            
+            resetSimulation() {
+                // 重置所有数据到默认值
+                document.getElementById('heart-rate').textContent = '72';
+                document.getElementById('blood-pressure').textContent = '120/80';
+                document.getElementById('respiratory-rate').textContent = '16';
+                document.getElementById('body-temp').textContent = '36.5';
+                document.getElementById('blood-oxygen').textContent = '98';
+                document.getElementById('blood-glucose').textContent = '5.0';
+                
+                // 重置图表
+                if (this.chart) {
+                    this.chart.data.datasets[0].data = this.generateBaselineData();
+                    this.chart.update();
+                }
+            }
+            
+            updateVitalSigns() {
+                // 随机更新生命体征数据
+                const heartRate = document.getElementById('heart-rate');
+                const bloodPressure = document.getElementById('blood-pressure');
+                const respiratoryRate = document.getElementById('respiratory-rate');
+                const bodyTemp = document.getElementById('body-temp');
+                const bloodOxygen = document.getElementById('blood-oxygen');
+                const bloodGlucose = document.getElementById('blood-glucose');
+                
+                // 小幅度随机波动
+                if (heartRate) {
+                    const hr = parseInt(heartRate.textContent);
+                    heartRate.textContent = Math.max(60, Math.min(100, hr + Math.floor(Math.random() * 7) - 3));
+                }
+                
+                if (bloodPressure) {
+                    const bp = bloodPressure.textContent.split('/');
+                    const systolic = parseInt(bp[0]) + Math.floor(Math.random() * 7) - 3;
+                    const diastolic = parseInt(bp[1]) + Math.floor(Math.random() * 5) - 2;
+                    bloodPressure.textContent = `${systolic}/${diastolic}`;
+                }
+                
+                if (respiratoryRate) {
+                    const rr = parseInt(respiratoryRate.textContent);
+                    respiratoryRate.textContent = Math.max(12, Math.min(20, rr + Math.floor(Math.random() * 3) - 1));
+                }
+                
+                if (bodyTemp) {
+                    const bt = parseFloat(bodyTemp.textContent);
+                    bodyTemp.textContent = (Math.max(36.0, Math.min(37.0, bt + (Math.random() * 0.2 - 0.1)))).toFixed(1);
+                }
+                
+                if (bloodOxygen) {
+                    const bo = parseInt(bloodOxygen.textContent);
+                    bloodOxygen.textContent = Math.max(95, Math.min(100, bo + Math.floor(Math.random() * 3) - 1));
+                }
+                
+                if (bloodGlucose) {
+                    const bg = parseFloat(bloodGlucose.textContent);
+                    bloodGlucose.textContent = (Math.max(4.5, Math.min(5.5, bg + (Math.random() * 0.2 - 0.1)))).toFixed(1);
+                }
+            }
+            
+            generateECGSegment() {
+                // 生成模拟的心电图数据段
+                const segment = [];
+                for (let i = 0; i < 5; i++) {
+                    // 创建一个心电图波形的简单模拟
+                    if (i === 2) {
+                        // 模拟QRS波群
+                        segment.push(-0.2 + Math.random() * 0.1);
+                        segment.push(1.8 + Math.random() * 0.2);
+                        segment.push(-0.5 + Math.random() * 0.1);
+                        segment.push(0.3 + Math.random() * 0.1);
+                        segment.push(0.1 + Math.random() * 0.1);
+                    } else {
+                        // 基线
+                        segment.push(Math.random() * 0.2);
+                    }
+                }
+                return segment;
+            }
+            
+            // 健康分析功能初始化
+            initHealthAnalyzer() {
+                // 获取健康分析按钮和搜索按钮
+                const analyzeBtn = document.getElementById('analyze-health');
+                const searchBtn = document.getElementById('search-disease');
+                const diseaseCategories = document.querySelectorAll('.category-card');
+                
+                // 健康分析按钮事件
+                if (analyzeBtn) {
+                    analyzeBtn.addEventListener('click', () => {
+                        const age = document.getElementById('age').value;
+                        const height = document.getElementById('height').value;
+                        const weight = document.getElementById('weight').value;
+                        const gender = document.getElementById('gender').value;
+                        
+                        // 表单验证
+                        if (!age || !height || !weight || !gender) {
+                            alert('请填写所有必填项！');
+                            return;
+                        }
+                        
+                        // 计算BMI
+                        const bmi = (weight / ((height / 100) ** 2)).toFixed(1);
+                        let bmiCategory, bmiDescription, healthAdvice;
+                        
+                        // 确定BMI分类
+                        if (bmi < 18.5) {
+                            bmiCategory = '体重过轻';
+                            bmiDescription = '体重低于正常范围，可能影响健康。';
+                            healthAdvice = '建议适当增加营养摄入，保持均衡饮食，增加肌肉锻炼。';
+                        } else if (bmi >= 18.5 && bmi < 24) {
+                            bmiCategory = '正常范围';
+                            bmiDescription = '体重在健康范围内，继续保持健康的生活方式。';
+                            healthAdvice = '保持均衡饮食和规律运动，定期进行健康检查。';
+                        } else if (bmi >= 24 && bmi < 28) {
+                            bmiCategory = '超重';
+                            bmiDescription = '体重超过正常范围，但尚未达到肥胖程度。';
+                            healthAdvice = '建议适当控制饮食，增加有氧运动，定期监测血压和血糖。';
+                        } else {
+                            bmiCategory = '肥胖';
+                            bmiDescription = '体重显著超过正常范围，可能增加多种疾病风险。';
+                            healthAdvice = '建议在医生指导下制定减重计划，控制饮食，增加运动，定期检查相关健康指标。';
+                        }
+                        
+                        // 计算基础代谢率(BMR)
+                        let bmr;
+                        if (gender === 'male') {
+                            bmr = (13.7 * weight) + (5 * height) - (6.8 * age) + 66;
+                        } else {
+                            bmr = (9.6 * weight) + (1.8 * height) - (4.7 * age) + 655;
+                        }
+                        bmr = Math.round(bmr);
+                        
+                        // 生成健康建议
+                        const personalizedAdvice = age > 50 ? 
+                            '随着年龄增长，建议增加骨密度检查和定期心血管评估。' : 
+                            '保持良好的睡眠习惯和压力管理对健康至关重要。';
+                        
+                        // 更新分析结果
+                        const resultsDiv = document.getElementById('health-results');
+                        if (resultsDiv) {
+                            resultsDiv.innerHTML = `
+                                <h4>健康分析结果</h4>
+                                <div class="result-card">
+                                    <h5>身体质量指数(BMI)</h5>
+                                    <p><strong>${bmi}</strong> - ${bmiCategory}</p>
+                                    <p>${bmiDescription}</p>
+                                </div>
+                                <div class="result-card">
+                                    <h5>基础代谢率(BMR)</h5>
+                                    <p><strong>${bmr}</strong> 卡路里/天</p>
+                                    <p>这是你在完全休息状态下维持生命活动所需的最低能量。</p>
+                                </div>
+                                <div class="result-card">
+                                    <h5>健康建议</h5>
+                                    <p>${healthAdvice}</p>
+                                    <p>${personalizedAdvice}</p>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+                
+                // 疾病搜索按钮事件
+                if (searchBtn) {
+                    searchBtn.addEventListener('click', () => {
+                        const searchTerm = document.getElementById('disease-search').value.trim().toLowerCase();
+                        if (!searchTerm) {
+                            alert('请输入搜索关键词');
+                            return;
+                        }
+                        
+                        // 模拟疾病搜索结果
+                        const diseasesPanel = document.getElementById('diseases-panel');
+                        const categoriesDiv = diseasesPanel.querySelector('.disease-categories');
+                        
+                        // 替换分类展示为搜索结果
+                        if (categoriesDiv) {
+                            categoriesDiv.innerHTML = `
+                                <div class="search-results">
+                                    <h4>搜索结果："${searchTerm}"</h4>
+                                    <div class="disease-item">
+                                        <h5>${searchTerm}相关疾病</h5>
+                                        <p>以下是与"${searchTerm}"相关的疾病信息：</p>
+                                        <ul>
+                                            <li>该搜索词可能与多种疾病相关，建议咨询医生获取专业建议。</li>
+                                            <li>本数据库提供的信息仅供教育参考，不能替代专业医疗诊断。</li>
+                                        </ul>
+                                        <button class="action-btn secondary" onclick="document.querySelector('.disease-categories').innerHTML = document.querySelector('.disease-categories').getAttribute('data-original-content') || '';">返回分类</button>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // 保存原始内容以便返回
+                            if (!categoriesDiv.getAttribute('data-original-content')) {
+                                categoriesDiv.setAttribute('data-original-content', categoriesDiv.innerHTML);
+                            }
+                        }
+                    });
+                }
+                
+                // 疾病分类卡片点击事件
+                if (diseaseCategories) {
+                    diseaseCategories.forEach(card => {
+                        card.addEventListener('click', () => {
+                            const category = card.getAttribute('data-category');
+                            alert(`您选择了${card.querySelector('h4').textContent}分类，这里将展示该分类的详细疾病信息。`);
+                        });
+                    });
                 }
             }
             
