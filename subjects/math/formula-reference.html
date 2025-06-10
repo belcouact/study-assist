@@ -47,7 +47,102 @@
         };
     </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+    <!-- Multiple MathJax CDN sources with fallback mechanism -->
+    <script>
+        // Function to load MathJax from multiple CDN sources with local fallback
+        function loadMathJax() {
+            const cdnSources = [
+                'https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js',
+                'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js',
+                'https://unpkg.com/mathjax@3/es5/tex-svg.js'
+            ];
+            
+            // Local fallback path
+            const localFallback = '../../libs/mathjax/tex-mml-chtml.js';
+            
+            // Try to load from CDNs first
+            loadScript(cdnSources, 0, localFallback);
+            
+            // Set a fallback timeout in case everything fails
+            setTimeout(() => {
+                if (typeof MathJax === 'undefined' || !MathJax.typesetPromise) {
+                    console.warn('MathJax failed to load from all sources');
+                    // Create a global placeholder to prevent errors
+                    window.MathJax = {
+                        typesetPromise: function() { 
+                            console.log('MathJax typesetPromise placeholder called');
+                            return Promise.resolve(); 
+                        },
+                        typesetClear: function() { 
+                            console.log('MathJax typesetClear placeholder called');
+                        },
+                        startup: {
+                            promise: Promise.resolve()
+                        }
+                    };
+                    // Show a message to the user
+                    showMathJaxError();
+                }
+            }, 10000);
+        }
+        
+        // Helper function to load script with fallbacks
+        function loadScript(sources, index, localFallback) {
+            if (index >= sources.length) {
+                console.warn('All MathJax CDN sources failed, trying local fallback');
+                // Try local fallback as last resort
+                const script = document.createElement('script');
+                script.src = localFallback;
+                script.id = 'MathJax-script-local';
+                script.async = true;
+                
+                script.onload = function() {
+                    console.log('MathJax loaded successfully from local fallback');
+                };
+                
+                script.onerror = function() {
+                    console.error('Failed to load MathJax from local fallback');
+                };
+                
+                document.head.appendChild(script);
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = sources[index];
+            script.id = 'MathJax-script';
+            script.async = true;
+            
+            script.onload = function() {
+                console.log('MathJax loaded successfully from:', sources[index]);
+            };
+            
+            script.onerror = function() {
+                console.warn('Failed to load MathJax from:', sources[index]);
+                // Try the next CDN
+                loadScript(sources, index + 1, localFallback);
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        // Function to show an error message
+        function showMathJaxError() {
+            const message = document.createElement('div');
+            message.className = 'mathjax-error';
+            message.innerHTML = '<strong>注意:</strong> 数学公式渲染库加载失败。部分公式可能无法正确显示。请稍后再试或检查您的网络连接。';
+            message.style.cssText = 'background-color: #fff3cd; color: #856404; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;';
+            
+            // Insert at the top of the content
+            const content = document.querySelector('.formulas-content');
+            if (content) {
+                content.insertBefore(message, content.firstChild);
+            }
+        }
+        
+        // Start loading MathJax
+        loadMathJax();
+    </script>
     <style>
         .formulas-page {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1767,17 +1862,96 @@
             }
 
             initializeMathJax() {
-                if (typeof MathJax !== 'undefined') {
+                // Check if we've already attempted initialization multiple times
+                this.mathJaxInitAttempts = (this.mathJaxInitAttempts || 0) + 1;
+                
+                if (typeof MathJax !== 'undefined' && MathJax.startup && MathJax.startup.promise) {
                     // Wait for MathJax to be fully loaded
-                    MathJax.startup.promise.then(() => {
-                        this.rerenderMathJax();
-                        this.handleFormulaOverflow();
-                    }).catch((err) => {
-                        console.warn('MathJax initialization error:', err);
-                    });
+                    MathJax.startup.promise
+                        .then(() => {
+                            this.rerenderMathJax();
+                            this.handleFormulaOverflow();
+                            this.mathJaxLoaded = true;
+                        })
+                        .catch((err) => {
+                            console.warn('MathJax initialization error:', err);
+                            this.handleMathJaxError();
+                        });
+                } else if (this.mathJaxInitAttempts < 5) {
+                    // Retry a few times with increasing delay
+                    console.log(`MathJax not available yet, retrying... (attempt ${this.mathJaxInitAttempts})`);
+                    setTimeout(() => this.initializeMathJax(), this.mathJaxInitAttempts * 1000);
                 } else {
-                    // Fallback: retry after a delay
-                    setTimeout(() => this.initializeMathJax(), 1000);
+                    console.warn('MathJax failed to load after multiple attempts');
+                    this.handleMathJaxError();
+                }
+            }
+            
+            handleMathJaxError() {
+                // Create a fallback MathJax object to prevent errors
+                if (typeof MathJax === 'undefined') {
+                    window.MathJax = {
+                        typesetPromise: function() { return Promise.resolve(); },
+                        typesetClear: function() {},
+                        startup: { promise: Promise.resolve() }
+                    };
+                }
+                
+                // Show error message only once
+                if (!document.querySelector('.mathjax-error')) {
+                    const message = document.createElement('div');
+                    message.className = 'mathjax-error';
+                    message.innerHTML = '<strong>注意:</strong> 数学公式渲染库加载失败。部分公式可能无法正确显示。请稍后再试或检查您的网络连接。';
+                    message.style.cssText = 'background-color: #fff3cd; color: #856404; padding: 10px; margin: 10px 0; border-radius: 5px; text-align: center;';
+                    
+                    const content = document.querySelector('.formulas-content');
+                    if (content) {
+                        content.insertBefore(message, content.firstChild);
+                    }
+                    
+                    // Apply plain text fallback to equations
+                    this.applyPlainTextFallback();
+                }
+            }
+            
+            applyPlainTextFallback() {
+                // Convert all formula equations to plain text representation
+                document.querySelectorAll('.formula-equation').forEach(eq => {
+                    // Add a class to indicate fallback mode
+                    eq.classList.add('plain-text-fallback');
+                    
+                    // Add basic styling for readability
+                    eq.style.fontFamily = 'monospace';
+                    eq.style.whiteSpace = 'pre-wrap';
+                    eq.style.overflowX = 'auto';
+                });
+            }
+
+            rerenderMathJax() {
+                if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                    try {
+                        // Clear and re-render MathJax
+                        const activePanel = document.querySelector('.formula-panel.active');
+                        if (activePanel) {
+                            if (typeof MathJax.typesetClear === 'function') {
+                                MathJax.typesetClear([activePanel]);
+                            }
+                            
+                            MathJax.typesetPromise([activePanel])
+                                .then(() => {
+                                    this.handleFormulaOverflow();
+                                    this.optimizeMathJaxForMobile();
+                                })
+                                .catch((err) => {
+                                    console.warn('MathJax typeset error:', err);
+                                });
+                        }
+                    } catch (error) {
+                        console.error('Error in rerenderMathJax:', error);
+                    }
+                } else if (!this.mathJaxErrorShown) {
+                    this.mathJaxErrorShown = true;
+                    console.warn('MathJax not properly loaded, cannot render equations');
                 }
             }
 
@@ -1820,22 +1994,6 @@
                         block: 'nearest', 
                         inline: 'center' 
                     });
-                }
-            }
-
-            rerenderMathJax() {
-                if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
-                    // Clear and re-render MathJax
-                    const activePanel = document.querySelector('.formula-panel.active');
-                    if (activePanel) {
-                        MathJax.typesetClear([activePanel]);
-                        MathJax.typesetPromise([activePanel]).then(() => {
-                            this.handleFormulaOverflow();
-                            this.optimizeMathJaxForMobile();
-                        }).catch((err) => {
-                            console.warn('MathJax typeset error:', err);
-                        });
-                    }
                 }
             }
 
@@ -1988,9 +2146,15 @@
 
         // Handle page visibility changes to re-render MathJax if needed
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && typeof MathJax !== 'undefined') {
+            if (!document.hidden && typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
                 setTimeout(() => {
-                    MathJax.typesetPromise().catch(err => console.warn('MathJax re-render error:', err));
+                    try {
+                        MathJax.typesetPromise()
+                            .then(() => console.log('MathJax re-rendered on visibility change'))
+                            .catch(err => console.warn('MathJax re-render error:', err));
+                    } catch (error) {
+                        console.error('Error when trying to re-render MathJax:', error);
+                    }
                 }, 100);
             }
         });
