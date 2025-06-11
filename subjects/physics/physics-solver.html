@@ -524,37 +524,150 @@
             // 禁用按钮
             document.querySelector('.solve-button').disabled = true;
 
-            // 模拟AI处理时间
-            setTimeout(() => {
-                generateSolution(problemText, selectedDifficulty, selectedSubject);
-            }, 2000);
+            // 调用DeepSeek API
+            callDeepSeekAPI(problemText, selectedDifficulty, selectedSubject);
         }
 
-        function generateSolution(problem, difficulty, subject) {
-            // 隐藏加载动画
-            document.getElementById('loadingAnimation').style.display = 'none';
-            
-            // 启用按钮
-            document.querySelector('.solve-button').disabled = false;
+        async function callDeepSeekAPI(problem, difficulty, subject) {
+            try {
+                const difficultyText = {
+                    'basic': '基础',
+                    'intermediate': '中级',
+                    'advanced': '高级'
+                }[difficulty] || '基础';
 
-            // 根据问题类型生成解答
-            let solution = generateSolutionSteps(problem, difficulty, subject);
+                const subjectText = {
+                    'mechanics': '力学',
+                    'thermodynamics': '热力学',
+                    'electromagnetism': '电磁学',
+                    'optics': '光学',
+                    'waves': '波动',
+                    'modern': '现代物理'
+                }[subject] || '力学';
+
+                // 构建提示词
+                const prompt = `你是一位专业的物理学老师，请解答以下${difficultyText}水平的${subjectText}问题：\n\n${problem}\n\n请详细解释每个步骤，包括：\n1. 确定已知条件\n2. 选择适用公式\n3. 解题步骤\n4. 最终答案\n\n解题格式示例：\n[步骤1标题]\n步骤1内容\n\n[步骤2标题]\n步骤2内容\n\n请确保每个步骤都清晰详细，以便学生能够理解整个解题过程。`;
+
+                // 调用DeepSeek API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API错误: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // 处理API响应
+                let solution = '';
+                if (data.output) {
+                    // 使用worker-chat格式处理响应
+                    solution = formatSolution(data.output);
+                } else if (data.choices && data.choices[0]?.message?.content) {
+                    // 使用原始DeepSeek API格式处理响应
+                    solution = formatSolution(data.choices[0].message.content);
+                } else {
+                    throw new Error('无法解析API响应');
+                }
+
+                // 显示解答
+                document.getElementById('solutionContent').innerHTML = solution;
+                document.getElementById('solutionSection').style.display = 'block';
+                
+                // 滚动到解答区域
+                document.getElementById('solutionSection').scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+            } catch (error) {
+                console.error('API调用错误:', error);
+                
+                // 如果API调用失败，使用本地备用方案
+                console.log('使用本地备用解答生成');
+                const fallbackSolution = generateSolutionSteps(problem, difficulty, subject);
+                
+                document.getElementById('solutionContent').innerHTML = fallbackSolution;
+                document.getElementById('solutionSection').style.display = 'block';
+                
+                // 添加提示消息说明使用了备用解答
+                const fallbackNotice = document.createElement('div');
+                fallbackNotice.className = 'solution-step';
+                fallbackNotice.innerHTML = `
+                    <div class="step-title">提示</div>
+                    <div class="step-content">当前展示的是预设解答，因为API连接遇到了问题：${error.message}</div>
+                `;
+                document.getElementById('solutionContent').prepend(fallbackNotice);
+            } finally {
+                // 隐藏加载动画
+                document.getElementById('loadingAnimation').style.display = 'none';
+                
+                // 启用按钮
+                document.querySelector('.solve-button').disabled = false;
+            }
+        }
+
+        function formatSolution(solution) {
+            // 将API返回的文本解析为步骤
+            const stepRegex = /\[(.*?)\]([\s\S]*?)(?=\[[^\]]*\]|$)/g;
+            let match;
+            let steps = [];
             
-            // 显示解答
-            document.getElementById('solutionContent').innerHTML = solution;
-            document.getElementById('solutionSection').style.display = 'block';
+            // 尝试使用正则表达式匹配带[标题]格式的步骤
+            while ((match = stepRegex.exec(solution)) !== null) {
+                steps.push({
+                    title: match[1].trim(),
+                    content: match[2].trim()
+                });
+            }
             
-            // 滚动到解答区域
-            document.getElementById('solutionSection').scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
+            // 如果没有找到标准格式的步骤，尝试使用数字标题
+            if (steps.length === 0) {
+                // 尝试查找"步骤1"或"1."等格式
+                const numberStepRegex = /(?:步骤\s*(\d+)[：:]?|(\d+)[\.．。][^\d])([^]*?)(?=(?:步骤\s*\d+[：:]?|\d+[\.．。][^\d])|$)/g;
+                
+                while ((match = numberStepRegex.exec(solution)) !== null) {
+                    const stepNumber = match[1] || match[2];
+                    const content = match[3].trim();
+                    if (content) {
+                        steps.push({
+                            title: `步骤 ${stepNumber}`,
+                            content: content
+                        });
+                    }
+                }
+            }
+            
+            // 如果仍然没有找到步骤，尝试使用段落作为步骤
+            if (steps.length === 0) {
+                const paragraphs = solution.split(/\n\s*\n/);
+                steps = paragraphs.map((para, index) => ({
+                    title: `步骤 ${index + 1}`,
+                    content: para.trim()
+                }));
+            }
+            
+            // 将HTML换行符替换为<br>
+            steps = steps.map(step => ({
+                title: step.title,
+                content: step.content.replace(/\n/g, '<br>')
+            }));
+            
+            // 将步骤转换为HTML
+            return steps.map(step => 
+                `<div class="solution-step">
+                    <div class="step-title">${step.title}</div>
+                    <div class="step-content">${step.content}</div>
+                </div>`
+            ).join('');
         }
 
         function generateSolutionSteps(problem, difficulty, subject) {
-            // 这里实现智能解答生成逻辑
-            // 实际应用中可以集成真正的AI API
-            
+            // 这个函数保留为备用，如果API调用失败时可以使用
             let steps = [];
             
             if (problem.includes('自由落体') || problem.includes('落下')) {
