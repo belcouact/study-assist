@@ -1217,6 +1217,7 @@
                             <h3 id="selectedTimezoneName">UTC</h3>
                             <div class="timezone-time large" id="selectedTimezoneTime">00:00:00</div>
                             <p id="selectedTimezoneCity">协调世界时</p>
+                            <div class="dst-status" id="dstStatus">该地区不使用夏令时</div>
                         </div>
                 </div>
                     
@@ -1808,9 +1809,79 @@
             }
         }
 
+        // 确保所有必要的时区显示元素都存在
+        function ensureTimeZoneElements() {
+            console.log('Ensuring timezone elements exist...');
+            
+            // 检查并创建时区时间显示容器
+            let container = document.querySelector('.selected-timezone-info');
+            if (!container) {
+                console.log('Creating timezone info container');
+                container = document.createElement('div');
+                container.className = 'selected-timezone-info';
+                
+                const clockContainer = document.querySelector('.analog-clock-container');
+                if (clockContainer) {
+                    clockContainer.appendChild(container);
+                } else {
+                    console.error('Clock container not found!');
+                    // 尝试找到时区部分并添加
+                    const timeZoneSection = document.querySelector('.time-zone-section');
+                    if (timeZoneSection) {
+                        timeZoneSection.appendChild(container);
+                    }
+                }
+            }
+            
+            // 检查并创建时区名称元素
+            if (!document.getElementById('selectedTimezoneName')) {
+                console.log('Creating timezone name element');
+                const nameElement = document.createElement('h3');
+                nameElement.id = 'selectedTimezoneName';
+                nameElement.textContent = 'UTC';
+                container.appendChild(nameElement);
+            }
+            
+            // 检查并创建时区时间元素
+            if (!document.getElementById('selectedTimezoneTime')) {
+                console.log('Creating timezone time element');
+                const timeElement = document.createElement('div');
+                timeElement.id = 'selectedTimezoneTime';
+                timeElement.className = 'timezone-time large';
+                timeElement.textContent = '00:00:00';
+                container.appendChild(timeElement);
+            }
+            
+            // 检查并创建时区城市元素
+            if (!document.getElementById('selectedTimezoneCity')) {
+                console.log('Creating timezone city element');
+                const cityElement = document.createElement('p');
+                cityElement.id = 'selectedTimezoneCity';
+                cityElement.textContent = '协调世界时';
+                container.appendChild(cityElement);
+            }
+            
+            // 检查并创建DST状态元素
+            if (!document.getElementById('dstStatus')) {
+                console.log('Creating DST status element');
+                const dstElement = document.createElement('div');
+                dstElement.id = 'dstStatus';
+                dstElement.className = 'dst-status';
+                dstElement.textContent = '该地区不使用夏令时';
+                container.appendChild(dstElement);
+            }
+            
+            console.log('Timezone elements check complete');
+        }
+
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             initializeSolarTermsWheel();
+            
+            // 确保时区显示元素存在
+            ensureTimeZoneElements();
+            
+            // 初始化时区选择器
             initializeTimeZones();
             
             // 立即更新时钟
@@ -1979,27 +2050,60 @@
                     const minutes = zoneTime.getMinutes().toString().padStart(2, '0');
                     const seconds = zoneTime.getSeconds().toString().padStart(2, '0');
                     
-                    document.getElementById('selectedTimezoneTime').textContent = `${hours}:${minutes}:${seconds}`;
-                    document.getElementById('selectedTimezoneCity').textContent = selectedZone.city + dstInfo;
+                    // 安全地更新DOM元素，确保它们存在
+                    const timeElement = document.getElementById('selectedTimezoneTime');
+                    const cityElement = document.getElementById('selectedTimezoneCity');
+                    const dstStatusElement = document.getElementById('dstStatus');
+                    
+                    if (timeElement) timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+                    if (cityElement) cityElement.textContent = selectedZone.city + dstInfo;
                     
                     // 更新模拟时钟
                     updateAnalogClock(zoneTime);
                     
                     // 更新夏令时状态显示
-                    const dstStatus = document.getElementById('dstStatus');
-                    if (selectedZone.hasDST) {
-                        if (isDST) {
-                            dstStatus.textContent = '当前正在使用夏令时';
-                            dstStatus.className = 'dst-status dst-active';
+                    if (dstStatusElement) {
+                        if (selectedZone.hasDST) {
+                            if (isDST) {
+                                dstStatusElement.textContent = '当前正在使用夏令时';
+                                dstStatusElement.className = 'dst-status dst-active';
+                            } else {
+                                dstStatusElement.textContent = '当前未使用夏令时';
+                                dstStatusElement.className = 'dst-status dst-inactive';
+                            }
                         } else {
-                            dstStatus.textContent = '当前未使用夏令时';
-                            dstStatus.className = 'dst-status dst-inactive';
+                            dstStatusElement.textContent = '该地区不使用夏令时';
+                            dstStatusElement.className = 'dst-status';
                         }
-                    } else {
-                        dstStatus.textContent = '该地区不使用夏令时';
-                        dstStatus.className = 'dst-status';
                     }
                 }
+            } else {
+                // 如果没有活动的时区选择器，则使用默认时区（UTC）
+                console.log('No active timezone found, using default');
+                const defaultZone = timeZones[0]; // UTC
+                
+                // 在UTC基础上应用时区偏移
+                const zoneTime = new Date(now.getTime() + (defaultZone.offset * 60 * 60 * 1000));
+                
+                // 格式化时间显示
+                const hours = zoneTime.getHours().toString().padStart(2, '0');
+                const minutes = zoneTime.getMinutes().toString().padStart(2, '0');
+                const seconds = zoneTime.getSeconds().toString().padStart(2, '0');
+                
+                // 安全地更新DOM元素
+                const timeElement = document.getElementById('selectedTimezoneTime');
+                const cityElement = document.getElementById('selectedTimezoneCity');
+                const dstStatusElement = document.getElementById('dstStatus');
+                
+                if (timeElement) timeElement.textContent = `${hours}:${minutes}:${seconds}`;
+                if (cityElement) cityElement.textContent = defaultZone.city;
+                if (dstStatusElement) {
+                    dstStatusElement.textContent = '该地区不使用夏令时';
+                    dstStatusElement.className = 'dst-status';
+                }
+                
+                // 更新模拟时钟
+                updateAnalogClock(zoneTime);
             }
         }
         
