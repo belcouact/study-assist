@@ -495,6 +495,7 @@
             box-shadow: 0 0 30px rgba(67, 97, 238, 0.4), 
                         inset 0 0 30px rgba(67, 97, 238, 0.2);
             position: relative;
+            overflow: hidden;
         }
         
         .clock-numerals {
@@ -520,10 +521,9 @@
         
         .clock-hand {
             position: absolute;
-            transform-origin: bottom center;
-            border-radius: 10px;
             left: 50%;
             bottom: 50%;
+            transform-origin: 50% 100%;
         }
         
         .hour-hand {
@@ -532,6 +532,7 @@
             margin-left: -3px;
             background: linear-gradient(to top, #4361ee, rgba(67, 97, 238, 0.8));
             z-index: 2;
+            transform-origin: 50% 100%;
         }
         
         .minute-hand {
@@ -540,6 +541,7 @@
             margin-left: -2px;
             background: linear-gradient(to top, #f72585, rgba(247, 37, 133, 0.8));
             z-index: 3;
+            transform-origin: 50% 100%;
         }
         
         .second-hand {
@@ -548,6 +550,8 @@
             margin-left: -1px;
             background: #7209b7;
             z-index: 4;
+            transform-origin: 50% 100%;
+            transition: transform 0.05s cubic-bezier(0.4, 2.08, 0.55, 0.44);
         }
         
         .clock-center {
@@ -1256,6 +1260,7 @@
                         box-shadow: 0 0 30px rgba(67, 97, 238, 0.4), 
                                     inset 0 0 30px rgba(67, 97, 238, 0.2);
                         position: relative;
+                        overflow: hidden;
                     }
                     
                     .clock-numerals {
@@ -1281,10 +1286,9 @@
                     
                     .clock-hand {
                         position: absolute;
-                        transform-origin: bottom center;
-                        border-radius: 10px;
                         left: 50%;
                         bottom: 50%;
+                        transform-origin: 50% 100%;
                     }
                     
                     .hour-hand {
@@ -1293,6 +1297,7 @@
                         margin-left: -3px;
                         background: linear-gradient(to top, #4361ee, rgba(67, 97, 238, 0.8));
                         z-index: 2;
+                        transform-origin: 50% 100%;
                     }
                     
                     .minute-hand {
@@ -1301,6 +1306,7 @@
                         margin-left: -2px;
                         background: linear-gradient(to top, #f72585, rgba(247, 37, 133, 0.8));
                         z-index: 3;
+                        transform-origin: 50% 100%;
                     }
                     
                     .second-hand {
@@ -1309,6 +1315,8 @@
                         margin-left: -1px;
                         background: #7209b7;
                         z-index: 4;
+                        transform-origin: 50% 100%;
+                        transition: transform 0.05s cubic-bezier(0.4, 2.08, 0.55, 0.44);
                     }
                     
                     .clock-center {
@@ -1748,12 +1756,71 @@
             '廿一', '廿二', '廿三', '廿四', '廿五', '廿六', '廿七', '廿八', '廿九', '三十'
         ];
 
+        // 添加一个调试函数，检查时钟是否正常更新
+        function debugClock() {
+            console.log('Debug clock function running...');
+            const now = new Date();
+            console.log('Current time:', now.toLocaleTimeString());
+            
+            const secondHand = document.getElementById('secondHand');
+            const minuteHand = document.getElementById('minuteHand');
+            const hourHand = document.getElementById('hourHand');
+            
+            if (secondHand && minuteHand && hourHand) {
+                console.log('Clock hands found in DOM');
+                console.log('Second hand style:', secondHand.style.transform);
+                console.log('Minute hand style:', minuteHand.style.transform);
+                console.log('Hour hand style:', hourHand.style.transform);
+            } else {
+                console.error('Clock hands not found!');
+                console.log('secondHand exists:', !!secondHand);
+                console.log('minuteHand exists:', !!minuteHand);
+                console.log('hourHand exists:', !!hourHand);
+                
+                // 如果找不到时钟指针，尝试重新创建它们
+                const clockFace = document.querySelector('.clock-face');
+                if (clockFace) {
+                    console.log('Clock face found, recreating hands');
+                    if (!secondHand) {
+                        const newSecondHand = document.createElement('div');
+                        newSecondHand.className = 'clock-hand second-hand';
+                        newSecondHand.id = 'secondHand';
+                        clockFace.appendChild(newSecondHand);
+                    }
+                    if (!minuteHand) {
+                        const newMinuteHand = document.createElement('div');
+                        newMinuteHand.className = 'clock-hand minute-hand';
+                        newMinuteHand.id = 'minuteHand';
+                        clockFace.appendChild(newMinuteHand);
+                    }
+                    if (!hourHand) {
+                        const newHourHand = document.createElement('div');
+                        newHourHand.className = 'clock-hand hour-hand';
+                        newHourHand.id = 'hourHand';
+                        clockFace.appendChild(newHourHand);
+                    }
+                    
+                    // 立即更新时钟
+                    updateTimeZones();
+                } else {
+                    console.error('Clock face not found!');
+                }
+            }
+        }
+
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             initializeSolarTermsWheel();
             initializeTimeZones();
+            
+            // 立即更新时钟
             updateTimeZones();
+            
+            // 设置时钟定时器
             setInterval(updateTimeZones, 1000);
+            
+            // 设置一个调试计时器，检查时钟是否正常更新
+            setTimeout(debugClock, 2000);
             
             // 设置当前日期
             const today = new Date();
@@ -2026,6 +2093,15 @@
             const hourHand = document.getElementById('hourHand');
             
             if (secondHand && minuteHand && hourHand) {
+                // 添加过渡动画，但对秒针在59秒到0秒的瞬间取消过渡效果
+                if (seconds === 0) {
+                    secondHand.style.transition = 'none';
+                    // 在下一帧恢复过渡效果
+                    setTimeout(() => {
+                        secondHand.style.transition = 'transform 0.05s cubic-bezier(0.4, 2.08, 0.55, 0.44)';
+                    }, 10);
+                }
+                
                 secondHand.style.transform = `rotate(${secondDegrees}deg)`;
                 minuteHand.style.transform = `rotate(${minuteDegrees}deg)`;
                 hourHand.style.transform = `rotate(${hourDegrees}deg)`;
