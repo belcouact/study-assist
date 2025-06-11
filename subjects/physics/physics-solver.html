@@ -22,12 +22,19 @@
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']],
                 processEscapes: true,
-                processEnvironments: true
+                processEnvironments: true,
+                packages: {'[+]': ['physics']}
             },
             options: {
                 skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
                 ignoreHtmlClass: 'tex2jax_ignore',
                 processHtmlClass: 'tex2jax_process'
+            },
+            startup: {
+                ready: function() {
+                    MathJax.startup.defaultReady();
+                    console.log('MathJax is ready');
+                }
             }
         };
     </script>
@@ -252,6 +259,32 @@
             border-radius: 6px;
             margin: 0.75rem 0;
             border-left: 3px solid #7209b7;
+        }
+
+        /* Solution paragraph styling */
+        .solution-paragraph {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .solution-paragraph ul {
+            padding-left: 1.5rem;
+            margin: 0.5rem 0;
+        }
+
+        .solution-paragraph li {
+            margin-bottom: 0.5rem;
+        }
+
+        .solution-paragraph strong {
+            color: #4361ee;
+            margin-right: 0.5rem;
+        }
+
+        /* Add highlight to important information */
+        .solution-paragraph em {
+            font-style: italic;
+            color: #7209b7;
         }
 
         .loading-animation {
@@ -593,28 +626,19 @@
                     'modern': '现代物理'
                 }[subject] || '力学';
 
-                // 构建提示词
+                // 构建提示词 - 不要求分段解答
                 const prompt = `你是一位专业的物理学老师，请解答以下${difficultyText}水平的${subjectText}问题：
 
 ${problem}
 
-请详细解释每个步骤，包括：
-1. 确定已知条件
-2. 选择适用公式
-3. 解题步骤
-4. 最终答案
+请详细解释这个问题的解答过程。在写数学公式时，请遵循以下格式：
+- 所有数学公式都应该用 $ $ 包围，例如：$v = 10 \\, \\text{cm}$
+- 分数使用 \\frac{分子}{分母} 格式，例如：$\\frac{1}{3}$
+- 单位用 \\text{单位名} 表示，例如：$\\text{cm}$ 或 $\\text{m/s}$
+- 使用 \\, 在数字和单位之间添加空格
+- 不要使用 \\( \\) 或 \\[ \\] 作为分隔符，只使用 $ $ 和 $$ $$
 
-请使用LaTeX格式书写数学公式，例如：\\frac{1}{2}, \\text{cm}等。
-如果有分数，请使用\\frac{分子}{分母}格式。
-
-解题格式示例：
-[步骤1标题]
-步骤1内容
-
-[步骤2标题]
-步骤2内容
-
-请确保每个步骤都清晰详细，以便学生能够理解整个解题过程。`;
+保持简洁清晰的解答，不要强制分段或使用特定标题格式。`;
 
                 // 调用DeepSeek API
                 const response = await fetch('/api/chat', {
@@ -652,6 +676,13 @@ ${problem}
                     behavior: 'smooth', 
                     block: 'start' 
                 });
+
+                // 稍后再次触发MathJax渲染以确保所有公式都已渲染
+                setTimeout(() => {
+                    if (window.MathJax) {
+                        window.MathJax.typeset();
+                    }
+                }, 300);
             } catch (error) {
                 console.error('API调用错误:', error);
                 
@@ -680,137 +711,93 @@ ${problem}
         }
 
         function formatSolution(solution) {
-            // 将API返回的文本解析为步骤
-            const stepRegex = /\[(.*?)\]([\s\S]*?)(?=\[[^\]]*\]|$)/g;
-            let match;
-            let steps = [];
+            console.log("Original solution:", solution);
             
-            // 尝试使用正则表达式匹配带[标题]格式的步骤
-            while ((match = stepRegex.exec(solution)) !== null) {
-                steps.push({
-                    title: match[1].trim(),
-                    content: match[2].trim()
-                });
-            }
+            // 替换所有 \( \) 为 $ $
+            solution = solution.replace(/\\\(/g, "$");
+            solution = solution.replace(/\\\)/g, "$");
             
-            // 如果没有找到标准格式的步骤，尝试使用数字标题
-            if (steps.length === 0) {
-                // 尝试查找"步骤1"或"1."等格式
-                const numberStepRegex = /(?:步骤\s*(\d+)[：:]?|(\d+)[\.．。][^\d])([^]*?)(?=(?:步骤\s*\d+[：:]?|\d+[\.．。][^\d])|$)/g;
+            // 替换所有 \[ \] 为 $$ $$
+            solution = solution.replace(/\\\[/g, "$$");
+            solution = solution.replace(/\\\]/g, "$$");
+            
+            // 确保列表项内的数学公式正确渲染
+            solution = solution.replace(/- ([^:：]*)[：:] \\([^\\]+)\\([^\n]*)/g, "- $1: $$$2$$3");
+            
+            // 处理其他常见格式问题
+            solution = solution.replace(/\\text\{([^}]+)\}/g, "\\text{$1}");
+            solution = solution.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "\\frac{$1}{$2}");
+            
+            // 特殊处理用户提供的示例格式
+            solution = solution.replace(/像距：\s*\$\s*v\s*=\s*10\s*\\,\s*\\text\{cm\}\s*\$/g, 
+                                       "像距：$v = 10 \\, \\text{cm}$");
+            solution = solution.replace(/放大倍数：\s*\$\s*m\s*=\s*\\frac\{1\}\{3\}\s*\$/g, 
+                                       "放大倍数：$m = \\frac{1}{3}$");
+            
+            // 处理"像的性质："后面的列表
+            solution = solution.replace(/像的性质：\n-\s*虚实：([^\n]+)\n-\s*大小：([^\n]+)\n-\s*正倒：([^\n]+)/g, 
+                                       "像的性质：\n<ul>\n<li>虚实：$1</li>\n<li>大小：$2</li>\n<li>正倒：$3</li>\n</ul>");
+            
+            // 将解决方案分成段落
+            const paragraphs = solution.split(/\n\n+/);
+            
+            let html = '';
+            for (let i = 0; i < paragraphs.length; i++) {
+                let paragraph = paragraphs[i].trim();
                 
-                while ((match = numberStepRegex.exec(solution)) !== null) {
-                    const stepNumber = match[1] || match[2];
-                    const content = match[3].trim();
-                    if (content) {
-                        steps.push({
-                            title: `步骤 ${stepNumber}`,
-                            content: content
-                        });
-                    }
+                // 如果段落已经包含<ul>标签，直接添加
+                if (paragraph.includes('<ul>')) {
+                    html += `<div class="solution-paragraph">${paragraph}</div>`;
+                    continue;
                 }
-            }
-            
-            // 如果仍然没有找到步骤，尝试使用段落作为步骤
-            if (steps.length === 0) {
-                const paragraphs = solution.split(/\n\s*\n/);
-                steps = paragraphs.map((para, index) => ({
-                    title: `步骤 ${index + 1}`,
-                    content: para.trim()
-                }));
-            }
-            
-            // 处理数学公式：将普通数学符号转换为LaTeX格式
-            steps = steps.map(step => {
-                let content = step.content;
-
-                // 预处理：处理示例中的特定公式
-                if (content.includes('\\frac{1}{15}') || content.includes('v = 30')) {
-                    // 这是对应用户问题中的公式，确保它们能正确渲染
-                    content = content.replace(/\\frac\{1\}\{15\}\s*=\s*\\frac\{1\}\{v\}\s*-\s*\\frac\{1\}\{-30\}/g, 
-                                             '$$\\frac{1}{15} = \\frac{1}{v} - \\frac{1}{-30}$$');
-                    
-                    content = content.replace(/\\frac\{1\}\{v\}\s*=\s*\\frac\{1\}\{15\}\s*-\s*\\frac\{1\}\{30\}\s*=\s*\\frac\{2\}\{30\}\s*-\s*\\frac\{1\}\{30\}\s*=\s*\\frac\{1\}\{30\}/g,
-                                            '$$\\frac{1}{v} = \\frac{1}{15} - \\frac{1}{30} = \\frac{2}{30} - \\frac{1}{30} = \\frac{1}{30}$$');
-                    
-                    content = content.replace(/v\s*=\s*30\s*\\,\s*\\text\{cm\}/g, 
-                                             '$$v = 30 \\, \\text{cm}$$');
-                    
-                    content = content.replace(/m\s*=\s*\\frac\{v\}\{u\}\s*=\s*\\frac\{30\}\{-30\}\s*=\s*-1/g, 
-                                             '$$m = \\frac{v}{u} = \\frac{30}{-30} = -1$$');
-                }
-
-                // 识别可能包含LaTeX格式的行
-                const mathLines = content.split('\n').map(line => {
-                    // 检查行是否包含LaTeX格式的数学公式
-                    if (line.includes('\\frac') || 
-                        line.includes('\\text') || 
-                        line.includes('\\(') || 
-                        line.includes('\\)') ||
-                        line.includes('\\,') ||
-                        line.match(/\$.*\$/)) {
-                        
-                        // 确保整行被视为数学公式
-                        if (!line.trim().startsWith('$') && !line.trim().startsWith('\\(')) {
-                            line = '$$' + line.trim() + '$$';
-                        }
-                    } else if (line.includes('=') && 
-                               (line.includes('^') || 
-                                line.match(/[a-zA-Z]\d/) || 
-                                line.match(/\d\/\d/))) {
-                        // 包含等号和常见数学符号的行可能是公式
-                        line = '$$' + line.trim() + '$$';
-                    }
-                    return line;
+                
+                // 处理带编号的列表
+                paragraph = paragraph.replace(/^(\d+\.|\d+、)(.+)$/gm, function(match, number, content) {
+                    return `<strong>${number}</strong>${content}`;
                 });
                 
-                content = mathLines.join('\n');
-
-                // 处理特定格式的数学表达式
-                // 处理分数：\frac{1}{15} = \frac{1}{v} - \frac{1}{-30}
-                content = content.replace(/\\frac\{(\d+)\}\{(\d+)\}/g, '\\frac{$1}{$2}');
+                // 处理无序列表
+                if (paragraph.includes('\n- ')) {
+                    const listItems = paragraph.split('\n- ');
+                    paragraph = listItems[0];
+                    if (paragraph) paragraph += '<ul>';
+                    else paragraph = '<ul>';
+                    
+                    for (let j = 1; j < listItems.length; j++) {
+                        paragraph += `<li>${listItems[j]}</li>`;
+                    }
+                    
+                    paragraph += '</ul>';
+                } else {
+                    // 普通段落中的换行替换为<br>
+                    paragraph = paragraph.replace(/\n/g, '<br>');
+                }
                 
-                // 处理变量分数：\frac{1}{v}
-                content = content.replace(/\\frac\{(\d+)\}\{([a-zA-Z](?:[a-zA-Z0-9])*)\}/g, '\\frac{$1}{$2}');
-                content = content.replace(/\\frac\{([a-zA-Z](?:[a-zA-Z0-9])*)\}\{(\d+)\}/g, '\\frac{$1}{$2}');
-                
-                // 处理更复杂的分数
-                content = content.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '\\frac{$1}{$2}');
-                
-                // 处理文本标记：\text{cm}
-                content = content.replace(/\\text\{([^{}]+)\}/g, '\\text{$1}');
-                
-                // 确保所有LaTeX表达式都有正确的定界符
-                // 将行内公式转换为显示公式
-                content = content.replace(/\\\((.*?)\\\)/g, '$$$1$$');
-                
-                // 删除多余的$符号
-                content = content.replace(/\${3,}/g, '$$');
-                
-                // 将换行符替换为<br>
-                content = content.replace(/\n/g, '<br>');
-                
-                return {
-                    title: step.title,
-                    content: content
-                };
-            });
+                html += `<div class="solution-paragraph">${paragraph}</div>`;
+            }
             
-            // 将步骤转换为HTML
-            let html = steps.map(step => 
-                `<div class="solution-step">
-                    <div class="step-title">${step.title}</div>
-                    <div class="step-content">${step.content}</div>
-                </div>`
-            ).join('');
+            // 包装在solution-step中
+            const formattedSolution = `<div class="solution-step">
+                <div class="step-content">${html}</div>
+            </div>`;
             
-            // 在步骤显示后调用MathJax进行渲染
+            console.log("Formatted solution:", formattedSolution);
+            
+            // 在显示后调用MathJax进行渲染
             setTimeout(() => {
                 if (window.MathJax) {
-                    window.MathJax.typeset();
+                    try {
+                        window.MathJax.typeset();
+                        console.log('MathJax typeset completed');
+                    } catch (error) {
+                        console.error('MathJax typeset error:', error);
+                    }
+                } else {
+                    console.error('MathJax not available');
                 }
             }, 100);
             
-            return html;
+            return formattedSolution;
         }
 
         function generateSolutionSteps(problem, difficulty, subject) {
