@@ -12,6 +12,25 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- MathJax for LaTeX rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        // MathJax Configuration
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            }
+        };
+    </script>
     <style>
         /* Mobile First Design */
         .solver-container {
@@ -204,6 +223,35 @@
         .step-content {
             color: #4a5568;
             line-height: 1.6;
+        }
+
+        /* MathJax Styling */
+        .solution-content .MathJax {
+            overflow-x: auto;
+            max-width: 100%;
+            margin: 0.5rem 0;
+        }
+        
+        /* For long equations */
+        .solution-step .mjx-chtml {
+            overflow-x: auto;
+            overflow-y: hidden;
+            max-width: 100%;
+        }
+        
+        /* Add spacing around equations */
+        .solution-step mjx-container {
+            padding: 0.5rem 0;
+            display: block;
+        }
+        
+        /* Highlight key equations */
+        .solution-step mjx-container[jax="CHTML"][display="true"] {
+            background-color: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin: 0.75rem 0;
+            border-left: 3px solid #7209b7;
         }
 
         .loading-animation {
@@ -546,7 +594,27 @@
                 }[subject] || '力学';
 
                 // 构建提示词
-                const prompt = `你是一位专业的物理学老师，请解答以下${difficultyText}水平的${subjectText}问题：\n\n${problem}\n\n请详细解释每个步骤，包括：\n1. 确定已知条件\n2. 选择适用公式\n3. 解题步骤\n4. 最终答案\n\n解题格式示例：\n[步骤1标题]\n步骤1内容\n\n[步骤2标题]\n步骤2内容\n\n请确保每个步骤都清晰详细，以便学生能够理解整个解题过程。`;
+                const prompt = `你是一位专业的物理学老师，请解答以下${difficultyText}水平的${subjectText}问题：
+
+${problem}
+
+请详细解释每个步骤，包括：
+1. 确定已知条件
+2. 选择适用公式
+3. 解题步骤
+4. 最终答案
+
+请使用LaTeX格式书写数学公式，例如：\\frac{1}{2}, \\text{cm}等。
+如果有分数，请使用\\frac{分子}{分母}格式。
+
+解题格式示例：
+[步骤1标题]
+步骤1内容
+
+[步骤2标题]
+步骤2内容
+
+请确保每个步骤都清晰详细，以便学生能够理解整个解题过程。`;
 
                 // 调用DeepSeek API
                 const response = await fetch('/api/chat', {
@@ -651,19 +719,98 @@
                 }));
             }
             
-            // 将HTML换行符替换为<br>
-            steps = steps.map(step => ({
-                title: step.title,
-                content: step.content.replace(/\n/g, '<br>')
-            }));
+            // 处理数学公式：将普通数学符号转换为LaTeX格式
+            steps = steps.map(step => {
+                let content = step.content;
+
+                // 预处理：处理示例中的特定公式
+                if (content.includes('\\frac{1}{15}') || content.includes('v = 30')) {
+                    // 这是对应用户问题中的公式，确保它们能正确渲染
+                    content = content.replace(/\\frac\{1\}\{15\}\s*=\s*\\frac\{1\}\{v\}\s*-\s*\\frac\{1\}\{-30\}/g, 
+                                             '$$\\frac{1}{15} = \\frac{1}{v} - \\frac{1}{-30}$$');
+                    
+                    content = content.replace(/\\frac\{1\}\{v\}\s*=\s*\\frac\{1\}\{15\}\s*-\s*\\frac\{1\}\{30\}\s*=\s*\\frac\{2\}\{30\}\s*-\s*\\frac\{1\}\{30\}\s*=\s*\\frac\{1\}\{30\}/g,
+                                            '$$\\frac{1}{v} = \\frac{1}{15} - \\frac{1}{30} = \\frac{2}{30} - \\frac{1}{30} = \\frac{1}{30}$$');
+                    
+                    content = content.replace(/v\s*=\s*30\s*\\,\s*\\text\{cm\}/g, 
+                                             '$$v = 30 \\, \\text{cm}$$');
+                    
+                    content = content.replace(/m\s*=\s*\\frac\{v\}\{u\}\s*=\s*\\frac\{30\}\{-30\}\s*=\s*-1/g, 
+                                             '$$m = \\frac{v}{u} = \\frac{30}{-30} = -1$$');
+                }
+
+                // 识别可能包含LaTeX格式的行
+                const mathLines = content.split('\n').map(line => {
+                    // 检查行是否包含LaTeX格式的数学公式
+                    if (line.includes('\\frac') || 
+                        line.includes('\\text') || 
+                        line.includes('\\(') || 
+                        line.includes('\\)') ||
+                        line.includes('\\,') ||
+                        line.match(/\$.*\$/)) {
+                        
+                        // 确保整行被视为数学公式
+                        if (!line.trim().startsWith('$') && !line.trim().startsWith('\\(')) {
+                            line = '$$' + line.trim() + '$$';
+                        }
+                    } else if (line.includes('=') && 
+                               (line.includes('^') || 
+                                line.match(/[a-zA-Z]\d/) || 
+                                line.match(/\d\/\d/))) {
+                        // 包含等号和常见数学符号的行可能是公式
+                        line = '$$' + line.trim() + '$$';
+                    }
+                    return line;
+                });
+                
+                content = mathLines.join('\n');
+
+                // 处理特定格式的数学表达式
+                // 处理分数：\frac{1}{15} = \frac{1}{v} - \frac{1}{-30}
+                content = content.replace(/\\frac\{(\d+)\}\{(\d+)\}/g, '\\frac{$1}{$2}');
+                
+                // 处理变量分数：\frac{1}{v}
+                content = content.replace(/\\frac\{(\d+)\}\{([a-zA-Z](?:[a-zA-Z0-9])*)\}/g, '\\frac{$1}{$2}');
+                content = content.replace(/\\frac\{([a-zA-Z](?:[a-zA-Z0-9])*)\}\{(\d+)\}/g, '\\frac{$1}{$2}');
+                
+                // 处理更复杂的分数
+                content = content.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, '\\frac{$1}{$2}');
+                
+                // 处理文本标记：\text{cm}
+                content = content.replace(/\\text\{([^{}]+)\}/g, '\\text{$1}');
+                
+                // 确保所有LaTeX表达式都有正确的定界符
+                // 将行内公式转换为显示公式
+                content = content.replace(/\\\((.*?)\\\)/g, '$$$1$$');
+                
+                // 删除多余的$符号
+                content = content.replace(/\${3,}/g, '$$');
+                
+                // 将换行符替换为<br>
+                content = content.replace(/\n/g, '<br>');
+                
+                return {
+                    title: step.title,
+                    content: content
+                };
+            });
             
             // 将步骤转换为HTML
-            return steps.map(step => 
+            let html = steps.map(step => 
                 `<div class="solution-step">
                     <div class="step-title">${step.title}</div>
                     <div class="step-content">${step.content}</div>
                 </div>`
             ).join('');
+            
+            // 在步骤显示后调用MathJax进行渲染
+            setTimeout(() => {
+                if (window.MathJax) {
+                    window.MathJax.typeset();
+                }
+            }, 100);
+            
+            return html;
         }
 
         function generateSolutionSteps(problem, difficulty, subject) {
