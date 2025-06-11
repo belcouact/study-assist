@@ -803,57 +803,103 @@ class OpticsSimulator {
         const lensY = canvas.height / 2;
         const scale = 5; // pixels per cm
         
+        // Animation variables
+        let time = 0;
+        
+        // Create color channels for chromatic aberration
+        const colors = [
+            {name: 'Red', rgb: '#ff3333', wavelength: 650, focusOffset: 0.04},
+            {name: 'Green', rgb: '#33ff33', wavelength: 550, focusOffset: 0.02},
+            {name: 'Blue', rgb: '#3333ff', wavelength: 450, focusOffset: 0}
+        ];
+        
         // Draw the scene
         const drawBackground = () => {
-            // Create a gradient background
+            // Create a more advanced 3D-like background
+            ctx.save();
+            
+            // Draw starfield for depth
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, '#171738');
-            gradient.addColorStop(1, '#2E1760');
+            gradient.addColorStop(0, '#0a0030');
+            gradient.addColorStop(1, '#1a0045');
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw some grid lines for depth perception
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            // Draw stars
+            for (let i = 0; i < 100; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const size = Math.random() * 1.5 + 0.5;
+                const alpha = Math.random() * 0.8 + 0.2;
+                
+                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw 3D grid for perspective
+            ctx.strokeStyle = 'rgba(100, 100, 255, 0.1)';
             ctx.lineWidth = 1;
             
-            // Vertical grid lines
-            for (let x = 0; x < canvas.width; x += 40) {
+            // Draw perspective lines
+            const vanishingPointX = canvas.width / 2;
+            const vanishingPointY = canvas.height / 2;
+            const gridSize = 50;
+            const maxDistance = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
+            
+            for (let i = 0; i < 360; i += 30) {
+                const angle = i * Math.PI / 180;
+                const startX = vanishingPointX + Math.cos(angle) * 100;
+                const startY = vanishingPointY + Math.sin(angle) * 100;
+                const endX = vanishingPointX + Math.cos(angle) * maxDistance;
+                const endY = vanishingPointY + Math.sin(angle) * maxDistance;
+                
                 ctx.beginPath();
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, canvas.height);
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
                 ctx.stroke();
             }
             
-            // Horizontal grid lines
-            for (let y = 0; y < canvas.height; y += 40) {
+            // Draw concentric circles
+            for (let r = 100; r < 1000; r += 150) {
                 ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(canvas.width, y);
+                ctx.arc(vanishingPointX, vanishingPointY, r, 0, Math.PI * 2);
                 ctx.stroke();
             }
+            
+            ctx.restore();
         };
         
-        // Calculate image distance and properties
-        let imageDistance, magnification, imageHeight;
-        
-        if (lensType === 'convex') {
-            // For convex lens using lens equation: 1/f = 1/do + 1/di
-            if (objectDistance === focalLength) {
-                // Special case: object at focal point produces image at infinity
-                imageDistance = null;
-                magnification = Infinity;
-                imageHeight = null;
+        // Calculate image properties for each color (chromatic aberration)
+        const calculateImageProperties = (focusAdjustment = 0) => {
+            const adjustedFocalLength = focalLength * (1 + focusAdjustment);
+            let imageDistance, magnification, imageHeight;
+            
+            if (lensType === 'convex') {
+                // For convex lens using lens equation: 1/f = 1/do + 1/di
+                if (objectDistance === adjustedFocalLength) {
+                    // Special case: object at focal point produces image at infinity
+                    imageDistance = null;
+                    magnification = Infinity;
+                    imageHeight = null;
+                } else {
+                    imageDistance = (adjustedFocalLength * objectDistance) / (objectDistance - adjustedFocalLength);
+                    magnification = -imageDistance / objectDistance;
+                    imageHeight = magnification * 50; // Assuming object height of 50px
+                }
             } else {
-                imageDistance = (focalLength * objectDistance) / (objectDistance - focalLength);
+                // For concave lens
+                imageDistance = (adjustedFocalLength * objectDistance) / (objectDistance + Math.abs(adjustedFocalLength));
                 magnification = -imageDistance / objectDistance;
                 imageHeight = magnification * 50; // Assuming object height of 50px
             }
-        } else {
-            // For concave lens
-            imageDistance = (focalLength * objectDistance) / (objectDistance + Math.abs(focalLength));
-            magnification = -imageDistance / objectDistance;
-            imageHeight = magnification * 50; // Assuming object height of 50px
-        }
+            
+            return { imageDistance, magnification, imageHeight };
+        };
+        
+        // Default image properties (for green light)
+        const defaultProps = calculateImageProperties();
         
         // Object position
         const objectX = lensX - objectDistance * scale;
@@ -861,6 +907,9 @@ class OpticsSimulator {
         // Main animation loop
         const animate = () => {
             if (!this.isRunning) return;
+            
+            // Update time for animation
+            time += 0.02;
             
             // Clear and redraw background
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -876,98 +925,218 @@ class OpticsSimulator {
             ctx.stroke();
             ctx.setLineDash([]);
             
-            // Draw lens
+            // Draw lens with 3D effect
             if (lensType === 'convex') {
-                // Draw biconvex lens with gradient fill for realistic appearance
+                // Draw biconvex lens with enhanced 3D effect
+                // Glass material gradient
                 const lensGradient = ctx.createRadialGradient(
                     lensX, lensY, 10,
                     lensX, lensY, 60
                 );
-                lensGradient.addColorStop(0, 'rgba(133, 205, 253, 0.8)');
-                lensGradient.addColorStop(0.7, 'rgba(133, 205, 253, 0.2)');
-                lensGradient.addColorStop(1, 'rgba(133, 205, 253, 0.1)');
+                lensGradient.addColorStop(0, 'rgba(220, 240, 255, 0.8)');
+                lensGradient.addColorStop(0.5, 'rgba(160, 220, 255, 0.6)');
+                lensGradient.addColorStop(0.8, 'rgba(120, 200, 255, 0.4)');
+                lensGradient.addColorStop(1, 'rgba(100, 180, 255, 0.2)');
                 
                 ctx.fillStyle = lensGradient;
                 ctx.beginPath();
                 
-                // Left curve of biconvex lens
+                // Left curve of biconvex lens with more pronounced curvature
                 ctx.moveTo(lensX, lensY - 70);
-                ctx.quadraticCurveTo(lensX - 30, lensY, lensX, lensY + 70);
+                ctx.quadraticCurveTo(lensX - 35, lensY, lensX, lensY + 70);
                 
                 // Right curve of biconvex lens
-                ctx.quadraticCurveTo(lensX + 30, lensY, lensX, lensY - 70);
+                ctx.quadraticCurveTo(lensX + 35, lensY, lensX, lensY - 70);
                 
                 ctx.fill();
                 
-                // Draw lens outline for better visibility
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.lineWidth = 2;
+                // Draw lens outline with metallic frame effect
+                const frameGradient = ctx.createLinearGradient(lensX - 40, lensY - 70, lensX + 40, lensY + 70);
+                frameGradient.addColorStop(0, '#aabbc8');
+                frameGradient.addColorStop(0.5, '#889cb2');
+                frameGradient.addColorStop(1, '#667d94');
+                
+                ctx.strokeStyle = frameGradient;
+                ctx.lineWidth = 3;
                 ctx.stroke();
                 
-                // Add a slight highlight for 3D effect
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                // Add light reflections for 3D glass effect
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.lineWidth = 1;
+                
+                // Top highlight
                 ctx.beginPath();
-                ctx.moveTo(lensX - 10, lensY - 60);
-                ctx.quadraticCurveTo(lensX - 15, lensY, lensX - 10, lensY + 60);
+                ctx.moveTo(lensX - 15, lensY - 60);
+                ctx.quadraticCurveTo(lensX, lensY - 40, lensX + 15, lensY - 60);
                 ctx.stroke();
-            } else {
-                // Draw biconcave lens with gradient fill
-                const lensGradient = ctx.createRadialGradient(
-                    lensX, lensY, 10,
-                    lensX, lensY, 60
-                );
-                lensGradient.addColorStop(0, 'rgba(133, 205, 253, 0.2)');
-                lensGradient.addColorStop(0.5, 'rgba(133, 205, 253, 0.5)');
-                lensGradient.addColorStop(1, 'rgba(133, 205, 253, 0.8)');
                 
-                ctx.fillStyle = lensGradient;
+                // Bottom highlight
                 ctx.beginPath();
+                ctx.moveTo(lensX - 10, lensY + 40);
+                ctx.quadraticCurveTo(lensX, lensY + 50, lensX + 10, lensY + 40);
+                ctx.stroke();
                 
-                // Left curve of biconcave lens
-                ctx.moveTo(lensX - 15, lensY - 70);
-                ctx.lineTo(lensX - 15, lensY + 70);
-                ctx.quadraticCurveTo(lensX + 15, lensY, lensX - 15, lensY - 70);
+                // Left side highlight
+                ctx.beginPath();
+                ctx.moveTo(lensX - 25, lensY - 20);
+                ctx.quadraticCurveTo(lensX - 30, lensY, lensX - 25, lensY + 20);
+                ctx.stroke();
                 
-                // Right curve of biconcave lens
-                ctx.moveTo(lensX + 15, lensY - 70);
-                ctx.lineTo(lensX + 15, lensY + 70);
-                ctx.quadraticCurveTo(lensX - 15, lensY, lensX + 15, lensY - 70);
-                
+                // Lens thickness effect (sides)
+                ctx.fillStyle = 'rgba(160, 220, 255, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(lensX, lensY - 70, 5, 2, 0, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw lens outline
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.lineWidth = 2;
                 ctx.beginPath();
+                ctx.ellipse(lensX, lensY + 70, 5, 2, 0, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Draw biconcave lens with enhanced 3D effect
+                // Glass material gradient
+                const lensGradient = ctx.createRadialGradient(
+                    lensX, lensY, 60,
+                    lensX, lensY, 10
+                );
+                lensGradient.addColorStop(0, 'rgba(220, 240, 255, 0.8)');
+                lensGradient.addColorStop(0.3, 'rgba(160, 220, 255, 0.6)');
+                lensGradient.addColorStop(0.6, 'rgba(120, 200, 255, 0.4)');
+                lensGradient.addColorStop(1, 'rgba(100, 180, 255, 0.2)');
                 
-                ctx.moveTo(lensX - 15, lensY - 70);
-                ctx.lineTo(lensX - 15, lensY + 70);
-                ctx.quadraticCurveTo(lensX + 15, lensY, lensX - 15, lensY - 70);
+                // Draw the lens in multiple parts for 3D effect
+                // Lens frame
+                ctx.fillStyle = 'rgba(120, 160, 200, 0.6)';
+                ctx.beginPath();
+                ctx.rect(lensX - 20, lensY - 70, 40, 140);
+                ctx.fill();
                 
-                ctx.moveTo(lensX + 15, lensY - 70);
-                ctx.lineTo(lensX + 15, lensY + 70);
-                ctx.quadraticCurveTo(lensX - 15, lensY, lensX + 15, lensY - 70);
+                // Cut out the concave parts
+                ctx.fillStyle = lensGradient;
                 
+                // Left concave surface
+                ctx.beginPath();
+                ctx.moveTo(lensX - 20, lensY - 70);
+                ctx.lineTo(lensX - 20, lensY + 70);
+                ctx.quadraticCurveTo(lensX + 20, lensY, lensX - 20, lensY - 70);
+                ctx.fill();
+                
+                // Right concave surface
+                ctx.beginPath();
+                ctx.moveTo(lensX + 20, lensY - 70);
+                ctx.lineTo(lensX + 20, lensY + 70);
+                ctx.quadraticCurveTo(lensX - 20, lensY, lensX + 20, lensY - 70);
+                ctx.fill();
+                
+                // Frame outline
+                const frameGradient = ctx.createLinearGradient(lensX - 25, lensY - 70, lensX + 25, lensY + 70);
+                frameGradient.addColorStop(0, '#aabbc8');
+                frameGradient.addColorStop(0.5, '#889cb2');
+                frameGradient.addColorStop(1, '#667d94');
+                
+                ctx.strokeStyle = frameGradient;
+                ctx.lineWidth = 3;
+                
+                // Left edge
+                ctx.beginPath();
+                ctx.moveTo(lensX - 20, lensY - 70);
+                ctx.lineTo(lensX - 20, lensY + 70);
+                ctx.stroke();
+                
+                // Right edge
+                ctx.beginPath();
+                ctx.moveTo(lensX + 20, lensY - 70);
+                ctx.lineTo(lensX + 20, lensY + 70);
+                ctx.stroke();
+                
+                // Top and bottom edges
+                ctx.beginPath();
+                ctx.moveTo(lensX - 20, lensY - 70);
+                ctx.lineTo(lensX + 20, lensY - 70);
+                ctx.moveTo(lensX - 20, lensY + 70);
+                ctx.lineTo(lensX + 20, lensY + 70);
+                ctx.stroke();
+                
+                // Lens concave surface outlines
+                ctx.strokeStyle = 'rgba(160, 220, 255, 0.8)';
+                ctx.lineWidth = 1;
+                
+                // Left concave
+                ctx.beginPath();
+                ctx.moveTo(lensX - 20, lensY - 70);
+                ctx.quadraticCurveTo(lensX + 20, lensY, lensX - 20, lensY + 70);
+                ctx.stroke();
+                
+                // Right concave
+                ctx.beginPath();
+                ctx.moveTo(lensX + 20, lensY - 70);
+                ctx.quadraticCurveTo(lensX - 20, lensY, lensX + 20, lensY + 70);
+                ctx.stroke();
+                
+                // Add light reflections
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                
+                // Left highlight
+                ctx.beginPath();
+                ctx.moveTo(lensX - 10, lensY - 40);
+                ctx.quadraticCurveTo(lensX + 5, lensY, lensX - 10, lensY + 40);
                 ctx.stroke();
             }
             
-            // Draw focal points
-            const f1X = lensX - focalLength * scale;
-            const f2X = lensX + focalLength * scale;
-            
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-            ctx.beginPath();
-            ctx.arc(f1X, lensY, 5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(f2X, lensY, 5, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw focal points with glowing effect for each color
+            colors.forEach((color, index) => {
+                // Calculate focal point based on color (chromatic aberration)
+                const adjustedFocalLength = focalLength * (1 - color.focusOffset);
+                const f1X = lensX - adjustedFocalLength * scale;
+                const f2X = lensX + adjustedFocalLength * scale;
+                
+                // Draw focal points with glow
+                const glowRadius = 5 + Math.sin(time * 3 + index) * 2;
+                
+                // Glowing effect
+                const glow = ctx.createRadialGradient(
+                    f1X, lensY, 0,
+                    f1X, lensY, glowRadius * 3
+                );
+                glow.addColorStop(0, color.rgb);
+                glow.addColorStop(0.7, `${color.rgb}66`);
+                glow.addColorStop(1, `${color.rgb}00`);
+                
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(f1X, lensY, glowRadius * 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Second focal point
+                const glow2 = ctx.createRadialGradient(
+                    f2X, lensY, 0,
+                    f2X, lensY, glowRadius * 3
+                );
+                glow2.addColorStop(0, color.rgb);
+                glow2.addColorStop(0.7, `${color.rgb}66`);
+                glow2.addColorStop(1, `${color.rgb}00`);
+                
+                ctx.fillStyle = glow2;
+                ctx.beginPath();
+                ctx.arc(f2X, lensY, glowRadius * 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Central points
+                ctx.fillStyle = color.rgb;
+                ctx.beginPath();
+                ctx.arc(f1X, lensY, glowRadius / 2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(f2X, lensY, glowRadius / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
             
             // Label focal points
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.font = '14px Arial';
+            ctx.font = '16px Arial';
             ctx.textAlign = 'center';
+            const f1X = lensX - focalLength * scale;
+            const f2X = lensX + focalLength * scale;
             ctx.fillText('F', f1X, lensY - 15);
             ctx.fillText('F', f2X, lensY - 15);
             
@@ -975,37 +1144,70 @@ class OpticsSimulator {
             const f2f1X = lensX - 2 * focalLength * scale;
             const f2f2X = lensX + 2 * focalLength * scale;
             
+            // 2F points with glow
             ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
             if (f2f1X > 20) {
+                const glow = ctx.createRadialGradient(f2f1X, lensY, 0, f2f1X, lensY, 15);
+                glow.addColorStop(0, 'rgba(255, 165, 0, 0.8)');
+                glow.addColorStop(0.7, 'rgba(255, 165, 0, 0.3)');
+                glow.addColorStop(1, 'rgba(255, 165, 0, 0)');
+                
+                ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(f2f1X, lensY, 5, 0, Math.PI * 2);
+                ctx.arc(f2f1X, lensY, 15, 0, Math.PI * 2);
                 ctx.fill();
+                
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+                ctx.beginPath();
+                ctx.arc(f2f1X, lensY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.fillText('2F', f2f1X, lensY - 15);
+                ctx.fillText('2F', f2f1X, lensY - 20);
             }
             
-            ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
             if (f2f2X < canvas.width - 20) {
+                const glow = ctx.createRadialGradient(f2f2X, lensY, 0, f2f2X, lensY, 15);
+                glow.addColorStop(0, 'rgba(255, 165, 0, 0.8)');
+                glow.addColorStop(0.7, 'rgba(255, 165, 0, 0.3)');
+                glow.addColorStop(1, 'rgba(255, 165, 0, 0)');
+                
+                ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(f2f2X, lensY, 5, 0, Math.PI * 2);
+                ctx.arc(f2f2X, lensY, 15, 0, Math.PI * 2);
                 ctx.fill();
+                
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
+                ctx.beginPath();
+                ctx.arc(f2f2X, lensY, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.fillText('2F', f2f2X, lensY - 15);
+                ctx.fillText('2F', f2f2X, lensY - 20);
             }
             
-            // Draw object
+            // Draw object with animated glow
             const objectY = lensY - 50; // Object height is 50px
             const objectBottomY = lensY;
             
-            // Object stand
-            ctx.strokeStyle = '#ff6b35';
-            ctx.lineWidth = 2;
+            // Object stand with animated glow
+            const arrowGlow = ctx.createLinearGradient(objectX, objectBottomY, objectX, objectY);
+            arrowGlow.addColorStop(0, 'rgba(255, 107, 53, 0.5)');
+            arrowGlow.addColorStop(0.5, 'rgba(255, 107, 53, 0.8)');
+            arrowGlow.addColorStop(1, 'rgba(255, 107, 53, 1)');
+            
+            ctx.strokeStyle = arrowGlow;
+            ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(objectX, objectBottomY);
             ctx.lineTo(objectX, objectY);
             ctx.stroke();
             
-            // Object arrow head
+            // Glowing halo effect
+            ctx.shadowColor = '#ff6b35';
+            ctx.shadowBlur = 10 + Math.sin(time * 5) * 5;
+            
+            // Object arrow head with glow
             ctx.fillStyle = '#ff6b35';
             ctx.beginPath();
             ctx.moveTo(objectX, objectY);
@@ -1014,65 +1216,79 @@ class OpticsSimulator {
             ctx.closePath();
             ctx.fill();
             
-            // Label object
+            ctx.shadowBlur = 0;
+            
+            // Label object with glow
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.font = '14px Arial';
+            ctx.font = 'bold 16px Arial';
             ctx.textAlign = 'right';
             ctx.fillText('Object', objectX - 15, objectY);
             
-            // Draw image if it exists and is in range
-            let imageX;
-            if (imageDistance !== null && isFinite(imageDistance)) {
-                imageX = lensX + imageDistance * scale;
+            // Draw image for each color (chromatic aberration)
+            colors.forEach(color => {
+                const props = calculateImageProperties(color.focusOffset);
+                const { imageDistance, magnification, imageHeight } = props;
                 
-                // Only draw if image is within canvas bounds
-                if (imageX > 20 && imageX < canvas.width - 20) {
-                    const imageTopY = lensY - imageHeight;
+                if (imageDistance !== null && isFinite(imageDistance)) {
+                    const imageX = lensX + imageDistance * scale;
                     
-                    // Image stand (dashed if virtual, solid if real)
-                    ctx.strokeStyle = magnification > 0 ? '#4361ee' : '#9c27b0';
-                    ctx.lineWidth = 2;
-                    
-                    if (imageDistance < 0 || (lensType === 'concave' && imageDistance > 0)) {
-                        // Virtual image (dashed line)
-                        ctx.setLineDash([5, 5]);
-                    } else {
-                        // Real image (solid line)
+                    // Only draw if image is within canvas bounds
+                    if (imageX > 20 && imageX < canvas.width - 20) {
+                        const imageTopY = lensY - imageHeight;
+                        
+                        // Image stand (dashed if virtual, solid if real)
+                        ctx.strokeStyle = color.rgb;
+                        ctx.lineWidth = 2;
+                        
+                        if (imageDistance < 0 || (lensType === 'concave' && imageDistance > 0)) {
+                            // Virtual image (dashed line)
+                            ctx.setLineDash([5, 5]);
+                        } else {
+                            // Real image (solid line)
+                            ctx.setLineDash([]);
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(imageX, lensY);
+                        ctx.lineTo(imageX, imageTopY);
+                        ctx.stroke();
                         ctx.setLineDash([]);
+                        
+                        // Image arrow head
+                        ctx.fillStyle = color.rgb;
+                        ctx.beginPath();
+                        if (magnification > 0) {
+                            // Upright image
+                            ctx.moveTo(imageX, imageTopY);
+                            ctx.lineTo(imageX - 10, imageTopY + 15);
+                            ctx.lineTo(imageX + 10, imageTopY + 15);
+                        } else {
+                            // Inverted image
+                            ctx.moveTo(imageX, imageTopY);
+                            ctx.lineTo(imageX - 10, imageTopY - 15);
+                            ctx.lineTo(imageX + 10, imageTopY - 15);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
                     }
+                }
+            });
+            
+            // Add label for image
+            if (defaultProps.imageDistance !== null && isFinite(defaultProps.imageDistance)) {
+                const imageX = lensX + defaultProps.imageDistance * scale;
+                if (imageX > 20 && imageX < canvas.width - 20) {
+                    const imageTopY = lensY - defaultProps.imageHeight;
                     
-                    ctx.beginPath();
-                    ctx.moveTo(imageX, lensY);
-                    ctx.lineTo(imageX, imageTopY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                    
-                    // Image arrow head
-                    ctx.fillStyle = magnification > 0 ? '#4361ee' : '#9c27b0';
-                    ctx.beginPath();
-                    if (magnification > 0) {
-                        // Upright image
-                        ctx.moveTo(imageX, imageTopY);
-                        ctx.lineTo(imageX - 10, imageTopY + 15);
-                        ctx.lineTo(imageX + 10, imageTopY + 15);
-                    } else {
-                        // Inverted image
-                        ctx.moveTo(imageX, imageTopY);
-                        ctx.lineTo(imageX - 10, imageTopY - 15);
-                        ctx.lineTo(imageX + 10, imageTopY - 15);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Label image
                     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = '14px Arial';
+                    ctx.font = 'bold 16px Arial';
                     ctx.textAlign = 'left';
                     ctx.fillText('Image', imageX + 15, imageTopY);
                 }
             }
             
-            // Draw principal rays
+            // Draw principal rays with animation
+            // Define ray colors
             const rayColors = [
                 'rgba(255, 165, 0, 0.7)',  // Orange
                 'rgba(50, 205, 50, 0.7)',   // Green
@@ -1096,8 +1312,11 @@ class OpticsSimulator {
                     // Ray from second focal point to image
                     ctx.lineTo(f2X, lensY);
                     
-                    if (imageX && imageX > 20 && imageX < canvas.width - 20) {
-                        ctx.lineTo(imageX, lensY - imageHeight);
+                    if (defaultProps.imageDistance !== null && isFinite(defaultProps.imageDistance)) {
+                        const imageX = lensX + defaultProps.imageDistance * scale;
+                        if (imageX > 20 && imageX < canvas.width - 20) {
+                            ctx.lineTo(imageX, lensY - defaultProps.imageHeight);
+                        }
                     } else if (objectDistance < focalLength) {
                         // Virtual image case - ray appears to come from image
                         const virtualRayEndX = canvas.width - 20;
@@ -1119,7 +1338,9 @@ class OpticsSimulator {
                 ctx.lineTo(canvas.width - 20, lensY - Math.tan(divergeAngle) * (canvas.width - 20 - lensX));
             }
             
+            // Add animated particles along the ray path
             ctx.stroke();
+            addParticlesAlongPath(ctx, rayStartX, rayStartY, lensX, rayStartY, time, rayColors[0]);
             
             // Ray 2: Through center of lens (no deviation)
             ctx.strokeStyle = rayColors[1];
@@ -1128,8 +1349,11 @@ class OpticsSimulator {
             ctx.lineTo(lensX, lensY);
             
             // Extend ray to edge of canvas or image
-            if (imageX && imageX > 20 && imageX < canvas.width - 20) {
-                ctx.lineTo(imageX, lensY - imageHeight);
+            if (defaultProps.imageDistance !== null && isFinite(defaultProps.imageDistance)) {
+                const imageX = lensX + defaultProps.imageDistance * scale;
+                if (imageX > 20 && imageX < canvas.width - 20) {
+                    ctx.lineTo(imageX, lensY - defaultProps.imageHeight);
+                }
             } else {
                 const slope = (lensY - rayStartY) / (lensX - rayStartX);
                 const rayEndX = canvas.width - 20;
@@ -1138,6 +1362,7 @@ class OpticsSimulator {
             }
             
             ctx.stroke();
+            addParticlesAlongPath(ctx, rayStartX, rayStartY, lensX, lensY, time + 0.3, rayColors[1]);
             
             // Ray 3: Through focal point to lens, then parallel to axis
             ctx.strokeStyle = rayColors[2];
@@ -1147,14 +1372,16 @@ class OpticsSimulator {
             if (lensType === 'convex') {
                 if (objectDistance > focalLength) {
                     // Through first focal point to lens
-                    ctx.lineTo(lensX, lensY - (rayStartY - lensY) * (lensX - f1X) / (rayStartX - f1X));
+                    const lensIntersectY = lensY - (rayStartY - lensY) * (lensX - f1X) / (rayStartX - f1X);
+                    ctx.lineTo(lensX, lensIntersectY);
                     
                     // After refraction, parallel to axis
-                    ctx.lineTo(canvas.width - 20, lensY - (rayStartY - lensY) * (lensX - f1X) / (rayStartX - f1X));
+                    ctx.lineTo(canvas.width - 20, lensIntersectY);
                 } else {
                     // Object inside focal length - ray diverges
-                    ctx.lineTo(lensX, lensY - (rayStartY - lensY) * (lensX - rayStartX) / (f1X - rayStartX));
-                    ctx.lineTo(canvas.width - 20, lensY - (rayStartY - lensY) * (lensX - rayStartX) / (f1X - rayStartX));
+                    const lensIntersectY = lensY - (rayStartY - lensY) * (lensX - rayStartX) / (f1X - rayStartX);
+                    ctx.lineTo(lensX, lensIntersectY);
+                    ctx.lineTo(canvas.width - 20, lensIntersectY);
                 }
             } else {
                 // For concave lens, ray towards focal point becomes parallel
@@ -1167,29 +1394,102 @@ class OpticsSimulator {
             
             ctx.stroke();
             
-            // Display lens information
-            let imageInfo;
-            if (imageDistance === null || !isFinite(imageDistance)) {
-                imageInfo = 'Image at infinity';
-            } else if (imageDistance < 0) {
-                imageInfo = `Virtual image: ${Math.abs(imageDistance).toFixed(1)}cm behind lens`;
+            // Add information panel with animated accent
+            const infoX = 20;
+            const infoY = 20;
+            const infoWidth = 200;
+            const infoHeight = 180;
+            
+            // Panel background with glowing border
+            const borderGlow = 2 + Math.sin(time * 3) * 2;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(infoX, infoY, infoWidth, infoHeight);
+            
+            // Animated border
+            ctx.strokeStyle = `rgba(100, 180, 255, ${0.5 + Math.sin(time * 2) * 0.3})`;
+            ctx.lineWidth = borderGlow;
+            ctx.strokeRect(infoX, infoY, infoWidth, infoHeight);
+            
+            // Panel title
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Lens Properties', infoX + infoWidth / 2, infoY + 20);
+            
+            // Panel content
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            
+            const contentX = infoX + 10;
+            let contentY = infoY + 45;
+            const lineHeight = 20;
+            
+            ctx.fillText(`Type: ${lensType === 'convex' ? 'Convex (Converging)' : 'Concave (Diverging)'}`, contentX, contentY);
+            contentY += lineHeight;
+            
+            ctx.fillText(`Focal Length: ${focalLength} cm`, contentX, contentY);
+            contentY += lineHeight;
+            
+            ctx.fillText(`Object Distance: ${objectDistance} cm`, contentX, contentY);
+            contentY += lineHeight;
+            
+            if (defaultProps.imageDistance !== null && isFinite(defaultProps.imageDistance)) {
+                ctx.fillText(`Image Distance: ${Math.abs(defaultProps.imageDistance).toFixed(1)} cm`, contentX, contentY);
+                contentY += lineHeight;
+                
+                ctx.fillText(`Magnification: ${Math.abs(defaultProps.magnification).toFixed(2)}×`, contentX, contentY);
+                contentY += lineHeight;
+                
+                ctx.fillText(`Image Type: ${defaultProps.imageDistance < 0 ? 'Virtual' : 'Real'}`, contentX, contentY);
+                contentY += lineHeight;
+                
+                ctx.fillText(`Orientation: ${defaultProps.magnification > 0 ? 'Upright' : 'Inverted'}`, contentX, contentY);
             } else {
-                imageInfo = `Real image: ${imageDistance.toFixed(1)}cm in front of lens`;
+                ctx.fillText(`Image: At infinity`, contentX, contentY);
             }
             
+            // Update info display
+            const imageInfo = defaultProps.imageDistance === null || !isFinite(defaultProps.imageDistance) 
+                ? '无穷远' 
+                : Math.abs(defaultProps.imageDistance).toFixed(1) + 'cm';
+                
+            const magnificationInfo = defaultProps.magnification !== null && isFinite(defaultProps.magnification) 
+                ? Math.abs(defaultProps.magnification).toFixed(2) + 'x' 
+                : '∞';
+                
             document.getElementById('optics-info').innerHTML = `
-                <strong>透镜类型:</strong> ${lensType === 'convex' ? '凸透镜' : '凹透镜'}<br>
+                <strong>透镜类型:</strong> ${lensType === 'convex' ? '凸透镜 (会聚光线)' : '凹透镜 (发散光线)'}<br>
                 <strong>焦距:</strong> ${focalLength}cm<br>
                 <strong>物距:</strong> ${objectDistance}cm<br>
-                <strong>像距:</strong> ${imageDistance !== null && isFinite(imageDistance) ? Math.abs(imageDistance).toFixed(1) + 'cm' : '无穷远'}<br>
-                <strong>放大率:</strong> ${magnification !== null && isFinite(magnification) ? Math.abs(magnification).toFixed(2) + 'x' : '∞'}<br>
-                <strong>像的性质:</strong> ${magnification > 0 ? '正立' : '倒立'}, ${Math.abs(magnification) > 1 ? '放大' : '缩小'}<br>
-                <strong>像的类型:</strong> ${imageDistance < 0 || (lensType === 'concave' && imageDistance > 0) ? '虚像' : '实像'}
+                <strong>像距:</strong> ${imageInfo}<br>
+                <strong>放大率:</strong> ${magnificationInfo}<br>
+                <strong>像的性质:</strong> ${defaultProps.magnification > 0 ? '正立' : '倒立'}, ${Math.abs(defaultProps.magnification) > 1 ? '放大' : '缩小'}<br>
+                <strong>像的类型:</strong> ${defaultProps.imageDistance < 0 || (lensType === 'concave' && defaultProps.imageDistance > 0) ? '虚像' : '实像'}<br>
+                <strong>色差效应:</strong> 不同波长的光有不同的焦距，造成色散现象
             `;
             
-            // Continue the animation
+            // Continue animation
             this.animationId = requestAnimationFrame(animate);
         };
+        
+        // Helper function to add animated particles along a ray path
+        function addParticlesAlongPath(ctx, x1, y1, x2, y2, timeOffset, color) {
+            const particleCount = 5;
+            const particleSize = 3;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const t = ((timeOffset * 2 + i / particleCount) % 1);
+                const x = x1 + (x2 - x1) * t;
+                const y = y1 + (y2 - y1) * t;
+                
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(x, y, particleSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
         
         animate();
     }
@@ -1200,384 +1500,1135 @@ class OpticsSimulator {
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+        
         // Set up animation
         this.isRunning = true;
         
-        // Get parameters from controls
-        const wavelength = parseFloat(document.getElementById('light-wavelength').value); // nm
-        const slitSpacing = parseFloat(document.getElementById('slit-spacing').value); // μm
-        const screenDistance = parseFloat(document.getElementById('screen-distance').value); // cm
+        // Get parameters from user input
+        const wavelength = parseFloat(document.getElementById('wave-length').value); // in nm
+        const slitDistance = parseFloat(document.getElementById('slit-distance').value); // in mm
+        const slitWidth = parseFloat(document.getElementById('slit-width').value); // in mm
+        const screenDistance = parseFloat(document.getElementById('screen-distance').value); // in mm
         
-        // Convert to consistent units (meters)
-        const wavelengthM = wavelength * 1e-9; // nm to m
-        const slitSpacingM = slitSpacing * 1e-6; // μm to m
-        const screenDistanceM = screenDistance * 1e-2; // cm to m
+        // Convert to consistent units (convert mm to µm and nm to µm)
+        const wavelengthMicrons = wavelength / 1000; // convert nm to µm
+        const slitDistanceMicrons = slitDistance * 1000; // convert mm to µm
+        const slitWidthMicrons = slitWidth * 1000; // convert mm to µm
+        const screenDistanceMicrons = screenDistance * 1000; // convert mm to µm
         
-        // Scaling factor for visualization
-        const scale = 1e7; // To make nanometers visible
+        // Scale factors for visualization
+        const canvasScaleFactor = 0.4; // µm to pixels
+        const screenHeight = canvas.height;
+        const screenPosition = canvas.width * 0.8; // position of the screen
+        const sourcePosition = canvas.width * 0.15; // position of the source
+        const slitPosition = canvas.width * 0.3; // position of the slits
         
-        // Calculate fringe spacing using the formula: y = (wavelength * L) / d
-        // where y is distance between fringes, L is screen distance, d is slit spacing
-        const fringeSpacing = (wavelengthM * screenDistanceM) / slitSpacingM;
-        const fringeSpacingPx = fringeSpacing * scale;
+        // Center of the canvas
+        const centerY = canvas.height / 2;
         
-        // Map wavelength to color
-        const getColorFromWavelength = (wavelength) => {
-            // Simple mapping from wavelength (nm) to RGB
-            if (wavelength >= 380 && wavelength < 450) {
-                return `rgb(${Math.floor((wavelength - 380) / 70 * 255)}, 0, 255)`;
-            } else if (wavelength >= 450 && wavelength < 495) {
-                return `rgb(0, 0, 255)`;
-            } else if (wavelength >= 495 && wavelength < 570) {
-                return `rgb(0, 255, ${Math.floor((1 - (wavelength - 495) / 75) * 255)})`;
-            } else if (wavelength >= 570 && wavelength < 590) {
-                return `rgb(${Math.floor((wavelength - 570) / 20 * 255)}, 255, 0)`;
-            } else if (wavelength >= 590 && wavelength < 620) {
-                return `rgb(255, ${Math.floor((1 - (wavelength - 590) / 30) * 255)}, 0)`;
-            } else if (wavelength >= 620 && wavelength <= 750) {
-                return `rgb(255, 0, 0)`;
-            } else {
-                return 'rgb(255, 255, 255)';
-            }
-        };
-        
-        // Get appropriate light color based on wavelength
-        const lightColor = getColorFromWavelength(wavelength);
-        
-        // Set up animation variables
+        // Animation variables
         let time = 0;
-        const animationSpeed = 0.03;
+        const animationSpeed = 0.05; // lower is slower
         
-        // Draw background
-        const drawBackground = () => {
-            // Create a dark gradient background
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            gradient.addColorStop(0, '#0D0D2B');
-            gradient.addColorStop(1, '#100B2B');
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Calculate the positions of the slits
+        const slit1Y = centerY - (slitDistanceMicrons * canvasScaleFactor) / 2;
+        const slit2Y = centerY + (slitDistanceMicrons * canvasScaleFactor) / 2;
+        
+        // Track mouse position for interactive measurements
+        let mouseX = 0;
+        let mouseY = 0;
+        
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+        
+        // Get visible spectrum colors based on wavelength
+        const getColorFromWavelength = (wavelength) => {
+            // Approximate visible spectrum (400-700nm)
+            if (wavelength < 440) return `rgba(130, 0, 238, 0.8)`; // Violet
+            if (wavelength < 490) return `rgba(0, 0, 238, 0.8)`;   // Blue
+            if (wavelength < 510) return `rgba(0, 238, 238, 0.8)`; // Cyan
+            if (wavelength < 580) return `rgba(0, 238, 0, 0.8)`;   // Green
+            if (wavelength < 645) return `rgba(238, 238, 0, 0.8)`; // Yellow
+            if (wavelength < 700) return `rgba(238, 130, 0, 0.8)`; // Orange
+            return `rgba(238, 0, 0, 0.8)`;                         // Red
         };
         
-        // Set up scene elements
-        const slitX = 150;
-        const slitY = canvas.height / 2;
-        const slitWidth = 5; // Width of each slit in pixels
-        const slitHeight = 20;
-        const slitSeparationPx = 30; // Visual separation between slits
-        const sourceX = 80;
-        const sourceY = slitY;
-        const screenX = slitX + screenDistance * 5; // Scale for visualization
-        const slit1Y = slitY - slitSeparationPx/2;
-        const slit2Y = slitY + slitSeparationPx/2;
+        // Main color based on wavelength
+        const mainColor = getColorFromWavelength(wavelength);
         
-        // Helper to draw expanding circular wavefronts
-        const drawWavefronts = (x, y, propagationOffset) => {
-            const maxWavefronts = 15;
-            const wavefrontSpacing = 30; // Pixels between wavefronts
-            
-            for (let i = 0; i < maxWavefronts; i++) {
-                const radius = i * wavefrontSpacing + propagationOffset % wavefrontSpacing;
-                const alpha = Math.max(0, 0.5 - radius / (maxWavefronts * wavefrontSpacing));
-                
-                ctx.strokeStyle = `rgba(${lightColor.match(/\d+/g)[0]}, ${lightColor.match(/\d+/g)[1]}, ${lightColor.match(/\d+/g)[2]}, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, Math.PI);
-                ctx.stroke();
-            }
-        };
-
+        // Animation loop
         const animate = () => {
             if (!this.isRunning) return;
             
-            // Update time for animation
             time += animationSpeed;
             
-            // Clear and redraw
+            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBackground();
             
-            // Draw the double slit apparatus
+            // Draw background with gradient representing air
+            const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            bgGradient.addColorStop(0, '#001233');
+            bgGradient.addColorStop(1, '#023e7d');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw barrier
-            ctx.fillStyle = '#444';
-            ctx.fillRect(slitX - 10, 50, 20, canvas.height - 100);
+            // Draw stars in the background
+            drawStars(ctx, canvas.width, canvas.height, 100);
             
-            // Cut out the slits
-            ctx.fillStyle = '#000';
-            ctx.fillRect(slitX - slitWidth/2, slitY - slitSeparationPx/2 - slitHeight/2, slitWidth, slitHeight);
-            ctx.fillRect(slitX - slitWidth/2, slitY + slitSeparationPx/2 - slitHeight/2, slitWidth, slitHeight);
+            // Draw light source with rays
+            drawLightSource(ctx, sourcePosition, centerY, time, mainColor);
             
-            // Draw source with glow effect
-            const sourceGradient = ctx.createRadialGradient(sourceX, sourceY, 0, sourceX, sourceY, 30);
-            sourceGradient.addColorStop(0, lightColor);
-            sourceGradient.addColorStop(0.7, 'rgba(255,255,255,0.1)');
-            sourceGradient.addColorStop(1, 'rgba(255,255,255,0)');
+            // Draw double slit apparatus
+            drawDoubleSlit(ctx, slitPosition, centerY, slit1Y, slit2Y, slitWidthMicrons * canvasScaleFactor);
             
-            ctx.fillStyle = sourceGradient;
-            ctx.beginPath();
-            ctx.arc(sourceX, sourceY, 30, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw screen with interference pattern
+            drawScreen(ctx, screenPosition, centerY, screenHeight);
             
-            // Source inner core
-            ctx.fillStyle = 'white';
-            ctx.beginPath();
-            ctx.arc(sourceX, sourceY, 5, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw wave propagation from slits
+            drawWavePropagation(ctx, slitPosition, slit1Y, slit2Y, slitWidthMicrons * canvasScaleFactor, 
+                                wavelengthMicrons * canvasScaleFactor, time, mainColor);
             
-            // Draw incident light rays
-            ctx.strokeStyle = lightColor;
-            ctx.lineWidth = 1;
+            // Calculate and draw the interference pattern on the screen
+            drawInterferencePattern(ctx, slitPosition, screenPosition, slit1Y, slit2Y, 
+                                    wavelengthMicrons, slitDistanceMicrons, screenDistanceMicrons, 
+                                    canvasScaleFactor, screenHeight, mainColor);
             
-            // Draw rays from source to slits
-            const rayCount = 20;
-            const rayAngleSpan = Math.PI / 4;
+            // Draw the intensity profile graph
+            drawIntensityProfile(ctx, wavelengthMicrons, slitDistanceMicrons, slitWidthMicrons, 
+                                screenDistanceMicrons, canvas.width, canvas.height, mainColor);
             
-            for (let i = 0; i < rayCount; i++) {
-                const angle = -rayAngleSpan/2 + rayAngleSpan * (i / (rayCount - 1));
-                const rayLength = 100;
-                const endX = sourceX + Math.cos(angle) * rayLength;
-                const endY = sourceY + Math.sin(angle) * rayLength;
-                
-                // Animated particles along ray
-                const particleCount = 3;
-                for (let j = 0; j < particleCount; j++) {
-                    const t = ((time * 3 + j / particleCount) % 1);
-                    const particleX = sourceX + t * (endX - sourceX);
-                    const particleY = sourceY + t * (endY - sourceY);
-                    
-                    ctx.fillStyle = lightColor;
-                    ctx.globalAlpha = 0.7;
-                    ctx.beginPath();
-                    ctx.arc(particleX, particleY, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.globalAlpha = 1.0;
-                }
-                
-                ctx.beginPath();
-                ctx.moveTo(sourceX, sourceY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
+            // Draw measurement at mouse position if it's over the screen
+            if (mouseX >= screenPosition && mouseX <= screenPosition + 10) {
+                drawMeasurement(ctx, mouseY, centerY, screenPosition, wavelengthMicrons, 
+                                slitDistanceMicrons, screenDistanceMicrons, canvasScaleFactor);
             }
             
-            // Draw screen
-            // Screen frame
-            ctx.fillStyle = '#555';
-            ctx.fillRect(screenX - 5, 50, 10, canvas.height - 100);
+            // Display formula and information
+            drawFormulas(ctx, wavelength, slitDistance, slitWidth, screenDistance, canvas.width, canvas.height);
             
-            // Screen surface (white)
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(screenX, 50, 2, canvas.height - 100);
-            
-            // Label screen
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Screen', screenX, 40);
-            
-            // Label slits
-            ctx.fillText('Double Slit', slitX, 40);
-            
-            // Label source
-            ctx.fillText('Light Source', sourceX, 40);
-            ctx.fillText(`${wavelength}nm`, sourceX, canvas.height - 30);
-            
-            // Animation time factor for wave propagation
-            const propagationOffset = time * 100 % (2 * Math.PI);
-            
-            // Draw wavefronts from both slits
-            drawWavefronts(slitX, slit1Y, propagationOffset);
-            drawWavefronts(slitX, slit2Y, propagationOffset);
-            
-            // Draw the interference pattern on the screen
-            const patternHeight = canvas.height - 100;
-            const centerY = canvas.height / 2;
-            const maxY = centerY + patternHeight / 2;
-            const minY = centerY - patternHeight / 2;
-            
-            // Calculate and draw interference pattern
-            const patternResolution = 2; // Pixels per calculation point
-            
-            for (let y = minY; y <= maxY; y += patternResolution) {
-                // Calculate path difference
-                const path1 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(y - slit1Y, 2));
-                const path2 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(y - slit2Y, 2));
-                const pathDiff = Math.abs(path1 - path2);
-                
-                // Convert path difference to phase difference
-                const wavelengthPx = wavelength * scale / 1e9; // Scale wavelength to pixel space
-                const phaseDiff = (2 * Math.PI * pathDiff) / wavelengthPx;
-                
-                // Calculate intensity using wave interference formula
-                const amplitude1 = 1.0;
-                const amplitude2 = 1.0;
-                const intensity = Math.pow(amplitude1 + amplitude2 * Math.cos(phaseDiff), 2);
-                
-                // Apply diffraction envelope (single slit diffraction)
-                const beta = (Math.PI * slitWidth * (y - centerY)) / (wavelengthPx * (screenX - slitX));
-                let diffraction = 1.0;
-                if (beta !== 0) {
-                    diffraction = Math.pow(Math.sin(beta) / beta, 2);
-                }
-                
-                // Combine interference and diffraction
-                const combinedIntensity = intensity * diffraction;
-                
-                // Map intensity to color brightness
-                const brightness = Math.min(255, Math.floor(255 * combinedIntensity));
-                
-                // Apply the actual color of the wavelength with varying intensity
-                const [r, g, b] = lightColor.match(/\d+/g).map(Number);
-                const color = `rgb(${Math.floor(r * combinedIntensity)}, ${Math.floor(g * combinedIntensity)}, ${Math.floor(b * combinedIntensity)})`;
-                
-                // Draw the interference fringe point
-                ctx.fillStyle = color;
-                ctx.fillRect(screenX, y, 2, patternResolution);
-                
-                // Draw maxima indicators
-                if (y > minY + patternResolution && y < maxY - patternResolution) {
-                    const prevY = y - patternResolution;
-                    const prevPath1 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(prevY - slit1Y, 2));
-                    const prevPath2 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(prevY - slit2Y, 2));
-                    const prevPathDiff = Math.abs(prevPath1 - prevPath2);
-                    const prevPhaseDiff = (2 * Math.PI * prevPathDiff) / wavelengthPx;
-                    const prevIntensity = Math.pow(amplitude1 + amplitude2 * Math.cos(prevPhaseDiff), 2);
-                    
-                    // Detect local maxima for fringe order labeling
-                    if (combinedIntensity > 0.8 && combinedIntensity > prevIntensity && 
-                        y + patternResolution <= maxY) {
-                        const nextY = y + patternResolution;
-                        const nextPath1 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(nextY - slit1Y, 2));
-                        const nextPath2 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(nextY - slit2Y, 2));
-                        const nextPathDiff = Math.abs(nextPath1 - nextPath2);
-                        const nextPhaseDiff = (2 * Math.PI * nextPathDiff) / wavelengthPx;
-                        const nextIntensity = Math.pow(amplitude1 + amplitude2 * Math.cos(nextPhaseDiff), 2);
-                        
-                        if (combinedIntensity > nextIntensity) {
-                            // Draw maxima marker
-                            ctx.fillStyle = 'white';
-                            ctx.beginPath();
-                            ctx.arc(screenX + 15, y, 2, 0, Math.PI * 2);
-                            ctx.fill();
-                            
-                            // Calculate fringe order (m) from path difference
-                            const order = Math.round(pathDiff / wavelengthPx);
-                            if (Math.abs(y - centerY) > 5) { // Skip central maximum labeling
-                                ctx.fillStyle = 'white';
-                                ctx.font = '10px Arial';
-                                ctx.textAlign = 'left';
-                                ctx.fillText(`m=${order}`, screenX + 20, y + 4);
-                            } else {
-                                ctx.fillStyle = 'white';
-                                ctx.font = '12px Arial';
-                                ctx.textAlign = 'left';
-                                ctx.fillText('Central Maximum', screenX + 20, y + 4);
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Draw graphs and visualizations on the right side
-            const graphX = screenX + 100;
-            const graphWidth = canvas.width - graphX - 20;
-            const graphHeight = 150;
-            const graphY = 80;
-            
-            // Intensity profile graph
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-            ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
-            
-            // Graph outline
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
-            
-            // Graph title
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Intensity Profile', graphX + graphWidth/2, graphY - 10);
-            
-            // X axis
-            ctx.beginPath();
-            ctx.moveTo(graphX, graphY + graphHeight/2);
-            ctx.lineTo(graphX + graphWidth, graphY + graphHeight/2);
-            ctx.stroke();
-            
-            // Draw intensity curve
-            ctx.beginPath();
-            ctx.moveTo(graphX, graphY + graphHeight/2);
-            
-            for (let x = 0; x < graphWidth; x++) {
-                const y = centerY + (x - graphWidth/2) * (patternHeight / graphWidth);
-                
-                if (y >= minY && y <= maxY) {
-                    const path1 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(y - slit1Y, 2));
-                    const path2 = Math.sqrt(Math.pow(screenX - slitX, 2) + Math.pow(y - slit2Y, 2));
-                    const pathDiff = Math.abs(path1 - path2);
-                    const wavelengthPx = wavelength * scale / 1e9;
-                    const phaseDiff = (2 * Math.PI * pathDiff) / wavelengthPx;
-                    const intensity = Math.pow(Math.cos(phaseDiff/2), 2);
-                    const beta = (Math.PI * slitWidth * (y - centerY)) / (wavelengthPx * (screenX - slitX));
-                    let diffraction = 1.0;
-                    if (beta !== 0) {
-                        diffraction = Math.pow(Math.sin(beta) / beta, 2);
-                    }
-                    const graphY2 = graphY + graphHeight/2 - intensity * diffraction * graphHeight/2;
-                    ctx.lineTo(graphX + x, graphY2);
-                }
-            }
-            
-            ctx.strokeStyle = lightColor;
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            
-            // Draw formula visualization
-            const formulaY = graphY + graphHeight + 50;
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Double-Slit Interference Formula', graphX + graphWidth/2, formulaY - 20);
-            
-            ctx.font = '14px Arial';
-            ctx.fillText('d sin θ = m λ', graphX + graphWidth/2, formulaY);
-            
-            ctx.font = '12px Arial';
-            ctx.fillText('Where:', graphX + 50, formulaY + 25);
-            ctx.textAlign = 'left';
-            ctx.fillText('d = slit separation = ' + slitSpacing + ' μm', graphX + 50, formulaY + 45);
-            ctx.fillText('λ = wavelength = ' + wavelength + ' nm', graphX + 50, formulaY + 65);
-            ctx.fillText('m = order of maximum (0, ±1, ±2, ...)', graphX + 50, formulaY + 85);
-            ctx.fillText('θ = angle from center', graphX + 50, formulaY + 105);
-            
-            // Calculate and display fringe spacing
-            const fringeSpacingMm = fringeSpacing * 1000; // Convert to mm
-            
-            ctx.textAlign = 'center';
-            ctx.font = '14px Arial';
-            ctx.fillText('Calculated Fringe Spacing = ' + fringeSpacingMm.toFixed(2) + ' mm', graphX + graphWidth/2, formulaY + 140);
-            
-            // Update info display
-            document.getElementById('optics-info').innerHTML = `
-                <strong>双缝干涉现象</strong><br>
-                波长 (λ): ${wavelength} nm (${wavelength >= 620 ? '红' : 
-                                           wavelength >= 590 ? '橙' : 
-                                           wavelength >= 570 ? '黄' : 
-                                           wavelength >= 495 ? '绿' : 
-                                           wavelength >= 450 ? '蓝' : '紫'}光)<br>
-                缝间距 (d): ${slitSpacing} μm<br>
-                屏幕距离 (L): ${screenDistance} cm<br>
-                条纹间距: ${fringeSpacingMm.toFixed(2)} mm<br>
-                <strong>公式</strong>: d·sin θ = m·λ<br>
-                θ ≈ y/L (小角近似)
-            `;
-            
-            // Continue animation
+            // Continue the animation
             this.animationId = requestAnimationFrame(animate);
         };
         
+        // Helper function to draw stars in the background
+        function drawStars(ctx, width, height, count) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            for (let i = 0; i < count; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const radius = Math.random() * 1.5;
+                ctx.beginPath();
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Helper function to draw the light source
+        function drawLightSource(ctx, x, y, time, color) {
+            // Source housing
+            ctx.fillStyle = '#333';
+            ctx.beginPath();
+            ctx.rect(x - 30, y - 25, 60, 50);
+            ctx.fill();
+            
+            // Light source with glow
+            const glowRadius = 15 + Math.sin(time * 2) * 5;
+            const glow = ctx.createRadialGradient(x, y, 0, x, y, glowRadius);
+            glow.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            glow.addColorStop(0.2, color);
+            glow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(x, y, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw emerging light beam
+            ctx.fillStyle = `${color.slice(0, -2)}0.3)`;
+            ctx.beginPath();
+            ctx.moveTo(x, y - 20);
+            ctx.lineTo(x + (slitPosition - x) * 0.8, y - 80);
+            ctx.lineTo(x + (slitPosition - x) * 0.8, y + 80);
+            ctx.lineTo(x, y + 20);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Animate light particles in the beam
+            ctx.fillStyle = color;
+            for (let i = 0; i < 15; i++) {
+                const t = (time * 3 + i / 15) % 1;
+                const particleX = x + (slitPosition - x - 20) * t;
+                const particleWidth = (slitPosition - x - 20) * 0.05;
+                const maxHeight = 40 * t;
+                const particleY = y + (Math.random() * 2 - 1) * maxHeight;
+                
+                ctx.beginPath();
+                ctx.arc(particleX, particleY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Label
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Monochromatic', x, y - 35);
+            ctx.fillText('Light Source', x, y - 15);
+            ctx.fillText(`λ = ${wavelength} nm`, x, y + 40);
+        }
+        
+        // Helper function to draw the double slit
+        function drawDoubleSlit(ctx, x, centerY, slit1Y, slit2Y, slitWidth) {
+            // Draw the opaque barrier
+            const barrierGradient = ctx.createLinearGradient(x - 10, 0, x + 10, 0);
+            barrierGradient.addColorStop(0, '#555');
+            barrierGradient.addColorStop(0.5, '#999');
+            barrierGradient.addColorStop(1, '#555');
+            
+            ctx.fillStyle = barrierGradient;
+            ctx.beginPath();
+            ctx.rect(x - 10, 0, 20, centerY - slitWidth/2 - (slit2Y - slit1Y)/2);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.rect(x - 10, slit1Y + slitWidth/2, 20, slit2Y - slit1Y - slitWidth);
+            ctx.fill();
+            
+            ctx.beginPath();
+            ctx.rect(x - 10, slit2Y + slitWidth/2, 20, canvas.height - (slit2Y + slitWidth/2));
+            ctx.fill();
+            
+            // Add metallic effect to the barrier
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(x - 10, 0);
+            ctx.lineTo(x - 10, canvas.height);
+            ctx.stroke();
+            
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.moveTo(x + 10, 0);
+            ctx.lineTo(x + 10, canvas.height);
+            ctx.stroke();
+            
+            // Highlight the slits with glowing effect
+            const slitGlow = ctx.createLinearGradient(x - 15, 0, x + 15, 0);
+            slitGlow.addColorStop(0, 'rgba(255, 255, 255, 0)');
+            slitGlow.addColorStop(0.5, `rgba(255, 255, 255, ${0.5 + Math.sin(time * 3) * 0.3})`);
+            slitGlow.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            
+            ctx.fillStyle = slitGlow;
+            
+            // First slit with glow
+            ctx.beginPath();
+            ctx.rect(x - 15, slit1Y - slitWidth/2, 30, slitWidth);
+            ctx.fill();
+            
+            // Second slit with glow
+            ctx.beginPath();
+            ctx.rect(x - 15, slit2Y - slitWidth/2, 30, slitWidth);
+            ctx.fill();
+            
+            // Labels
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Double Slit', x, 20);
+            ctx.fillText(`d = ${slitDistance} mm`, x, 40);
+            ctx.fillText(`w = ${slitWidth} mm`, x, 60);
+            
+            // Add measurements for slit distance
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(x + 25, slit1Y);
+            ctx.lineTo(x + 50, slit1Y);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x + 25, slit2Y);
+            ctx.lineTo(x + 50, slit2Y);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x + 37, slit1Y);
+            ctx.lineTo(x + 37, slit2Y);
+            ctx.stroke();
+            
+            ctx.setLineDash([]);
+            ctx.fillText('d', x + 50, (slit1Y + slit2Y) / 2);
+        }
+        
+        // Helper function to draw the screen
+        function drawScreen(ctx, x, centerY, height) {
+            // Draw screen with slight 3D effect
+            const screenGradient = ctx.createLinearGradient(x - 5, 0, x + 15, 0);
+            screenGradient.addColorStop(0, '#ddd');
+            screenGradient.addColorStop(0.5, '#fff');
+            screenGradient.addColorStop(1, '#ddd');
+            
+            ctx.fillStyle = screenGradient;
+            ctx.beginPath();
+            ctx.rect(x, 0, 10, height);
+            ctx.fill();
+            
+            // Add screen border
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, 0, 10, height);
+            
+            // Label
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Screen', x + 5, 20);
+            ctx.fillText(`L = ${screenDistance} mm`, x + 5, 40);
+            
+            // Distance line from slit to screen
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(slitPosition, centerY);
+            ctx.lineTo(x, centerY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label for distance
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillText('L', (slitPosition + x) / 2, centerY - 10);
+        }
+        
+        // Helper function to draw wave propagation from slits
+        function drawWavePropagation(ctx, slitX, slit1Y, slit2Y, slitWidth, wavelengthPixels, time, color) {
+            // Draw circular wavefronts emanating from each slit
+            const maxRadius = Math.sqrt(Math.pow(canvas.width - slitX, 2) + Math.pow(canvas.height, 2));
+            const numWavefronts = Math.floor(maxRadius / wavelengthPixels) + 1;
+            
+            // Calculate the wave amplitude decay factor
+            const amplitudeDecay = (radius) => 1 / Math.sqrt(radius + 50);
+            
+            // Draw waves from first slit
+            for (let i = 0; i < numWavefronts; i++) {
+                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
+                if (radius < maxRadius) {
+                    const opacity = amplitudeDecay(radius) * 0.5;
+                    
+                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit1Y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw waves from second slit
+            for (let i = 0; i < numWavefronts; i++) {
+                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
+                if (radius < maxRadius) {
+                    const opacity = amplitudeDecay(radius) * 0.5;
+                    
+                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit2Y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Add wave particle animation from slits
+            ctx.fillStyle = color;
+            
+            // Function to draw particles in a wave pattern
+            const drawWaveParticles = (originX, originY) => {
+                for (let angle = -80; angle <= 80; angle += 5) {
+                    const angleRad = angle * Math.PI / 180;
+                    
+                    // Multiple particles along each angle
+                    for (let i = 0; i < 5; i++) {
+                        const t = (time * 2 + i / 5) % 1;
+                        const distance = t * (screenPosition - slitX);
+                        
+                        // Sinusoidal motion along the ray
+                        const x = originX + Math.cos(angleRad) * distance;
+                        const baseY = originY + Math.sin(angleRad) * distance;
+                        const waveY = baseY + Math.sin(t * Math.PI * 8) * wavelengthPixels * 0.2;
+                        
+                        // Only draw particles in front of the screen
+                        if (x < screenPosition) {
+                            const particleOpacity = (1 - t) * 0.8;
+                            ctx.fillStyle = `${color.slice(0, -2)}${particleOpacity})`;
+                            
+                            ctx.beginPath();
+                            ctx.arc(x, waveY, 1.2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            };
+            
+            // Draw particles from both slits
+            drawWaveParticles(slitX, slit1Y);
+            drawWaveParticles(slitX, slit2Y);
+        }
+        
+        // Helper function to calculate and draw the interference pattern on the screen
+        function drawInterferencePattern(ctx, slitX, screenX, slit1Y, slit2Y, wavelengthMicrons, 
+                                        slitDistanceMicrons, screenDistanceMicrons, scale, screenHeight, color) {
+            
+            // Young's double-slit interference formula
+            // The path difference is: d * sin(θ) where θ is the angle from the center line
+            // Constructive interference occurs when path difference = m * λ (m = 0, 1, 2, ...)
+            // Distance y from center on screen: y = L * tan(θ) ≈ L * sin(θ) for small angles
+            // So position of mth maximum: y = m * λ * L / d
+            
+            // Convert to consistent units
+            const lambda = wavelengthMicrons;  // in µm
+            const d = slitDistanceMicrons;     // in µm
+            const L = screenDistanceMicrons;   // in µm
+            
+            // Prepare gradient for bright fringes based on wavelength
+            const fringeGradient = ctx.createLinearGradient(screenX, 0, screenX + 10, 0);
+            fringeGradient.addColorStop(0, `${color.slice(0, -2)}0.1)`);
+            fringeGradient.addColorStop(0.5, color);
+            fringeGradient.addColorStop(1, `${color.slice(0, -2)}0.1)`);
+            
+            // Calculate the center of the pattern
+            const centerY = (slit1Y + slit2Y) / 2;
+            
+            // Draw base intensity (dim light everywhere)
+            ctx.fillStyle = `${color.slice(0, -2)}0.1)`;
+            ctx.fillRect(screenX, 0, 10, screenHeight);
+            
+            // Draw the interference pattern
+            // We'll calculate the intensity at each pixel along the screen height
+            const pixelsPerMicron = scale;
+            const maxY = screenHeight / 2;  // Maximum distance from center to check
+            
+            // Single-slit diffraction envelope factor
+            const sinc = (x) => {
+                if (x === 0) return 1;
+                return Math.sin(x) / x;
+            };
+            
+            for (let y = -maxY; y <= maxY; y++) {
+                const screenY = centerY + y;
+                if (screenY >= 0 && screenY < screenHeight) {
+                    // Calculate the path difference in wavelength units
+                    const sinTheta = y / Math.sqrt(y * y + L * L);
+                    const pathDiff = d * sinTheta;
+                    
+                    // Young's double-slit interference factor
+                    const phaseYoung = Math.PI * pathDiff / lambda;
+                    const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
+                    
+                    // Single-slit diffraction factor
+                    const slitWidthFactor = slitWidthMicrons / 1000; // in mm
+                    const phaseSingle = Math.PI * slitWidthFactor * sinTheta / lambda;
+                    const singleFactor = Math.pow(sinc(phaseSingle), 2);
+                    
+                    // Combined intensity (double-slit modulated by single-slit)
+                    let intensity = youngFactor;
+                    
+                    // Apply small-slit diffraction envelope if slit width is small enough
+                    if (slitWidthFactor < 0.1) {
+                        intensity *= singleFactor;
+                    }
+                    
+                    // Map intensity to alpha value (0 to 1)
+                    const alpha = Math.pow(intensity, 0.5); // Apply gamma correction for better visibility
+                    
+                    // Skip drawing very dim points for performance
+                    if (alpha > 0.05) {
+                        ctx.fillStyle = `${color.slice(0, -2)}${alpha})`;
+                        ctx.fillRect(screenX, screenY, 10, 1);
+                    }
+                    
+                    // Add enhanced brightness for maxima
+                    if (intensity > 0.8) {
+                        // Glow effect for bright fringes
+                        const glow = ctx.createRadialGradient(
+                            screenX + 5, screenY, 0,
+                            screenX + 5, screenY, 15
+                        );
+                        glow.addColorStop(0, `${color.slice(0, -2)}${alpha * 0.7})`);
+                        glow.addColorStop(1, `${color.slice(0, -2)}0)`);
+                        
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(screenX + 5, screenY, 15, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            // Draw central maximum label
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('m = 0', screenX + 15, centerY);
+            
+            // Calculate and label some of the maxima
+            const maxOrder = 3;
+            for (let m = 1; m <= maxOrder; m++) {
+                // Position of mth maximum: y = m * λ * L / d
+                const yMax = m * lambda * L / d;
+                const yMaxPixels = yMax * scale;
+                
+                // Upper maximum
+                const upperY = centerY - yMaxPixels;
+                if (upperY > 20 && upperY < screenHeight - 20) {
+                    ctx.fillText(`m = ${m}`, screenX + 15, upperY);
+                    
+                    // Draw dashed line to the maximum
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + 10, upperY);
+                    ctx.lineTo(screenX + 30, upperY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                
+                // Lower maximum
+                const lowerY = centerY + yMaxPixels;
+                if (lowerY > 20 && lowerY < screenHeight - 20) {
+                    ctx.fillText(`m = -${m}`, screenX + 15, lowerY);
+                    
+                    // Draw dashed line to the maximum
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + 10, lowerY);
+                    ctx.lineTo(screenX + 30, lowerY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+        }
+        
+        // Helper function to draw the intensity profile graph
+        function drawIntensityProfile(ctx, wavelengthMicrons, slitDistanceMicrons, slitWidthMicrons, 
+                                    screenDistanceMicrons, canvasWidth, canvasHeight, color) {
+            
+            // Graph dimensions and position
+            const graphWidth = canvasWidth * 0.2;
+            const graphHeight = canvasHeight * 0.3;
+            const graphX = canvasWidth - graphWidth - 20;
+            const graphY = 20;
+            
+            // Draw graph background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
+            
+            // Draw graph border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
+            
+            // Draw axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 1;
+            
+            // X-axis (position)
+            ctx.beginPath();
+            ctx.moveTo(graphX, graphY + graphHeight / 2);
+            ctx.lineTo(graphX + graphWidth, graphY + graphHeight / 2);
+            ctx.stroke();
+            
+            // Y-axis (intensity)
+            ctx.beginPath();
+            ctx.moveTo(graphX, graphY + graphHeight);
+            ctx.lineTo(graphX, graphY);
+            ctx.stroke();
+            
+            // Draw axis labels
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Intensity Profile', graphX + graphWidth / 2, graphY - 5);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText('I', graphX - 5, graphY + 10);
+            
+            ctx.textAlign = 'center';
+            ctx.fillText('Position (θ)', graphX + graphWidth / 2, graphY + graphHeight + 15);
+            
+            // Calculate and draw the intensity profile
+            const lambda = wavelengthMicrons;
+            const d = slitDistanceMicrons;
+            const L = screenDistanceMicrons;
+            const w = slitWidthMicrons;
+            
+            // Draw intensity curve
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Sample the intensity profile
+            const samples = 100;
+            const maxAngle = 0.1; // radians
+            
+            for (let i = 0; i <= samples; i++) {
+                const theta = (i / samples) * maxAngle * 2 - maxAngle;
+                const pathDiff = d * Math.sin(theta);
+                
+                // Young's double-slit interference factor
+                const phaseYoung = Math.PI * pathDiff / lambda;
+                const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
+                
+                // Single-slit diffraction factor
+                const phaseSingle = Math.PI * w * Math.sin(theta) / lambda;
+                const sinc = (x) => (x === 0) ? 1 : Math.sin(x) / x;
+                const singleFactor = Math.pow(sinc(phaseSingle), 2);
+                
+                // Combined intensity
+                let intensity = youngFactor;
+                
+                // Apply diffraction envelope if slit width is small
+                if (w < 100) {
+                    intensity *= singleFactor;
+                }
+                
+                // Map to graph coordinates
+                const x = graphX + (i / samples) * graphWidth;
+                const y = graphY + graphHeight - intensity * graphHeight;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            
+            // Fill under the curve
+            ctx.lineTo(graphX + graphWidth, graphY + graphHeight);
+            ctx.lineTo(graphX, graphY + graphHeight);
+            ctx.closePath();
+            ctx.fillStyle = `${color.slice(0, -2)}0.3)`;
+            ctx.fill();
+            
+            // Draw central line
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(graphX + graphWidth / 2, graphY);
+            ctx.lineTo(graphX + graphWidth / 2, graphY + graphHeight);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // Helper function to draw measurement at mouse position
+        function drawMeasurement(ctx, mouseY, centerY, screenX, wavelengthMicrons, slitDistanceMicrons, 
+                                screenDistanceMicrons, scale) {
+            // Calculate distance from center
+            const yDistance = mouseY - centerY;
+            const yDistanceMicrons = yDistance / scale;
+            
+            // Calculate angle
+            const L = screenDistanceMicrons;
+            const theta = Math.atan(yDistanceMicrons / L);
+            const thetaDegrees = theta * 180 / Math.PI;
+            
+            // Calculate order of interference
+            const lambda = wavelengthMicrons;
+            const d = slitDistanceMicrons;
+            const m = (d * Math.sin(theta)) / lambda;
+            
+            // Draw line to position
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(screenX + 10, mouseY);
+            ctx.lineTo(screenX + 150, mouseY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw measurement text
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`y = ${yDistance.toFixed(0)} px (${(yDistanceMicrons / 1000).toFixed(2)} mm)`, screenX + 15, mouseY - 25);
+            ctx.fillText(`θ = ${thetaDegrees.toFixed(2)}°`, screenX + 15, mouseY - 10);
+            ctx.fillText(`m ≈ ${Math.abs(m).toFixed(2)}`, screenX + 15, mouseY + 15);
+        }
+        
+        // Helper function to draw formulas and explanation
+        function drawFormulas(ctx, wavelength, slitDistance, slitWidth, screenDistance, canvasWidth, canvasHeight) {
+            // Create formula panel
+            const panelWidth = 250;
+            const panelHeight = 180;
+            const panelX = 20;
+            const panelY = canvasHeight - panelHeight - 20;
+            
+            // Panel background with glowing border
+            const borderGlow = 2 + Math.sin(time * 2) * 1;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+            
+            // Draw border with animation
+            ctx.strokeStyle = `rgba(150, 150, 255, ${0.5 + Math.sin(time * 2) * 0.3})`;
+            ctx.lineWidth = borderGlow;
+            ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+            
+            // Draw title
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Double-Slit Interference', panelX + panelWidth / 2, panelY + 20);
+            
+            // Draw formulas
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            
+            let y = panelY + 50;
+            const lineHeight = 22;
+            
+            // Bright fringes formula
+            ctx.fillText('Bright fringes (maxima):', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('d sin θ = m λ    (m = 0, ±1, ±2, ...)', panelX + 20, y);
+            y += lineHeight;
+            
+            // Position formula
+            ctx.fillText('Position on screen:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('y = L tan θ ≈ m λ L / d    (small θ)', panelX + 20, y);
+            y += lineHeight;
+            
+            // Angular separation
+            ctx.fillText('Angular separation:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('Δθ = λ / d', panelX + 20, y);
+            
+            // Update info display
+            document.getElementById('optics-info').innerHTML = `
+                <strong>波长 (λ):</strong> ${wavelength} nm<br>
+                <strong>狭缝间距 (d):</strong> ${slitDistance} mm<br>
+                <strong>狭缝宽度 (w):</strong> ${slitWidth} mm<br>
+                <strong>屏幕距离 (L):</strong> ${screenDistance} mm<br>
+                <strong>干涉条纹角度间隔:</strong> ${(wavelength / 1000 / slitDistance).toFixed(6)} 弧度<br>
+                <strong>中央亮纹宽度:</strong> ${(wavelength * screenDistance / slitDistance).toFixed(2)} μm<br>
+                <strong>衍射包络线宽度:</strong> ${(wavelength * screenDistance / slitWidth).toFixed(2)} μm
+            `;
+        }
+        
+        // Helper function to draw wave propagation from slits
+        function drawWavePropagation(ctx, slitX, slit1Y, slit2Y, slitWidth, wavelengthPixels, time, color) {
+            // Draw circular wavefronts emanating from each slit
+            const maxRadius = Math.sqrt(Math.pow(canvas.width - slitX, 2) + Math.pow(canvas.height, 2));
+            const numWavefronts = Math.floor(maxRadius / wavelengthPixels) + 1;
+            
+            // Calculate the wave amplitude decay factor
+            const amplitudeDecay = (radius) => 1 / Math.sqrt(radius + 50);
+            
+            // Draw waves from first slit
+            for (let i = 0; i < numWavefronts; i++) {
+                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
+                if (radius < maxRadius) {
+                    const opacity = amplitudeDecay(radius) * 0.5;
+                    
+                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit1Y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw waves from second slit
+            for (let i = 0; i < numWavefronts; i++) {
+                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
+                if (radius < maxRadius) {
+                    const opacity = amplitudeDecay(radius) * 0.5;
+                    
+                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(slitX, slit2Y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+            
+            // Add wave particle animation from slits
+            ctx.fillStyle = color;
+            
+            // Function to draw particles in a wave pattern
+            const drawWaveParticles = (originX, originY) => {
+                for (let angle = -80; angle <= 80; angle += 5) {
+                    const angleRad = angle * Math.PI / 180;
+                    
+                    // Multiple particles along each angle
+                    for (let i = 0; i < 5; i++) {
+                        const t = (time * 2 + i / 5) % 1;
+                        const distance = t * (screenPosition - slitX);
+                        
+                        // Sinusoidal motion along the ray
+                        const x = originX + Math.cos(angleRad) * distance;
+                        const baseY = originY + Math.sin(angleRad) * distance;
+                        const waveY = baseY + Math.sin(t * Math.PI * 8) * wavelengthPixels * 0.2;
+                        
+                        // Only draw particles in front of the screen
+                        if (x < screenPosition) {
+                            const particleOpacity = (1 - t) * 0.8;
+                            ctx.fillStyle = `${color.slice(0, -2)}${particleOpacity})`;
+                            
+                            ctx.beginPath();
+                            ctx.arc(x, waveY, 1.2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                }
+            };
+            
+            // Draw particles from both slits
+            drawWaveParticles(slitX, slit1Y);
+            drawWaveParticles(slitX, slit2Y);
+        }
+        
+        // Helper function to calculate and draw the interference pattern on the screen
+        function drawInterferencePattern(ctx, slitX, screenX, slit1Y, slit2Y, wavelengthMicrons, 
+                                        slitDistanceMicrons, screenDistanceMicrons, scale, screenHeight, color) {
+            
+            // Young's double-slit interference formula
+            // The path difference is: d * sin(θ) where θ is the angle from the center line
+            // Constructive interference occurs when path difference = m * λ (m = 0, 1, 2, ...)
+            // Distance y from center on screen: y = L * tan(θ) ≈ L * sin(θ) for small angles
+            // So position of mth maximum: y = m * λ * L / d
+            
+            // Convert to consistent units
+            const lambda = wavelengthMicrons;  // in µm
+            const d = slitDistanceMicrons;     // in µm
+            const L = screenDistanceMicrons;   // in µm
+            
+            // Prepare gradient for bright fringes based on wavelength
+            const fringeGradient = ctx.createLinearGradient(screenX, 0, screenX + 10, 0);
+            fringeGradient.addColorStop(0, `${color.slice(0, -2)}0.1)`);
+            fringeGradient.addColorStop(0.5, color);
+            fringeGradient.addColorStop(1, `${color.slice(0, -2)}0.1)`);
+            
+            // Calculate the center of the pattern
+            const centerY = (slit1Y + slit2Y) / 2;
+            
+            // Draw base intensity (dim light everywhere)
+            ctx.fillStyle = `${color.slice(0, -2)}0.1)`;
+            ctx.fillRect(screenX, 0, 10, screenHeight);
+            
+            // Draw the interference pattern
+            // We'll calculate the intensity at each pixel along the screen height
+            const pixelsPerMicron = scale;
+            const maxY = screenHeight / 2;  // Maximum distance from center to check
+            
+            // Single-slit diffraction envelope factor
+            const sinc = (x) => {
+                if (x === 0) return 1;
+                return Math.sin(x) / x;
+            };
+            
+            for (let y = -maxY; y <= maxY; y++) {
+                const screenY = centerY + y;
+                if (screenY >= 0 && screenY < screenHeight) {
+                    // Calculate the path difference in wavelength units
+                    const sinTheta = y / Math.sqrt(y * y + L * L);
+                    const pathDiff = d * sinTheta;
+                    
+                    // Young's double-slit interference factor
+                    const phaseYoung = Math.PI * pathDiff / lambda;
+                    const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
+                    
+                    // Single-slit diffraction factor
+                    const slitWidthFactor = slitWidthMicrons / 1000; // in mm
+                    const phaseSingle = Math.PI * slitWidthFactor * sinTheta / lambda;
+                    const singleFactor = Math.pow(sinc(phaseSingle), 2);
+                    
+                    // Combined intensity (double-slit modulated by single-slit)
+                    let intensity = youngFactor;
+                    
+                    // Apply small-slit diffraction envelope if slit width is small enough
+                    if (slitWidthFactor < 0.1) {
+                        intensity *= singleFactor;
+                    }
+                    
+                    // Map intensity to alpha value (0 to 1)
+                    const alpha = Math.pow(intensity, 0.5); // Apply gamma correction for better visibility
+                    
+                    // Skip drawing very dim points for performance
+                    if (alpha > 0.05) {
+                        ctx.fillStyle = `${color.slice(0, -2)}${alpha})`;
+                        ctx.fillRect(screenX, screenY, 10, 1);
+                    }
+                    
+                    // Add enhanced brightness for maxima
+                    if (intensity > 0.8) {
+                        // Glow effect for bright fringes
+                        const glow = ctx.createRadialGradient(
+                            screenX + 5, screenY, 0,
+                            screenX + 5, screenY, 15
+                        );
+                        glow.addColorStop(0, `${color.slice(0, -2)}${alpha * 0.7})`);
+                        glow.addColorStop(1, `${color.slice(0, -2)}0)`);
+                        
+                        ctx.fillStyle = glow;
+                        ctx.beginPath();
+                        ctx.arc(screenX + 5, screenY, 15, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+            
+            // Draw central maximum label
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText('m = 0', screenX + 15, centerY);
+            
+            // Calculate and label some of the maxima
+            const maxOrder = 3;
+            for (let m = 1; m <= maxOrder; m++) {
+                // Position of mth maximum: y = m * λ * L / d
+                const yMax = m * lambda * L / d;
+                const yMaxPixels = yMax * scale;
+                
+                // Upper maximum
+                const upperY = centerY - yMaxPixels;
+                if (upperY > 20 && upperY < screenHeight - 20) {
+                    ctx.fillText(`m = ${m}`, screenX + 15, upperY);
+                    
+                    // Draw dashed line to the maximum
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + 10, upperY);
+                    ctx.lineTo(screenX + 30, upperY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+                
+                // Lower maximum
+                const lowerY = centerY + yMaxPixels;
+                if (lowerY > 20 && lowerY < screenHeight - 20) {
+                    ctx.fillText(`m = -${m}`, screenX + 15, lowerY);
+                    
+                    // Draw dashed line to the maximum
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([2, 2]);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + 10, lowerY);
+                    ctx.lineTo(screenX + 30, lowerY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+        }
+        
+        // Helper function to draw the intensity profile graph
+        function drawIntensityProfile(ctx, wavelengthMicrons, slitDistanceMicrons, slitWidthMicrons, 
+                                    screenDistanceMicrons, canvasWidth, canvasHeight, color) {
+            
+            // Graph dimensions and position
+            const graphWidth = canvasWidth * 0.2;
+            const graphHeight = canvasHeight * 0.3;
+            const graphX = canvasWidth - graphWidth - 20;
+            const graphY = 20;
+            
+            // Draw graph background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
+            
+            // Draw graph border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
+            
+            // Draw axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.lineWidth = 1;
+            
+            // X-axis (position)
+            ctx.beginPath();
+            ctx.moveTo(graphX, graphY + graphHeight / 2);
+            ctx.lineTo(graphX + graphWidth, graphY + graphHeight / 2);
+            ctx.stroke();
+            
+            // Y-axis (intensity)
+            ctx.beginPath();
+            ctx.moveTo(graphX, graphY + graphHeight);
+            ctx.lineTo(graphX, graphY);
+            ctx.stroke();
+            
+            // Draw axis labels
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Intensity Profile', graphX + graphWidth / 2, graphY - 5);
+            
+            ctx.textAlign = 'right';
+            ctx.fillText('I', graphX - 5, graphY + 10);
+            
+            ctx.textAlign = 'center';
+            ctx.fillText('Position (θ)', graphX + graphWidth / 2, graphY + graphHeight + 15);
+            
+            // Calculate and draw the intensity profile
+            const lambda = wavelengthMicrons;
+            const d = slitDistanceMicrons;
+            const L = screenDistanceMicrons;
+            const w = slitWidthMicrons;
+            
+            // Draw intensity curve
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            // Sample the intensity profile
+            const samples = 100;
+            const maxAngle = 0.1; // radians
+            
+            for (let i = 0; i <= samples; i++) {
+                const theta = (i / samples) * maxAngle * 2 - maxAngle;
+                const pathDiff = d * Math.sin(theta);
+                
+                // Young's double-slit interference factor
+                const phaseYoung = Math.PI * pathDiff / lambda;
+                const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
+                
+                // Single-slit diffraction factor
+                const phaseSingle = Math.PI * w * Math.sin(theta) / lambda;
+                const sinc = (x) => (x === 0) ? 1 : Math.sin(x) / x;
+                const singleFactor = Math.pow(sinc(phaseSingle), 2);
+                
+                // Combined intensity
+                let intensity = youngFactor;
+                
+                // Apply diffraction envelope if slit width is small
+                if (w < 100) {
+                    intensity *= singleFactor;
+                }
+                
+                // Map to graph coordinates
+                const x = graphX + (i / samples) * graphWidth;
+                const y = graphY + graphHeight - intensity * graphHeight;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            
+            // Fill under the curve
+            ctx.lineTo(graphX + graphWidth, graphY + graphHeight);
+            ctx.lineTo(graphX, graphY + graphHeight);
+            ctx.closePath();
+            ctx.fillStyle = `${color.slice(0, -2)}0.3)`;
+            ctx.fill();
+            
+            // Draw central line
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(graphX + graphWidth / 2, graphY);
+            ctx.lineTo(graphX + graphWidth / 2, graphY + graphHeight);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        
+        // Helper function to draw measurement at mouse position
+        function drawMeasurement(ctx, mouseY, centerY, screenX, wavelengthMicrons, slitDistanceMicrons, 
+                                screenDistanceMicrons, scale) {
+            // Calculate distance from center
+            const yDistance = mouseY - centerY;
+            const yDistanceMicrons = yDistance / scale;
+            
+            // Calculate angle
+            const L = screenDistanceMicrons;
+            const theta = Math.atan(yDistanceMicrons / L);
+            const thetaDegrees = theta * 180 / Math.PI;
+            
+            // Calculate order of interference
+            const lambda = wavelengthMicrons;
+            const d = slitDistanceMicrons;
+            const m = (d * Math.sin(theta)) / lambda;
+            
+            // Draw line to position
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(screenX + 10, mouseY);
+            ctx.lineTo(screenX + 150, mouseY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw measurement text
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`y = ${yDistance.toFixed(0)} px (${(yDistanceMicrons / 1000).toFixed(2)} mm)`, screenX + 15, mouseY - 25);
+            ctx.fillText(`θ = ${thetaDegrees.toFixed(2)}°`, screenX + 15, mouseY - 10);
+            ctx.fillText(`m ≈ ${Math.abs(m).toFixed(2)}`, screenX + 15, mouseY + 15);
+        }
+        
+        // Helper function to draw formulas and explanation
+        function drawFormulas(ctx, wavelength, slitDistance, slitWidth, screenDistance, canvasWidth, canvasHeight) {
+            // Create formula panel
+            const panelWidth = 250;
+            const panelHeight = 180;
+            const panelX = 20;
+            const panelY = canvasHeight - panelHeight - 20;
+            
+            // Panel background with glowing border
+            const borderGlow = 2 + Math.sin(time * 2) * 1;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+            
+            // Draw border with animation
+            ctx.strokeStyle = `rgba(150, 150, 255, ${0.5 + Math.sin(time * 2) * 0.3})`;
+            ctx.lineWidth = borderGlow;
+            ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+            
+            // Draw title
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Double-Slit Interference', panelX + panelWidth / 2, panelY + 20);
+            
+            // Draw formulas
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            
+            let y = panelY + 50;
+            const lineHeight = 22;
+            
+            // Bright fringes formula
+            ctx.fillText('Bright fringes (maxima):', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('d sin θ = m λ    (m = 0, ±1, ±2, ...)', panelX + 20, y);
+            y += lineHeight;
+            
+            // Position formula
+            ctx.fillText('Position on screen:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('y = L tan θ ≈ m λ L / d    (small θ)', panelX + 20, y);
+            y += lineHeight;
+            
+            // Angular separation
+            ctx.fillText('Angular separation:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('Δθ = λ / d', panelX + 20, y);
+        }
+        
+        // Start the animation
         animate();
     }
 
