@@ -1682,20 +1682,20 @@
 
         // 世界主要时区
         const timeZones = [
-            { name: 'UTC', offset: 0, city: '协调世界时', hasDST: false },
-            { name: 'GMT', offset: 0, city: '格林威治', hasDST: false },
-            { name: 'EST/EDT', offset: -5, city: '纽约', hasDST: true, dstOffset: -4 },
-            { name: 'CST/CDT', offset: -6, city: '芝加哥', hasDST: true, dstOffset: -5 },
-            { name: 'MST/MDT', offset: -7, city: '丹佛', hasDST: true, dstOffset: -6 },
-            { name: 'PST/PDT', offset: -8, city: '洛杉矶', hasDST: true, dstOffset: -7 },
-            { name: 'GMT/BST', offset: 0, city: '伦敦', hasDST: true, dstOffset: 1 },
-            { name: 'CET/CEST', offset: 1, city: '巴黎', hasDST: true, dstOffset: 2 },
-            { name: 'EET/EEST', offset: 2, city: '雅典', hasDST: true, dstOffset: 3 },
-            { name: 'MSK', offset: 3, city: '莫斯科', hasDST: false },
-            { name: 'CST', offset: 8, city: '北京', hasDST: false },
-            { name: 'JST', offset: 9, city: '东京', hasDST: false },
-            { name: 'AEST/AEDT', offset: 10, city: '悉尼', hasDST: true, dstOffset: 11, southernHemisphere: true },
-            { name: 'NZST/NZDT', offset: 12, city: '惠灵顿', hasDST: true, dstOffset: 13, southernHemisphere: true }
+            { id: 'utc', name: 'UTC', offset: 0, city: '协调世界时', hasDST: false },
+            { id: 'gmt', name: 'GMT', offset: 0, city: '格林威治', hasDST: false },
+            { id: 'est', name: 'EST/EDT', offset: -5, city: '纽约', hasDST: true, dstOffset: -4 },
+            { id: 'cst-us', name: 'CST/CDT', offset: -6, city: '芝加哥', hasDST: true, dstOffset: -5 },
+            { id: 'mst', name: 'MST/MDT', offset: -7, city: '丹佛', hasDST: true, dstOffset: -6 },
+            { id: 'pst', name: 'PST/PDT', offset: -8, city: '洛杉矶', hasDST: true, dstOffset: -7 },
+            { id: 'gmt-uk', name: 'GMT/BST', offset: 0, city: '伦敦', hasDST: true, dstOffset: 1 },
+            { id: 'cet', name: 'CET/CEST', offset: 1, city: '巴黎', hasDST: true, dstOffset: 2 },
+            { id: 'eet', name: 'EET/EEST', offset: 2, city: '雅典', hasDST: true, dstOffset: 3 },
+            { id: 'msk', name: 'MSK', offset: 3, city: '莫斯科', hasDST: false },
+            { id: 'cst-cn', name: 'CST', offset: 8, city: '北京', hasDST: false },
+            { id: 'jst', name: 'JST', offset: 9, city: '东京', hasDST: false },
+            { id: 'aest', name: 'AEST/AEDT', offset: 10, city: '悉尼', hasDST: true, dstOffset: 11, southernHemisphere: true },
+            { id: 'nzst', name: 'NZST/NZDT', offset: 12, city: '惠灵顿', hasDST: true, dstOffset: 13, southernHemisphere: true }
         ];
 
         // 添加页面动画效果
@@ -1874,6 +1874,31 @@
             console.log('Timezone elements check complete');
         }
 
+        // 添加一个调试时区选择的函数
+        function debugTimeZoneSelection() {
+            console.log('Debugging timezone selection...');
+            
+            const activeElement = document.querySelector('.timezone-pill.active');
+            if (activeElement) {
+                console.log('Active timezone pill found:', activeElement);
+                console.log('Zone ID:', activeElement.dataset.zoneId);
+                console.log('Zone text:', activeElement.textContent);
+                
+                const zoneId = activeElement.dataset.zoneId;
+                const selectedZone = timeZones.find(zone => zone.id === zoneId);
+                
+                if (selectedZone) {
+                    console.log('Selected zone object:', selectedZone);
+                } else {
+                    console.error('No matching timezone found for ID:', zoneId);
+                    console.log('Available timezones:', timeZones.map(z => ({ id: z.id, name: z.name })));
+                }
+            } else {
+                console.error('No active timezone pill found!');
+                console.log('All timezone pills:', document.querySelectorAll('.timezone-pill'));
+            }
+        }
+
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             initializeSolarTermsWheel();
@@ -1892,6 +1917,9 @@
             
             // 设置一个调试计时器，检查时钟是否正常更新
             setTimeout(debugClock, 2000);
+            
+            // 设置一个调试计时器，检查时区选择
+            setTimeout(debugTimeZoneSelection, 3000);
             
             // 设置当前日期
             const today = new Date();
@@ -1963,6 +1991,7 @@
             timeZones.forEach((zone, index) => {
                 const zonePill = document.createElement('div');
                 zonePill.className = 'timezone-pill';
+                zonePill.dataset.zoneId = zone.id; // 保存时区ID到data属性
                 if (index === 0) zonePill.classList.add('active');
                 
                 zonePill.textContent = `${zone.name} (${zone.city})`;
@@ -2024,9 +2053,9 @@
             const activeElement = document.querySelector('.timezone-pill.active');
             
             if (activeElement) {
-                const zoneText = activeElement.textContent;
-                const zoneName = zoneText.split(' ')[0];
-                const selectedZone = timeZones.find(zone => zone.name.includes(zoneName));
+                // 使用data-zone-id属性获取唯一标识符
+                const zoneId = activeElement.dataset.zoneId;
+                const selectedZone = timeZones.find(zone => zone.id === zoneId);
                 
                 if (selectedZone) {
                     // 检查是否使用夏令时
@@ -2076,6 +2105,8 @@
                             dstStatusElement.className = 'dst-status';
                         }
                     }
+                } else {
+                    console.error('Selected zone not found with ID:', zoneId);
                 }
             } else {
                 // 如果没有活动的时区选择器，则使用默认时区（UTC）
