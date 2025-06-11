@@ -2623,38 +2623,45 @@
             const analogClockContainer = document.getElementById('analog-clock-container');
             const flipClockContainer = document.getElementById('flip-clock-container');
             
-            // Track current clock type
+            // Store clock types and their elements for easier management
+            const clockTypes = {
+                digital: {
+                    container: digitalClockContainer,
+                    button: digitalClockBtn
+                },
+                analog: {
+                    container: analogClockContainer,
+                    button: analogClockBtn
+                },
+                flip: {
+                    container: flipClockContainer,
+                    button: flipClockBtn
+                }
+            };
+            
+            // Track current clock type - defaults to analog
             let currentClockType = 'analog';
             
-            digitalClockBtn.addEventListener('click', () => switchClockType('digital'));
-            analogClockBtn.addEventListener('click', () => switchClockType('analog'));
-            flipClockBtn.addEventListener('click', () => switchClockType('flip'));
+            // Add event listeners for clock type switching
+            Object.keys(clockTypes).forEach(type => {
+                clockTypes[type].button.addEventListener('click', function() {
+                    switchClockType(type);
+                });
+            });
             
             function switchClockType(type) {
-                // Store the selected clock type
+                // Update current clock type
                 currentClockType = type;
                 
-                // Hide all clock containers
-                digitalClockContainer.style.display = 'none';
-                analogClockContainer.style.display = 'none';
-                flipClockContainer.style.display = 'none';
+                // Hide all clock containers and deactivate all buttons
+                Object.keys(clockTypes).forEach(clockType => {
+                    clockTypes[clockType].container.style.display = 'none';
+                    clockTypes[clockType].button.classList.remove('active');
+                });
                 
-                // Remove active class from all buttons
-                digitalClockBtn.classList.remove('active');
-                analogClockBtn.classList.remove('active');
-                flipClockBtn.classList.remove('active');
-                
-                // Show selected clock container and activate button
-                if (type === 'digital') {
-                    digitalClockContainer.style.display = 'flex';
-                    digitalClockBtn.classList.add('active');
-                } else if (type === 'analog') {
-                    analogClockContainer.style.display = 'flex';
-                    analogClockBtn.classList.add('active');
-                } else if (type === 'flip') {
-                    flipClockContainer.style.display = 'flex';
-                    flipClockBtn.classList.add('active');
-                }
+                // Show selected clock container and activate its button
+                clockTypes[type].container.style.display = 'flex';
+                clockTypes[type].button.classList.add('active');
             }
             
             // Time zone data with DST information
@@ -2699,24 +2706,6 @@
                 
                 // Update all clock displays immediately
                 updateClocks();
-            }
-            
-            // Update all clocks
-            function updateClocks() {
-                const timeInSelectedZone = getTimeInTimeZone(selectedTimeZone);
-                updateAnalogClock(timeInSelectedZone);
-                updateDigitalClock(timeInSelectedZone);
-                updateFlipClock(timeInSelectedZone);
-                
-                // Make sure the correct clock type remains displayed
-                digitalClockContainer.style.display = currentClockType === 'digital' ? 'flex' : 'none';
-                analogClockContainer.style.display = currentClockType === 'analog' ? 'flex' : 'none';
-                flipClockContainer.style.display = currentClockType === 'flip' ? 'flex' : 'none';
-                
-                // Keep the correct button active
-                digitalClockBtn.classList.toggle('active', currentClockType === 'digital');
-                analogClockBtn.classList.toggle('active', currentClockType === 'analog');
-                flipClockBtn.classList.toggle('active', currentClockType === 'flip');
             }
             
             // Check if a specific date is in DST for a given timezone
@@ -2903,11 +2892,24 @@
                 }, 900);
             }
             
-            // Initial clock update and timezone selection
-            selectTimeZone(timeZones[0]); // Select UTC by default
+            // Update all clocks
+            function updateClocks() {
+                const timeInSelectedZone = getTimeInTimeZone(selectedTimeZone);
+                
+                // Update time on all clocks regardless of which is visible
+                updateAnalogClock(timeInSelectedZone);
+                updateDigitalClock(timeInSelectedZone);
+                updateFlipClock(timeInSelectedZone);
+            }
             
-            // Update clocks every second
-            setInterval(updateClocks, 1000);
+            // Initial setup - Start with analog clock by default
+            switchClockType('analog');
+            
+            // Select UTC by default
+            selectTimeZone(timeZones[0]);
+            
+            // Start the clock update interval - this only updates time values, not visibility
+            let clockInterval = setInterval(updateClocks, 1000);
             
             // Add flip animation style
             const style = document.createElement('style');
