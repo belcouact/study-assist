@@ -35,6 +35,14 @@
                     MathJax.startup.defaultReady();
                     console.log('MathJax is ready');
                 }
+            },
+            chtml: {
+                scale: 1,
+                minScale: 1,
+                matchFontHeight: true,
+                displayAlign: 'left',
+                displayIndent: '0',
+                mtextInheritFont: true
             }
         };
     </script>
@@ -234,31 +242,45 @@
 
         /* MathJax Styling */
         .solution-content .MathJax {
-            overflow-x: auto;
+            overflow-x: visible;
             max-width: 100%;
             margin: 0.5rem 0;
         }
         
-        /* For long equations */
+        /* For long equations - removing scrolling behavior */
         .solution-step .mjx-chtml {
-            overflow-x: auto;
-            overflow-y: hidden;
-            max-width: 100%;
+            overflow-x: visible;
+            overflow-y: visible;
+            max-width: none;
         }
         
         /* Add spacing around equations */
         .solution-step mjx-container {
-            padding: 0.5rem 0;
-            display: block;
+            padding: 0.25rem 0;
+            display: inline-block;
         }
         
-        /* Highlight key equations */
+        /* Highlight key equations but remove scrolling */
         .solution-step mjx-container[jax="CHTML"][display="true"] {
             background-color: #f8f9fa;
-            padding: 0.75rem;
+            padding: 0.5rem;
             border-radius: 6px;
-            margin: 0.75rem 0;
+            margin: 0.5rem 0;
             border-left: 3px solid #7209b7;
+            overflow: visible;
+            width: auto !important;
+            min-width: auto !important;
+            max-width: none !important;
+        }
+
+        /* Make sure math containers don't force scrolling */
+        .mjx-math {
+            overflow: visible !important;
+        }
+        
+        .mjx-container {
+            overflow: visible !important;
+            min-width: auto !important;
         }
 
         /* Solution paragraph styling */
@@ -717,9 +739,9 @@ ${problem}
             solution = solution.replace(/\\\(/g, "$");
             solution = solution.replace(/\\\)/g, "$");
             
-            // 替换所有 \[ \] 为 $$ $$
-            solution = solution.replace(/\\\[/g, "$$");
-            solution = solution.replace(/\\\]/g, "$$");
+            // 替换所有 \[ \] 为 $ $（不使用 $$ $$ 以避免独立行显示）
+            solution = solution.replace(/\\\[/g, "$");
+            solution = solution.replace(/\\\]/g, "$");
             
             // 确保列表项内的数学公式正确渲染
             solution = solution.replace(/- ([^:：]*)[：:] \\([^\\]+)\\([^\n]*)/g, "- $1: $$$2$$3");
@@ -737,6 +759,22 @@ ${problem}
             // 处理"像的性质："后面的列表
             solution = solution.replace(/像的性质：\n-\s*虚实：([^\n]+)\n-\s*大小：([^\n]+)\n-\s*正倒：([^\n]+)/g, 
                                        "像的性质：\n<ul>\n<li>虚实：$1</li>\n<li>大小：$2</li>\n<li>正倒：$3</li>\n</ul>");
+            
+            // 处理带 \Delta 的公式：确保内联显示而不是独立行
+            solution = solution.replace(/\$\$\\Delta U = ([^$]+)\$\$/g, "$\\Delta U = $1$");
+            solution = solution.replace(/\$\$([^$]+) = ([^$]+) = ([^$]+)\$\$/g, "$$$1 = $2 = $3$$");
+            
+            // 确保所有包含 \Delta 的公式显示为内联
+            solution = solution.replace(/\\Delta/g, "\\Delta");
+            
+            // 热力学题目特殊处理
+            if (solution.includes("热力学") || solution.includes("内能") || solution.includes("热量")) {
+                solution = solution.replace(/Q\s*=\s*(\d+)\s*J/g, "$Q = $1 \\, \\text{J}$");
+                solution = solution.replace(/W\s*=\s*(\d+)\s*J/g, "$W = $1 \\, \\text{J}$");
+                solution = solution.replace(/(\d+)\s*J/g, "$1 \\, \\text{J}$");
+                solution = solution.replace(/\\Delta U\s*=\s*(\d+)\s*\\,\s*\\text\{J\}\s*-\s*(\d+)\s*\\,\s*\\text\{J\}\s*=\s*(\d+)\s*\\,\s*\\text\{J\}/g, 
+                                          "$\\Delta U = $1 \\, \\text{J} - $2 \\, \\text{J} = $3 \\, \\text{J}$");
+            }
             
             // 将解决方案分成段落
             const paragraphs = solution.split(/\n\n+/);
