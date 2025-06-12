@@ -222,9 +222,10 @@ class OpticsSimulator {
                     const rayIntersectionY = mirrorY;
                     
                     // 计算反射点
-                    // 反射角等于入射角
+                    // 反射角等于入射角（平面镜反射时，反射角与入射角相等，但方向相反）
+                    // 在水平镜面上，入射角是与垂直方向的夹角，反射后应该是向上的方向
                     const reflectedX = offsetX + Math.tan(incidentAngle) * 200;
-                    const reflectedY = mirrorY + 200;
+                    const reflectedY = mirrorY - 200; // 修改这里，反射后应该向上（y值减小）
                     
                     // 绘制入射光线（带发光效果）
                     ctx.strokeStyle = rayColors[i % rayColors.length];
@@ -508,7 +509,7 @@ class OpticsSimulator {
                 <strong>反射定律：入射角 = 反射角</strong><br>
                 入射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
                 反射角: ${(incidentAngle * 180 / Math.PI).toFixed(1)}°<br>
-                镜面类型: ${mirrorType === 'plane' ? '平面镜' : 
+                镜面类型: ${mirrorType === 'plane' ? '平面镜 (反射后方向改变)' : 
                            mirrorType === 'concave' ? '凹面镜 (会聚光线)' : 
                            '凸面镜 (发散光线)'}
             `;
