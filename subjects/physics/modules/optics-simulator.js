@@ -30,21 +30,46 @@ class OpticsSimulator {
         const sliders = [
             'incident-angle', 'refractive-index-1', 'refractive-index-2',
             'focal-length', 'object-distance', 'light-wavelength', 
-            'slit-spacing', 'screen-distance'
+            'slit-spacing', 'slit-width', 'screen-distance'
         ];
 
         sliders.forEach(sliderId => {
             const slider = document.getElementById(sliderId);
             if (slider) {
                 slider.addEventListener('input', (e) => {
-                    const valueSpan = document.getElementById('incident-angle-value') ||
-                                     document.getElementById('n1-value') ||
-                                     document.getElementById('n2-value') ||
-                                     document.getElementById('focal-length-value') ||
-                                     document.getElementById('object-distance-value') ||
-                                     document.getElementById('wavelength-value') ||
-                                     document.getElementById('slit-spacing-value') ||
-                                     document.getElementById('screen-distance-value');
+                    // 根据滑块ID获取对应的值显示元素
+                    let valueElementId;
+                    switch(sliderId) {
+                        case 'incident-angle':
+                            valueElementId = 'incident-angle-value';
+                            break;
+                        case 'refractive-index-1':
+                            valueElementId = 'n1-value';
+                            break;
+                        case 'refractive-index-2':
+                            valueElementId = 'n2-value';
+                            break;
+                        case 'focal-length':
+                            valueElementId = 'focal-length-value';
+                            break;
+                        case 'object-distance':
+                            valueElementId = 'object-distance-value';
+                            break;
+                        case 'light-wavelength':
+                            valueElementId = 'wavelength-value';
+                            break;
+                        case 'slit-spacing':
+                            valueElementId = 'slit-spacing-value';
+                            break;
+                        case 'slit-width':
+                            valueElementId = 'slit-width-value';
+                            break;
+                        case 'screen-distance':
+                            valueElementId = 'screen-distance-value';
+                            break;
+                    }
+                    
+                    const valueSpan = document.getElementById(valueElementId);
                     if (valueSpan) {
                         valueSpan.textContent = e.target.value;
                     }
@@ -1510,17 +1535,17 @@ class OpticsSimulator {
         // Set up animation
         this.isRunning = true;
         
-        // Get parameters from user input
-        const wavelength = parseFloat(document.getElementById('wave-length').value); // in nm
-        const slitDistance = parseFloat(document.getElementById('slit-distance').value); // in mm
-        const slitWidth = parseFloat(document.getElementById('slit-width').value); // in mm
-        const screenDistance = parseFloat(document.getElementById('screen-distance').value); // in mm
+        // Get parameters from user input - 使用HTML中已有的控件
+        const wavelength = parseFloat(document.getElementById('light-wavelength').value); // in nm
+        const slitDistance = parseFloat(document.getElementById('slit-spacing').value); // in μm
+        const slitWidth = parseFloat(document.getElementById('slit-width').value); // in μm，使用新添加的控件
+        const screenDistance = parseFloat(document.getElementById('screen-distance').value); // in cm
         
-        // Convert to consistent units (convert mm to µm and nm to µm)
+        // Convert to consistent units
         const wavelengthMicrons = wavelength / 1000; // convert nm to µm
-        const slitDistanceMicrons = slitDistance * 1000; // convert mm to µm
-        const slitWidthMicrons = slitWidth * 1000; // convert mm to µm
-        const screenDistanceMicrons = screenDistance * 1000; // convert mm to µm
+        const slitDistanceMicrons = slitDistance; // 已经是μm单位
+        const slitWidthMicrons = slitWidth; // 已经是μm单位
+        const screenDistanceMicrons = screenDistance * 10000; // convert cm to µm
         
         // Scale factors for visualization
         const canvasScaleFactor = 0.4; // µm to pixels
@@ -2166,472 +2191,74 @@ class OpticsSimulator {
         
         // Helper function to draw formulas and explanation
         function drawFormulas(ctx, wavelength, slitDistance, slitWidth, screenDistance, canvasWidth, canvasHeight) {
-            // Create formula panel
-            const panelWidth = 250;
-            const panelHeight = 180;
+            // Draw a panel for formulas
+            const panelWidth = 200;
+            const panelHeight = 240;
             const panelX = 20;
-            const panelY = canvasHeight - panelHeight - 20;
+            const panelY = 20;
             
-            // Panel background with glowing border
-            const borderGlow = 2 + Math.sin(time * 2) * 1;
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillStyle = 'rgba(0, 30, 60, 0.8)';
             ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-            
-            // Draw border with animation
-            ctx.strokeStyle = `rgba(150, 150, 255, ${0.5 + Math.sin(time * 2) * 0.3})`;
-            ctx.lineWidth = borderGlow;
+            ctx.strokeStyle = 'rgba(100, 149, 237, 0.8)';
+            ctx.lineWidth = 2;
             ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
             
-            // Draw title
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = 'bold 14px Arial';
+            // Title
+            ctx.fillStyle = 'white';
+            ctx.font = '16px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText('Double-Slit Interference', panelX + panelWidth / 2, panelY + 20);
+            ctx.fillText('干涉与衍射公式', panelX + panelWidth/2, panelY + 20);
             
-            // Draw formulas
-            ctx.font = '14px Arial';
+            // Parameters
+            ctx.font = '12px Arial';
             ctx.textAlign = 'left';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            let y = panelY + 45;
+            const lineHeight = 18;
             
-            let y = panelY + 50;
-            const lineHeight = 22;
+            ctx.fillText(`波长 (λ): ${wavelength} nm`, panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText(`狭缝间距 (d): ${slitDistance} μm`, panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText(`狭缝宽度 (w): ${slitWidth} μm`, panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText(`屏幕距离 (L): ${screenDistance} cm`, panelX + 10, y);
             
-            // Bright fringes formula
-            ctx.fillText('Bright fringes (maxima):', panelX + 10, y);
+            // Formulas
+            y += lineHeight * 1.5;
+            ctx.fillText('干涉亮纹条件:', panelX + 10, y);
             y += lineHeight;
-            ctx.fillText('d sin θ = m λ    (m = 0, ±1, ±2, ...)', panelX + 20, y);
-            y += lineHeight;
+            ctx.fillText('d sin θ = mλ (m为整数)', panelX + 20, y);
             
-            // Position formula
-            ctx.fillText('Position on screen:', panelX + 10, y);
+            y += lineHeight * 1.5;
+            ctx.fillText('衍射暗纹条件:', panelX + 10, y);
             y += lineHeight;
-            ctx.fillText('y = L tan θ ≈ m λ L / d    (small θ)', panelX + 20, y);
-            y += lineHeight;
+            ctx.fillText('w sin θ = nλ (n为非零整数)', panelX + 20, y);
             
-            // Angular separation
-            ctx.fillText('Angular separation:', panelX + 10, y);
+            y += lineHeight * 1.5;
+            ctx.fillText('小角度近似:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('sin θ ≈ θ ≈ y/L', panelX + 20, y);
+            
+            y += lineHeight * 1.5;
+            ctx.fillText('条纹间距:', panelX + 10, y);
+            y += lineHeight;
+            ctx.fillText('Δy = λL / d', panelX + 20, y);
+            
+            y += lineHeight * 1.5;
+            ctx.fillText('角度间距:', panelX + 10, y);
             y += lineHeight;
             ctx.fillText('Δθ = λ / d', panelX + 20, y);
             
             // Update info display
             document.getElementById('optics-info').innerHTML = `
                 <strong>波长 (λ):</strong> ${wavelength} nm<br>
-                <strong>狭缝间距 (d):</strong> ${slitDistance} mm<br>
-                <strong>狭缝宽度 (w):</strong> ${slitWidth} mm<br>
-                <strong>屏幕距离 (L):</strong> ${screenDistance} mm<br>
+                <strong>狭缝间距 (d):</strong> ${slitDistance} μm<br>
+                <strong>狭缝宽度 (w):</strong> ${slitWidth} μm<br>
+                <strong>屏幕距离 (L):</strong> ${screenDistance} cm<br>
                 <strong>干涉条纹角度间隔:</strong> ${(wavelength / 1000 / slitDistance).toFixed(6)} 弧度<br>
-                <strong>中央亮纹宽度:</strong> ${(wavelength * screenDistance / slitDistance).toFixed(2)} μm<br>
-                <strong>衍射包络线宽度:</strong> ${(wavelength * screenDistance / slitWidth).toFixed(2)} μm
+                <strong>中央亮纹宽度:</strong> ${(wavelength * screenDistance * 100 / slitDistance).toFixed(2)} mm<br>
+                <strong>衍射包络线宽度:</strong> ${(wavelength * screenDistance * 100 / slitWidth).toFixed(2)} mm
             `;
-        }
-        
-        // Helper function to draw wave propagation from slits
-        function drawWavePropagation(ctx, slitX, slit1Y, slit2Y, slitWidth, wavelengthPixels, time, color) {
-            // Draw circular wavefronts emanating from each slit
-            const maxRadius = Math.sqrt(Math.pow(canvas.width - slitX, 2) + Math.pow(canvas.height, 2));
-            const numWavefronts = Math.floor(maxRadius / wavelengthPixels) + 1;
-            
-            // Calculate the wave amplitude decay factor
-            const amplitudeDecay = (radius) => 1 / Math.sqrt(radius + 50);
-            
-            // Draw waves from first slit
-            for (let i = 0; i < numWavefronts; i++) {
-                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
-                if (radius < maxRadius) {
-                    const opacity = amplitudeDecay(radius) * 0.5;
-                    
-                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.arc(slitX, slit1Y, radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-            }
-            
-            // Draw waves from second slit
-            for (let i = 0; i < numWavefronts; i++) {
-                const radius = ((time * 50) % wavelengthPixels) + i * wavelengthPixels;
-                if (radius < maxRadius) {
-                    const opacity = amplitudeDecay(radius) * 0.5;
-                    
-                    ctx.strokeStyle = `${color.slice(0, -2)}${opacity})`;
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.arc(slitX, slit2Y, radius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-            }
-            
-            // Add wave particle animation from slits
-            ctx.fillStyle = color;
-            
-            // Function to draw particles in a wave pattern
-            const drawWaveParticles = (originX, originY) => {
-                for (let angle = -80; angle <= 80; angle += 5) {
-                    const angleRad = angle * Math.PI / 180;
-                    
-                    // Multiple particles along each angle
-                    for (let i = 0; i < 5; i++) {
-                        const t = (time * 2 + i / 5) % 1;
-                        const distance = t * (screenPosition - slitX);
-                        
-                        // Sinusoidal motion along the ray
-                        const x = originX + Math.cos(angleRad) * distance;
-                        const baseY = originY + Math.sin(angleRad) * distance;
-                        const waveY = baseY + Math.sin(t * Math.PI * 8) * wavelengthPixels * 0.2;
-                        
-                        // Only draw particles in front of the screen
-                        if (x < screenPosition) {
-                            const particleOpacity = (1 - t) * 0.8;
-                            ctx.fillStyle = `${color.slice(0, -2)}${particleOpacity})`;
-                            
-                            ctx.beginPath();
-                            ctx.arc(x, waveY, 1.2, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    }
-                }
-            };
-            
-            // Draw particles from both slits
-            drawWaveParticles(slitX, slit1Y);
-            drawWaveParticles(slitX, slit2Y);
-        }
-        
-        // Helper function to calculate and draw the interference pattern on the screen
-        function drawInterferencePattern(ctx, slitX, screenX, slit1Y, slit2Y, wavelengthMicrons, 
-                                        slitDistanceMicrons, screenDistanceMicrons, scale, screenHeight, color) {
-            
-            // Young's double-slit interference formula
-            // The path difference is: d * sin(θ) where θ is the angle from the center line
-            // Constructive interference occurs when path difference = m * λ (m = 0, 1, 2, ...)
-            // Distance y from center on screen: y = L * tan(θ) ≈ L * sin(θ) for small angles
-            // So position of mth maximum: y = m * λ * L / d
-            
-            // Convert to consistent units
-            const lambda = wavelengthMicrons;  // in µm
-            const d = slitDistanceMicrons;     // in µm
-            const L = screenDistanceMicrons;   // in µm
-            
-            // Prepare gradient for bright fringes based on wavelength
-            const fringeGradient = ctx.createLinearGradient(screenX, 0, screenX + 10, 0);
-            fringeGradient.addColorStop(0, `${color.slice(0, -2)}0.1)`);
-            fringeGradient.addColorStop(0.5, color);
-            fringeGradient.addColorStop(1, `${color.slice(0, -2)}0.1)`);
-            
-            // Calculate the center of the pattern
-            const centerY = (slit1Y + slit2Y) / 2;
-            
-            // Draw base intensity (dim light everywhere)
-            ctx.fillStyle = `${color.slice(0, -2)}0.1)`;
-            ctx.fillRect(screenX, 0, 10, screenHeight);
-            
-            // Draw the interference pattern
-            // We'll calculate the intensity at each pixel along the screen height
-            const pixelsPerMicron = scale;
-            const maxY = screenHeight / 2;  // Maximum distance from center to check
-            
-            // Single-slit diffraction envelope factor
-            const sinc = (x) => {
-                if (x === 0) return 1;
-                return Math.sin(x) / x;
-            };
-            
-            for (let y = -maxY; y <= maxY; y++) {
-                const screenY = centerY + y;
-                if (screenY >= 0 && screenY < screenHeight) {
-                    // Calculate the path difference in wavelength units
-                    const sinTheta = y / Math.sqrt(y * y + L * L);
-                    const pathDiff = d * sinTheta;
-                    
-                    // Young's double-slit interference factor
-                    const phaseYoung = Math.PI * pathDiff / lambda;
-                    const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
-                    
-                    // Single-slit diffraction factor
-                    const slitWidthFactor = slitWidthMicrons / 1000; // in mm
-                    const phaseSingle = Math.PI * slitWidthFactor * sinTheta / lambda;
-                    const singleFactor = Math.pow(sinc(phaseSingle), 2);
-                    
-                    // Combined intensity (double-slit modulated by single-slit)
-                    let intensity = youngFactor;
-                    
-                    // Apply small-slit diffraction envelope if slit width is small enough
-                    if (slitWidthFactor < 0.1) {
-                        intensity *= singleFactor;
-                    }
-                    
-                    // Map intensity to alpha value (0 to 1)
-                    const alpha = Math.pow(intensity, 0.5); // Apply gamma correction for better visibility
-                    
-                    // Skip drawing very dim points for performance
-                    if (alpha > 0.05) {
-                        ctx.fillStyle = `${color.slice(0, -2)}${alpha})`;
-                        ctx.fillRect(screenX, screenY, 10, 1);
-                    }
-                    
-                    // Add enhanced brightness for maxima
-                    if (intensity > 0.8) {
-                        // Glow effect for bright fringes
-                        const glow = ctx.createRadialGradient(
-                            screenX + 5, screenY, 0,
-                            screenX + 5, screenY, 15
-                        );
-                        glow.addColorStop(0, `${color.slice(0, -2)}${alpha * 0.7})`);
-                        glow.addColorStop(1, `${color.slice(0, -2)}0)`);
-                        
-                        ctx.fillStyle = glow;
-                        ctx.beginPath();
-                        ctx.arc(screenX + 5, screenY, 15, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-            }
-            
-            // Draw central maximum label
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText('m = 0', screenX + 15, centerY);
-            
-            // Calculate and label some of the maxima
-            const maxOrder = 3;
-            for (let m = 1; m <= maxOrder; m++) {
-                // Position of mth maximum: y = m * λ * L / d
-                const yMax = m * lambda * L / d;
-                const yMaxPixels = yMax * scale;
-                
-                // Upper maximum
-                const upperY = centerY - yMaxPixels;
-                if (upperY > 20 && upperY < screenHeight - 20) {
-                    ctx.fillText(`m = ${m}`, screenX + 15, upperY);
-                    
-                    // Draw dashed line to the maximum
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.setLineDash([2, 2]);
-                    ctx.beginPath();
-                    ctx.moveTo(screenX + 10, upperY);
-                    ctx.lineTo(screenX + 30, upperY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-                
-                // Lower maximum
-                const lowerY = centerY + yMaxPixels;
-                if (lowerY > 20 && lowerY < screenHeight - 20) {
-                    ctx.fillText(`m = -${m}`, screenX + 15, lowerY);
-                    
-                    // Draw dashed line to the maximum
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.setLineDash([2, 2]);
-                    ctx.beginPath();
-                    ctx.moveTo(screenX + 10, lowerY);
-                    ctx.lineTo(screenX + 30, lowerY);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-            }
-        }
-        
-        // Helper function to draw the intensity profile graph
-        function drawIntensityProfile(ctx, wavelengthMicrons, slitDistanceMicrons, slitWidthMicrons, 
-                                    screenDistanceMicrons, canvasWidth, canvasHeight, color) {
-            
-            // Graph dimensions and position
-            const graphWidth = canvasWidth * 0.2;
-            const graphHeight = canvasHeight * 0.3;
-            const graphX = canvasWidth - graphWidth - 20;
-            const graphY = 20;
-            
-            // Draw graph background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(graphX, graphY, graphWidth, graphHeight);
-            
-            // Draw graph border
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(graphX, graphY, graphWidth, graphHeight);
-            
-            // Draw axes
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.lineWidth = 1;
-            
-            // X-axis (position)
-            ctx.beginPath();
-            ctx.moveTo(graphX, graphY + graphHeight / 2);
-            ctx.lineTo(graphX + graphWidth, graphY + graphHeight / 2);
-            ctx.stroke();
-            
-            // Y-axis (intensity)
-            ctx.beginPath();
-            ctx.moveTo(graphX, graphY + graphHeight);
-            ctx.lineTo(graphX, graphY);
-            ctx.stroke();
-            
-            // Draw axis labels
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Intensity Profile', graphX + graphWidth / 2, graphY - 5);
-            
-            ctx.textAlign = 'right';
-            ctx.fillText('I', graphX - 5, graphY + 10);
-            
-            ctx.textAlign = 'center';
-            ctx.fillText('Position (θ)', graphX + graphWidth / 2, graphY + graphHeight + 15);
-            
-            // Calculate and draw the intensity profile
-            const lambda = wavelengthMicrons;
-            const d = slitDistanceMicrons;
-            const L = screenDistanceMicrons;
-            const w = slitWidthMicrons;
-            
-            // Draw intensity curve
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            
-            // Sample the intensity profile
-            const samples = 100;
-            const maxAngle = 0.1; // radians
-            
-            for (let i = 0; i <= samples; i++) {
-                const theta = (i / samples) * maxAngle * 2 - maxAngle;
-                const pathDiff = d * Math.sin(theta);
-                
-                // Young's double-slit interference factor
-                const phaseYoung = Math.PI * pathDiff / lambda;
-                const youngFactor = Math.pow(Math.cos(phaseYoung), 2);
-                
-                // Single-slit diffraction factor
-                const phaseSingle = Math.PI * w * Math.sin(theta) / lambda;
-                const sinc = (x) => (x === 0) ? 1 : Math.sin(x) / x;
-                const singleFactor = Math.pow(sinc(phaseSingle), 2);
-                
-                // Combined intensity
-                let intensity = youngFactor;
-                
-                // Apply diffraction envelope if slit width is small
-                if (w < 100) {
-                    intensity *= singleFactor;
-                }
-                
-                // Map to graph coordinates
-                const x = graphX + (i / samples) * graphWidth;
-                const y = graphY + graphHeight - intensity * graphHeight;
-                
-                if (i === 0) {
-                    ctx.moveTo(x, y);
-                } else {
-                    ctx.lineTo(x, y);
-                }
-            }
-            
-            ctx.stroke();
-            
-            // Fill under the curve
-            ctx.lineTo(graphX + graphWidth, graphY + graphHeight);
-            ctx.lineTo(graphX, graphY + graphHeight);
-            ctx.closePath();
-            ctx.fillStyle = `${color.slice(0, -2)}0.3)`;
-            ctx.fill();
-            
-            // Draw central line
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.beginPath();
-            ctx.moveTo(graphX + graphWidth / 2, graphY);
-            ctx.lineTo(graphX + graphWidth / 2, graphY + graphHeight);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-        
-        // Helper function to draw measurement at mouse position
-        function drawMeasurement(ctx, mouseY, centerY, screenX, wavelengthMicrons, slitDistanceMicrons, 
-                                screenDistanceMicrons, scale) {
-            // Calculate distance from center
-            const yDistance = mouseY - centerY;
-            const yDistanceMicrons = yDistance / scale;
-            
-            // Calculate angle
-            const L = screenDistanceMicrons;
-            const theta = Math.atan(yDistanceMicrons / L);
-            const thetaDegrees = theta * 180 / Math.PI;
-            
-            // Calculate order of interference
-            const lambda = wavelengthMicrons;
-            const d = slitDistanceMicrons;
-            const m = (d * Math.sin(theta)) / lambda;
-            
-            // Draw line to position
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.setLineDash([5, 5]);
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(screenX + 10, mouseY);
-            ctx.lineTo(screenX + 150, mouseY);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            
-            // Draw measurement text
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillText(`y = ${yDistance.toFixed(0)} px (${(yDistanceMicrons / 1000).toFixed(2)} mm)`, screenX + 15, mouseY - 25);
-            ctx.fillText(`θ = ${thetaDegrees.toFixed(2)}°`, screenX + 15, mouseY - 10);
-            ctx.fillText(`m ≈ ${Math.abs(m).toFixed(2)}`, screenX + 15, mouseY + 15);
-        }
-        
-        // Helper function to draw formulas and explanation
-        function drawFormulas(ctx, wavelength, slitDistance, slitWidth, screenDistance, canvasWidth, canvasHeight) {
-            // Create formula panel
-            const panelWidth = 250;
-            const panelHeight = 180;
-            const panelX = 20;
-            const panelY = canvasHeight - panelHeight - 20;
-            
-            // Panel background with glowing border
-            const borderGlow = 2 + Math.sin(time * 2) * 1;
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-            
-            // Draw border with animation
-            ctx.strokeStyle = `rgba(150, 150, 255, ${0.5 + Math.sin(time * 2) * 0.3})`;
-            ctx.lineWidth = borderGlow;
-            ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
-            
-            // Draw title
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = 'bold 14px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Double-Slit Interference', panelX + panelWidth / 2, panelY + 20);
-            
-            // Draw formulas
-            ctx.font = '14px Arial';
-            ctx.textAlign = 'left';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            
-            let y = panelY + 50;
-            const lineHeight = 22;
-            
-            // Bright fringes formula
-            ctx.fillText('Bright fringes (maxima):', panelX + 10, y);
-            y += lineHeight;
-            ctx.fillText('d sin θ = m λ    (m = 0, ±1, ±2, ...)', panelX + 20, y);
-            y += lineHeight;
-            
-            // Position formula
-            ctx.fillText('Position on screen:', panelX + 10, y);
-            y += lineHeight;
-            ctx.fillText('y = L tan θ ≈ m λ L / d    (small θ)', panelX + 20, y);
-            y += lineHeight;
-            
-            // Angular separation
-            ctx.fillText('Angular separation:', panelX + 10, y);
-            y += lineHeight;
-            ctx.fillText('Δθ = λ / d', panelX + 20, y);
         }
         
         // Start the animation
