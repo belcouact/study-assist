@@ -516,6 +516,17 @@ class ElectromagneticSimulator {
         const magnetSpeed = parseFloat(document.getElementById('magnet-speed').value);
         const magnetStrength = parseFloat(document.getElementById('magnet-strength').value);
         
+        // 初始化磁铁的运动状态（如果未初始化）
+        if (!this.magnetMotionState) {
+            this.magnetMotionState = {
+                startTime: Date.now() * 0.001,
+                mode: 'oscillate', // 'oscillate'=振荡, 'move_away'=远离, 'reset'=重置
+                lastModeChangeTime: Date.now() * 0.001,
+                distanceFromCoil: 0,
+                direction: 1  // 1=向右, -1=向左
+            };
+        }
+        
         // Animation function
         const animate = () => {
             if (!this.isRunning) return;
@@ -531,57 +542,111 @@ class ElectromagneticSimulator {
             const coilWidth = 150;
             const coilHeight = 80;
             
-            // Calculate magnet position based on time and speed
-            const time = Date.now() * 0.001;
+            // 当前时间
+            const currentTime = Date.now() * 0.001;
+            const elapsedTime = currentTime - this.magnetMotionState.startTime;
             const oscillationSpeed = magnetSpeed * 0.02;
-            const magnetX = coilX - 150 + 300 * Math.sin(time * oscillationSpeed);
-            const distanceToCoil = Math.abs(magnetX - coilX);
             
-            // Calculate induced EMF based on position, speed and direction
-            const magnetVelocity = 300 * oscillationSpeed * Math.cos(time * oscillationSpeed);
+            // 根据当前模式计算磁铁位置
+            let magnetX, magnetVelocity;
+            
+            if (this.magnetMotionState.mode === 'oscillate') {
+                // 标准的左右振荡运动
+                magnetX = coilX - 150 + 300 * Math.sin(elapsedTime * oscillationSpeed);
+                magnetVelocity = 300 * oscillationSpeed * Math.cos(elapsedTime * oscillationSpeed);
+                
+                // 每10秒切换一次到远离模式
+                if (currentTime - this.magnetMotionState.lastModeChangeTime > 10) {
+                    this.magnetMotionState.mode = 'move_away';
+                    this.magnetMotionState.lastModeChangeTime = currentTime;
+                    this.magnetMotionState.direction = Math.random() > 0.5 ? 1 : -1; // 随机选择向左或向右远离
+                    this.magnetMotionState.distanceFromCoil = Math.abs(magnetX - coilX);
+                }
+            } else if (this.magnetMotionState.mode === 'move_away') {
+                // 横向远离线圈的运动
+                const moveTime = currentTime - this.magnetMotionState.lastModeChangeTime;
+                const maxDistance = canvas.width * 0.4; // 最大移动距离为画布宽度的40%
+                
+                // 随时间加速远离
+                const distanceMultiplier = Math.min(1, moveTime / 3); // 3秒内加速到最大速度
+                const moveDistance = maxDistance * distanceMultiplier;
+                
+                // 计算当前位置
+                magnetX = coilX + (this.magnetMotionState.direction * moveDistance);
+                
+                // 计算速度（用于感应电流方向）
+                magnetVelocity = this.magnetMotionState.direction * magnetSpeed * (1 - distanceMultiplier * 0.8);
+                
+                // 如果移动时间超过5秒，则重置磁铁位置
+                if (moveTime > 5) {
+                    this.magnetMotionState.mode = 'reset';
+                    this.magnetMotionState.lastModeChangeTime = currentTime;
+                }
+            } else if (this.magnetMotionState.mode === 'reset') {
+                // 重置磁铁位置（快速回到线圈附近）
+                const resetTime = currentTime - this.magnetMotionState.lastModeChangeTime;
+                const resetDuration = 1.0; // 1秒内完成重置
+                
+                if (resetTime < resetDuration) {
+                    // 线性插值回到起始位置
+                    const targetX = coilX - 150; // 起始位置
+                    const startX = coilX + (this.magnetMotionState.direction * canvas.width * 0.4);
+                    const progress = resetTime / resetDuration;
+                    
+                    magnetX = startX + (targetX - startX) * progress;
+                    magnetVelocity = (targetX - startX) / resetDuration;
+                } else {
+                    // 重置完成，切换回振荡模式
+                    this.magnetMotionState.mode = 'oscillate';
+                    this.magnetMotionState.lastModeChangeTime = currentTime;
+                    this.magnetMotionState.startTime = currentTime;
+                    
+                    // 开始新的振荡
+                    magnetX = coilX - 150;
+                    magnetVelocity = 0;
+                }
+            }
+            
+            // 计算到线圈的距离和感应电动势
+            const distanceToCoil = Math.abs(magnetX - coilX);
             const fluxChange = magnetStrength * Math.abs(magnetVelocity) * 0.01;
-            const inducedEMF = fluxChange * coilTurns * (distanceToCoil < 120 ? 1 : 0.2);
+            
+            // 随距离增加，感应电动势减弱
+            const distanceFactor = Math.max(0, 1 - Math.pow(distanceToCoil / (canvas.width * 0.4), 2));
+            const inducedEMF = fluxChange * coilTurns * distanceFactor;
+            
+            // 感应电流方向取决于磁铁运动方向和相对位置
             const currentDirection = -Math.sign(magnetVelocity) * Math.sign(magnetX - coilX);
             
-            // Draw experiment setup with perspective
+            // 绘制实验装置
             this.drawExperimentBackground(ctx, canvas.width, canvas.height);
-            
-            // Draw coil with proper perspective
             this.drawCoil(ctx, coilX, coilY, coilWidth, coilHeight, coilTurns, inducedEMF, currentDirection);
-            
-            // Draw galvanometer
             this.drawGalvanometer(ctx, coilX, coilY - 180, inducedEMF * 20 * currentDirection);
             
-            // Draw magnet with field lines
+            // 绘制磁铁及磁场
             this.drawMagnet(ctx, magnetX, coilY, magnetStrength);
-            
-            // Draw magnetic field lines
             this.drawMagneticFieldAround(ctx, magnetX, coilY, magnetStrength);
-            
-            // Draw magnetic flux through coil
             this.drawMagneticFlux(ctx, coilX, coilY, coilWidth, coilHeight, magnetX, magnetStrength);
             
-            // Draw explanation box
+            // 绘制说明和图表
             this.drawInductionExplanation(ctx, coilTurns, magnetSpeed, magnetStrength, inducedEMF, magnetVelocity);
+            this.drawInductionGraphs(ctx, canvas.width, canvas.height, elapsedTime, oscillationSpeed, inducedEMF);
             
-            // Draw graphs
-            this.drawInductionGraphs(ctx, canvas.width, canvas.height, time, oscillationSpeed, inducedEMF);
-            
-            // Draw Faraday's law formula
+            // 显示法拉第定律公式
             ctx.fillStyle = '#4361ee';
             ctx.font = 'italic 16px Arial';
             ctx.textAlign = 'right';
             ctx.fillText('ℰ = -N · dΦ/dt', canvas.width - 30, canvas.height - 30);
             
-            // Continue animation
+            // 继续动画
             this.animationId = requestAnimationFrame(animate);
         };
         
-        // Start animation
+        // 开始动画
         this.isRunning = true;
         animate();
         
-        // Update info panel
+        // 更新信息面板
         document.getElementById('em-info').innerHTML = `
             <strong>法拉第电磁感应定律</strong><br>
             线圈匝数: ${coilTurns} 匝<br>
@@ -837,52 +902,97 @@ class ElectromagneticSimulator {
     }
     
     drawMagneticFlux(ctx, coilX, coilY, coilWidth, coilHeight, magnetX, magnetStrength) {
-        // Only show flux when magnet is close to coil
+        const canvasWidth = ctx.canvas.width;
+        
+        // 计算磁铁与线圈之间的距离
         const distanceToCoil = Math.abs(magnetX - coilX);
-        if (distanceToCoil > 120) return;
+        const maxDistance = canvasWidth * 0.4; // 最大考虑距离为画布宽度的40%
         
-        // Calculate flux density based on distance
-        const fluxDensity = Math.max(0, 1 - distanceToCoil / 120) * magnetStrength;
+        // 根据距离计算磁通量密度（使用二次反比函数提供更平滑的过渡）
+        const distanceFactor = Math.max(0, 1 - Math.pow(distanceToCoil / maxDistance, 2));
+        const fluxDensity = distanceFactor * magnetStrength;
         
-        // Draw magnetic flux lines passing through coil
+        // 如果磁通量密度太小，则不显示
+        if (fluxDensity < 0.05) return;
+        
+        // 绘制穿过线圈的磁力线
         ctx.strokeStyle = `rgba(114, 9, 183, ${fluxDensity * 0.6})`;
         ctx.setLineDash([4, 4]);
         ctx.lineWidth = 1.5;
         
-        const linesCount = Math.floor(fluxDensity * 10) + 1;
+        // 磁力线数量根据密度动态调整
+        const linesCount = Math.max(1, Math.floor(fluxDensity * 12));
         const step = coilWidth / (linesCount + 1);
+        
+        // 磁力线倾斜角度基于磁铁相对位置
+        const angle = Math.atan2(coilY - coilY, magnetX - coilX);
+        const bendFactor = Math.min(0.3, distanceToCoil / maxDistance * 0.5); // 控制弯曲程度
         
         for (let i = 1; i <= linesCount; i++) {
             const x = coilX - coilWidth/2 + i * step;
             
+            // 根据磁铁位置调整磁力线
+            const magnetDirection = Math.sign(magnetX - coilX);
+            const lineOffset = magnetDirection * bendFactor * 100;
+            
+            // 绘制弯曲的磁力线，表示磁铁位置的影响
             ctx.beginPath();
+            
+            // 绘制上半部分磁力线
             ctx.moveTo(x, coilY - coilHeight/2 - 40);
-            ctx.lineTo(x, coilY + coilHeight/2 + 40);
+            ctx.bezierCurveTo(
+                x + lineOffset, coilY - coilHeight/2 - 20,
+                x, coilY - coilHeight/4,
+                x, coilY
+            );
+            
+            // 绘制下半部分磁力线
+            ctx.moveTo(x, coilY);
+            ctx.bezierCurveTo(
+                x, coilY + coilHeight/4,
+                x + lineOffset, coilY + coilHeight/2 + 20,
+                x, coilY + coilHeight/2 + 40
+            );
+            
             ctx.stroke();
         }
         
         ctx.setLineDash([]);
         
-        // Indicate flux direction with arrows
-        if (fluxDensity > 0.2) {
+        // 如果磁通量显著，添加方向指示箭头
+        if (fluxDensity > 0.15) {
             ctx.fillStyle = `rgba(114, 9, 183, ${fluxDensity * 0.8})`;
             
             for (let i = 1; i <= linesCount; i++) {
+                if (i % 2 === 0) continue; // 只在部分线上添加箭头，避免过度拥挤
+                
                 const x = coilX - coilWidth/2 + i * step;
                 
-                // Draw arrows on flux lines
-                this.drawArrowhead(ctx, x, coilY, Math.PI/2, 6);
-                this.drawArrowhead(ctx, x, coilY + 60, Math.PI/2, 6);
-                this.drawArrowhead(ctx, x, coilY - 60, Math.PI/2, 6);
+                // 磁力线上的箭头
+                const arrowAngle = Math.PI/2 + bendFactor * Math.sign(magnetX - coilX);
+                this.drawArrowhead(ctx, x, coilY, arrowAngle, 6);
+                
+                // 磁力线末端的箭头，根据位置调整角度
+                const topArrowAngle = Math.PI/2 - bendFactor * 2 * Math.sign(magnetX - coilX);
+                const bottomArrowAngle = Math.PI/2 + bendFactor * 2 * Math.sign(magnetX - coilX);
+                
+                this.drawArrowhead(ctx, x, coilY - coilHeight/2 - 20, topArrowAngle, 6);
+                this.drawArrowhead(ctx, x, coilY + coilHeight/2 + 20, bottomArrowAngle, 6);
             }
-        }
-        
-        // Label flux
-        if (fluxDensity > 0.1) {
-            ctx.fillStyle = `rgba(114, 9, 183, ${fluxDensity * 0.8})`;
-            ctx.font = 'italic 14px Arial';
+            
+            // 磁通量标签，随着磁通量密度变化透明度
+            ctx.fillStyle = `rgba(114, 9, 183, ${fluxDensity * 0.9})`;
+            ctx.font = 'italic 16px Arial';
             ctx.textAlign = 'center';
             ctx.fillText('Φ', coilX, coilY - coilHeight/2 - 50);
+            
+            // 显示磁通量变化率
+            const changeFactor = Math.min(1, distanceToCoil / 100);
+            if (changeFactor > 0.1 && changeFactor < 0.9) {
+                ctx.fillStyle = `rgba(255, 102, 0, ${(1 - changeFactor) * 0.9})`;
+                ctx.font = 'italic 14px Arial';
+                ctx.fillText('dΦ/dt', coilX + 50, coilY - coilHeight/2 - 50);
+            }
         }
     }
     
@@ -922,676 +1032,302 @@ class ElectromagneticSimulator {
     }
     
     drawInductionGraphs(ctx, width, height, time, oscillationSpeed, inducedEMF) {
-        // Draw graph container
-        const graphWidth = 250;
-        const graphHeight = 100;
+        // 绘制图表容器 - 增加高度以容纳双图表
+        const graphWidth = 280;
+        const graphHeight = 180;
         const graphX = width - graphWidth - 20;
         const graphY = 20;
         
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.rect(graphX, graphY, graphWidth, graphHeight);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw graph axes
-        ctx.beginPath();
-        ctx.moveTo(graphX, graphY + graphHeight/2);
-        ctx.lineTo(graphX + graphWidth, graphY + graphHeight/2);
-        ctx.moveTo(graphX, graphY);
-        ctx.lineTo(graphX, graphY + graphHeight);
-        ctx.stroke();
-        
-        // Label
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('感应电动势随时间变化', graphX + graphWidth/2, graphY - 5);
-        
-        // Draw EMF graph
-        ctx.strokeStyle = '#ff6b35';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        
-        // Plot EMF over time
-        const timeRange = 4 * Math.PI / oscillationSpeed; // Show 2 complete cycles
-        const timeStep = timeRange / graphWidth;
-        
-        for (let i = 0; i < graphWidth; i++) {
-            const t = time - timeRange + i * timeStep;
-            const magnetVelocity = 300 * oscillationSpeed * Math.cos(t * oscillationSpeed);
-            const emf = -magnetVelocity * 0.02; // Simplified EMF calculation
-            
-            const x = graphX + i;
-            const y = graphY + graphHeight/2 - emf * graphHeight/4;
-            
-            if (i === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
-        }
-        
-        ctx.stroke();
-        
-        // Mark current time point
-        const currentX = graphX + graphWidth - 1;
-        ctx.fillStyle = '#ff6b35';
-        ctx.beginPath();
-        ctx.arc(currentX, graphY + graphHeight/2 - inducedEMF * graphHeight/4, 4, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    simulateCircuit() {
-        const canvas = this.physicsSimulator.canvases.em;
-        const ctx = this.physicsSimulator.contexts.em;
-        
-        const voltage = parseFloat(document.getElementById('voltage').value);
-        const resistance = parseFloat(document.getElementById('resistance').value);
-        
-        // Calculate current using Ohm's law
-        const current = voltage / resistance;
-        
-        // Animation function
-        const animate = () => {
-            if (!this.isRunning) return;
-            
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Background
-            ctx.fillStyle = 'rgba(240, 248, 255, 0.6)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
-            
-            // Draw circuit board background
-            this.drawCircuitBoard(ctx, canvas.width, canvas.height);
-            
-            // Draw complete circuit with components
-            this.drawCompleteCircuit(ctx, centerX, centerY, voltage, resistance, current);
-            
-            // Animate electricity flow
-            const time = Date.now() * 0.001;
-            this.drawElectricityFlow(ctx, centerX, centerY, current, time);
-            
-            // Draw circuit measurements and meters
-            this.drawCircuitMeters(ctx, centerX, centerY, voltage, current, resistance);
-            
-            // Draw explanation and formulas
-            this.drawCircuitExplanation(ctx, voltage, current, resistance);
-            
-            // Draw power calculation
-            const power = voltage * current;
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`功率: P = ${power.toFixed(2)} W`, centerX, canvas.height - 30);
-            
-            // Continue animation
-            this.animationId = requestAnimationFrame(animate);
-        };
-        
-        // Start animation
-        this.isRunning = true;
-        animate();
-        
-        // Update info panel
-        document.getElementById('em-info').innerHTML = `
-            <strong>欧姆定律与电路分析</strong><br>
-            电压: ${voltage} V<br>
-            电阻: ${resistance} Ω<br>
-            电流: ${current.toFixed(2)} A<br>
-            功率: ${(voltage * current).toFixed(2)} W<br>
-            欧姆定律: I = U/R
-        `;
-    }
-    
-    drawCircuitBoard(ctx, width, height) {
-        // Draw circuit board background
-        ctx.fillStyle = '#e0f7fa';  // Light cyan for circuit board
-        ctx.fillRect(width * 0.1, height * 0.1, width * 0.8, height * 0.8);
-        
-        // Draw grid lines for circuit board
-        ctx.strokeStyle = 'rgba(0, 150, 136, 0.2)';  // Teal grid lines
-        ctx.lineWidth = 1;
-        
-        // Vertical grid lines
-        for (let x = width * 0.1; x <= width * 0.9; x += 20) {
-            ctx.beginPath();
-            ctx.moveTo(x, height * 0.1);
-            ctx.lineTo(x, height * 0.9);
-            ctx.stroke();
-        }
-        
-        // Horizontal grid lines
-        for (let y = height * 0.1; y <= height * 0.9; y += 20) {
-            ctx.beginPath();
-            ctx.moveTo(width * 0.1, y);
-            ctx.lineTo(width * 0.9, y);
-            ctx.stroke();
-        }
-        
-        // Draw circuit board holes
-        ctx.fillStyle = 'rgba(0, 77, 64, 0.2)';  // Dark teal for holes
-        for (let x = width * 0.15; x <= width * 0.85; x += 40) {
-            for (let y = height * 0.15; y <= height * 0.85; y += 40) {
-                ctx.beginPath();
-                ctx.arc(x, y, 2, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-    }
-    
-    drawCompleteCircuit(ctx, centerX, centerY, voltage, resistance, current) {
-        const circuitWidth = 400;
-        const circuitHeight = 300;
-        
-        // Calculate component positions
-        const batteryX = centerX - circuitWidth * 0.3;
-        const batteryY = centerY;
-        const resistorX = centerX + circuitWidth * 0.3;
-        const resistorY = centerY - circuitHeight * 0.25;
-        const lampX = centerX + circuitWidth * 0.15;
-        const lampY = centerY + circuitHeight * 0.25;
-        const switchX = centerX - circuitWidth * 0.15;
-        const switchY = centerY - circuitHeight * 0.25;
-        
-        // Draw connecting wires
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 3;
-        
-        // Top wire
-        ctx.beginPath();
-        ctx.moveTo(batteryX, batteryY - 50);
-        ctx.lineTo(batteryX, centerY - circuitHeight * 0.4);
-        ctx.lineTo(switchX - 30, centerY - circuitHeight * 0.4);
-        ctx.stroke();
-        
-        // Switch to resistor
-        ctx.beginPath();
-        ctx.moveTo(switchX + 30, switchY);
-        ctx.lineTo(resistorX - 40, resistorY);
-        ctx.stroke();
-        
-        // Resistor to lamp
-        ctx.beginPath();
-        ctx.moveTo(resistorX + 40, resistorY);
-        ctx.lineTo(resistorX + 60, resistorY);
-        ctx.lineTo(resistorX + 60, lampY - 30);
-        ctx.lineTo(lampX, lampY - 30);
-        ctx.stroke();
-        
-        // Lamp to battery
-        ctx.beginPath();
-        ctx.moveTo(lampX, lampY + 30);
-        ctx.lineTo(lampX, centerY + circuitHeight * 0.4);
-        ctx.lineTo(batteryX, centerY + circuitHeight * 0.4);
-        ctx.lineTo(batteryX, batteryY + 50);
-        ctx.stroke();
-        
-        // Draw components
-        this.drawBattery(ctx, batteryX, batteryY, voltage);
-        this.drawResistor(ctx, resistorX, resistorY, resistance);
-        this.drawLamp(ctx, lampX, lampY, current);
-        this.drawSwitch(ctx, switchX, switchY, true);
-        
-        // Draw component labels
-        ctx.fillStyle = '#333';
-        ctx.font = '14px Arial';
-        ctx.textAlign = 'center';
-        
-        ctx.fillText(`电池 (${voltage}V)`, batteryX, batteryY + 80);
-        ctx.fillText(`电阻 (${resistance}Ω)`, resistorX, resistorY - 30);
-        ctx.fillText(`灯泡`, lampX, lampY + 60);
-        ctx.fillText(`开关`, switchX, switchY - 30);
-    }
-    
-    drawBattery(ctx, x, y, voltage) {
-        const batteryHeight = 100;
-        const batteryWidth = 50;
-        
-        // Battery body
-        ctx.fillStyle = '#ffeb3b';  // Yellow
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        
-        // Draw battery body
-        ctx.beginPath();
-        ctx.roundRect(x - batteryWidth/2, y - batteryHeight/2, batteryWidth, batteryHeight, 5);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw battery terminals
-        const terminalWidth = 20;
-        const terminalHeight = 10;
-        
-        // Positive terminal
-        ctx.fillStyle = '#f44336';  // Red
-        ctx.beginPath();
-        ctx.rect(x - terminalWidth/2, y - batteryHeight/2 - terminalHeight, terminalWidth, terminalHeight);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw + symbol
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('+', x, y - batteryHeight/2 - terminalHeight/2);
-        
-        // Negative terminal
-        ctx.fillStyle = '#2196f3';  // Blue
-        ctx.beginPath();
-        ctx.rect(x - terminalWidth/2, y + batteryHeight/2, terminalWidth, terminalHeight);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw - symbol
-        ctx.fillStyle = 'white';
-        ctx.fillText('-', x, y + batteryHeight/2 + terminalHeight/2);
-        
-        // Draw voltage
-        ctx.fillStyle = '#333';
-        ctx.font = 'bold 14px Arial';
-        ctx.fillText(`${voltage}V`, x, y);
-    }
-    
-    drawResistor(ctx, x, y, resistance) {
-        const resistorWidth = 80;
-        const resistorHeight = 30;
-        
-        // Draw resistor body
-        ctx.fillStyle = '#ff9800';  // Orange
-        ctx.strokeStyle = '#e65100';  // Dark orange
-        ctx.lineWidth = 2;
-        
-        // Zigzag resistor
-        ctx.beginPath();
-        ctx.moveTo(x - resistorWidth/2, y);
-        
-        const segments = 6;
-        const segmentWidth = resistorWidth / segments;
-        const zigzagHeight = resistorHeight / 2;
-        
-        for (let i = 0; i <= segments; i++) {
-            const segX = x - resistorWidth/2 + i * segmentWidth;
-            const segY = y + (i % 2 === 0 ? -zigzagHeight : zigzagHeight);
-            ctx.lineTo(segX, segY);
-        }
-        
-        ctx.stroke();
-        
-        // Draw resistance value
-        ctx.fillStyle = '#333';
-        ctx.font = '12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${resistance}Ω`, x, y + resistorHeight);
-        
-        // Draw connection points
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(x - resistorWidth/2 - 5, y, 3, 0, Math.PI * 2);
-        ctx.arc(x + resistorWidth/2 + 5, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    drawLamp(ctx, x, y, current) {
-        const lampRadius = 20;
-        const brightness = Math.min(1, current * 0.1);
-        
-        // Draw bulb
-        ctx.beginPath();
-        ctx.arc(x, y, lampRadius, 0, Math.PI * 2);
-        
-        // Create glow effect based on current
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, lampRadius);
-        gradient.addColorStop(0, `rgba(255, 255, 200, ${brightness})`);
-        gradient.addColorStop(0.7, `rgba(255, 200, 0, ${brightness * 0.5})`);
-        gradient.addColorStop(1, 'rgba(200, 120, 0, 0.1)');
-        
-        ctx.fillStyle = gradient;
-        ctx.fill();
-        
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        // Draw filament
-        ctx.beginPath();
-        ctx.moveTo(x - lampRadius * 0.6, y);
-        ctx.lineTo(x - lampRadius * 0.3, y - lampRadius * 0.4);
-        ctx.lineTo(x, y);
-        ctx.lineTo(x + lampRadius * 0.3, y - lampRadius * 0.4);
-        ctx.lineTo(x + lampRadius * 0.6, y);
-        ctx.strokeStyle = `rgba(255, 100, 0, ${0.5 + brightness * 0.5})`;
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-        
-        // Draw lamp base
-        ctx.beginPath();
-        ctx.moveTo(x - lampRadius * 0.5, y + lampRadius);
-        ctx.lineTo(x - lampRadius * 0.7, y + lampRadius * 1.5);
-        ctx.lineTo(x + lampRadius * 0.7, y + lampRadius * 1.5);
-        ctx.lineTo(x + lampRadius * 0.5, y + lampRadius);
-        ctx.fillStyle = '#b0bec5';  // Light blue-grey
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        
-        // Draw connection points
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(x, y - lampRadius - 5, 3, 0, Math.PI * 2);
-        ctx.arc(x, y + lampRadius + 5, 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    drawSwitch(ctx, x, y, isOn) {
-        const switchWidth = 60;
-        const switchHeight = 20;
-        
-        // Draw switch base
-        ctx.fillStyle = '#607d8b';  // Blue-grey
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        ctx.rect(x - switchWidth/2, y - switchHeight/2, switchWidth, switchHeight);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw switch lever
-        ctx.beginPath();
-        if (isOn) {
-            ctx.moveTo(x - switchWidth/2 + 5, y);
-            ctx.lineTo(x + switchWidth/2 - 5, y);
-        } else {
-            ctx.moveTo(x - switchWidth/2 + 5, y);
-            ctx.lineTo(x, y - switchHeight);
-        }
-        
-        ctx.strokeStyle = isOn ? '#4caf50' : '#f44336';  // Green if on, red if off
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        
-        // Draw connection points
-        ctx.fillStyle = '#333';
-        ctx.beginPath();
-        ctx.arc(x - switchWidth/2 - 5, y, 3, 0, Math.PI * 2);
-        ctx.arc(x + switchWidth/2 + 5, y, 3, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    drawElectricityFlow(ctx, centerX, centerY, current, time) {
-        const circuitWidth = 400;
-        const circuitHeight = 300;
-        
-        // Skip if current is too low
-        if (Math.abs(current) < 0.1) return;
-        
-        // Calculate flow speed based on current
-        const flowSpeed = Math.min(5, Math.abs(current)) * 0.2;
-        const particleCount = Math.min(20, Math.ceil(Math.abs(current) * 2));
-        
-        // Define circuit path points
-        const pathPoints = [
-            { x: centerX - circuitWidth * 0.3, y: centerY - 50 },  // Battery top
-            { x: centerX - circuitWidth * 0.3, y: centerY - circuitHeight * 0.4 },
-            { x: centerX - circuitWidth * 0.15 - 30, y: centerY - circuitHeight * 0.4 },
-            { x: centerX - circuitWidth * 0.15 - 30, y: centerY - circuitHeight * 0.25 },  // Switch in
-            { x: centerX - circuitWidth * 0.15 + 30, y: centerY - circuitHeight * 0.25 },  // Switch out
-            { x: centerX + circuitWidth * 0.3 - 40, y: centerY - circuitHeight * 0.25 },  // Resistor in
-            { x: centerX + circuitWidth * 0.3 + 40, y: centerY - circuitHeight * 0.25 },  // Resistor out
-            { x: centerX + circuitWidth * 0.3 + 60, y: centerY - circuitHeight * 0.25 },
-            { x: centerX + circuitWidth * 0.3 + 60, y: centerY + circuitHeight * 0.25 - 30 },
-            { x: centerX + circuitWidth * 0.15, y: centerY + circuitHeight * 0.25 - 30 },  // Lamp in
-            { x: centerX + circuitWidth * 0.15, y: centerY + circuitHeight * 0.25 + 30 },  // Lamp out
-            { x: centerX + circuitWidth * 0.15, y: centerY + circuitHeight * 0.4 },
-            { x: centerX - circuitWidth * 0.3, y: centerY + circuitHeight * 0.4 },
-            { x: centerX - circuitWidth * 0.3, y: centerY + 50 }  // Battery bottom
-        ];
-        
-        // Calculate total path length
-        let totalLength = 0;
-        for (let i = 1; i < pathPoints.length; i++) {
-            const dx = pathPoints[i].x - pathPoints[i-1].x;
-            const dy = pathPoints[i].y - pathPoints[i-1].y;
-            totalLength += Math.sqrt(dx*dx + dy*dy);
-        }
-        
-        // Draw electron flow
-        ctx.fillStyle = current > 0 ? '#2196f3' : '#f44336';  // Blue for conventional, red for electron flow
-        
-        for (let i = 0; i < particleCount; i++) {
-            // Calculate particle position along the path
-            let particlePos = (time * flowSpeed * 100 + i * (totalLength / particleCount)) % totalLength;
-            
-            // Find segment
-            let currentLength = 0;
-            let segmentIndex = 0;
-            let segmentPos = 0;
-            
-            for (let j = 1; j < pathPoints.length; j++) {
-                const dx = pathPoints[j].x - pathPoints[j-1].x;
-                const dy = pathPoints[j].y - pathPoints[j-1].y;
-                const segmentLength = Math.sqrt(dx*dx + dy*dy);
-                
-                if (currentLength + segmentLength > particlePos) {
-                    segmentIndex = j - 1;
-                    segmentPos = (particlePos - currentLength) / segmentLength;
-                    break;
-                }
-                
-                currentLength += segmentLength;
-            }
-            
-            // Calculate particle coordinates
-            const p1 = pathPoints[segmentIndex];
-            const p2 = pathPoints[segmentIndex + 1];
-            const particleX = p1.x + (p2.x - p1.x) * segmentPos;
-            const particleY = p1.y + (p2.y - p1.y) * segmentPos;
-            
-            // Draw particle
-            ctx.beginPath();
-            ctx.arc(particleX, particleY, 3, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-    
-    drawCircuitMeters(ctx, centerX, centerY, voltage, current, resistance) {
-        // Draw voltmeter
-        this.drawMeter(ctx, centerX - 200, centerY - 150, 'V', voltage, 'V', '#f44336');
-        
-        // Draw ammeter
-        this.drawMeter(ctx, centerX, centerY - 150, 'A', current.toFixed(2), 'A', '#2196f3');
-        
-        // Draw ohmmeter
-        this.drawMeter(ctx, centerX + 200, centerY - 150, 'Ω', resistance, 'Ω', '#4caf50');
-    }
-    
-    drawMeter(ctx, x, y, symbol, value, unit, color) {
-        const meterRadius = 40;
-        
-        // Draw meter body
-        ctx.fillStyle = '#f5f5f5';
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        ctx.arc(x, y, meterRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw meter face
-        ctx.beginPath();
-        ctx.arc(x, y, meterRadius - 5, 0, Math.PI * 2);
-        ctx.fillStyle = 'white';
-        ctx.fill();
-        ctx.stroke();
-        
-        // Draw meter symbol
-        ctx.fillStyle = color;
-        ctx.font = 'bold 16px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(symbol, x, y - 10);
-        
-        // Draw meter value
-        ctx.fillStyle = '#333';
-        ctx.font = '14px Arial';
-        ctx.fillText(`${value} ${unit}`, x, y + 10);
-    }
-    
-    drawCircuitExplanation(ctx, voltage, current, resistance) {
-        // Draw main explanation box
-        const boxWidth = 280;
-        const boxHeight = 180;
-        const boxX = 20;
-        const boxY = 20;
-        
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.strokeStyle = '#4361ee';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10);
+        ctx.roundRect(graphX, graphY, graphWidth, graphHeight, 8);
         ctx.fill();
         ctx.stroke();
         
-        // Add title with gradient
-        const titleGradient = ctx.createLinearGradient(boxX, boxY, boxX + boxWidth, boxY);
-        titleGradient.addColorStop(0, '#4361ee');
-        titleGradient.addColorStop(1, '#7209b7');
+        // 分隔上下两个图表
+        const dividerY = graphY + graphHeight * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(graphX + 10, dividerY);
+        ctx.lineTo(graphX + graphWidth - 10, dividerY);
+        ctx.strokeStyle = '#ccc';
+        ctx.stroke();
         
-        ctx.fillStyle = titleGradient;
-        ctx.font = 'bold 18px Arial';
-        ctx.textAlign = 'left';
-        ctx.fillText('欧姆定律与电路分析', boxX + 10, boxY + 25);
-        
-        // Add electrical parameters with units
+        // ===== 上半部分：磁通量和感应电动势图 =====
         ctx.fillStyle = '#333';
-        ctx.font = '14px Arial';
-        ctx.fillText(`• 电压 (U): ${voltage} V`, boxX + 10, boxY + 50);
-        ctx.fillText(`• 电流 (I): ${current.toFixed(2)} A`, boxX + 10, boxY + 70);
-        ctx.fillText(`• 电阻 (R): ${resistance} Ω`, boxX + 10, boxY + 90);
-        ctx.fillText(`• 功率 (P): ${(voltage * current).toFixed(2)} W`, boxX + 10, boxY + 110);
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('磁通量和感应电动势', graphX + graphWidth/2, graphY + 15);
         
-        // Add key formulas with different colors
-        ctx.fillStyle = '#4361ee';  // Blue for Ohm's Law
-        ctx.font = 'bold italic 16px Arial';
-        ctx.fillText('欧姆定律: I = U/R', boxX + 10, boxY + 135);
+        // 绘制坐标轴
+        const upperGraphTop = graphY + 30;
+        const upperGraphBottom = dividerY - 10;
+        const upperGraphLeft = graphX + 40;
+        const upperGraphRight = graphX + graphWidth - 20;
+        const upperGraphHeight = upperGraphBottom - upperGraphTop;
+        const upperGraphMidY = upperGraphTop + upperGraphHeight / 2;
         
-        ctx.fillStyle = '#e91e63';  // Pink for Power formula
-        ctx.fillText('功率公式: P = U·I', boxX + 10, boxY + 160);
-        
-        // Add explanation note about conventional current
-        const noteBox = {
-            x: boxX + 10,
-            y: boxY + boxHeight + 10,
-            width: boxWidth,
-            height: 80
-        };
-        
-        ctx.fillStyle = 'rgba(255, 248, 225, 0.9)';  // Light yellow for note
-        ctx.strokeStyle = '#ffa000';  // Amber for note border
         ctx.beginPath();
-        ctx.roundRect(noteBox.x, noteBox.y, noteBox.width, noteBox.height, 8);
-        ctx.fill();
+        ctx.strokeStyle = '#333';
+        // Y轴
+        ctx.moveTo(upperGraphLeft, upperGraphTop);
+        ctx.lineTo(upperGraphLeft, upperGraphBottom);
+        // X轴 (零线)
+        ctx.moveTo(upperGraphLeft, upperGraphMidY);
+        ctx.lineTo(upperGraphRight, upperGraphMidY);
         ctx.stroke();
         
-        ctx.fillStyle = '#6d4c41';  // Brown for note text
-        ctx.font = 'bold 14px Arial';
-        ctx.fillText('电流流向说明:', noteBox.x + 10, noteBox.y + 20);
+        // 坐标轴标签
+        ctx.font = '10px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillText('电动势/磁通量', upperGraphLeft - 5, upperGraphTop + 10);
         
-        ctx.font = '13px Arial';
-        ctx.fillText('• 传统电流: 从正极(+)流向负极(-)', noteBox.x + 10, noteBox.y + 40);
-        ctx.fillText('• 电子流: 从负极(-)流向正极(+)', noteBox.x + 10, noteBox.y + 60);
+        ctx.textAlign = 'center';
+        ctx.fillText('时间', (upperGraphLeft + upperGraphRight) / 2, upperGraphBottom + 10);
         
-        // Add educational insight about resistors and Ohm's law
-        const insightBox = {
-            x: boxX + boxWidth + 20,
-            y: boxY,
-            width: 270,
-            height: 180
-        };
-        
-        ctx.fillStyle = 'rgba(232, 245, 233, 0.9)';  // Light green for insight
-        ctx.strokeStyle = '#4caf50';  // Green for insight border
+        // 绘制磁通量曲线
         ctx.beginPath();
-        ctx.roundRect(insightBox.x, insightBox.y, insightBox.width, insightBox.height, 8);
-        ctx.fill();
-        ctx.stroke();
+        const timeRange = 8; // 显示8秒数据
+        const pixelsPerSecond = (upperGraphRight - upperGraphLeft) / timeRange;
         
-        ctx.fillStyle = '#2e7d32';  // Dark green for insight title
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText('电阻的作用与影响', insightBox.x + 10, insightBox.y + 25);
+        for (let x = 0; x <= upperGraphRight - upperGraphLeft; x++) {
+            const t = time - timeRange + x / pixelsPerSecond;
+            if (t < 0) continue;
+            
+            // 根据磁铁运动状态计算磁通量
+            let fluxValue;
+            
+            if (this.magnetMotionState && this.magnetMotionState.mode === 'move_away') {
+                // 远离模式：磁通量随距离增加而减小
+                const moveTime = time - this.magnetMotionState.lastModeChangeTime;
+                const distance = Math.min(1, moveTime / 5); // 5秒内远离
+                fluxValue = Math.max(0, 1 - Math.pow(distance, 2)) * Math.sin(t * oscillationSpeed * 0.2);
+            } 
+            else if (this.magnetMotionState && this.magnetMotionState.mode === 'reset') {
+                // 重置模式：磁通量逐渐回到原始状态
+                const resetTime = time - this.magnetMotionState.lastModeChangeTime;
+                const resetProgress = Math.min(1, resetTime);
+                fluxValue = resetProgress * Math.sin(t * oscillationSpeed * 0.2);
+            }
+            else {
+                // 标准振荡模式
+                fluxValue = Math.sin(t * oscillationSpeed);
+            }
+            
+            const y = upperGraphMidY - fluxValue * (upperGraphHeight / 3);
+            
+            if (x === 0) {
+                ctx.moveTo(upperGraphLeft + x, y);
+            } else {
+                ctx.lineTo(upperGraphLeft + x, y);
+            }
+        }
         
-        ctx.fillStyle = '#333';
-        ctx.font = '13px Arial';
-        ctx.fillText('• 电阻限制电路中的电流大小', insightBox.x + 10, insightBox.y + 50);
-        ctx.fillText('• 电阻越大，电流越小', insightBox.x + 10, insightBox.y + 70);
-        ctx.fillText('• 并联电路的总电阻小于任一分支电阻', insightBox.x + 10, insightBox.y + 90);
-        ctx.fillText('• 串联电路的总电阻是所有电阻之和', insightBox.x + 10, insightBox.y + 110);
-        ctx.fillText('• 实际应用: 灯泡、电热器、保险丝等', insightBox.x + 10, insightBox.y + 130);
-        ctx.fillText('• 电阻可以转化电能为热能和光能', insightBox.x + 10, insightBox.y + 150);
-        
-        // Draw formula transformation box (for students to learn equation manipulation)
-        const formulaBox = {
-            x: insightBox.x,
-            y: insightBox.y + insightBox.height + 10,
-            width: insightBox.width,
-            height: 100
-        };
-        
-        ctx.fillStyle = 'rgba(225, 245, 254, 0.9)';  // Light blue for formulas
-        ctx.strokeStyle = '#03a9f4';  // Light blue for formula border
-        ctx.beginPath();
-        ctx.roundRect(formulaBox.x, formulaBox.y, formulaBox.width, formulaBox.height, 8);
-        ctx.fill();
-        ctx.stroke();
-        
-        ctx.fillStyle = '#01579b';  // Dark blue for formula title
-        ctx.font = 'bold 16px Arial';
-        ctx.fillText('欧姆定律的变形', formulaBox.x + 10, formulaBox.y + 25);
-        
-        ctx.font = 'bold 15px Arial';
-        ctx.fillText('I = U/R', formulaBox.x + 30, formulaBox.y + 55);
-        ctx.fillText('U = I·R', formulaBox.x + 120, formulaBox.y + 55);
-        ctx.fillText('R = U/I', formulaBox.x + 210, formulaBox.y + 55);
-        
-        // Add explanatory arrows for formula transformation
-        ctx.strokeStyle = '#0288d1';
+        ctx.strokeStyle = 'rgba(65, 105, 225, 0.8)'; // 磁通量用蓝色
         ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(formulaBox.x + 75, formulaBox.y + 55);
-        ctx.lineTo(formulaBox.x + 100, formulaBox.y + 55);
-        ctx.moveTo(formulaBox.x + 165, formulaBox.y + 55);
-        ctx.lineTo(formulaBox.x + 190, formulaBox.y + 55);
         ctx.stroke();
         
-        // Add arrowheads
-        ctx.fillStyle = '#0288d1';
+        // 绘制感应电动势曲线
         ctx.beginPath();
-        ctx.moveTo(formulaBox.x + 100, formulaBox.y + 55);
-        ctx.lineTo(formulaBox.x + 95, formulaBox.y + 50);
-        ctx.lineTo(formulaBox.x + 95, formulaBox.y + 60);
-        ctx.closePath();
+        
+        for (let x = 0; x <= upperGraphRight - upperGraphLeft; x++) {
+            const t = time - timeRange + x / pixelsPerSecond;
+            if (t < 0) continue;
+            
+            // 根据磁铁运动状态计算感应电动势
+            let emfValue;
+            
+            if (this.magnetMotionState && this.magnetMotionState.mode === 'move_away') {
+                // 远离模式：感应电动势由磁通量变化率决定
+                const moveTime = time - this.magnetMotionState.lastModeChangeTime;
+                const distance = Math.min(1, moveTime / 5);
+                // 远离时感应电动势是磁通量变化率
+                const changeRate = -2 * distance * (1 - Math.pow(distance, 2)) * Math.sin(t * oscillationSpeed * 0.2) 
+                                 + Math.max(0, 1 - Math.pow(distance, 2)) * Math.cos(t * oscillationSpeed * 0.2) * oscillationSpeed * 0.2;
+                emfValue = changeRate * 2;
+            } 
+            else if (this.magnetMotionState && this.magnetMotionState.mode === 'reset') {
+                // 重置模式：有短暂的高感应电动势
+                const resetTime = time - this.magnetMotionState.lastModeChangeTime;
+                if (resetTime < 1) {
+                    emfValue = Math.sin(t * oscillationSpeed * 0.2) * 2;
+                } else {
+                    emfValue = Math.cos(t * oscillationSpeed * 0.2) * oscillationSpeed * 0.2;
+                }
+            }
+            else {
+                // 振荡模式：感应电动势是磁通量的导数
+                emfValue = Math.cos(t * oscillationSpeed) * oscillationSpeed;
+            }
+            
+            const y = upperGraphMidY - emfValue * (upperGraphHeight / 3);
+            
+            if (x === 0) {
+                ctx.moveTo(upperGraphLeft + x, y);
+            } else {
+                ctx.lineTo(upperGraphLeft + x, y);
+            }
+        }
+        
+        ctx.strokeStyle = 'rgba(233, 30, 99, 0.8)'; // 感应电动势用红色
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        
+        // 添加图例
+        ctx.fillStyle = 'rgba(65, 105, 225, 0.8)';
+        ctx.fillRect(upperGraphRight - 100, upperGraphTop, 10, 5);
+        ctx.fillStyle = '#333';
+        ctx.textAlign = 'left';
+        ctx.fillText('磁通量 Φ', upperGraphRight - 85, upperGraphTop + 5);
+        
+        ctx.fillStyle = 'rgba(233, 30, 99, 0.8)';
+        ctx.fillRect(upperGraphRight - 100, upperGraphTop + 15, 10, 5);
+        ctx.fillStyle = '#333';
+        ctx.fillText('感应电动势 ℰ', upperGraphRight - 85, upperGraphTop + 20);
+        
+        // ===== 下半部分：磁铁位置示意图 =====
+        const lowerGraphTop = dividerY + 10;
+        const lowerGraphBottom = graphY + graphHeight - 20;
+        const lowerGraphLeft = upperGraphLeft;
+        const lowerGraphRight = upperGraphRight;
+        const lowerGraphHeight = lowerGraphBottom - lowerGraphTop;
+        const lowerGraphMidY = lowerGraphTop + lowerGraphHeight / 2;
+        
+        // 绘制坐标轴
+        ctx.beginPath();
+        ctx.strokeStyle = '#333';
+        // Y轴
+        ctx.moveTo(lowerGraphLeft, lowerGraphTop);
+        ctx.lineTo(lowerGraphLeft, lowerGraphBottom);
+        // X轴
+        ctx.moveTo(lowerGraphLeft, lowerGraphMidY);
+        ctx.lineTo(lowerGraphRight, lowerGraphMidY);
+        ctx.stroke();
+        
+        // 标签
+        ctx.textAlign = 'center';
+        ctx.fillText('磁铁位置', (lowerGraphLeft + lowerGraphRight) / 2, lowerGraphBottom + 10);
+        
+        ctx.save();
+        ctx.translate(lowerGraphLeft - 10, (lowerGraphTop + lowerGraphBottom) / 2);
+        ctx.rotate(-Math.PI/2);
+        ctx.textAlign = 'center';
+        ctx.fillText('距离线圈', 0, 0);
+        ctx.restore();
+        
+        // 在中央绘制线圈位置标记
+        ctx.beginPath();
+        const coilX = (lowerGraphLeft + lowerGraphRight) / 2;
+        ctx.moveTo(coilX, lowerGraphTop);
+        ctx.lineTo(coilX, lowerGraphBottom);
+        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // 线圈标签
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#333';
+        ctx.fillText('线圈', coilX, lowerGraphTop - 2);
+        
+        // 绘制磁铁位置曲线
+        ctx.beginPath();
+        
+        for (let x = 0; x <= lowerGraphRight - lowerGraphLeft; x++) {
+            const t = time - timeRange + x / pixelsPerSecond;
+            if (t < 0) continue;
+            
+            // 计算磁铁位置
+            let magnetPosition;
+            
+            if (this.magnetMotionState && this.magnetMotionState.mode === 'move_away') {
+                // 远离模式
+                const moveTime = time - this.magnetMotionState.lastModeChangeTime;
+                const maxDistance = 0.8; // 最大距离因子
+                
+                // 随时间加速远离
+                const distance = Math.min(maxDistance, Math.pow(moveTime / 5, 2) * maxDistance);
+                
+                // 方向由magnetMotionState.direction决定
+                const direction = this.magnetMotionState.direction || 1;
+                magnetPosition = distance * direction;
+            } 
+            else if (this.magnetMotionState && this.magnetMotionState.mode === 'reset') {
+                // 重置模式
+                const resetTime = time - this.magnetMotionState.lastModeChangeTime;
+                const resetDuration = 1.0;
+                
+                if (resetTime < resetDuration) {
+                    // 线性插值回到原位
+                    const direction = this.magnetMotionState.direction || 1;
+                    const startPos = 0.8 * direction;
+                    const progress = resetTime / resetDuration;
+                    magnetPosition = startPos * (1 - progress);
+                } else {
+                    magnetPosition = 0;
+                }
+            }
+            else {
+                // 振荡模式
+                magnetPosition = Math.sin(t * oscillationSpeed) * 0.4;
+            }
+            
+            // 计算图上的Y坐标
+            const y = lowerGraphMidY - magnetPosition * lowerGraphHeight / 2;
+            
+            if (x === 0) {
+                ctx.moveTo(lowerGraphLeft + x, y);
+            } else {
+                ctx.lineTo(lowerGraphLeft + x, y);
+            }
+        }
+        
+        ctx.strokeStyle = 'rgba(76, 175, 80, 0.8)'; // 磁铁位置用绿色
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // 绘制当前磁铁位置标记
+        let currentMagnetPosition;
+        if (this.magnetMotionState) {
+            if (this.magnetMotionState.mode === 'move_away') {
+                const moveTime = time - this.magnetMotionState.lastModeChangeTime;
+                const maxDistance = 0.8;
+                const distance = Math.min(maxDistance, Math.pow(moveTime / 5, 2) * maxDistance);
+                currentMagnetPosition = distance * this.magnetMotionState.direction;
+            } 
+            else if (this.magnetMotionState.mode === 'reset') {
+                const resetTime = time - this.magnetMotionState.lastModeChangeTime;
+                const resetDuration = 1.0;
+                
+                if (resetTime < resetDuration) {
+                    const direction = this.magnetMotionState.direction;
+                    const startPos = 0.8 * direction;
+                    const progress = resetTime / resetDuration;
+                    currentMagnetPosition = startPos * (1 - progress);
+                } else {
+                    currentMagnetPosition = 0;
+                }
+            }
+            else {
+                currentMagnetPosition = Math.sin(time * oscillationSpeed) * 0.4;
+            }
+        } else {
+            currentMagnetPosition = Math.sin(time * oscillationSpeed) * 0.4;
+        }
+        
+        const currentY = lowerGraphMidY - currentMagnetPosition * lowerGraphHeight / 2;
+        
+        // 绘制当前位置的磁铁图标
+        ctx.fillStyle = 'rgba(76, 175, 80, 1)';
+        ctx.beginPath();
+        ctx.arc(lowerGraphRight, currentY, 5, 0, Math.PI * 2);
         ctx.fill();
         
-        ctx.beginPath();
-        ctx.moveTo(formulaBox.x + 190, formulaBox.y + 55);
-        ctx.lineTo(formulaBox.x + 185, formulaBox.y + 50);
-        ctx.lineTo(formulaBox.x + 185, formulaBox.y + 60);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Add practical example
-        ctx.font = '13px Arial';
-        ctx.fillStyle = '#01579b';
-        ctx.fillText('例: 若U=12V，R=4Ω，则I=3A', formulaBox.x + 10, formulaBox.y + 85);
+        // 添加"磁铁"标签
+        ctx.fillStyle = 'rgba(76, 175, 80, 1)';
+        ctx.textAlign = 'left';
+        ctx.fillText('磁铁', lowerGraphRight + 10, currentY + 5);
     }
 
     addElectricCharge() {
@@ -1623,7 +1359,13 @@ class ElectromagneticSimulator {
             this.physicsSimulator.canvases.em.width, 
             this.physicsSimulator.canvases.em.height
         );
+        
+        // 重置电磁感应相关状态
+        this.magnetMotionState = null;
+        
+        // 重置电场相关状态
         this.electricCharges = null;
+        
         document.getElementById('em-info').textContent = '点击画布添加电荷，观察电场分布';
     }
 }
