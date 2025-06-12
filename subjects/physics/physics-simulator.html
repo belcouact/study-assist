@@ -1531,98 +1531,192 @@
                 const trajectoryPoints = [];
                 let currentVx = vx;
                 let currentVy = vy;
+                
+                // 计算理论值
+                const theoreticalRange = (velocity * velocity * Math.sin(2 * angle)) / gravity;
+                const maxHeight = (vy * vy) / (2 * gravity);
+                
+                // 如果空气阻力为0，直接使用理论公式计算轨迹
+                if (airResistance <= 0.0001) {
+                    const animate = () => {
+                        if (!this.isRunning.mechanics) return;
 
-                const animate = () => {
-                    if (!this.isRunning.mechanics) return;
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                    // 绘制坐标系和网格
-                    this.drawCoordinateSystem(ctx, canvas, scale);
-
-                    // 计算当前位置 (考虑空气阻力)
-                    const x = 50 + t * currentVx * scale;
-                    const y = canvas.height - 80 - (currentVy * t - 0.5 * gravity * t * t) * scale;
-
-                    // 空气阻力计算
-                    const speed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
-                    const dragForceX = -airResistance * speed * currentVx;
-                    const dragForceY = -airResistance * speed * currentVy;
-                    
-                    // 更新速度（考虑重力和空气阻力）
-                    currentVx += (dragForceX / mass) * dt;
-                    currentVy += (-gravity + dragForceY / mass) * dt;
-
-                    // 存储轨迹点
-                    if (t % 0.1 < dt) { // 每0.1秒记录一个点
-                        trajectoryPoints.push({x: x, y: y, t: t});
-                    }
-
-                    // 绘制完整轨迹
-                    this.drawTrajectory(ctx, trajectoryPoints);
-
-                    // 绘制理论轨迹（无空气阻力）
-                    this.drawTheoreticalTrajectory(ctx, canvas, vx, vy, gravity, scale);
-                    
-                    // 添加轨迹图例
-                    this.drawTrajectoryLegend(ctx, canvas);
-
-                    if (y <= canvas.height - 80 && x < canvas.width - 50) {
-                        // 绘制抛体（增强效果）
-                        this.drawProjectile(ctx, x, y, currentVx, currentVy);
-
-                        // 绘制速度分解
-                        this.drawVelocityComponents(ctx, x, y, currentVx, currentVy);
-
-                        // 绘制轨迹切线和法线
-                        this.drawTangentAndNormal(ctx, x, y, currentVx, currentVy);
-
-                        // 实时物理数据分析
-                        const height = Math.max(0, (canvas.height - 80 - y) / scale);
-                        const distance = (x - 50) / scale;
-                        const totalSpeed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
-                        const kineticEnergy = 0.5 * mass * totalSpeed * totalSpeed;
-                        const potentialEnergy = mass * gravity * height;
-                        const totalEnergy = kineticEnergy + potentialEnergy;
+                        // 绘制坐标系和网格
+                        this.drawCoordinateSystem(ctx, canvas, scale);
                         
-                        // 计算理论值对比
-                        const theoreticalRange = (vx * vx * Math.sin(2 * angle)) / gravity;
-                        const maxHeight = (vy * vy) / (2 * gravity);
-
-                        document.getElementById('mechanics-info').innerHTML = `
-                            <strong>实时飞行数据:</strong><br>
-                            时间: ${t.toFixed(2)}s<br>
-                            位置: (${distance.toFixed(1)}m, ${height.toFixed(1)}m)<br>
-                            速度: ${totalSpeed.toFixed(2)}m/s<br>
-                            水平速度: ${currentVx.toFixed(2)}m/s<br>
-                            垂直速度: ${currentVy.toFixed(2)}m/s<br>
-                            <strong>能量分析:</strong><br>
-                            动能: ${kineticEnergy.toFixed(2)}J<br>
-                            势能: ${potentialEnergy.toFixed(2)}J<br>
-                            总能量: ${totalEnergy.toFixed(2)}J<br>
-                            <strong>理论对比:</strong><br>
-                            理论射程: ${theoreticalRange.toFixed(1)}m<br>
-                            最大高度: ${maxHeight.toFixed(1)}m<br>
-                            空气阻力系数: ${airResistance.toFixed(3)}<br>
-                            空气阻力效应: ${((1 - distance/theoreticalRange)*100).toFixed(1)}%
-                        `;
-
-                        t += dt;
-                        this.animations.mechanics = requestAnimationFrame(animate);
-                    } else {
-                        // 着陆分析
-                        const finalDistance = (x - 50) / scale;
-                        const flightTime = t;
-                        this.isRunning.mechanics = false;
+                        // 计算理论轨迹点（无空气阻力）
+                        trajectoryPoints.length = 0;
+                        const flightTime = (2 * vy) / gravity;
+                        for (let simTime = 0; simTime <= flightTime; simTime += 0.1) {
+                            const simX = 50 + vx * simTime * scale;
+                            const simY = canvas.height - 80 - (vy * simTime - 0.5 * gravity * simTime * simTime) * scale;
+                            trajectoryPoints.push({x: simX, y: simY, t: simTime});
+                        }
                         
-                        document.getElementById('mechanics-info').innerHTML += `<br><strong style="color: #ff4444;">着陆分析:</strong><br>
-                            实际射程: ${finalDistance.toFixed(1)}m<br>
-                            飞行时间: ${flightTime.toFixed(2)}s<br>
-                            着陆速度: ${Math.sqrt(currentVx*currentVx + currentVy*currentVy).toFixed(2)}m/s`;
-                    }
-                };
+                        // 计算当前位置
+                        const x = 50 + t * vx * scale;
+                        const y = canvas.height - 80 - (vy * t - 0.5 * gravity * t * t) * scale;
+                        
+                        // 绘制理论轨迹
+                        this.drawTrajectory(ctx, trajectoryPoints);
+                        
+                        // 绘制理论轨迹副本作为红线
+                        this.drawTheoreticalTrajectory(ctx, canvas, vx, vy, gravity, scale);
+                        
+                        // 添加轨迹图例
+                        this.drawTrajectoryLegend(ctx, canvas);
 
-                animate();
+                        if (y <= canvas.height - 80 && x < canvas.width - 50 && t <= flightTime) {
+                            // 绘制抛体（增强效果）
+                            this.drawProjectile(ctx, x, y, vx, currentVy);
+
+                            // 当前垂直速度
+                            currentVy = vy - gravity * t;
+                            
+                            // 绘制速度分解
+                            this.drawVelocityComponents(ctx, x, y, vx, currentVy);
+
+                            // 绘制轨迹切线和法线
+                            this.drawTangentAndNormal(ctx, x, y, vx, currentVy);
+
+                            // 实时物理数据分析
+                            const height = Math.max(0, (canvas.height - 80 - y) / scale);
+                            const distance = (x - 50) / scale;
+                            const totalSpeed = Math.sqrt(vx * vx + currentVy * currentVy);
+                            const kineticEnergy = 0.5 * mass * totalSpeed * totalSpeed;
+                            const potentialEnergy = mass * gravity * height;
+                            const totalEnergy = kineticEnergy + potentialEnergy;
+
+                            document.getElementById('mechanics-info').innerHTML = `
+                                <strong>实时飞行数据:</strong><br>
+                                时间: ${t.toFixed(2)}s<br>
+                                位置: (${distance.toFixed(1)}m, ${height.toFixed(1)}m)<br>
+                                速度: ${totalSpeed.toFixed(2)}m/s<br>
+                                水平速度: ${vx.toFixed(2)}m/s<br>
+                                垂直速度: ${currentVy.toFixed(2)}m/s<br>
+                                <strong>能量分析:</strong><br>
+                                动能: ${kineticEnergy.toFixed(2)}J<br>
+                                势能: ${potentialEnergy.toFixed(2)}J<br>
+                                总能量: ${totalEnergy.toFixed(2)}J<br>
+                                <strong>理论对比:</strong><br>
+                                理论射程: ${theoreticalRange.toFixed(1)}m<br>
+                                最大高度: ${maxHeight.toFixed(1)}m<br>
+                                空气阻力系数: ${airResistance.toFixed(3)}<br>
+                                空气阻力效应: 0.0%
+                            `;
+
+                            t += dt;
+                            this.animations.mechanics = requestAnimationFrame(animate);
+                        } else {
+                            // 着陆分析
+                            const finalDistance = theoreticalRange;
+                            const flightTime = (2 * vy) / gravity;
+                            this.isRunning.mechanics = false;
+                            
+                            document.getElementById('mechanics-info').innerHTML += `<br><strong style="color: #ff4444;">着陆分析:</strong><br>
+                                实际射程: ${finalDistance.toFixed(1)}m<br>
+                                飞行时间: ${flightTime.toFixed(2)}s<br>
+                                着陆速度: ${vx.toFixed(2)}m/s`;
+                        }
+                    };
+
+                    animate();
+                    
+                } else {
+                    // 有空气阻力的情况
+                    const animate = () => {
+                        if (!this.isRunning.mechanics) return;
+
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        // 绘制坐标系和网格
+                        this.drawCoordinateSystem(ctx, canvas, scale);
+
+                        // 计算当前位置 (考虑空气阻力)
+                        const x = 50 + t * currentVx * scale;
+                        const y = canvas.height - 80 - (currentVy * t - 0.5 * gravity * t * t) * scale;
+
+                        // 空气阻力计算
+                        const speed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
+                        const dragForceX = -airResistance * speed * currentVx;
+                        const dragForceY = -airResistance * speed * currentVy;
+                        
+                        // 更新速度（考虑重力和空气阻力）
+                        currentVx += (dragForceX / mass) * dt;
+                        currentVy += (-gravity + dragForceY / mass) * dt;
+
+                        // 存储轨迹点
+                        if (t % 0.1 < dt) { // 每0.1秒记录一个点
+                            trajectoryPoints.push({x: x, y: y, t: t});
+                        }
+
+                        // 绘制完整轨迹
+                        this.drawTrajectory(ctx, trajectoryPoints);
+
+                        // 绘制理论轨迹（无空气阻力）
+                        this.drawTheoreticalTrajectory(ctx, canvas, vx, vy, gravity, scale);
+                        
+                        // 添加轨迹图例
+                        this.drawTrajectoryLegend(ctx, canvas);
+
+                        if (y <= canvas.height - 80 && x < canvas.width - 50) {
+                            // 绘制抛体（增强效果）
+                            this.drawProjectile(ctx, x, y, currentVx, currentVy);
+
+                            // 绘制速度分解
+                            this.drawVelocityComponents(ctx, x, y, currentVx, currentVy);
+
+                            // 绘制轨迹切线和法线
+                            this.drawTangentAndNormal(ctx, x, y, currentVx, currentVy);
+
+                            // 实时物理数据分析
+                            const height = Math.max(0, (canvas.height - 80 - y) / scale);
+                            const distance = (x - 50) / scale;
+                            const totalSpeed = Math.sqrt(currentVx * currentVx + currentVy * currentVy);
+                            const kineticEnergy = 0.5 * mass * totalSpeed * totalSpeed;
+                            const potentialEnergy = mass * gravity * height;
+                            const totalEnergy = kineticEnergy + potentialEnergy;
+                            
+                            // 计算空气阻力效应
+                            const airResistanceEffect = ((1 - distance / (vx * t)) * 100);
+
+                            document.getElementById('mechanics-info').innerHTML = `
+                                <strong>实时飞行数据:</strong><br>
+                                时间: ${t.toFixed(2)}s<br>
+                                位置: (${distance.toFixed(1)}m, ${height.toFixed(1)}m)<br>
+                                速度: ${totalSpeed.toFixed(2)}m/s<br>
+                                水平速度: ${currentVx.toFixed(2)}m/s<br>
+                                垂直速度: ${currentVy.toFixed(2)}m/s<br>
+                                <strong>能量分析:</strong><br>
+                                动能: ${kineticEnergy.toFixed(2)}J<br>
+                                势能: ${potentialEnergy.toFixed(2)}J<br>
+                                总能量: ${totalEnergy.toFixed(2)}J<br>
+                                <strong>理论对比:</strong><br>
+                                理论射程: ${theoreticalRange.toFixed(1)}m<br>
+                                最大高度: ${maxHeight.toFixed(1)}m<br>
+                                空气阻力系数: ${airResistance.toFixed(3)}<br>
+                                空气阻力效应: ${((1 - distance/theoreticalRange)*100).toFixed(1)}%
+                            `;
+
+                            t += dt;
+                            this.animations.mechanics = requestAnimationFrame(animate);
+                        } else {
+                            // 着陆分析
+                            const finalDistance = (x - 50) / scale;
+                            const flightTime = t;
+                            this.isRunning.mechanics = false;
+                            
+                            document.getElementById('mechanics-info').innerHTML += `<br><strong style="color: #ff4444;">着陆分析:</strong><br>
+                                实际射程: ${finalDistance.toFixed(1)}m<br>
+                                飞行时间: ${flightTime.toFixed(2)}s<br>
+                                着陆速度: ${Math.sqrt(currentVx*currentVx + currentVy*currentVy).toFixed(2)}m/s`;
+                        }
+                    };
+
+                    animate();
+                }
             }
 
             drawCoordinateSystem(ctx, canvas, scale) {
