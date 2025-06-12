@@ -847,57 +847,52 @@ class OpticsSimulator {
         
         // Draw the scene
         const drawBackground = () => {
-            // Create a more advanced 3D-like background
             ctx.save();
             
-            // Draw starfield for depth
+            // 使用简洁的渐变背景，移除星星和噪点
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            gradient.addColorStop(0, '#0a0030');
-            gradient.addColorStop(1, '#1a0045');
+            gradient.addColorStop(0, '#080820'); // 更深的蓝色，更少的紫色
+            gradient.addColorStop(1, '#101040'); // 更深的蓝色，更少的紫色
             ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Draw stars
-            for (let i = 0; i < 100; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                const size = Math.random() * 1.5 + 0.5;
-                const alpha = Math.random() * 0.8 + 0.2;
-                
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
-                ctx.fill();
+            // 只保留最基本的参考线，降低透明度使其更不显眼
+            ctx.strokeStyle = 'rgba(100, 100, 255, 0.05)';
+            ctx.lineWidth = 0.5;
+            
+            // 简化网格线，只绘制水平和垂直参考线
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // 水平主轴线
+            ctx.beginPath();
+            ctx.moveTo(20, centerY);
+            ctx.lineTo(canvas.width - 20, centerY);
+            ctx.stroke();
+            
+            // 垂直辅助线
+            ctx.beginPath();
+            ctx.moveTo(centerX, 20);
+            ctx.lineTo(centerX, canvas.height - 20);
+            ctx.stroke();
+            
+            // 几条简单的辅助线，间距更大，数量更少
+            for (let i = 150; i < canvas.height; i += 150) {
+                if (i !== centerY) { // 避免与主轴重叠
+                    ctx.beginPath();
+                    ctx.moveTo(50, i);
+                    ctx.lineTo(canvas.width - 50, i);
+                    ctx.stroke();
+                }
             }
             
-            // Draw 3D grid for perspective
-            ctx.strokeStyle = 'rgba(100, 100, 255, 0.1)';
-            ctx.lineWidth = 1;
-            
-            // Draw perspective lines
-            const vanishingPointX = canvas.width / 2;
-            const vanishingPointY = canvas.height / 2;
-            const gridSize = 50;
-            const maxDistance = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height);
-            
-            for (let i = 0; i < 360; i += 30) {
-                const angle = i * Math.PI / 180;
-                const startX = vanishingPointX + Math.cos(angle) * 100;
-                const startY = vanishingPointY + Math.sin(angle) * 100;
-                const endX = vanishingPointX + Math.cos(angle) * maxDistance;
-                const endY = vanishingPointY + Math.sin(angle) * maxDistance;
-                
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
-            }
-            
-            // Draw concentric circles
-            for (let r = 100; r < 1000; r += 150) {
-                ctx.beginPath();
-                ctx.arc(vanishingPointX, vanishingPointY, r, 0, Math.PI * 2);
-                ctx.stroke();
+            for (let i = 150; i < canvas.width; i += 150) {
+                if (i !== centerX) { // 避免与主轴重叠
+                    ctx.beginPath();
+                    ctx.moveTo(i, 50);
+                    ctx.lineTo(i, canvas.height - 50);
+                    ctx.stroke();
+                }
             }
             
             ctx.restore();
