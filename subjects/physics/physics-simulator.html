@@ -518,6 +518,10 @@
                                         <label>重力加速度 (m/s²): <span id="gravity-value">9.8</span></label>
                                         <input type="range" class="control-slider" id="gravity" min="1" max="20" value="9.8" step="0.1">
                                     </div>
+                                    <div class="control-group">
+                                        <label>空气阻力系数: <span id="air-resistance-value">0.01</span></label>
+                                        <input type="range" class="control-slider" id="air-resistance" min="0" max="0.05" value="0.01" step="0.001">
+                                    </div>
                                 </div>
 
                                 <div id="pendulum-controls" style="display: none;">
@@ -1405,6 +1409,12 @@
                         document.getElementById('gravity-value').textContent = e.target.value;
                     });
                 }
+                
+                if (document.getElementById('air-resistance')) {
+                    document.getElementById('air-resistance').addEventListener('input', (e) => {
+                        document.getElementById('air-resistance-value').textContent = e.target.value;
+                    });
+                }
 
                 if (document.getElementById('pendulum-length')) {
                     document.getElementById('pendulum-length').addEventListener('input', (e) => {
@@ -1506,16 +1516,15 @@
                 const velocity = parseFloat(document.getElementById('initial-velocity').value);
                 const angle = parseFloat(document.getElementById('launch-angle').value) * Math.PI / 180;
                 const gravity = parseFloat(document.getElementById('gravity').value);
+                const airResistance = parseFloat(document.getElementById('air-resistance').value);
 
                 const vx = velocity * Math.cos(angle);
                 const vy = velocity * Math.sin(angle);
 
                 let t = 0;
                 const dt = 0.02;
-                const scale = 8; // 像素/米
+                const scale = 10; // 像素/米 - 增加比例尺使轨迹更清晰
                 
-                // 空气阻力系数 (可调节)
-                const airResistance = 0.01;
                 const mass = 1; // kg
 
                 // 存储轨迹点用于绘制完整轨迹
@@ -1554,6 +1563,9 @@
 
                     // 绘制理论轨迹（无空气阻力）
                     this.drawTheoreticalTrajectory(ctx, canvas, vx, vy, gravity, scale);
+                    
+                    // 添加轨迹图例
+                    this.drawTrajectoryLegend(ctx, canvas);
 
                     if (y <= canvas.height - 80 && x < canvas.width - 50) {
                         // 绘制抛体（增强效果）
@@ -1591,6 +1603,7 @@
                             <strong>理论对比:</strong><br>
                             理论射程: ${theoreticalRange.toFixed(1)}m<br>
                             最大高度: ${maxHeight.toFixed(1)}m<br>
+                            空气阻力系数: ${airResistance.toFixed(3)}<br>
                             空气阻力效应: ${((1 - distance/theoreticalRange)*100).toFixed(1)}%
                         `;
 
@@ -1651,7 +1664,7 @@
                 ctx.fillStyle = '#333';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
-                for (let i = 0; i <= 100; i += 20) {
+                for (let i = 0; i <= 80; i += 10) {  // 调整为80米，更适合显示
                     const x = 50 + i * scale;
                     if (x < canvas.width - 50) {
                         ctx.fillText(`${i}m`, x, canvas.height - 60);
@@ -1659,7 +1672,7 @@
                 }
                 
                 ctx.textAlign = 'right';
-                for (let i = 0; i <= 50; i += 10) {
+                for (let i = 0; i <= 50; i += 5) {
                     const y = canvas.height - 80 - i * scale;
                     if (y > 50) {
                         ctx.fillText(`${i}m`, 45, y + 3);
@@ -3078,6 +3091,40 @@
                 ctx.fillText('KE', chartX + 25, chartY + chartHeight + 12);
                 ctx.fillText('PE', chartX + 65, chartY + chartHeight + 12);
                 ctx.fillText('能量图', chartX + chartWidth/2, chartY - 5);
+            }
+
+            drawTrajectoryLegend(ctx, canvas) {
+                // 图例背景
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fillRect(canvas.width - 220, 20, 200, 70);
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(canvas.width - 220, 20, 200, 70);
+                
+                // 实际轨迹（蓝色实线）
+                ctx.strokeStyle = '#4361ee';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 200, 40);
+                ctx.lineTo(canvas.width - 150, 40);
+                ctx.stroke();
+                
+                // 理论轨迹（红色虚线）
+                ctx.strokeStyle = 'rgba(255, 107, 107, 0.6)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(canvas.width - 200, 70);
+                ctx.lineTo(canvas.width - 150, 70);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                
+                // 图例文字
+                ctx.fillStyle = '#333';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText('实际轨迹（含空气阻力）', canvas.width - 140, 44);
+                ctx.fillText('理论轨迹（无空气阻力）', canvas.width - 140, 74);
             }
         }
 
