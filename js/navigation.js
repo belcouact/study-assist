@@ -219,4 +219,65 @@ function initFirstVisitPrompt() {
             }, 1000);
         }
     }
-} 
+}
+
+/**
+ * 导航菜单管理
+ * 根据当前页面URL自动设置对应的菜单项为激活状态
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    // 获取当前页面的URL
+    const currentUrl = window.location.pathname;
+    const pageName = currentUrl.split('/').pop();
+    
+    // 获取所有导航链接
+    const navLinks = document.querySelectorAll('.main-nav a');
+    
+    // 移除所有现有的active类
+    navLinks.forEach(link => {
+        link.classList.remove('active');
+    });
+    
+    // 根据当前页面设置对应的菜单项为active
+    navLinks.forEach(link => {
+        const linkHref = link.getAttribute('href');
+        
+        // 特殊处理首页
+        if (pageName === '' || pageName === 'index.html') {
+            if (linkHref === '#' || linkHref === 'index.html' || linkHref === './index.html') {
+                link.classList.add('active');
+            }
+        } 
+        // 处理其他页面
+        else if (linkHref && linkHref.includes(pageName)) {
+            link.classList.add('active');
+        }
+        // 处理科目页面
+        else if (currentUrl.includes('subjects/') && linkHref === '#subjects') {
+            link.classList.add('active');
+        }
+    });
+    
+    // 处理移动菜单
+    const mobileMenuToggle = document.querySelector('.mobile-menu-toggle');
+    const body = document.body;
+    
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', function() {
+            body.classList.toggle('mobile-menu-open');
+        });
+    }
+    
+    // 处理下拉菜单在移动设备上的点击
+    const dropdownLinks = document.querySelectorAll('.has-dropdown > a');
+    
+    dropdownLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // 仅在移动视图下处理
+            if (window.innerWidth <= 768) {
+                e.preventDefault();
+                this.parentNode.classList.toggle('open');
+            }
+        });
+    });
+}); 
