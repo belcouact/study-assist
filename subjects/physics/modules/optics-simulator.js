@@ -136,99 +136,105 @@ class OpticsSimulator {
             drawBackground();
             
             if (mirrorType === 'plane') {
-                // Draw mirror
+                // 平面镜水平放置在画布中央
+                const mirrorY = canvas.height / 2;
+                
+                // 绘制水平镜面
                 ctx.strokeStyle = '#aaa';
                 ctx.lineWidth = 5;
                 ctx.beginPath();
-                ctx.moveTo(canvas.width / 2, 100);
-                ctx.lineTo(canvas.width / 2, canvas.height - 100);
+                ctx.moveTo(100, mirrorY);
+                ctx.lineTo(canvas.width - 100, mirrorY);
                 ctx.stroke();
                 
-                // Add mirror highlight
+                // 添加镜面高光效果
                 const mirrorGradient = ctx.createLinearGradient(
-                    canvas.width / 2 - 5, 0,
-                    canvas.width / 2 + 5, 0
+                    0, mirrorY - 5,
+                    0, mirrorY + 5
                 );
                 mirrorGradient.addColorStop(0, 'rgba(200, 200, 255, 0.1)');
                 mirrorGradient.addColorStop(0.5, 'rgba(220, 220, 255, 0.3)');
                 mirrorGradient.addColorStop(1, 'rgba(200, 200, 255, 0.1)');
                 ctx.fillStyle = mirrorGradient;
-                ctx.fillRect(canvas.width / 2 - 5, 100, 10, canvas.height - 200);
+                ctx.fillRect(100, mirrorY - 5, canvas.width - 200, 10);
                 
-                // Normal line at interaction point
+                // 在反射点绘制法线
+                const interactionX = canvas.width / 2;
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.lineWidth = 1;
                 ctx.setLineDash([5, 5]);
                 ctx.beginPath();
-                ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2);
-                ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
+                ctx.moveTo(interactionX, mirrorY - 50);
+                ctx.lineTo(interactionX, mirrorY + 50);
                 ctx.stroke();
                 ctx.setLineDash([]);
                 
-                // Draw angle markings
+                // 绘制角度标记
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.beginPath();
-                ctx.arc(canvas.width / 2, canvas.height / 2, 40, Math.PI - incidentAngle, Math.PI, false);
+                ctx.arc(interactionX, mirrorY, 40, -Math.PI/2, -Math.PI/2 + incidentAngle, false);
                 ctx.stroke();
                 ctx.beginPath();
-                ctx.arc(canvas.width / 2, canvas.height / 2, 40, 0, incidentAngle, false);
+                ctx.arc(interactionX, mirrorY, 40, -Math.PI/2 - incidentAngle, -Math.PI/2, false);
                 ctx.stroke();
                 
-                // Label angles
+                // 标记角度文本
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 ctx.font = '12px Arial';
                 ctx.textAlign = 'center';
                 const angleText = `${(incidentAngle * 180 / Math.PI).toFixed(0)}°`;
-                ctx.fillText(angleText, canvas.width / 2 - 45, canvas.height / 2 - 10);
-                ctx.fillText(angleText, canvas.width / 2 + 45, canvas.height / 2 - 10);
+                ctx.fillText(angleText, interactionX - 10, mirrorY - 30);
+                ctx.fillText(angleText, interactionX + 10, mirrorY - 30);
                 
-                // Draw multiple light rays for better visualization
+                // 绘制多条光线以增强视觉效果
                 for (let i = 0; i < rayCount; i++) {
-                    // Adjusting the starting point based on index to create parallel rays
-                    const offsetY = canvas.height / 2 - (rayCount - 1) * raySpacing / 2 + i * raySpacing;
+                    // 根据索引调整起点位置，创建平行光线
+                    const offsetX = interactionX - (rayCount - 1) * raySpacing / 2 + i * raySpacing;
                     
-                    // Calculate ray path
-                    const startX = canvas.width / 2 - Math.tan(incidentAngle) * (offsetY - canvas.height / 2) - 200;
-                    const rayIntersectionX = canvas.width / 2;
-                    const rayIntersectionY = offsetY;
+                    // 计算光线路径
+                    const startY = mirrorY - 200;
+                    const rayIntersectionX = offsetX;
+                    const rayIntersectionY = mirrorY;
                     
-                    // Calculate reflection point
-                    const reflectedX = canvas.width / 2 + 200;
-                    const reflectedY = offsetY;
+                    // 计算反射点
+                    // 反射角等于入射角
+                    const reflectedX = offsetX + Math.tan(incidentAngle) * 200;
+                    const reflectedY = mirrorY + 200;
                     
-                    // Draw incoming ray with glow effect
+                    // 绘制入射光线（带发光效果）
                     ctx.strokeStyle = rayColors[i % rayColors.length];
                     ctx.lineWidth = 3;
                     ctx.shadowColor = rayColors[i % rayColors.length];
                     ctx.shadowBlur = 10;
                     ctx.beginPath();
-                    ctx.moveTo(startX, offsetY);
+                    ctx.moveTo(offsetX - Math.tan(incidentAngle) * 200, startY);
                     ctx.lineTo(rayIntersectionX, rayIntersectionY);
                     ctx.stroke();
                     
-                    // Draw reflected ray
+                    // 绘制反射光线
                     ctx.beginPath();
                     ctx.moveTo(rayIntersectionX, rayIntersectionY);
                     ctx.lineTo(reflectedX, reflectedY);
                     ctx.stroke();
                     ctx.shadowBlur = 0;
                     
-                    // Draw light particles for animation
+                    // 为动画绘制光粒子
                     const time = Date.now() / 1000;
                     const particleCount = 5;
                     for (let j = 0; j < particleCount; j++) {
                         const t = (j / particleCount + time) % 1;
                         
-                        // Particles on incoming ray
-                        const particleX = startX + (rayIntersectionX - startX) * t;
-                        const particleY = offsetY + (rayIntersectionY - offsetY) * t;
+                        // 入射光线上的粒子
+                        const incidentStartX = offsetX - Math.tan(incidentAngle) * 200;
+                        const particleX = incidentStartX + (rayIntersectionX - incidentStartX) * t;
+                        const particleY = startY + (rayIntersectionY - startY) * t;
                         
                         ctx.fillStyle = rayColors[i % rayColors.length];
                         ctx.beginPath();
                         ctx.arc(particleX, particleY, 2, 0, Math.PI * 2);
                         ctx.fill();
                         
-                        // Particles on reflected ray
+                        // 反射光线上的粒子
                         const reflectedParticleX = rayIntersectionX + (reflectedX - rayIntersectionX) * t;
                         const reflectedParticleY = rayIntersectionY + (reflectedY - rayIntersectionY) * t;
                         
