@@ -23,7 +23,24 @@ function initActiveNavLinks() {
     const isHomePage = currentPath === '/' || currentPath.endsWith('index.html');
     
     if (isHomePage) {
-        // On homepage, highlight nav items based on scroll position
+        // On homepage, first set 科目 as the active link
+        const subjectsLink = document.querySelector('.main-nav a[href="#subjects"]');
+        if (subjectsLink) {
+            setActiveNavLink(navLinks, subjectsLink);
+            
+            // Scroll to subjects section on page load
+            setTimeout(() => {
+                const subjectsSection = document.getElementById('subjects');
+                if (subjectsSection && !window.location.hash) {
+                    subjectsSection.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }, 300);
+        }
+        
+        // Then update based on scroll position
         updateActiveNavOnScroll(navLinks);
         
         // Update active link on scroll
@@ -77,13 +94,11 @@ function updateActiveNavOnScroll(navLinks) {
             }
         });
     } else if (scrollY < 200) {
-        // Near the top, set Home as active
-        const homeLink = document.querySelector('.main-nav a[href="#"]') || 
-                          document.querySelector('.main-nav a[href="index.html"]') ||
-                          document.querySelector('.main-nav a[href="/"]');
+        // Near the top, set 科目 as active
+        const subjectsLink = document.querySelector('.main-nav a[href="#subjects"]');
                           
-        if (homeLink) {
-            setActiveNavLink(navLinks, homeLink);
+        if (subjectsLink) {
+            setActiveNavLink(navLinks, subjectsLink);
         }
     }
 }
@@ -242,10 +257,21 @@ document.addEventListener('DOMContentLoaded', function() {
     navLinks.forEach(link => {
         const linkHref = link.getAttribute('href');
         
-        // 特殊处理首页
+        // 特殊处理首页 - 默认选中"科目"菜单项
         if (pageName === '' || pageName === 'index.html') {
-            if (linkHref === '#' || linkHref === 'index.html' || linkHref === './index.html') {
+            if (linkHref === '#subjects') {
                 link.classList.add('active');
+                
+                // 如果页面刚加载，自动滚动到科目部分
+                setTimeout(() => {
+                    const subjectsSection = document.getElementById('subjects');
+                    if (subjectsSection && !window.location.hash) {
+                        subjectsSection.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
+                }, 300);
             }
         } 
         // 处理其他页面

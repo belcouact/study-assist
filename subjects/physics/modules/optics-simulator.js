@@ -863,9 +863,9 @@ class OpticsSimulator {
             // 简化网格线，只绘制水平和垂直参考线
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
-            
+                
             // 水平主轴线
-            ctx.beginPath();
+                ctx.beginPath();
             ctx.moveTo(20, centerY);
             ctx.lineTo(canvas.width - 20, centerY);
             ctx.stroke();
@@ -879,19 +879,19 @@ class OpticsSimulator {
             // 几条简单的辅助线，间距更大，数量更少
             for (let i = 150; i < canvas.height; i += 150) {
                 if (i !== centerY) { // 避免与主轴重叠
-                    ctx.beginPath();
+                ctx.beginPath();
                     ctx.moveTo(50, i);
                     ctx.lineTo(canvas.width - 50, i);
-                    ctx.stroke();
+                ctx.stroke();
                 }
             }
             
             for (let i = 150; i < canvas.width; i += 150) {
                 if (i !== centerX) { // 避免与主轴重叠
-                    ctx.beginPath();
+                ctx.beginPath();
                     ctx.moveTo(i, 50);
                     ctx.lineTo(i, canvas.height - 50);
-                    ctx.stroke();
+                ctx.stroke();
                 }
             }
             
