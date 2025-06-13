@@ -728,26 +728,58 @@
                 const ratingValue = container.dataset.value || 0;
                 ratings[ratingType] = ratingValue;
             });
-            formData.append('ratings', JSON.stringify(ratings));
             
-            // 添加文件
-            selectedFiles.forEach(file => {
-                formData.append('screenshots', file);
-            });
-            
-            // 添加设备信息
-            formData.append('userAgent', navigator.userAgent);
-            formData.append('screenSize', `${screen.width}x${screen.height}`);
-            formData.append('submitTime', new Date().toISOString());
+            // 准备反馈数据对象
+            const feedbackData = {
+                id: Date.now(), // 简单的ID生成
+                feedbackType: formData.get('feedbackType'),
+                userName: formData.get('userName') || '匿名用户',
+                userContact: formData.get('userContact'),
+                deviceType: formData.get('deviceType'),
+                pageLocation: formData.get('pageLocation'),
+                description: formData.get('description'),
+                priority: formData.get('priority'),
+                ratings: ratings,
+                screenshots: selectedFiles.map(file => ({
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                })),
+                deviceInfo: {
+                    userAgent: navigator.userAgent,
+                    screenSize: `${screen.width}x${screen.height}`,
+                    viewport: `${window.innerWidth}x${window.innerHeight}`
+                },
+                submitTime: new Date().toISOString(),
+                status: 'pending' // pending, processing, resolved
+            };
             
             try {
-                // 模拟提交成功
-                console.log('提交的反馈数据:', Object.fromEntries(formData));
+                // 保存到localStorage
+                saveFeedbackToLocal(feedbackData);
+                
+                // 发送到服务器（如果有后端API）
+                // await submitToServer(feedbackData);
+                
+                console.log('反馈数据已保存:', feedbackData);
                 
                 setTimeout(() => {
                     document.getElementById('successMessage').style.display = 'block';
                     document.getElementById('errorMessage').style.display = 'none';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                    // 清空表单
+                    document.getElementById('feedbackForm').reset();
+                    selectedFiles = [];
+                    document.getElementById('uploadedFiles').innerHTML = '';
+                    
+                    // 重置星级评分
+                    document.querySelectorAll('.stars').forEach(container => {
+                        container.querySelectorAll('.star').forEach(star => {
+                            star.classList.remove('active');
+                        });
+                        delete container.dataset.value;
+                    });
                 }, 500);
                 
             } catch (error) {
@@ -756,6 +788,30 @@
                 document.getElementById('successMessage').style.display = 'none';
             }
         });
+
+        // 保存反馈到本地存储
+        function saveFeedbackToLocal(feedbackData) {
+            let feedbacks = JSON.parse(localStorage.getItem('userFeedbacks') || '[]');
+            feedbacks.push(feedbackData);
+            localStorage.setItem('userFeedbacks', JSON.stringify(feedbacks));
+        }
+
+        // 发送到服务器的函数（备用）
+        async function submitToServer(feedbackData) {
+            const response = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(feedbackData)
+            });
+            
+            if (!response.ok) {
+                throw new Error('服务器提交失败');
+            }
+            
+            return response.json();
+        }
 
         // 重置表单
         function resetForm() {

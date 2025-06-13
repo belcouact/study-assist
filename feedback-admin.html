@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反馈管理 - Alex的学习助手</title>
+    <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #fef7ff 0%, #f0f9ff 25%, #f0fff4 50%, #fffbeb 75%, #fef7ff 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease-in-out infinite;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: #333;
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .back-link {
+            color: #4361ee;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: #7209b7;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 1rem;
+        }
+
+        .admin-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .admin-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #4361ee, #7209b7);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .admin-header p {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .stat-icon.total { color: #4361ee; }
+        .stat-icon.pending { color: #ffc107; }
+        .stat-icon.processing { color: #17a2b8; }
+        .stat-icon.resolved { color: #28a745; }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            display: block;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .filters {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .filter-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 500;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .filter-control {
+            padding: 0.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .filter-control:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 40px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4361ee, #7209b7);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #666;
+            border: 1px solid #e0e0e0;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .feedback-list {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .feedback-item {
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.3s ease;
+        }
+
+        .feedback-item:last-child {
+            border-bottom: none;
+        }
+
+        .feedback-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .feedback-header {
+            padding: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .feedback-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .feedback-id {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .feedback-type {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: white;
+        }
+
+        .feedback-type.bug { background: #dc3545; }
+        .feedback-type.suggestion { background: #28a745; }
+        .feedback-type.content { background: #17a2b8; }
+        .feedback-type.experience { background: #ffc107; color: #333; }
+        .feedback-type.support { background: #6f42c1; }
+        .feedback-type.other { background: #6c757d; }
+
+        .feedback-user {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .feedback-time {
+            color: #999;
+            font-size: 0.8rem;
+        }
+
+        .feedback-status {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .status-badge.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.processing {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-badge.resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .priority-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .priority-indicator.low { background: #28a745; }
+        .priority-indicator.medium { background: #ffc107; }
+        .priority-indicator.high { background: #dc3545; }
+
+        .feedback-content {
+            padding: 0 1.5rem 1.5rem;
+            display: none;
+            border-top: 1px solid #e0e0e0;
+            background: #f8f9fa;
+        }
+
+        .feedback-content.active {
+            display: block;
+        }
+
+        .content-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .content-section h4 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .content-text {
+            color: #666;
+            line-height: 1.6;
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .ratings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+
+        .rating-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+            text-align: center;
+        }
+
+        .rating-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .rating-stars {
+            color: #ffd700;
+            font-size: 1.2rem;
+        }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .device-detail {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .device-detail strong {
+            color: #333;
+            font-size: 0.8rem;
+            display: block;
+            margin-bottom: 0.3rem;
+        }
+
+        .device-detail span {
+            color: #666;
+            font-size: 0.8rem;
+            word-break: break-all;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #ddd;
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 767px) {
+            .container {
+                margin: 1rem;
+                padding: 0.5rem;
+            }
+
+            .admin-header {
+                padding: 1rem;
+            }
+
+            .admin-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-row {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-buttons {
+                flex-direction: column;
+            }
+
+            .feedback-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .feedback-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .ratings-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .device-info {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-container {
+                padding: 0 0.5rem;
+            }
+
+            .logo {
+                font-size: 1rem;
+            }
+        }
+
+        /* 平板适配 */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .filter-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 桌面端增强 */
+        @media (min-width: 1024px) {
+            .container {
+                padding: 2rem;
+            }
+
+            .feedback-item:hover .action-buttons {
+                opacity: 1;
+            }
+
+            .action-buttons {
+                opacity: 0.7;
+                transition: opacity 0.3s ease;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="nav-container">
+            <a href="index.html" class="logo">
+                <i class="fas fa-graduation-cap" style="background: linear-gradient(90deg, #4361ee, #7209b7); -webkit-background-clip: text; background-clip: text; color: transparent;"></i>
+                <span class="gradient-text">Alex的学习助手</span>
+            </a>
+            <a href="index.html" class="back-link">
+                <i class="fas fa-arrow-left"></i>
+                返回首页
+            </a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="admin-header">
+            <h1>反馈管理系统</h1>
+            <p>管理和处理用户反馈，提升产品体验</p>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-comments stat-icon total"></i>
+                <span class="stat-number" id="totalCount">0</span>
+                <div class="stat-label">总反馈数</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-clock stat-icon pending"></i>
+                <span class="stat-number" id="pendingCount">0</span>
+                <div class="stat-label">待处理</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-cog stat-icon processing"></i>
+                <span class="stat-number" id="processingCount">0</span>
+                <div class="stat-label">处理中</div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-check-circle stat-icon resolved"></i>
+                <span class="stat-number" id="resolvedCount">0</span>
+                <div class="stat-label">已解决</div>
+            </div>
+        </div>
+
+        <!-- 筛选器 -->
+        <div class="filters">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label class="filter-label">反馈类型</label>
+                    <select id="typeFilter" class="filter-control">
+                        <option value="">全部类型</option>
+                        <option value="bug">功能问题</option>
+                        <option value="suggestion">功能建议</option>
+                        <option value="content">内容反馈</option>
+                        <option value="experience">用户体验</option>
+                        <option value="support">技术支持</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">状态</label>
+                    <select id="statusFilter" class="filter-control">
+                        <option value="">全部状态</option>
+                        <option value="pending">待处理</option>
+                        <option value="processing">处理中</option>
+                        <option value="resolved">已解决</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">紧急程度</label>
+                    <select id="priorityFilter" class="filter-control">
+                        <option value="">全部优先级</option>
+                        <option value="low">低</option>
+                        <option value="medium">中</option>
+                        <option value="high">高</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label">操作</label>
+                    <div class="filter-buttons">
+                        <button class="btn btn-primary" onclick="applyFilters()">
+                            <i class="fas fa-search"></i> 筛选
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearFilters()">
+                            <i class="fas fa-undo"></i> 重置
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 反馈列表 -->
+        <div class="feedback-list" id="feedbackList">
+            <div class="empty-state" id="emptyState">
+                <i class="fas fa-inbox"></i>
+                <h3>暂无反馈数据</h3>
+                <p>用户提交反馈后将在这里显示</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allFeedbacks = [];
+        let filteredFeedbacks = [];
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFeedbacks();
+            setupEventListeners();
+        });
+
+        // 从localStorage加载反馈数据
+        function loadFeedbacks() {
+            const feedbacks = localStorage.getItem('userFeedbacks');
+            allFeedbacks = feedbacks ? JSON.parse(feedbacks) : [];
+            filteredFeedbacks = [...allFeedbacks];
+            
+            updateStats();
+            renderFeedbacks();
+        }
+
+        // 更新统计数据
+        function updateStats() {
+            const total = allFeedbacks.length;
+            const pending = allFeedbacks.filter(f => f.status === 'pending').length;
+            const processing = allFeedbacks.filter(f => f.status === 'processing').length;
+            const resolved = allFeedbacks.filter(f => f.status === 'resolved').length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('pendingCount').textContent = pending;
+            document.getElementById('processingCount').textContent = processing;
+            document.getElementById('resolvedCount').textContent = resolved;
+        }
+
+        // 渲染反馈列表
+        function renderFeedbacks() {
+            const container = document.getElementById('feedbackList');
+            const emptyState = document.getElementById('emptyState');
+
+            if (filteredFeedbacks.length === 0) {
+                emptyState.style.display = 'block';
+                container.innerHTML = '';
+                container.appendChild(emptyState);
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            
+            container.innerHTML = filteredFeedbacks.map(feedback => `
+                <div class="feedback-item" data-id="${feedback.id}">
+                    <div class="feedback-header" onclick="toggleFeedback(${feedback.id})">
+                        <div class="feedback-meta">
+                            <span class="feedback-id">#${feedback.id}</span>
+                            <span class="feedback-type ${feedback.feedbackType}">${getTypeLabel(feedback.feedbackType)}</span>
+                            <span class="feedback-user">
+                                <i class="fas fa-user"></i> ${feedback.userName}
+                            </span>
+                            <span class="feedback-time">
+                                <i class="fas fa-clock"></i> ${formatTime(feedback.submitTime)}
+                            </span>
+                        </div>
+                        <div class="feedback-status">
+                            <span class="priority-indicator ${feedback.priority}"></span>
+                            <span class="status-badge ${feedback.status}">${getStatusLabel(feedback.status)}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                    <div class="feedback-content" id="content-${feedback.id}">
+                        <div class="content-section">
+                            <h4><i class="fas fa-comment-alt"></i> 反馈内容</h4>
+                            <div class="content-text">${feedback.description}</div>
+                        </div>
+                        
+                        <div class="content-section">
+                            <h4><i class="fas fa-star"></i> 满意度评分</h4>
+                            <div class="ratings-grid">
+                                <div class="rating-item">
+                                    <div class="rating-label">整体满意度</div>
+                                    <div class="rating-stars">${generateStars(feedback.ratings.overall || 0)}</div>
+                                </div>
+                                <div class="rating-item">
+                                    <div class="rating-label">界面设计</div>
+                                    <div class="rating-stars">${generateStars(feedback.ratings.interface || 0)}</div>
+                                </div>
+                                <div class="rating-item">
+                                    <div class="rating-label">功能实用性</div>
+                                    <div class="rating-stars">${generateStars(feedback.ratings.functionality || 0)}</div>
+                                </div>
+                                <div class="rating-item">
+                                    <div class="rating-label">推荐意愿</div>
+                                    <div class="rating-stars">${generateStars(feedback.ratings.recommendation || 0)}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="content-section">
+                            <h4><i class="fas fa-info-circle"></i> 设备信息</h4>
+                            <div class="device-info">
+                                <div class="device-detail">
+                                    <strong>设备类型</strong>
+                                    <span>${feedback.deviceType || '未知'}</span>
+                                </div>
+                                <div class="device-detail">
+                                    <strong>页面位置</strong>
+                                    <span>${feedback.pageLocation || '未指定'}</span>
+                                </div>
+                                <div class="device-detail">
+                                    <strong>屏幕尺寸</strong>
+                                    <span>${feedback.deviceInfo.screenSize}</span>
+                                </div>
+                                <div class="device-detail">
+                                    <strong>联系方式</strong>
+                                    <span>${feedback.userContact}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-warning" onclick="updateStatus(${feedback.id}, 'processing')">
+                                <i class="fas fa-cog"></i> 处理中
+                            </button>
+                            <button class="btn btn-sm btn-success" onclick="updateStatus(${feedback.id}, 'resolved')">
+                                <i class="fas fa-check"></i> 已解决
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteFeedback(${feedback.id})">
+                                <i class="fas fa-trash"></i> 删除
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 切换反馈详情显示
+        function toggleFeedback(id) {
+            const content = document.getElementById(`content-${id}`);
+            const isActive = content.classList.contains('active');
+            
+            // 关闭所有其他展开的内容
+            document.querySelectorAll('.feedback-content.active').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            // 切换当前内容
+            if (!isActive) {
+                content.classList.add('active');
+            }
+        }
+
+        // 更新反馈状态
+        function updateStatus(id, newStatus) {
+            const feedback = allFeedbacks.find(f => f.id === id);
+            if (feedback) {
+                feedback.status = newStatus;
+                localStorage.setItem('userFeedbacks', JSON.stringify(allFeedbacks));
+                loadFeedbacks(); // 重新加载数据
+            }
+        }
+
+        // 删除反馈
+        function deleteFeedback(id) {
+            if (confirm('确定要删除这条反馈吗？此操作不可撤销。')) {
+                allFeedbacks = allFeedbacks.filter(f => f.id !== id);
+                localStorage.setItem('userFeedbacks', JSON.stringify(allFeedbacks));
+                loadFeedbacks(); // 重新加载数据
+            }
+        }
+
+        // 应用筛选器
+        function applyFilters() {
+            const typeFilter = document.getElementById('typeFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const priorityFilter = document.getElementById('priorityFilter').value;
+
+            filteredFeedbacks = allFeedbacks.filter(feedback => {
+                return (!typeFilter || feedback.feedbackType === typeFilter) &&
+                       (!statusFilter || feedback.status === statusFilter) &&
+                       (!priorityFilter || feedback.priority === priorityFilter);
+            });
+
+            renderFeedbacks();
+        }
+
+        // 清除筛选器
+        function clearFilters() {
+            document.getElementById('typeFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('priorityFilter').value = '';
+            
+            filteredFeedbacks = [...allFeedbacks];
+            renderFeedbacks();
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 筛选器自动应用
+            ['typeFilter', 'statusFilter', 'priorityFilter'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyFilters);
+            });
+        }
+
+        // 辅助函数
+        function getTypeLabel(type) {
+            const labels = {
+                bug: '功能问题',
+                suggestion: '功能建议',
+                content: '内容反馈',
+                experience: '用户体验',
+                support: '技术支持',
+                other: '其他'
+            };
+            return labels[type] || type;
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                pending: '待处理',
+                processing: '处理中',
+                resolved: '已解决'
+            };
+            return labels[status] || status;
+        }
+
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            
+            if (days === 0) {
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                if (hours === 0) {
+                    const minutes = Math.floor(diff / (1000 * 60));
+                    return minutes < 1 ? '刚刚' : `${minutes}分钟前`;
+                }
+                return `${hours}小时前`;
+            } else if (days < 7) {
+                return `${days}天前`;
+            } else {
+                return date.toLocaleDateString('zh-CN');
+            }
+        }
+
+        function generateStars(rating) {
+            const stars = [];
+            for (let i = 1; i <= 5; i++) {
+                stars.push(i <= rating ? '★' : '☆');
+            }
+            return stars.join('');
+        }
+
+        // 定期刷新数据（每30秒检查一次新反馈）
+        setInterval(() => {
+            const currentCount = allFeedbacks.length;
+            loadFeedbacks();
+            if (allFeedbacks.length > currentCount) {
+                // 有新反馈时显示通知
+                console.log('检测到新反馈');
+            }
+        }, 30000);
+    </script>
+</body>
+</html> 
