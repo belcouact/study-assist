@@ -592,6 +592,38 @@
             <p>管理和处理用户反馈，提升产品体验</p>
         </div>
 
+        <!-- 调试面板 -->
+        <div class="debug-panel" style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 15px; margin: 15px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; color: #1976d2;"><i class="fas fa-bug"></i> 图片调试面板</h3>
+                <button onclick="toggleDebugPanel()" id="debugToggle" style="padding: 5px 10px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">收起</button>
+            </div>
+            <div id="debugContent">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                    <div>
+                        <strong>API状态:</strong>
+                        <span id="apiStatus" style="color: #666;">检查中...</span>
+                    </div>
+                    <div>
+                        <strong>Workers脚本:</strong>
+                        <span id="workerStatus" style="color: #666;">检查中...</span>
+                    </div>
+                    <div>
+                        <strong>图片端点:</strong>
+                        <span id="imageEndpointStatus" style="color: #666;">检查中...</span>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="checkAPIHealth()" style="padding: 5px 10px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer;">检查API</button>
+                    <button onclick="testImageEndpoint()" style="padding: 5px 10px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">测试图片端点</button>
+                    <button onclick="showAllImageData()" style="padding: 5px 10px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer;">显示图片数据</button>
+                    <button onclick="clearConsole()" style="padding: 5px 10px; background: #607d8b; color: white; border: none; border-radius: 4px; cursor: pointer;">清空控制台</button>
+                </div>
+                <div id="debugOutput" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; display: none;">
+                </div>
+            </div>
+        </div>
+
         <!-- 统计卡片 -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -702,6 +734,9 @@
                     const cloudFeedbacks = await response.json();
                     allFeedbacks = cloudFeedbacks;
                     console.log('从 Cloudflare KV 加载反馈:', allFeedbacks.length, '条');
+                    
+                    // 调试图片数据
+                    debugImageData();
                 } else {
                     throw new Error('KV 加载失败');
                 }
@@ -719,6 +754,44 @@
             filteredFeedbacks = [...allFeedbacks];
             updateStats();
             renderFeedbacks();
+        }
+
+        // 调试图片数据
+        function debugImageData() {
+            console.log('=== 图片调试信息 ===');
+            
+            const feedbacksWithImages = allFeedbacks.filter(f => f.imageIds && f.imageIds.length > 0);
+            console.log(`包含图片的反馈数量: ${feedbacksWithImages.length}`);
+            
+            feedbacksWithImages.forEach(feedback => {
+                console.log(`反馈 #${feedback.id}:`);
+                console.log('- imageIds:', feedback.imageIds);
+                
+                feedback.imageIds.forEach(async (imageId, index) => {
+                    const imageUrl = `${API_BASE_URL}/api/image/${imageId}`;
+                    console.log(`- 图片 ${index + 1} URL:`, imageUrl);
+                    
+                    // 测试图片URL是否可访问
+                    try {
+                        const testResponse = await fetch(imageUrl, { method: 'HEAD' });
+                        console.log(`- 图片 ${imageId} 状态:`, testResponse.status, testResponse.statusText);
+                        if (!testResponse.ok) {
+                            console.error(`- 图片 ${imageId} 访问失败:`, testResponse.status);
+                        }
+                    } catch (error) {
+                        console.error(`- 图片 ${imageId} 请求失败:`, error.message);
+                    }
+                });
+            });
+            
+            if (feedbacksWithImages.length === 0) {
+                console.log('没有找到包含图片的反馈数据');
+                console.log('所有反馈数据:', allFeedbacks.map(f => ({
+                    id: f.id,
+                    hasImageIds: !!f.imageIds,
+                    imageIdsLength: f.imageIds ? f.imageIds.length : 0
+                })));
+            }
         }
 
         // 显示离线模式提示
@@ -836,20 +909,44 @@
 
                         ${feedback.imageIds && feedback.imageIds.length > 0 ? `
                         <div class="content-section">
-                            <h4><i class="fas fa-image"></i> 上传的图片</h4>
+                            <h4><i class="fas fa-image"></i> 上传的图片 (${feedback.imageIds.length}张)</h4>
                             <div class="images-grid">
-                                ${feedback.imageIds.map(imageId => `
-                                    <div class="image-item">
+                                ${feedback.imageIds.map((imageId, index) => `
+                                    <div class="image-item" data-image-id="${imageId}">
+                                        <div class="image-debug-info" style="font-size: 10px; color: #666; margin-bottom: 5px;">
+                                            图片ID: ${imageId}
+                                        </div>
                                         <img src="${API_BASE_URL}/api/image/${imageId}" 
-                                             alt="反馈截图" 
+                                             alt="反馈截图 ${index + 1}" 
                                              onclick="openImageModal('${API_BASE_URL}/api/image/${imageId}')"
-                                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding:20px;text-align:center;color:#666;\\'>图片加载失败</div>'"
+                                             onload="console.log('图片加载成功:', '${imageId}'); this.nextElementSibling.style.display='none';"
+                                             onerror="console.error('图片加载失败:', '${imageId}', this.src); this.style.display='none'; this.nextElementSibling.style.display='block'; debugImageError('${imageId}', this.src);"
                                              style="width: 100%; height: 120px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid #e0e0e0;">
+                                        <div class="image-error" style="display: none; padding: 20px; text-align: center; color: #d32f2f; background: #ffebee; border-radius: 6px; border: 1px solid #ffcdd2;">
+                                            <i class="fas fa-exclamation-triangle"></i><br>
+                                            图片加载失败<br>
+                                            <small>ID: ${imageId}</small><br>
+                                            <button onclick="retryLoadImage('${imageId}', this)" style="margin-top: 5px; padding: 2px 8px; font-size: 10px;">重试</button>
+                                        </div>
                                     </div>
                                 `).join('')}
                             </div>
+                            <div class="image-debug-panel" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 12px;">
+                                <strong>调试信息:</strong><br>
+                                API地址: ${API_BASE_URL}<br>
+                                图片数量: ${feedback.imageIds.length}<br>
+                                <button onclick="testAllImages(${feedback.id})" style="margin-top: 5px; padding: 4px 8px; font-size: 11px;">测试所有图片</button>
+                            </div>
                         </div>
-                        ` : ''}
+                        ` : `
+                        <div class="content-section">
+                            <h4><i class="fas fa-image"></i> 图片信息</h4>
+                            <div style="padding: 10px; background: #fff3cd; border-radius: 4px; color: #856404;">
+                                <i class="fas fa-info-circle"></i> 此反馈没有上传图片
+                                ${feedback.imageIds ? `<br><small>imageIds数组存在但为空: ${JSON.stringify(feedback.imageIds)}</small>` : '<br><small>imageIds字段不存在</small>'}
+                            </div>
+                        </div>
+                        `}
 
                         <div class="content-section">
                             <h4><i class="fas fa-info-circle"></i> 设备信息</h4>
@@ -1077,6 +1174,211 @@
             if (event.key === 'Escape') {
                 closeImageModal();
             }
+        });
+
+        // 图片调试函数
+        function debugImageError(imageId, imageSrc) {
+            console.error('=== 图片加载错误详情 ===');
+            console.error('图片ID:', imageId);
+            console.error('图片URL:', imageSrc);
+            console.error('API基础URL:', API_BASE_URL);
+            
+            // 测试API连接
+            fetch(`${API_BASE_URL}/api/health`)
+                .then(response => {
+                    console.log('API健康检查状态:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API健康检查结果:', data);
+                })
+                .catch(error => {
+                    console.error('API健康检查失败:', error);
+                });
+            
+            // 测试图片端点
+            fetch(`${API_BASE_URL}/api/image/${imageId}`)
+                .then(response => {
+                    console.log(`图片 ${imageId} 响应状态:`, response.status);
+                    console.log(`图片 ${imageId} 响应头:`, [...response.headers.entries()]);
+                    if (!response.ok) {
+                        return response.text().then(text => {
+                            console.error(`图片 ${imageId} 错误响应:`, text);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error(`图片 ${imageId} 请求失败:`, error);
+                });
+        }
+
+        function retryLoadImage(imageId, buttonElement) {
+            console.log('重试加载图片:', imageId);
+            const imageItem = buttonElement.closest('.image-item');
+            const img = imageItem.querySelector('img');
+            const errorDiv = imageItem.querySelector('.image-error');
+            
+            // 隐藏错误信息，显示加载中
+            errorDiv.style.display = 'none';
+            img.style.display = 'block';
+            
+            // 重新设置图片源（添加时间戳避免缓存）
+            const originalSrc = `${API_BASE_URL}/api/image/${imageId}`;
+            img.src = originalSrc + '?retry=' + Date.now();
+        }
+
+        function testAllImages(feedbackId) {
+            console.log('=== 测试反馈', feedbackId, '的所有图片 ===');
+            const feedback = allFeedbacks.find(f => f.id == feedbackId);
+            
+            if (!feedback || !feedback.imageIds) {
+                console.error('未找到反馈或图片数据');
+                return;
+            }
+
+            feedback.imageIds.forEach(async (imageId, index) => {
+                console.log(`测试图片 ${index + 1}/${feedback.imageIds.length}: ${imageId}`);
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/image/${imageId}`);
+                    console.log(`图片 ${imageId}:`, {
+                        status: response.status,
+                        statusText: response.statusText,
+                        contentType: response.headers.get('Content-Type'),
+                        contentLength: response.headers.get('Content-Length')
+                    });
+                    
+                    if (response.ok) {
+                        console.log(`✅ 图片 ${imageId} 可正常访问`);
+                    } else {
+                        const errorText = await response.text();
+                        console.error(`❌ 图片 ${imageId} 访问失败:`, errorText);
+                    }
+                } catch (error) {
+                    console.error(`❌ 图片 ${imageId} 请求异常:`, error);
+                }
+            });
+        }
+
+        // 调试面板功能
+        function toggleDebugPanel() {
+            const content = document.getElementById('debugContent');
+            const button = document.getElementById('debugToggle');
+            
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                button.textContent = '收起';
+            } else {
+                content.style.display = 'none';
+                button.textContent = '展开';
+            }
+        }
+
+        async function checkAPIHealth() {
+            const statusElement = document.getElementById('apiStatus');
+            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 检查中...';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                if (response.ok) {
+                    const data = await response.json();
+                    statusElement.innerHTML = '<span style="color: #4caf50;">✅ 正常</span>';
+                    console.log('API健康检查结果:', data);
+                    
+                    document.getElementById('workerStatus').innerHTML = 
+                        data.kv_bound ? '<span style="color: #4caf50;">✅ KV已绑定</span>' : '<span style="color: #f44336;">❌ KV未绑定</span>';
+                } else {
+                    statusElement.innerHTML = '<span style="color: #f44336;">❌ 异常</span>';
+                    console.error('API健康检查失败:', response.status);
+                }
+            } catch (error) {
+                statusElement.innerHTML = '<span style="color: #f44336;">❌ 连接失败</span>';
+                console.error('API连接失败:', error);
+            }
+        }
+
+        async function testImageEndpoint() {
+            const statusElement = document.getElementById('imageEndpointStatus');
+            statusElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 测试中...';
+            
+            // 找一个有图片的反馈来测试
+            const feedbackWithImage = allFeedbacks.find(f => f.imageIds && f.imageIds.length > 0);
+            
+            if (!feedbackWithImage) {
+                statusElement.innerHTML = '<span style="color: #ff9800;">⚠️ 无图片数据</span>';
+                console.log('没有找到包含图片的反馈数据');
+                return;
+            }
+
+            const imageId = feedbackWithImage.imageIds[0];
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/image/${imageId}`);
+                if (response.ok) {
+                    statusElement.innerHTML = '<span style="color: #4caf50;">✅ 正常</span>';
+                    console.log(`图片端点测试成功: ${imageId}`, {
+                        status: response.status,
+                        contentType: response.headers.get('Content-Type'),
+                        contentLength: response.headers.get('Content-Length')
+                    });
+                } else {
+                    statusElement.innerHTML = '<span style="color: #f44336;">❌ 异常</span>';
+                    const errorText = await response.text();
+                    console.error(`图片端点测试失败: ${imageId}`, response.status, errorText);
+                }
+            } catch (error) {
+                statusElement.innerHTML = '<span style="color: #f44336;">❌ 连接失败</span>';
+                console.error('图片端点连接失败:', error);
+            }
+        }
+
+        function showAllImageData() {
+            console.log('=== 所有图片数据详情 ===');
+            
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.style.display = 'block';
+            
+            let output = '图片数据分析:\n\n';
+            
+            allFeedbacks.forEach(feedback => {
+                if (feedback.imageIds && feedback.imageIds.length > 0) {
+                    output += `反馈 #${feedback.id}:\n`;
+                    output += `- 用户: ${feedback.userName}\n`;
+                    output += `- 图片数量: ${feedback.imageIds.length}\n`;
+                    output += `- 图片IDs: ${feedback.imageIds.join(', ')}\n`;
+                    
+                    feedback.imageIds.forEach(imageId => {
+                        const imageUrl = `${API_BASE_URL}/api/image/${imageId}`;
+                        output += `  * ${imageId}: ${imageUrl}\n`;
+                    });
+                    output += '\n';
+                }
+            });
+            
+            if (output === '图片数据分析:\n\n') {
+                output += '没有找到任何图片数据\n\n';
+                output += '所有反馈的imageIds字段状态:\n';
+                allFeedbacks.forEach(feedback => {
+                    output += `- 反馈 #${feedback.id}: ${feedback.imageIds ? `数组长度${feedback.imageIds.length}` : '字段不存在'}\n`;
+                });
+            }
+            
+            debugOutput.textContent = output;
+            console.log(output);
+        }
+
+        function clearConsole() {
+            console.clear();
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.style.display = 'none';
+            debugOutput.textContent = '';
+        }
+
+        // 页面加载时自动检查API状态
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                checkAPIHealth();
+            }, 1000);
         });
 
         // 定期刷新数据（每30秒检查一次新反馈）
