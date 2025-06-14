@@ -413,6 +413,70 @@
             word-break: break-all;
         }
 
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .image-item {
+            background: white;
+            border-radius: 6px;
+            overflow: hidden;
+            transition: transform 0.2s ease;
+        }
+
+        .image-item:hover {
+            transform: scale(1.02);
+        }
+
+        /* 图片模态框 */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-modal.active {
+            display: flex;
+        }
+
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s ease;
+        }
+
+        .image-modal-close:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+
         .action-buttons {
             display: flex;
             gap: 0.5rem;
@@ -609,7 +673,16 @@
         </div>
     </div>
 
+    <!-- 图片模态框 -->
+    <div class="image-modal" id="imageModal">
+        <span class="image-modal-close" onclick="closeImageModal()">&times;</span>
+        <img id="modalImage" src="" alt="反馈图片">
+    </div>
+
     <script>
+        // Cloudflare Workers API 配置
+        const API_BASE_URL = 'https://your-worker-domain.workers.dev'; // 替换为你的 Workers 域名
+        
         let allFeedbacks = [];
         let filteredFeedbacks = [];
 
@@ -619,14 +692,54 @@
             setupEventListeners();
         });
 
-        // 从localStorage加载反馈数据
-        function loadFeedbacks() {
-            const feedbacks = localStorage.getItem('userFeedbacks');
-            allFeedbacks = feedbacks ? JSON.parse(feedbacks) : [];
-            filteredFeedbacks = [...allFeedbacks];
+        // 从Cloudflare KV加载反馈数据
+        async function loadFeedbacks() {
+            try {
+                // 尝试从 Cloudflare KV 加载
+                const response = await fetch(`${API_BASE_URL}/api/feedback`);
+                
+                if (response.ok) {
+                    const cloudFeedbacks = await response.json();
+                    allFeedbacks = cloudFeedbacks;
+                    console.log('从 Cloudflare KV 加载反馈:', allFeedbacks.length, '条');
+                } else {
+                    throw new Error('KV 加载失败');
+                }
+            } catch (error) {
+                console.warn('Cloudflare KV 加载失败，降级到本地存储:', error);
+                
+                // 降级到本地存储
+                const localFeedbacks = localStorage.getItem('userFeedbacks');
+                allFeedbacks = localFeedbacks ? JSON.parse(localFeedbacks) : [];
+                
+                // 显示离线模式提示
+                showOfflineMode();
+            }
             
+            filteredFeedbacks = [...allFeedbacks];
             updateStats();
             renderFeedbacks();
+        }
+
+        // 显示离线模式提示
+        function showOfflineMode() {
+            const adminHeader = document.querySelector('.admin-header');
+            const offlineNotice = document.createElement('div');
+            offlineNotice.className = 'offline-notice';
+            offlineNotice.style.cssText = `
+                background: #fff3cd;
+                color: #856404;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 1rem;
+                text-align: center;
+                border: 1px solid #ffeaa7;
+            `;
+            offlineNotice.innerHTML = `
+                <i class="fas fa-wifi"></i>
+                <strong>离线模式</strong> - 无法连接到 Cloudflare KV，显示本地缓存数据
+            `;
+            adminHeader.appendChild(offlineNotice);
         }
 
         // 更新统计数据
@@ -703,6 +816,22 @@
                             </div>
                         </div>
 
+                        ${feedback.imageIds && feedback.imageIds.length > 0 ? `
+                        <div class="content-section">
+                            <h4><i class="fas fa-image"></i> 上传的图片</h4>
+                            <div class="images-grid">
+                                ${feedback.imageIds.map(imageId => `
+                                    <div class="image-item">
+                                        <img src="${API_BASE_URL}/api/image/${imageId}" 
+                                             alt="反馈截图" 
+                                             onclick="openImageModal('${API_BASE_URL}/api/image/${imageId}')"
+                                             style="width: 100%; height: 120px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid #e0e0e0;">
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+
                         <div class="content-section">
                             <h4><i class="fas fa-info-circle"></i> 设备信息</h4>
                             <div class="device-info">
@@ -758,21 +887,65 @@
         }
 
         // 更新反馈状态
-        function updateStatus(id, newStatus) {
-            const feedback = allFeedbacks.find(f => f.id === id);
-            if (feedback) {
-                feedback.status = newStatus;
-                localStorage.setItem('userFeedbacks', JSON.stringify(allFeedbacks));
-                loadFeedbacks(); // 重新加载数据
+        async function updateStatus(id, newStatus) {
+            try {
+                // 尝试更新到 Cloudflare KV
+                const response = await fetch(`${API_BASE_URL}/api/feedback/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                if (response.ok) {
+                    console.log('状态更新成功');
+                    await loadFeedbacks(); // 重新加载数据
+                } else {
+                    throw new Error('API 更新失败');
+                }
+            } catch (error) {
+                console.warn('Cloudflare KV 更新失败，降级到本地更新:', error);
+                
+                // 降级到本地更新
+                const feedback = allFeedbacks.find(f => f.id == id);
+                if (feedback) {
+                    feedback.status = newStatus;
+                    feedback.updatedTime = new Date().toISOString();
+                    localStorage.setItem('userFeedbacks', JSON.stringify(allFeedbacks));
+                    updateStats();
+                    renderFeedbacks();
+                }
             }
         }
 
         // 删除反馈
-        function deleteFeedback(id) {
-            if (confirm('确定要删除这条反馈吗？此操作不可撤销。')) {
-                allFeedbacks = allFeedbacks.filter(f => f.id !== id);
+        async function deleteFeedback(id) {
+            if (!confirm('确定要删除这条反馈吗？此操作不可撤销。')) {
+                return;
+            }
+            
+            try {
+                // 尝试从 Cloudflare KV 删除
+                const response = await fetch(`${API_BASE_URL}/api/feedback/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    console.log('删除成功');
+                    await loadFeedbacks(); // 重新加载数据
+                } else {
+                    throw new Error('API 删除失败');
+                }
+            } catch (error) {
+                console.warn('Cloudflare KV 删除失败，降级到本地删除:', error);
+                
+                // 降级到本地删除
+                allFeedbacks = allFeedbacks.filter(f => f.id != id);
                 localStorage.setItem('userFeedbacks', JSON.stringify(allFeedbacks));
-                loadFeedbacks(); // 重新加载数据
+                filteredFeedbacks = [...allFeedbacks];
+                updateStats();
+                renderFeedbacks();
             }
         }
 
@@ -858,6 +1031,34 @@
             }
             return stars.join('');
         }
+
+        // 图片模态框功能
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            
+            modalImage.src = imageSrc;
+            modal.classList.add('active');
+            
+            // 点击背景关闭模态框
+            modal.onclick = function(event) {
+                if (event.target === modal) {
+                    closeImageModal();
+                }
+            };
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('active');
+        }
+
+        // 键盘事件：ESC 键关闭模态框
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeImageModal();
+            }
+        });
 
         // 定期刷新数据（每30秒检查一次新反馈）
         setInterval(() => {

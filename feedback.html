@@ -715,6 +715,9 @@
             });
         }
 
+        // Cloudflare Workers API 配置
+        const API_BASE_URL = 'https://your-worker-domain.workers.dev'; // 替换为你的 Workers 域名
+        
         // 表单提交
         document.getElementById('feedbackForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -729,41 +732,43 @@
                 ratings[ratingType] = ratingValue;
             });
             
-            // 准备反馈数据对象
-            const feedbackData = {
-                id: Date.now(), // 简单的ID生成
-                feedbackType: formData.get('feedbackType'),
-                userName: formData.get('userName') || '匿名用户',
-                userContact: formData.get('userContact'),
-                deviceType: formData.get('deviceType'),
-                pageLocation: formData.get('pageLocation'),
-                description: formData.get('description'),
-                priority: formData.get('priority'),
-                ratings: ratings,
-                screenshots: selectedFiles.map(file => ({
-                    name: file.name,
-                    size: file.size,
-                    type: file.type
-                })),
-                deviceInfo: {
-                    userAgent: navigator.userAgent,
-                    screenSize: `${screen.width}x${screen.height}`,
-                    viewport: `${window.innerWidth}x${window.innerHeight}`
-                },
-                submitTime: new Date().toISOString(),
-                status: 'pending' // pending, processing, resolved
+            // 准备设备信息
+            const deviceInfo = {
+                userAgent: navigator.userAgent,
+                screenSize: `${screen.width}x${screen.height}`,
+                viewport: `${window.innerWidth}x${window.innerHeight}`
             };
             
+            // 添加评分数据到 FormData
+            formData.append('ratings', JSON.stringify(ratings));
+            formData.append('deviceInfo', JSON.stringify(deviceInfo));
+            
+            // 添加所有选择的文件
+            selectedFiles.forEach(file => {
+                formData.append('screenshots', file);
+            });
+            
             try {
-                // 保存到localStorage
-                saveFeedbackToLocal(feedbackData);
+                // 显示加载状态
+                const submitBtn = document.querySelector('.btn-primary');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+                submitBtn.disabled = true;
                 
-                // 发送到服务器（如果有后端API）
-                // await submitToServer(feedbackData);
+                // 提交到 Cloudflare Workers
+                const response = await fetch(`${API_BASE_URL}/api/feedback`, {
+                    method: 'POST',
+                    body: formData
+                });
                 
-                console.log('反馈数据已保存:', feedbackData);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
-                setTimeout(() => {
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 显示成功消息
                     document.getElementById('successMessage').style.display = 'block';
                     document.getElementById('errorMessage').style.display = 'none';
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -780,12 +785,64 @@
                         });
                         delete container.dataset.value;
                     });
-                }, 500);
+                    
+                    console.log('反馈提交成功:', result);
+                } else {
+                    throw new Error(result.message || '提交失败');
+                }
+                
+                // 恢复按钮状态
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
                 
             } catch (error) {
                 console.error('提交失败:', error);
-                document.getElementById('errorMessage').style.display = 'block';
-                document.getElementById('successMessage').style.display = 'none';
+                
+                // 降级到本地存储
+                try {
+                    const fallbackData = {
+                        id: Date.now(),
+                        feedbackType: formData.get('feedbackType'),
+                        userName: formData.get('userName') || '匿名用户',
+                        userContact: formData.get('userContact'),
+                        deviceType: formData.get('deviceType'),
+                        pageLocation: formData.get('pageLocation'),
+                        description: formData.get('description'),
+                        priority: formData.get('priority'),
+                        ratings: ratings,
+                        screenshots: selectedFiles.map(file => ({
+                            name: file.name,
+                            size: file.size,
+                            type: file.type
+                        })),
+                        deviceInfo: deviceInfo,
+                        submitTime: new Date().toISOString(),
+                        status: 'pending',
+                        isOffline: true // 标记为离线提交
+                    };
+                    
+                    saveFeedbackToLocal(fallbackData);
+                    
+                    document.getElementById('successMessage').innerHTML = `
+                        <i class="fas fa-wifi"></i>
+                        网络连接失败，反馈已保存到本地。请稍后重试或联系管理员。
+                    `;
+                    document.getElementById('successMessage').style.display = 'block';
+                    document.getElementById('errorMessage').style.display = 'none';
+                    
+                } catch (localError) {
+                    document.getElementById('errorMessage').innerHTML = `
+                        <i class="fas fa-exclamation-triangle"></i>
+                        提交失败：${error.message}。请检查网络连接或稍后重试。
+                    `;
+                    document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('successMessage').style.display = 'none';
+                }
+                
+                // 恢复按钮状态
+                const submitBtn = document.querySelector('.btn-primary');
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交反馈';
+                submitBtn.disabled = false;
             }
         });
 
