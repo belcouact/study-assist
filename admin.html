@@ -186,7 +186,7 @@
             font-size: 0.9rem;
             transition: border-color 0.3s ease;
         }
-
+        
         .filter-control:focus {
             outline: none;
             border-color: #4361ee;
@@ -296,7 +296,7 @@
             align-items: center;
             gap: 1rem;
         }
-
+        
         .status-badge {
             padding: 0.3rem 0.8rem;
             border-radius: 15px;
@@ -493,7 +493,7 @@
             background: #28a745;
             color: white;
         }
-
+        
         .btn-warning {
             background: #ffc107;
             color: #333;
@@ -538,7 +538,7 @@
             .filter-row {
                 grid-template-columns: 1fr;
             }
-
+            
             .filter-buttons {
                 flex-direction: column;
             }
@@ -608,14 +608,14 @@
                 <i class="fas fa-cog stat-icon processing"></i>
                 <span class="stat-number" id="processingCount">0</span>
                 <div class="stat-label">处理中</div>
-            </div>
+    </div>
             <div class="stat-card">
                 <i class="fas fa-check-circle stat-icon resolved"></i>
                 <span class="stat-number" id="resolvedCount">0</span>
                 <div class="stat-label">已解决</div>
             </div>
         </div>
-
+        
         <!-- 筛选器 -->
         <div class="filters">
             <div class="filter-row">
@@ -660,9 +660,9 @@
                         </button>
                     </div>
                 </div>
+                </div>
             </div>
-        </div>
-
+            
         <!-- 反馈列表 -->
         <div class="feedback-list" id="feedbackList">
             <div class="empty-state" id="emptyState">
@@ -760,14 +760,32 @@
             const container = document.getElementById('feedbackList');
             const emptyState = document.getElementById('emptyState');
 
-            if (filteredFeedbacks.length === 0) {
-                emptyState.style.display = 'block';
-                container.innerHTML = '';
-                container.appendChild(emptyState);
+            // 检查容器是否存在
+            if (!container) {
+                console.error('找不到 feedbackList 容器');
                 return;
             }
 
-            emptyState.style.display = 'none';
+            if (!filteredFeedbacks || filteredFeedbacks.length === 0) {
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                    container.innerHTML = '';
+                    container.appendChild(emptyState);
+                } else {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-inbox"></i>
+                            <h3>暂无反馈数据</h3>
+                            <p>还没有收到任何反馈，或者数据正在加载中...</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
             
             container.innerHTML = filteredFeedbacks.map(feedback => `
                 <div class="feedback-item" data-id="${feedback.id}">
@@ -825,6 +843,7 @@
                                         <img src="${API_BASE_URL}/api/image/${imageId}" 
                                              alt="反馈截图" 
                                              onclick="openImageModal('${API_BASE_URL}/api/image/${imageId}')"
+                                             onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding:20px;text-align:center;color:#666;\\'>图片加载失败</div>'"
                                              style="width: 100%; height: 120px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid #e0e0e0;">
                                     </div>
                                 `).join('')}
@@ -934,7 +953,7 @@
                 if (response.ok) {
                     console.log('删除成功');
                     await loadFeedbacks(); // 重新加载数据
-                } else {
+            } else {
                     throw new Error('API 删除失败');
                 }
             } catch (error) {
