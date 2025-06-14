@@ -64,6 +64,49 @@ export default {
           imageIds: []
         };
 
+        // 处理上传的图片文件
+        const uploadedImages = [];
+        const screenshots = formData.getAll('screenshots');
+        
+        console.log('处理图片文件，数量:', screenshots.length);
+        
+        for (const file of screenshots) {
+          if (file && file.size > 0) {
+            try {
+              const imageId = `${feedbackId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              
+              // 将文件转换为 ArrayBuffer，然后转换为 base64
+              const arrayBuffer = await file.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+              const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+              const base64Data = btoa(binaryString);
+              
+              // 存储图片数据
+              const imageData = {
+                id: imageId,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: base64Data,
+                uploadTime: new Date().toISOString()
+              };
+              
+              await env.KV_FEEDBACK.put(`image_${imageId}`, JSON.stringify(imageData));
+              uploadedImages.push(imageId);
+              
+              console.log(`图片 ${file.name} 存储成功，ID: ${imageId}`);
+              
+            } catch (imageError) {
+              console.error('处理图片失败:', file.name, imageError);
+              // 继续处理其他图片，不中断整个流程
+            }
+          }
+        }
+        
+        // 更新反馈数据中的图片ID列表
+        feedbackData.imageIds = uploadedImages;
+        console.log('反馈包含图片数量:', uploadedImages.length);
+
         // 存储反馈数据
         await env.KV_FEEDBACK.put(`feedback_${feedbackId}`, JSON.stringify(feedbackData));
         
@@ -73,8 +116,10 @@ export default {
         return new Response(JSON.stringify({
           success: true,
           id: feedbackId,
-          message: '反馈提交成功',
-          data: feedbackData
+          message: `反馈提交成功${uploadedImages.length > 0 ? `，包含 ${uploadedImages.length} 张图片` : ''}`,
+          data: feedbackData,
+          imagesUploaded: uploadedImages.length,
+          imageIds: uploadedImages
         }), {
           headers: {
             'Content-Type': 'application/json',
