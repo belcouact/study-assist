@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 流程图生成器</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/github.min.css">
+    <link rel="stylesheet" href="../css/common.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            padding: 2rem;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            border: none;
+        }
+        .card-header {
+            background-color: #4caf50;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 1rem;
+            font-weight: 600;
+        }
+        .form-control {
+            border-radius: 8px;
+            padding: 0.8rem;
+            border: 1px solid #ced4da;
+        }
+        .form-control:focus {
+            border-color: #4caf50;
+            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.25);
+        }
+        textarea.form-control {
+            min-height: 150px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .btn-primary {
+            background-color: #4caf50;
+            border-color: #4caf50;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 500;
+        }
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: #3d8b40;
+            border-color: #3d8b40;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 500;
+        }
+        .output-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .output-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .output-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .output-content {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+        .diagram-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+        .spinner-border {
+            width: 1.5rem;
+            height: 1.5rem;
+            margin-right: 0.5rem;
+        }
+        .loading-text {
+            font-size: 0.9rem;
+        }
+        .copy-btn {
+            background-color: transparent;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.8rem;
+            color: #6c757d;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background-color: #f1f1f1;
+        }
+        .copy-btn:active {
+            transform: scale(0.95);
+        }
+        .template-selector {
+            margin-bottom: 1rem;
+        }
+        .template-btn {
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            color: #495057;
+        }
+        .template-btn:hover {
+            background-color: #d1d7dc;
+        }
+        .tab-content {
+            margin-top: 1rem;
+        }
+        .nav-tabs .nav-link {
+            color: #495057;
+        }
+        .nav-tabs .nav-link.active {
+            color: #4caf50;
+            border-color: #dee2e6 #dee2e6 #fff;
+            border-bottom: 2px solid #4caf50;
+        }
+        #markdownPreview {
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            background-color: white;
+        }
+        .error-message {
+            color: #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 0.75rem;
+            margin-top: 1rem;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            .card-header {
+                padding: 0.75rem;
+            }
+            .form-control {
+                padding: 0.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">Markdown 流程图生成器</h1>
+        
+        <div class="card">
+            <div class="card-header">
+                生成 Markdown 和 Mermaid 流程图
+            </div>
+            <div class="card-body">
+                <div class="template-selector">
+                    <h5>选择模板：</h5>
+                    <button class="btn template-btn" data-template="flowchart">流程图</button>
+                    <button class="btn template-btn" data-template="sequence">时序图</button>
+                    <button class="btn template-btn" data-template="classDiagram">类图</button>
+                    <button class="btn template-btn" data-template="stateDiagram">状态图</button>
+                    <button class="btn template-btn" data-template="entityRelationship">实体关系图</button>
+                    <button class="btn template-btn" data-template="gantt">甘特图</button>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="promptInput" class="form-label">描述你想要生成的内容：</label>
+                    <textarea class="form-control" id="promptInput" rows="4" placeholder="例如：请生成一个描述软件开发生命周期的流程图，包括需求分析、设计、开发、测试和部署阶段。"></textarea>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <button id="generateBtn" class="btn btn-primary">
+                        <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span id="buttonText">生成 Markdown 和流程图</span>
+                    </button>
+                    <button id="clearBtn" class="btn btn-secondary">清除</button>
+                </div>
+                
+                <div id="errorContainer" class="error-message d-none"></div>
+            </div>
+        </div>
+        
+        <div id="outputContainer" class="output-container d-none">
+            <ul class="nav nav-tabs" id="outputTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="markdown-tab" data-bs-toggle="tab" data-bs-target="#markdownTab" type="button" role="tab" aria-controls="markdownTab" aria-selected="true">Markdown</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="preview-tab" data-bs-toggle="tab" data-bs-target="#previewTab" type="button" role="tab" aria-controls="previewTab" aria-selected="false">预览</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="diagram-tab" data-bs-toggle="tab" data-bs-target="#diagramTab" type="button" role="tab" aria-controls="diagramTab" aria-selected="false">流程图</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="outputTabContent">
+                <div class="tab-pane fade show active" id="markdownTab" role="tabpanel" aria-labelledby="markdown-tab">
+                    <div class="output-section">
+                        <div class="output-header">
+                            <div class="output-title">生成的 Markdown</div>
+                            <button class="copy-btn" id="copyMarkdownBtn">复制</button>
+                        </div>
+                        <pre class="output-content"><code id="markdownOutput" class="language-markdown"></code></pre>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="previewTab" role="tabpanel" aria-labelledby="preview-tab">
+                    <div class="output-section">
+                        <div class="output-header">
+                            <div class="output-title">Markdown 预览</div>
+                        </div>
+                        <div id="markdownPreview" class="output-content"></div>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="diagramTab" role="tabpanel" aria-labelledby="diagram-tab">
+                    <div class="output-section">
+                        <div class="output-header">
+                            <div class="output-title">Mermaid 流程图</div>
+                            <button class="copy-btn" id="copyDiagramBtn">复制</button>
+                        </div>
+                        <div class="diagram-container" id="diagramOutput"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/lib/languages/markdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.2.3/dist/mermaid.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize highlight.js
+            hljs.highlightAll();
+            
+            // Initialize mermaid
+            mermaid.initialize({
+                startOnLoad: true,
+                theme: 'default',
+                securityLevel: 'loose',
+                fontFamily: 'Arial, sans-serif',
+                flowchart: {
+                    curve: 'basis',
+                    htmlLabels: true
+                }
+            });
+            
+            // DOM elements
+            const promptInput = document.getElementById('promptInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const buttonText = document.getElementById('buttonText');
+            const outputContainer = document.getElementById('outputContainer');
+            const markdownOutput = document.getElementById('markdownOutput');
+            const markdownPreview = document.getElementById('markdownPreview');
+            const diagramOutput = document.getElementById('diagramOutput');
+            const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
+            const copyDiagramBtn = document.getElementById('copyDiagramBtn');
+            const errorContainer = document.getElementById('errorContainer');
+            const templateButtons = document.querySelectorAll('.template-btn');
+            
+            // Template prompts
+            const templates = {
+                flowchart: "请生成一个使用Mermaid语法的流程图，描述软件开发生命周期，包括需求分析、设计、开发、测试和部署阶段。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                sequence: "请生成一个使用Mermaid语法的时序图，描述用户登录系统的流程，包括用户、前端、后端和数据库之间的交互。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                classDiagram: "请生成一个使用Mermaid语法的类图，描述一个简单的电子商务系统，包括用户、商品、订单和购物车类。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                stateDiagram: "请生成一个使用Mermaid语法的状态图，描述订单处理流程，包括创建、支付、处理、发货和完成状态。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                entityRelationship: "请生成一个使用Mermaid语法的实体关系图，描述学校管理系统中的学生、教师、课程和班级之间的关系。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                gantt: "请生成一个使用Mermaid语法的甘特图，描述一个为期3个月的软件项目计划，包括需求分析、设计、开发、测试和部署阶段。请提供完整的Markdown格式，包含```mermaid和```标记。"
+            };
+            
+            // Event listeners for template buttons
+            templateButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const templateType = button.getAttribute('data-template');
+                    promptInput.value = templates[templateType];
+                });
+            });
+            
+            // Generate button click event
+            generateBtn.addEventListener('click', async () => {
+                const prompt = promptInput.value.trim();
+                
+                if (!prompt) {
+                    showError('请输入描述内容');
+                    return;
+                }
+                
+                setLoading(true);
+                hideError();
+                
+                try {
+                    const response = await callDeepSeekAPI(prompt);
+                    processResponse(response);
+                    outputContainer.classList.remove('d-none');
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError('生成失败：' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            });
+            
+            // Clear button click event
+            clearBtn.addEventListener('click', () => {
+                promptInput.value = '';
+                outputContainer.classList.add('d-none');
+                hideError();
+            });
+            
+            // Copy buttons event listeners
+            copyMarkdownBtn.addEventListener('click', () => {
+                copyToClipboard(markdownOutput.textContent);
+                showCopyFeedback(copyMarkdownBtn);
+            });
+            
+            copyDiagramBtn.addEventListener('click', () => {
+                // Extract Mermaid code from the diagram
+                const mermaidCode = extractMermaidCode(markdownOutput.textContent);
+                copyToClipboard(mermaidCode);
+                showCopyFeedback(copyDiagramBtn);
+            });
+            
+            // Call the DeepSeek API
+            async function callDeepSeekAPI(prompt) {
+                // Enhanced prompt to get better Mermaid diagrams
+                const enhancedPrompt = `
+                请根据以下描述生成Markdown内容，并包含一个使用Mermaid语法的流程图。
+                
+                要求：
+                1. 生成的Markdown应该包含标题、简短介绍和Mermaid流程图
+                2. Mermaid代码必须放在 \`\`\`mermaid 和 \`\`\` 标记之间
+                3. 确保Mermaid语法正确，可以被渲染
+                4. 流程图应该清晰、简洁，使用适当的形状和连接线
+                5. 不要生成过于复杂的图表，保持节点数量合理
+                
+                用户描述：
+                ${prompt}
+                `;
+                
+                try {
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: '你是一位专业的技术文档编写者，擅长使用Markdown和Mermaid创建流程图和技术文档。'
+                                },
+                                {
+                                    role: 'user',
+                                    content: enhancedPrompt
+                                }
+                            ]
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || `API错误：${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.choices && data.choices[0]?.message?.content) {
+                        return data.choices[0].message.content;
+                    } else {
+                        throw new Error('API返回格式不正确');
+                    }
+                } catch (error) {
+                    console.error('API调用错误:', error);
+                    throw error;
+                }
+            }
+            
+            // Process the API response
+            function processResponse(response) {
+                // Display markdown
+                markdownOutput.textContent = response;
+                hljs.highlightElement(markdownOutput);
+                
+                // Render markdown preview
+                markdownPreview.innerHTML = marked.parse(response);
+                
+                // Extract and render Mermaid diagram
+                const mermaidCode = extractMermaidCode(response);
+                if (mermaidCode) {
+                    renderMermaidDiagram(mermaidCode);
+                } else {
+                    diagramOutput.innerHTML = '<p class="text-danger">未找到有效的Mermaid代码</p>';
+                }
+            }
+            
+            // Extract Mermaid code from markdown
+            function extractMermaidCode(markdown) {
+                const mermaidRegex = /```mermaid\s*([\s\S]*?)\s*```/;
+                const match = markdown.match(mermaidRegex);
+                return match ? match[1].trim() : null;
+            }
+            
+            // Render Mermaid diagram
+            function renderMermaidDiagram(mermaidCode) {
+                diagramOutput.innerHTML = '';
+                const container = document.createElement('div');
+                container.className = 'mermaid';
+                container.textContent = mermaidCode;
+                diagramOutput.appendChild(container);
+                
+                try {
+                    mermaid.contentLoaded();
+                } catch (error) {
+                    console.error('Mermaid rendering error:', error);
+                    diagramOutput.innerHTML = `<p class="text-danger">Mermaid渲染错误: ${error.message}</p>`;
+                }
+            }
+            
+            // Copy text to clipboard
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).catch(err => {
+                    console.error('复制失败:', err);
+                });
+            }
+            
+            // Show copy feedback
+            function showCopyFeedback(button) {
+                const originalText = button.textContent;
+                button.textContent = '已复制!';
+                button.disabled = true;
+                
+                setTimeout(() => {
+                    button.textContent = originalText;
+                    button.disabled = false;
+                }, 2000);
+            }
+            
+            // Set loading state
+            function setLoading(isLoading) {
+                if (isLoading) {
+                    loadingSpinner.classList.remove('d-none');
+                    buttonText.textContent = '生成中...';
+                    generateBtn.disabled = true;
+                } else {
+                    loadingSpinner.classList.add('d-none');
+                    buttonText.textContent = '生成 Markdown 和流程图';
+                    generateBtn.disabled = false;
+                }
+            }
+            
+            // Show error message
+            function showError(message) {
+                errorContainer.textContent = message;
+                errorContainer.classList.remove('d-none');
+            }
+            
+            // Hide error message
+            function hideError() {
+                errorContainer.classList.add('d-none');
+                errorContainer.textContent = '';
+            }
+        });
+    </script>
+</body>
+</html>
