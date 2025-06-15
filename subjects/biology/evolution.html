@@ -2077,6 +2077,8 @@
             scrollbar-width: thin; /* Firefox */
             scrollbar-color: #4caf50 #e8f5e9; /* Firefox */
             position: relative;
+            scroll-snap-type: x mandatory; /* 添加滚动捕捉 */
+            padding-bottom: 20px; /* 为滚动条留出空间 */
         }
 
         /* Customize scrollbar for Webkit browsers */
@@ -2100,6 +2102,7 @@
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
+            scroll-snap-align: center; /* 添加滚动捕捉对齐 */
         }
 
         .timeline-item:hover {
@@ -2183,7 +2186,7 @@
             top: 50%;
             left: 0;
             right: 0;
-            z-index: 10;
+            z-index: 100; /* 增加z-index确保按钮在最上层 */
             display: flex;
             justify-content: space-between;
             transform: translateY(-50%);
@@ -2204,14 +2207,26 @@
             cursor: pointer;
             box-shadow: 0 3px 8px rgba(0,0,0,0.2);
             pointer-events: auto; /* Re-enable pointer events for buttons */
+            z-index: 101; /* 确保按钮在最上层 */
+        }
+
+        .timeline-container .timeline-navigation .nav-btn:hover {
+            background-color: #e8f5e9;
+            transform: scale(1.1);
+        }
+
+        .timeline-container .timeline-navigation .nav-btn:active {
+            transform: scale(0.95);
         }
 
         .timeline-container .timeline-navigation .prev-btn {
             margin-right: auto;
+            left: 5px;
         }
 
         .timeline-container .timeline-navigation .next-btn {
             margin-left: auto;
+            right: 5px;
         }
 
         /* Media queries for responsive design */
@@ -3836,22 +3851,48 @@
             });
         });
         
+        // 停止任何可能的无限循环
+        let maxLoopCount = 0;
+        const originalSetTimeout = window.setTimeout;
+        window.setTimeout = function(callback, delay) {
+            if (maxLoopCount > 1000) {
+                console.warn('Possible infinite loop detected and prevented');
+                return null;
+            }
+            maxLoopCount++;
+            return originalSetTimeout(callback, delay);
+        };
+        
         // 进化论功能
         class Evolution {
             constructor() {
                 this.selectionCanvas = document.getElementById('selection-canvas');
-                this.selectionCtx = this.selectionCanvas.getContext('2d');
                 this.phylogenyCanvas = document.getElementById('phylogeny-canvas');
-                this.phylogenyCtx = this.phylogenyCanvas.getContext('2d');
                 
                 this.isSimulating = false;
                 this.generation = 0;
                 this.population = [];
                 this.selectedSpecies = ['human', 'chimp', 'dog', 'cat', 'mouse', 'bird'];
                 
+                // 只有当画布存在时才初始化上下文
+                if (this.selectionCanvas) {
+                    this.selectionCtx = this.selectionCanvas.getContext('2d');
+                }
+                
+                if (this.phylogenyCanvas) {
+                    this.phylogenyCtx = this.phylogenyCanvas.getContext('2d');
+                }
+                
                 this.initializeEventListeners();
-                this.initializePopulation();
-                this.drawPhylogeneticTree();
+                
+                // 只有当画布存在时才初始化模拟
+                if (this.selectionCanvas && this.selectionCtx) {
+                    this.initializePopulation();
+                }
+                
+                if (this.phylogenyCanvas && this.phylogenyCtx) {
+                    this.drawPhylogeneticTree();
+                }
             }
 
             initializeEventListeners() {
@@ -3862,37 +3903,52 @@
                     });
                 });
 
-                // 滑块控制
+                // 滑块控制 - 检查元素是否存在
                 ['predation-pressure', 'mutation-rate', 'population-size', 'selection-strength'].forEach(id => {
-                    document.getElementById(id).addEventListener('input', (e) => {
-                        this.updateSliderValue(id, e.target.value);
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener('input', (e) => {
+                            this.updateSliderValue(id, e.target.value);
+                        });
+                    }
+                });
+
+                // 进化模拟控制 - 检查元素是否存在
+                const startEvolutionBtn = document.getElementById('start-evolution');
+                if (startEvolutionBtn) {
+                    startEvolutionBtn.addEventListener('click', () => {
+                        this.startEvolutionSimulation();
                     });
-                });
+                }
 
-                // 进化模拟控制
-                document.getElementById('start-evolution').addEventListener('click', () => {
-                    this.startEvolutionSimulation();
-                });
+                const resetEvolutionBtn = document.getElementById('reset-evolution');
+                if (resetEvolutionBtn) {
+                    resetEvolutionBtn.addEventListener('click', () => {
+                        this.resetEvolution();
+                    });
+                }
 
-                document.getElementById('reset-evolution').addEventListener('click', () => {
-                    this.resetEvolution();
-                });
-
-                // 物种选择
+                // 物种选择 - 检查元素是否存在
                 document.querySelectorAll('.species-card').forEach(card => {
                     card.addEventListener('click', (e) => {
                         this.toggleSpecies(e.target.closest('.species-card'));
                     });
                 });
 
-                // 系统发育树控制
-                document.getElementById('build-tree').addEventListener('click', () => {
-                    this.buildPhylogeneticTree();
-                });
+                // 系统发育树控制 - 检查元素是否存在
+                const buildTreeBtn = document.getElementById('build-tree');
+                if (buildTreeBtn) {
+                    buildTreeBtn.addEventListener('click', () => {
+                        this.buildPhylogeneticTree();
+                    });
+                }
 
-                document.getElementById('clear-tree').addEventListener('click', () => {
-                    this.clearSpeciesSelection();
-                });
+                const clearTreeBtn = document.getElementById('clear-tree');
+                if (clearTreeBtn) {
+                    clearTreeBtn.addEventListener('click', () => {
+                        this.clearSpeciesSelection();
+                    });
+                }
             }
 
             switchTab(tabName) {
@@ -4299,95 +4355,135 @@
             }
             
             initDarwinTimelineNav() {
-                const darwinTimeline = document.querySelector('.darwin-timeline');
-                if (!darwinTimeline) return;
-                
-                const timelineMarkers = darwinTimeline.querySelectorAll('.timeline-marker');
-                const timelineEvents = darwinTimeline.querySelectorAll('.timeline-event');
-                const prevBtn = darwinTimeline.querySelector('#darwin-prev');
-                const nextBtn = darwinTimeline.querySelector('#darwin-next');
-                const currentYearDisplay = darwinTimeline.querySelector('#current-year');
-                
-                if (!timelineMarkers.length || !timelineEvents.length || !prevBtn || !nextBtn || !currentYearDisplay) return;
-                
-                // 存储年份数组和当前索引
-                const years = Array.from(timelineMarkers).map(marker => marker.dataset.year);
-                let currentIndex = years.indexOf('1859'); // 默认显示1859年
-                if (currentIndex === -1) currentIndex = 0; // 如果没有找到1859年，默认显示第一个
-                
-                // 初始化显示
-                this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
-                
-                // 为每个标记点添加点击事件
-                timelineMarkers.forEach((marker, index) => {
-                    marker.addEventListener('click', () => {
-                        currentIndex = index;
-                        this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                try {
+                    const darwinTimeline = document.querySelector('.darwin-timeline');
+                    if (!darwinTimeline) {
+                        console.log('Darwin timeline not found');
+                        return;
+                    }
+                    
+                    const timelineMarkers = darwinTimeline.querySelectorAll('.timeline-marker');
+                    const timelineEvents = darwinTimeline.querySelectorAll('.timeline-event');
+                    const prevBtn = darwinTimeline.querySelector('#darwin-prev');
+                    const nextBtn = darwinTimeline.querySelector('#darwin-next');
+                    const currentYearDisplay = darwinTimeline.querySelector('#current-year');
+                    
+                    if (!timelineMarkers.length || !timelineEvents.length) {
+                        console.log('Darwin timeline markers or events not found');
+                        return;
+                    }
+                    
+                    if (!prevBtn || !nextBtn) {
+                        console.log('Darwin timeline navigation buttons not found');
+                        return;
+                    }
+                    
+                    if (!currentYearDisplay) {
+                        console.log('Darwin timeline year display not found');
+                        return;
+                    }
+                    
+                    console.log(`Found ${timelineMarkers.length} markers and ${timelineEvents.length} events`);
+                    
+                    // 确保事件和标记点数量一致
+                    if (timelineMarkers.length !== timelineEvents.length) {
+                        console.warn(`Darwin timeline: Markers count (${timelineMarkers.length}) doesn't match events count (${timelineEvents.length})`);
+                    }
+                    
+                    // 存储年份数组和当前索引
+                    const years = Array.from(timelineMarkers).map(marker => marker.dataset.year);
+                    let currentIndex = 5; // 默认显示第6个事件（1859年《物种起源》出版）
+                    
+                    // 初始化显示
+                    this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                    
+                    // 为每个标记点添加点击事件
+                    timelineMarkers.forEach((marker, index) => {
+                        marker.addEventListener('click', () => {
+                            currentIndex = index;
+                            this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                        });
                     });
-                });
-                
-                // 上一个事件按钮
-                prevBtn.addEventListener('click', (e) => {
-                    e.preventDefault(); // 防止页面滚动
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                        this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
-                    }
-                });
-                
-                // 下一个事件按钮
-                nextBtn.addEventListener('click', (e) => {
-                    e.preventDefault(); // 防止页面滚动
-                    if (currentIndex < years.length - 1) {
-                        currentIndex++;
-                        this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
-                    }
-                });
+                    
+                    // 上一个事件按钮
+                    prevBtn.addEventListener('click', (e) => {
+                        e.preventDefault(); // 防止页面滚动
+                        if (currentIndex > 0) {
+                            currentIndex--;
+                            this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                        }
+                    });
+                    
+                    // 下一个事件按钮
+                    nextBtn.addEventListener('click', (e) => {
+                        e.preventDefault(); // 防止页面滚动
+                        if (currentIndex < timelineMarkers.length - 1) {
+                            currentIndex++;
+                            this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error initializing Darwin timeline:', error);
+                }
             }
             
             updateDarwinTimeline(index, markers, events, years, yearDisplay) {
-                // 更新标记点状态
-                markers.forEach((marker, i) => {
-                    if (i === index) {
-                        marker.classList.add('active');
-                    } else {
-                        marker.classList.remove('active');
+                try {
+                    // 确保索引有效
+                    if (index < 0 || index >= markers.length || index >= events.length) {
+                        console.error('Darwin timeline: Invalid index', index);
+                        return;
                     }
-                });
-                
-                // 更新事件显示
-                events.forEach((event) => {
-                    if (event.dataset.year === years[index]) {
-                        event.classList.add('active');
-                        
-                        // 添加淡入动画
-                        event.style.opacity = '0';
-                        setTimeout(() => {
-                            event.style.opacity = '1';
-                        }, 50);
-                    } else {
-                        event.classList.remove('active');
-                    }
-                });
-                
-                // 更新年份显示
-                const activeEvent = events[index]; // 直接使用索引获取活动事件
-                if (activeEvent) {
-                    const dateText = activeEvent.querySelector('.event-date').textContent;
-                    yearDisplay.textContent = dateText;
-                }
-                
-                // 更新导航按钮状态
-                const darwinTimeline = document.querySelector('.darwin-timeline');
-                const prevBtn = darwinTimeline.querySelector('#darwin-prev');
-                const nextBtn = darwinTimeline.querySelector('#darwin-next');
-                
-                if (prevBtn && nextBtn) {
-                    prevBtn.disabled = index === 0;
-                    nextBtn.disabled = index === years.length - 1;
                     
-                    prevBtn.style.opacity = index === 0 ? '0.5' : '1';
-                    nextBtn.style.opacity = index === years.length - 1 ? '0.5' : '1';
+                    // 更新标记点状态
+                    markers.forEach((marker, i) => {
+                        if (i === index) {
+                            marker.classList.add('active');
+                        } else {
+                            marker.classList.remove('active');
+                        }
+                    });
+                    
+                    // 更新事件显示 - 使用索引直接匹配
+                    events.forEach((event, i) => {
+                        if (i === index) {
+                            event.classList.add('active');
+                            
+                            // 添加淡入动画
+                            event.style.opacity = '0';
+                            setTimeout(() => {
+                                event.style.opacity = '1';
+                            }, 50);
+                        } else {
+                            event.classList.remove('active');
+                        }
+                    });
+                    
+                    // 更新年份显示
+                    const activeEvent = events[index]; // 直接使用索引获取活动事件
+                    if (activeEvent) {
+                        const dateElement = activeEvent.querySelector('.event-date');
+                        if (dateElement && yearDisplay) {
+                            yearDisplay.textContent = dateElement.textContent;
+                        }
+                    }
+                    
+                    // 更新导航按钮状态
+                    const darwinTimeline = document.querySelector('.darwin-timeline');
+                    if (!darwinTimeline) return;
+                    
+                    const prevBtn = darwinTimeline.querySelector('#darwin-prev');
+                    const nextBtn = darwinTimeline.querySelector('#darwin-next');
+                    
+                    if (prevBtn && nextBtn) {
+                        prevBtn.disabled = index === 0;
+                        nextBtn.disabled = index === years.length - 1;
+                        
+                        prevBtn.style.opacity = index === 0 ? '0.5' : '1';
+                        nextBtn.style.opacity = index === years.length - 1 ? '0.5' : '1';
+                    }
+                } catch (error) {
+                    console.error('Error updating Darwin timeline:', error);
                 }
             }
             
@@ -4484,68 +4580,101 @@
             }
             
             setupHumanEvolutionTab() {
-                // 初始化人类进化时间线交互
-                const humanTimelineContainer = document.querySelector('.timeline-interactive .timeline-container');
-                if (!humanTimelineContainer) return;
-                
-                const prevBtn = humanTimelineContainer.querySelector('.prev-btn');
-                const nextBtn = humanTimelineContainer.querySelector('.next-btn');
-                const timelineScroll = humanTimelineContainer.querySelector('.timeline-scroll');
-                
-                if (!prevBtn || !nextBtn || !timelineScroll) return;
-                
-                // 设置滚动函数
-                const scrollAmount = 350; // 每次滚动的像素值
-                
-                nextBtn.addEventListener('click', () => {
-                    timelineScroll.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-                });
-                
-                prevBtn.addEventListener('click', () => {
-                    timelineScroll.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-                });
-                
-                // 初始化时间线项目点击事件
-                const timelineItems = timelineScroll.querySelectorAll('.timeline-item');
-                timelineItems.forEach(item => {
-                    item.addEventListener('click', () => {
-                        // 高亮显示选中的时间线项目
-                        timelineItems.forEach(i => i.classList.remove('active'));
-                        item.classList.add('active');
-                        
-                        // 滚动到选中的项目
-                        const itemLeft = item.offsetLeft;
-                        const containerWidth = timelineScroll.clientWidth;
-                        const scrollPosition = itemLeft - (containerWidth / 2) + (item.clientWidth / 2);
-                        timelineScroll.scrollTo({ left: scrollPosition, behavior: 'smooth' });
-                    });
-                });
-                
-                // 默认激活第一个项目
-                if (timelineItems.length > 0) {
-                    timelineItems[0].classList.add('active');
-                }
-                
-                // 检查图片是否存在，如果不存在则显示替代内容
-                const evolutionImages = document.querySelectorAll('.timeline-image img, .dna-image img');
-                evolutionImages.forEach(img => {
-                    img.onerror = function() {
-                        this.onerror = null; // 防止无限循环
-                        this.src = '../../assets/images/placeholder.jpg';
-                    };
-                });
-                
-                // 为基因和特征卡片添加悬停效果
-                const featureCards = document.querySelectorAll('.feature-card');
-                featureCards.forEach(card => {
-                    card.addEventListener('mouseenter', () => {
-                        card.classList.add('highlight');
+                try {
+                    // 初始化人类进化时间线交互
+                    const humanTimelineContainer = document.querySelector('.timeline-interactive .timeline-container');
+                    if (!humanTimelineContainer) {
+                        console.log('Human evolution timeline container not found');
+                        return;
+                    }
+                    
+                    const prevBtn = humanTimelineContainer.querySelector('.prev-btn');
+                    const nextBtn = humanTimelineContainer.querySelector('.next-btn');
+                    const timelineScroll = humanTimelineContainer.querySelector('.timeline-scroll');
+                    
+                    if (!prevBtn) {
+                        console.log('Human evolution previous button not found');
+                    }
+                    
+                    if (!nextBtn) {
+                        console.log('Human evolution next button not found');
+                    }
+                    
+                    if (!timelineScroll) {
+                        console.log('Human evolution timeline scroll not found');
+                        return;
+                    }
+                    
+                    // 设置滚动函数
+                    const scrollAmount = 350; // 每次滚动的像素值
+                    
+                    if (nextBtn) {
+                        nextBtn.addEventListener('click', (e) => {
+                            e.preventDefault(); // 防止页面滚动
+                            e.stopPropagation(); // 阻止事件冒泡
+                            timelineScroll.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+                    
+                    if (prevBtn) {
+                        prevBtn.addEventListener('click', (e) => {
+                            e.preventDefault(); // 防止页面滚动
+                            e.stopPropagation(); // 阻止事件冒泡
+                            timelineScroll.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                        });
+                    }
+                    
+                    // 初始化时间线项目点击事件
+                    const timelineItems = timelineScroll.querySelectorAll('.timeline-item');
+                    console.log(`Found ${timelineItems.length} human evolution timeline items`);
+                    
+                    timelineItems.forEach(item => {
+                        item.addEventListener('click', () => {
+                            // 高亮显示选中的时间线项目
+                            timelineItems.forEach(i => i.classList.remove('active'));
+                            item.classList.add('active');
+                            
+                            // 滚动到选中的项目
+                            const itemLeft = item.offsetLeft;
+                            const containerWidth = timelineScroll.clientWidth;
+                            const scrollPosition = itemLeft - (containerWidth / 2) + (item.clientWidth / 2);
+                            timelineScroll.scrollTo({ left: scrollPosition, behavior: 'smooth' });
+                        });
                     });
                     
-                    card.addEventListener('mouseleave', () => {
-                        card.classList.remove('highlight');
+                    // 默认激活第一个项目
+                    if (timelineItems.length > 0) {
+                        timelineItems[0].classList.add('active');
+                        
+                        // 确保第一个项目可见
+                        setTimeout(() => {
+                            timelineItems[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                        }, 500);
+                    }
+                    
+                    // 检查图片是否存在，如果不存在则显示替代内容
+                    const evolutionImages = document.querySelectorAll('.timeline-image img, .dna-image img');
+                    evolutionImages.forEach(img => {
+                        img.onerror = function() {
+                            this.onerror = null; // 防止无限循环
+                            this.src = '../../assets/images/placeholder.jpg';
+                        };
                     });
-                });
+                    
+                    // 为基因和特征卡片添加悬停效果
+                    const featureCards = document.querySelectorAll('.feature-card');
+                    featureCards.forEach(card => {
+                        card.addEventListener('mouseenter', () => {
+                            card.classList.add('highlight');
+                        });
+                        
+                        card.addEventListener('mouseleave', () => {
+                            card.classList.remove('highlight');
+                        });
+                    });
+                } catch (error) {
+                    console.error('Error setting up human evolution tab:', error);
+                }
             }
             
             expandEvidenceCategory(category) {
