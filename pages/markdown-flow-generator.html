@@ -185,6 +185,7 @@
                     <button class="btn template-btn" data-template="stateDiagram">状态图</button>
                     <button class="btn template-btn" data-template="entityRelationship">实体关系图</button>
                     <button class="btn template-btn" data-template="gantt">甘特图</button>
+                    <button class="btn template-btn" data-template="complaint">客户投诉流程</button>
                 </div>
                 
                 <div class="form-group mb-3">
@@ -193,10 +194,13 @@
                 </div>
                 
                 <div class="d-flex justify-content-between">
-                    <button id="generateBtn" class="btn btn-primary">
-                        <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                        <span id="buttonText">生成 Markdown 和流程图</span>
-                    </button>
+                    <div>
+                        <button id="generateBtn" class="btn btn-primary me-2">
+                            <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            <span id="buttonText">生成 Markdown 和流程图</span>
+                        </button>
+                        <button id="testDiagramBtn" class="btn btn-info">测试 Mermaid 语法</button>
+                    </div>
                     <button id="clearBtn" class="btn btn-secondary">清除</button>
                 </div>
                 
@@ -255,8 +259,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
     <!-- Use marked from cdnjs -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-    <!-- Use mermaid from cdnjs -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.2.3/mermaid.min.js"></script>
+    <!-- Use mermaid from cdnjs (latest stable version) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Initialize highlight.js safely
@@ -270,14 +274,16 @@
             if (typeof mermaid !== 'undefined') {
                 try {
                     mermaid.initialize({
-                        startOnLoad: true,
+                        startOnLoad: false, // Changed to false to manually render
                         theme: 'default',
                         securityLevel: 'loose',
                         fontFamily: 'Arial, sans-serif',
                         flowchart: {
-                            curve: 'basis',
-                            htmlLabels: true
-                        }
+                            curve: 'linear', // Changed to linear for better compatibility
+                            htmlLabels: true,
+                            useMaxWidth: true
+                        },
+                        logLevel: 'error' // Only show errors
                     });
                 } catch (e) {
                     console.warn('Error initializing mermaid:', e);
@@ -289,6 +295,7 @@
             // DOM elements
             const promptInput = document.getElementById('promptInput');
             const generateBtn = document.getElementById('generateBtn');
+            const testDiagramBtn = document.getElementById('testDiagramBtn');
             const clearBtn = document.getElementById('clearBtn');
             const loadingSpinner = document.getElementById('loadingSpinner');
             const buttonText = document.getElementById('buttonText');
@@ -308,7 +315,22 @@
                 classDiagram: "请生成一个使用Mermaid语法的类图，描述一个简单的电子商务系统，包括用户、商品、订单和购物车类。请提供完整的Markdown格式，包含```mermaid和```标记。",
                 stateDiagram: "请生成一个使用Mermaid语法的状态图，描述订单处理流程，包括创建、支付、处理、发货和完成状态。请提供完整的Markdown格式，包含```mermaid和```标记。",
                 entityRelationship: "请生成一个使用Mermaid语法的实体关系图，描述学校管理系统中的学生、教师、课程和班级之间的关系。请提供完整的Markdown格式，包含```mermaid和```标记。",
-                gantt: "请生成一个使用Mermaid语法的甘特图，描述一个为期3个月的软件项目计划，包括需求分析、设计、开发、测试和部署阶段。请提供完整的Markdown格式，包含```mermaid和```标记。"
+                gantt: "请生成一个使用Mermaid语法的甘特图，描述一个为期3个月的软件项目计划，包括需求分析、设计、开发、测试和部署阶段。请提供完整的Markdown格式，包含```mermaid和```标记。",
+                complaint: `flowchart TD
+    A[收到客户投诉] --> B{投诉分类}
+    B -->|质量类| C[质量部门调查]
+    B -->|物流类| D[物流部门调查]
+    B -->|服务类| E[客服部门调查]
+    C --> F[原因分析]
+    D --> F
+    E --> F
+    F --> G[制定解决方案]
+    G --> H[执行解决方案]
+    H --> I{客户是否满意}
+    I -->|是| J[记录并关闭投诉]
+    I -->|否| K[升级处理]
+    K --> G
+    J --> L[流程结束]`
             };
             
             // Event listeners for template buttons
@@ -333,11 +355,60 @@
                 
                 try {
                     const response = await callDeepSeekAPI(prompt);
-                    processResponse(response);
+                    await processResponse(response);
                     outputContainer.classList.remove('d-none');
                 } catch (error) {
                     console.error('Error:', error);
                     showError('生成失败：' + error.message);
+                } finally {
+                    setLoading(false);
+                }
+            });
+            
+            // Test diagram button click event
+            testDiagramBtn.addEventListener('click', async () => {
+                const prompt = promptInput.value.trim();
+                
+                if (!prompt) {
+                    showError('请输入Mermaid语法进行测试');
+                    return;
+                }
+                
+                setLoading(true);
+                hideError();
+                
+                try {
+                    // Create a markdown string with the input as a mermaid code block
+                    let mermaidCode = prompt;
+                    
+                    // If the input doesn't start with "flowchart", "graph", "sequenceDiagram", etc.,
+                    // assume it's already a complete mermaid diagram
+                    if (!prompt.match(/^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|gantt|pie|journey|gitGraph|erDiagram)/i)) {
+                        // It's already a complete mermaid diagram, use as is
+                    } else {
+                        // It's just the mermaid code, wrap it in markdown
+                        mermaidCode = prompt;
+                    }
+                    
+                    const markdown = `# Mermaid 语法测试
+
+## 测试图表
+
+\`\`\`mermaid
+${mermaidCode}
+\`\`\`
+
+`;
+                    
+                    await processResponse(markdown);
+                    outputContainer.classList.remove('d-none');
+                    
+                    // Switch to the diagram tab
+                    document.getElementById('diagram-tab').click();
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    showError('测试失败：' + error.message);
                 } finally {
                     setLoading(false);
                 }
@@ -457,7 +528,7 @@ flowchart TD
             }
             
             // Process the API response
-            function processResponse(response) {
+            async function processResponse(response) {
                 // Display markdown
                 markdownOutput.textContent = response;
                 
@@ -493,9 +564,14 @@ flowchart TD
                 // Extract and render Mermaid diagram
                 const mermaidCode = extractMermaidCode(response);
                 if (mermaidCode) {
-                    renderMermaidDiagram(mermaidCode);
+                    await renderMermaidDiagram(mermaidCode);
                 } else {
-                    diagramOutput.innerHTML = '<p class="text-danger">未找到有效的Mermaid代码</p>';
+                    diagramOutput.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h5>未找到Mermaid代码</h5>
+                            <p>在生成的Markdown中未找到有效的Mermaid代码块。请确保生成的内容包含以 \`\`\`mermaid 开始的代码块。</p>
+                        </div>
+                    `;
                 }
             }
             
@@ -507,25 +583,61 @@ flowchart TD
             }
             
             // Render Mermaid diagram
-            function renderMermaidDiagram(mermaidCode) {
+            async function renderMermaidDiagram(mermaidCode) {
                 diagramOutput.innerHTML = '';
-                const container = document.createElement('div');
-                container.className = 'mermaid';
-                container.textContent = mermaidCode;
-                diagramOutput.appendChild(container);
                 
                 if (typeof mermaid !== 'undefined') {
                     try {
-                        mermaid.contentLoaded();
+                        // Create a unique ID for the diagram
+                        const id = 'mermaid-diagram-' + Date.now();
+                        
+                        // First, validate the syntax
+                        try {
+                            mermaid.parse(mermaidCode);
+                        } catch (parseError) {
+                            console.error('Mermaid parsing error:', parseError);
+                            diagramOutput.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <h5>Mermaid语法错误</h5>
+                                    <p>${parseError.message || '未知错误'}</p>
+                                    <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        // If parsing succeeded, render the diagram
+                        try {
+                            const { svg } = await mermaid.render(id, mermaidCode);
+                            diagramOutput.innerHTML = svg;
+                        } catch (renderError) {
+                            console.error('Mermaid rendering error:', renderError);
+                            diagramOutput.innerHTML = `
+                                <div class="alert alert-danger">
+                                    <h5>Mermaid渲染错误</h5>
+                                    <p>${renderError.message || '未知错误'}</p>
+                                    <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
+                                </div>
+                            `;
+                        }
                     } catch (error) {
-                        console.error('Mermaid rendering error:', error);
-                        diagramOutput.innerHTML = `<p class="text-danger">Mermaid渲染错误: ${error.message}</p>`;
+                        console.error('Mermaid general error:', error);
+                        diagramOutput.innerHTML = `
+                            <div class="alert alert-danger">
+                                <h5>Mermaid错误</h5>
+                                <p>${error.message || '未知错误'}</p>
+                                <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
+                            </div>
+                        `;
                     }
                 } else {
                     // If mermaid is not available, display the code and a message
                     diagramOutput.innerHTML = `
-                        <p class="text-warning">Mermaid库未加载，无法渲染图表。以下是图表代码：</p>
-                        <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
+                        <div class="alert alert-warning">
+                            <h5>Mermaid库未加载</h5>
+                            <p>无法渲染图表。以下是图表代码：</p>
+                            <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
+                        </div>
                     `;
                 }
             }
