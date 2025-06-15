@@ -1,5 +1,17 @@
 // Import the workerChatOutput function
-const { workerChatOutput } = require('./worker-chat.js');
+let workerChatOutput;
+try {
+  // Try CommonJS import first
+  const workerChat = require('./worker-chat.js');
+  workerChatOutput = workerChat.workerChatOutput;
+} catch (e) {
+  // Fallback to global variable if in browser context
+  if (typeof self !== 'undefined' && self.workerChatOutput) {
+    workerChatOutput = self.workerChatOutput;
+  } else {
+    console.error('Failed to import workerChatOutput:', e);
+  }
+}
 
 // Handle chat requests to DeepSeek API
 export async function onRequestPost(context) {

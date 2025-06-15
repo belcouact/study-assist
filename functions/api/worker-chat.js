@@ -1,6 +1,7 @@
 // Text Generation Functions
 const DS_URL = "https://chat-api.study-llm.me";
 
+// Define the function to be exported
 async function workerChatOutput(prompt, env) {
     try {
         // Validate input
@@ -61,5 +62,10 @@ async function workerChatOutput(prompt, env) {
     }
 }
 
-// Export the function
-module.exports = { workerChatOutput };
+// Export the function - support both CommonJS and ES modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { workerChatOutput };
+} else {
+    // Make it available globally for browser environments
+    self.workerChatOutput = workerChatOutput;
+}
