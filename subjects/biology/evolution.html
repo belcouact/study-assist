@@ -18,6 +18,20 @@
             min-height: 100px;
             background-color: #f0f0f0;
             transition: none !important;
+            opacity: 0;
+            animation: none !important;
+        }
+        
+        img.loaded {
+            min-height: auto;
+            background-color: transparent;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        img[src*="placeholder.jpg"] {
+            opacity: 0.7;
+            background-color: #e0e0e0;
         }
         
         .timeline-image img, .evidence-img, .observation-img, .contributor-img {
@@ -25,9 +39,21 @@
             object-fit: cover;
         }
         
-        img.loaded {
-            min-height: auto;
-            background-color: transparent;
+        /* 确保时间线导航按钮正确显示 */
+        .timeline-nav {
+            position: relative;
+            z-index: 10;
+        }
+        
+        .timeline-nav button {
+            pointer-events: auto;
+            z-index: 11;
+        }
+        
+        .timeline-nav button:disabled {
+            pointer-events: none;
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .evolution-page {
@@ -3825,43 +3851,112 @@
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
     <script>
-        // 处理所有图片加载
-        document.addEventListener('DOMContentLoaded', function() {
+        // 全局变量防止重复初始化
+        let evolutionInitialized = false;
+        let initializationTimeout = null;
+        
+        // 防止无限循环的计数器
+        let loopCounter = 0;
+        const MAX_LOOPS = 100;
+        
+        // 重写setTimeout以防止无限循环
+        const originalSetTimeout = window.setTimeout;
+        window.setTimeout = function(callback, delay) {
+            loopCounter++;
+            if (loopCounter > MAX_LOOPS) {
+                console.warn('Potential infinite loop detected, stopping execution');
+                return null;
+            }
+            
+            // 重置计数器（在一定时间后）
+            if (loopCounter === 1) {
+                originalSetTimeout(() => {
+                    loopCounter = 0;
+                }, 5000);
+            }
+            
+            return originalSetTimeout(callback, delay);
+        };
+        
+        // 全局图片处理函数
+        function handleImageLoading() {
             const allImages = document.querySelectorAll('img');
             
             allImages.forEach(img => {
-                // 成功加载时添加loaded类
-                img.addEventListener('load', function() {
-                    this.classList.add('loaded');
-                });
+                // 如果图片已经处理过，跳过
+                if (img.dataset.processed) return;
                 
-                // 加载失败时处理
-                img.addEventListener('error', function() {
+                // 标记为已处理
+                img.dataset.processed = 'true';
+                
+                // 设置默认样式
+                img.style.backgroundColor = '#f0f0f0';
+                img.style.minHeight = '100px';
+                
+                // 成功加载时的处理
+                const handleLoad = function() {
+                    this.classList.add('loaded');
+                    this.style.backgroundColor = 'transparent';
+                    this.style.minHeight = 'auto';
+                };
+                
+                // 加载失败时的处理
+                const handleError = function() {
                     // 防止无限循环
-                    if (this.src !== '../../assets/images/placeholder.jpg') {
-                        this.onerror = null;
-                        this.src = '../../assets/images/placeholder.jpg';
+                    if (this.src.includes('placeholder.jpg') || this.dataset.errorHandled) {
+                        return;
                     }
-                });
+                    
+                    this.dataset.errorHandled = 'true';
+                    this.onerror = null;
+                    this.src = '../../assets/images/placeholder.jpg';
+                    this.alt = '图片加载失败';
+                };
+                
+                // 添加事件监听器
+                img.addEventListener('load', handleLoad);
+                img.addEventListener('error', handleError);
                 
                 // 如果图片已经加载完成
                 if (img.complete) {
-                    img.classList.add('loaded');
+                    if (img.naturalWidth > 0) {
+                        handleLoad.call(img);
+                    } else {
+                        handleError.call(img);
+                    }
                 }
             });
-        });
+        }
         
-        // 停止任何可能的无限循环
-        let maxLoopCount = 0;
-        const originalSetTimeout = window.setTimeout;
-        window.setTimeout = function(callback, delay) {
-            if (maxLoopCount > 1000) {
-                console.warn('Possible infinite loop detected and prevented');
-                return null;
-            }
-            maxLoopCount++;
-            return originalSetTimeout(callback, delay);
-        };
+        // 页面加载完成后处理图片
+        document.addEventListener('DOMContentLoaded', function() {
+            handleImageLoading();
+            
+            // 监听DOM变化，处理动态添加的图片
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList') {
+                        mutation.addedNodes.forEach(function(node) {
+                            if (node.nodeType === 1) { // Element node
+                                if (node.tagName === 'IMG') {
+                                    handleImageLoading();
+                                } else if (node.querySelectorAll) {
+                                    const images = node.querySelectorAll('img');
+                                    if (images.length > 0) {
+                                        handleImageLoading();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
         
         // 进化论功能
         class Evolution {
@@ -4435,6 +4530,12 @@
                         return;
                     }
                     
+                    // 防止重复更新
+                    if (this.currentDarwinIndex === index) {
+                        return;
+                    }
+                    this.currentDarwinIndex = index;
+                    
                     // 更新标记点状态
                     markers.forEach((marker, i) => {
                         if (i === index) {
@@ -4449,10 +4550,12 @@
                         if (i === index) {
                             event.classList.add('active');
                             
-                            // 添加淡入动画
+                            // 添加淡入动画，使用原生setTimeout避免循环检测
                             event.style.opacity = '0';
-                            setTimeout(() => {
-                                event.style.opacity = '1';
+                            originalSetTimeout(() => {
+                                if (event.classList.contains('active')) {
+                                    event.style.opacity = '1';
+                                }
                             }, 50);
                         } else {
                             event.classList.remove('active');
@@ -4461,10 +4564,12 @@
                     
                     // 更新年份显示
                     const activeEvent = events[index]; // 直接使用索引获取活动事件
-                    if (activeEvent) {
+                    if (activeEvent && yearDisplay) {
                         const dateElement = activeEvent.querySelector('.event-date');
-                        if (dateElement && yearDisplay) {
+                        if (dateElement) {
                             yearDisplay.textContent = dateElement.textContent;
+                        } else if (years[index]) {
+                            yearDisplay.textContent = years[index];
                         }
                     }
                     
@@ -4481,6 +4586,10 @@
                         
                         prevBtn.style.opacity = index === 0 ? '0.5' : '1';
                         nextBtn.style.opacity = index === years.length - 1 ? '0.5' : '1';
+                        
+                        // 添加视觉反馈
+                        prevBtn.style.cursor = index === 0 ? 'not-allowed' : 'pointer';
+                        nextBtn.style.cursor = index === years.length - 1 ? 'not-allowed' : 'pointer';
                     }
                 } catch (error) {
                     console.error('Error updating Darwin timeline:', error);
@@ -4612,7 +4721,17 @@
                         nextBtn.addEventListener('click', (e) => {
                             e.preventDefault(); // 防止页面滚动
                             e.stopPropagation(); // 阻止事件冒泡
+                            
+                            // 防止快速点击
+                            if (nextBtn.disabled) return;
+                            nextBtn.disabled = true;
+                            
                             timelineScroll.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+                            
+                            // 重新启用按钮
+                            originalSetTimeout(() => {
+                                nextBtn.disabled = false;
+                            }, 300);
                         });
                     }
                     
@@ -4620,7 +4739,17 @@
                         prevBtn.addEventListener('click', (e) => {
                             e.preventDefault(); // 防止页面滚动
                             e.stopPropagation(); // 阻止事件冒泡
+                            
+                            // 防止快速点击
+                            if (prevBtn.disabled) return;
+                            prevBtn.disabled = true;
+                            
                             timelineScroll.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+                            
+                            // 重新启用按钮
+                            originalSetTimeout(() => {
+                                prevBtn.disabled = false;
+                            }, 300);
                         });
                     }
                     
@@ -4947,13 +5076,61 @@
 
         // 页面加载后初始化
         document.addEventListener('DOMContentLoaded', () => {
-            const evolution = new Evolution();
-            window.evolution = evolution;
-            
-            // 初始化达尔文理论和进化证据标签页
-            evolution.setupDarwinTab();
-            evolution.setupEvidenceTab();
-            evolution.setupHumanEvolutionTab();
+            try {
+                // 防止重复初始化
+                if (evolutionInitialized || window.evolution) {
+                    console.log('Evolution already initialized');
+                    return;
+                }
+                
+                // 清除之前的初始化超时
+                if (initializationTimeout) {
+                    clearTimeout(initializationTimeout);
+                }
+                
+                evolutionInitialized = true;
+                console.log('Initializing Evolution...');
+                
+                const evolution = new Evolution();
+                window.evolution = evolution;
+                
+                // 延迟初始化各个标签页，确保DOM完全加载
+                initializationTimeout = originalSetTimeout(() => {
+                    try {
+                        if (evolution.setupDarwinTab) {
+                            evolution.setupDarwinTab();
+                            console.log('Darwin tab initialized');
+                        }
+                    } catch (e) {
+                        console.error('Error initializing Darwin tab:', e);
+                    }
+                    
+                    try {
+                        if (evolution.setupEvidenceTab) {
+                            evolution.setupEvidenceTab();
+                            console.log('Evidence tab initialized');
+                        }
+                    } catch (e) {
+                        console.error('Error initializing Evidence tab:', e);
+                    }
+                    
+                    try {
+                        if (evolution.setupHumanEvolutionTab) {
+                            evolution.setupHumanEvolutionTab();
+                            console.log('Human evolution tab initialized');
+                        }
+                    } catch (e) {
+                        console.error('Error initializing Human evolution tab:', e);
+                    }
+                    
+                    // 清除初始化超时引用
+                    initializationTimeout = null;
+                }, 100);
+                
+            } catch (error) {
+                console.error('Error initializing Evolution:', error);
+                evolutionInitialized = false;
+            }
         });
     </script>
 </body>
