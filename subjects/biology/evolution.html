@@ -1745,16 +1745,23 @@
         }
         
         .timeline-event {
-            display: none;
+            display: block;
             transition: all 0.5s ease;
             opacity: 0;
             transform: translateY(20px);
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            visibility: hidden;
         }
         
         .timeline-event.active {
             display: block;
             opacity: 1;
             transform: translateY(0);
+            visibility: visible;
+            position: relative;
         }
         
         .highlight-event .event-content {
@@ -4479,18 +4486,49 @@
                     }
                     
                     console.log(`Found ${timelineMarkers.length} markers and ${timelineEvents.length} events`);
+                    console.log('Marker years:', Array.from(timelineMarkers).map(m => m.dataset.year));
+                    console.log('Event years:', Array.from(timelineEvents).map(e => e.dataset.year));
                     
                     // 确保事件和标记点数量一致
                     if (timelineMarkers.length !== timelineEvents.length) {
                         console.warn(`Darwin timeline: Markers count (${timelineMarkers.length}) doesn't match events count (${timelineEvents.length})`);
                     }
                     
+                    // 确保所有事件都有正确的data-year属性
+                    timelineEvents.forEach((event, index) => {
+                        if (!event.dataset.year && timelineMarkers[index]) {
+                            event.dataset.year = timelineMarkers[index].dataset.year;
+                        }
+                    });
+                    
                     // 存储年份数组和当前索引
                     const years = Array.from(timelineMarkers).map(marker => marker.dataset.year);
-                    let currentIndex = 5; // 默认显示第6个事件（1859年《物种起源》出版）
+                    let currentIndex = 0; // 默认显示第一个事件
+                    
+                    // 查找1859年事件的索引（《物种起源》出版）
+                    const originIndex = years.findIndex(year => year === '1859');
+                    if (originIndex !== -1) {
+                        currentIndex = originIndex;
+                    }
                     
                     // 初始化显示
                     this.updateDarwinTimeline(currentIndex, timelineMarkers, timelineEvents, years, currentYearDisplay);
+                    
+                    // 确保至少有一个事件可见（fallback）
+                    originalSetTimeout(() => {
+                        const visibleEvents = Array.from(timelineEvents).filter(event => 
+                            event.classList.contains('active') || 
+                            getComputedStyle(event).visibility === 'visible'
+                        );
+                        
+                        if (visibleEvents.length === 0 && timelineEvents.length > 0) {
+                            console.log('No events visible, showing first event as fallback');
+                            timelineEvents[0].classList.add('active');
+                            timelineEvents[0].style.visibility = 'visible';
+                            timelineEvents[0].style.opacity = '1';
+                            timelineEvents[0].style.position = 'relative';
+                        }
+                    }, 500);
                     
                     // 为每个标记点添加点击事件
                     timelineMarkers.forEach((marker, index) => {
