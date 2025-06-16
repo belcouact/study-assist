@@ -646,14 +646,26 @@
             try {
                 elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在加载 D3.js...';
                 
-                // 加载 D3.js
-                await loadScript('https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js');
+                // 多个CDN备用方案加载 D3.js
+                await loadScriptWithFallback([
+                    'https://d3js.org/d3.v7.min.js',
+                    'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
+                    'https://unpkg.com/d3@7/dist/d3.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js'
+                ]);
                 
                 elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在加载 markmap 库...';
                 
                 // 加载 markmap 库
-                await loadScript('https://cdn.jsdelivr.net/npm/markmap-lib@0.15.8/dist/browser/index.min.js');
-                await loadScript('https://cdn.jsdelivr.net/npm/markmap-view@0.15.8/dist/browser/index.min.js');
+                await loadScriptWithFallback([
+                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.15.8/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-lib@0.15.8/dist/browser/index.min.js'
+                ]);
+                
+                await loadScriptWithFallback([
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.15.8/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@0.15.8/dist/browser/index.min.js'
+                ]);
                 
                 // 验证库是否正确加载
                 if (typeof d3 === 'undefined') {
@@ -677,18 +689,78 @@
             } catch (error) {
                 console.error('加载库时出错:', error);
                 elements.libraryStatus.className = 'library-status error';
-                elements.libraryStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 库加载失败，请刷新页面重试';
+                elements.libraryStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 库加载失败，请检查网络连接并刷新页面重试';
                 showError('思维导图库加载失败，请检查网络连接并刷新页面');
             }
         }
 
-        // 动态加载脚本
-        function loadScript(src) {
+        // 动态加载脚本（带备用方案）
+        function loadScriptWithFallback(urls, timeout = 10000) {
+            return new Promise((resolve, reject) => {
+                let currentIndex = 0;
+                
+                function tryNext() {
+                    if (currentIndex >= urls.length) {
+                        reject(new Error('所有CDN都无法加载'));
+                        return;
+                    }
+                    
+                    const url = urls[currentIndex];
+                    const script = document.createElement('script');
+                    script.src = url;
+                    
+                    // 设置超时
+                    const timeoutId = setTimeout(() => {
+                        script.onerror = null;
+                        script.onload = null;
+                        document.head.removeChild(script);
+                        console.warn(`CDN 超时: ${url}`);
+                        currentIndex++;
+                        tryNext();
+                    }, timeout);
+                    
+                    script.onload = () => {
+                        clearTimeout(timeoutId);
+                        console.log(`成功加载: ${url}`);
+                        resolve();
+                    };
+                    
+                    script.onerror = () => {
+                        clearTimeout(timeoutId);
+                        console.warn(`CDN 失败: ${url}`);
+                        currentIndex++;
+                        tryNext();
+                    };
+                    
+                    document.head.appendChild(script);
+                }
+                
+                tryNext();
+            });
+        }
+
+        // 单个脚本加载（保留为备用）
+        function loadScript(src, timeout = 10000) {
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = src;
-                script.onload = resolve;
-                script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                
+                const timeoutId = setTimeout(() => {
+                    script.onerror = null;
+                    script.onload = null;
+                    reject(new Error(`Script load timeout: ${src}`));
+                }, timeout);
+                
+                script.onload = () => {
+                    clearTimeout(timeoutId);
+                    resolve();
+                };
+                
+                script.onerror = () => {
+                    clearTimeout(timeoutId);
+                    reject(new Error(`Failed to load script: ${src}`));
+                };
+                
                 document.head.appendChild(script);
             });
         }
