@@ -234,7 +234,7 @@
                             <span id="loadingSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                             <span id="buttonText">生成 Markdown 和流程图</span>
                         </button>
-                        <button id="testDiagramBtn" class="btn btn-info">测试 Mermaid 语法</button>
+                        <button id="testDiagramBtn" class="btn btn-info">转换Markdown成流程图</button>
                     </div>
                     <button id="clearBtn" class="btn btn-secondary">清除</button>
                 </div>
@@ -414,7 +414,7 @@
                 const prompt = promptInput.value.trim();
                 
                 if (!prompt) {
-                    showError('请输入Mermaid语法进行测试');
+                    showError('请输入Markdown内容或Mermaid语法');
                     return;
                 }
                 
@@ -422,37 +422,46 @@
                 hideError();
                 
                 try {
-                    // Create a markdown string with the input as a mermaid code block
-                    let mermaidCode = prompt;
+                    let markdown = '';
                     
-                    // If the input doesn't start with "flowchart", "graph", "sequenceDiagram", etc.,
-                    // assume it's already a complete mermaid diagram
-                    if (!prompt.match(/^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|gantt|pie|journey|gitGraph|erDiagram)/i)) {
-                        // It's already a complete mermaid diagram, use as is
+                    // Check if the input already contains mermaid code blocks
+                    if (prompt.includes('```mermaid') && prompt.includes('```')) {
+                        // Input already contains mermaid code blocks, use as-is
+                        markdown = prompt;
                     } else {
-                        // It's just the mermaid code, wrap it in markdown
-                        mermaidCode = prompt;
-                    }
-                    
-                    const markdown = `# Mermaid 语法测试
+                        // Check if it's raw mermaid code (starts with mermaid keywords)
+                        if (prompt.match(/^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|gantt|pie|journey|gitGraph|erDiagram|mindmap|timeline|quadrantChart|requirement|c4Context)/i)) {
+                            // It's raw mermaid code, wrap it in markdown
+                            markdown = `# Mermaid 流程图
 
-## 测试图表
+## 转换结果
 
 \`\`\`mermaid
-${mermaidCode}
+${prompt}
 \`\`\`
 
 `;
+                        } else {
+                            // It might be markdown without mermaid blocks, or mixed content
+                            // Try to extract any existing mermaid code or treat as markdown
+                            markdown = prompt;
+                        }
+                    }
                     
                     await processResponse(markdown);
                     outputContainer.classList.remove('d-none');
                     
-                    // Switch to the diagram tab
-                    document.getElementById('diagram-tab').click();
+                    // Switch to the diagram tab if mermaid code was found
+                    const extractedCode = extractMermaidCode(markdown);
+                    if (extractedCode) {
+                        document.getElementById('diagram-tab').click();
+                    } else {
+                        document.getElementById('preview-tab').click();
+                    }
                     
                 } catch (error) {
                     console.error('Error:', error);
-                    showError('测试失败：' + error.message);
+                    showError('转换失败：' + error.message);
                 } finally {
                     setLoading(false);
                 }
