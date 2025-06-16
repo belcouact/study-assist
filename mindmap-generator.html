@@ -690,7 +690,8 @@
                 // 检查markmap库的多种可能的全局变量名
                 const hasMarkmap = typeof markmap !== 'undefined' || 
                                  typeof window.markmap !== 'undefined' ||
-                                 (window.markmapLib && window.markmapView);
+                                 (window.markmapLib && window.markmapView) ||
+                                 typeof window.transform !== 'undefined';
                 
                 if (!hasMarkmap) {
                     throw new Error('markmap 库加载失败');
@@ -893,6 +894,89 @@
             }
             
             throw new Error('备用方案也无法加载markmap');
+        }
+
+        // 简单的Markdown解析为root对象
+        function parseMarkdownToRoot(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const root = { content: '思维导图', children: [] };
+            const stack = [root];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const content = match[2].trim();
+                    const node = { content, children: [] };
+                    
+                    // 找到正确的父节点
+                    while (stack.length > level) {
+                        stack.pop();
+                    }
+                    
+                    const parent = stack[stack.length - 1];
+                    parent.children.push(node);
+                    stack.push(node);
+                }
+            });
+            
+            return root;
+        }
+
+        // 简单的SVG思维导图渲染
+        function renderSimpleSVGMindmap(markdown, svg) {
+            const root = parseMarkdownToRoot(markdown);
+            
+            // 清空SVG
+            svg.selectAll('*').remove();
+            
+            // 简单的树状布局
+            const width = 800;
+            const height = 600;
+            const margin = { top: 50, right: 50, bottom: 50, left: 50 };
+            
+            svg.attr('viewBox', `0 0 ${width} ${height}`);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            // 创建树状布局
+            const tree = d3.tree()
+                .size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+            
+            const hierarchy = d3.hierarchy(root);
+            const treeData = tree(hierarchy);
+            
+            // 绘制连接线
+            g.selectAll('.link')
+                .data(treeData.links())
+                .enter().append('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x))
+                .style('fill', 'none')
+                .style('stroke', '#ccc')
+                .style('stroke-width', 2);
+            
+            // 绘制节点
+            const node = g.selectAll('.node')
+                .data(treeData.descendants())
+                .enter().append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.y},${d.x})`);
+            
+            node.append('circle')
+                .attr('r', 8)
+                .style('fill', d => d.depth === 0 ? '#007bff' : d.depth === 1 ? '#28a745' : '#17a2b8');
+            
+            node.append('text')
+                .attr('dy', 4)
+                .attr('x', d => d.children ? -12 : 12)
+                .style('text-anchor', d => d.children ? 'end' : 'start')
+                .style('font-size', '12px')
+                .style('font-family', 'Arial, sans-serif')
+                .text(d => d.data.content);
         }
 
         // 渲染文本版思维导图
@@ -1135,15 +1219,39 @@ ${details ? `详细描述：${details}` : ''}
 
                 // 验证库是否可用（正常模式）
                 const hasMarkmap = typeof markmap !== 'undefined' || 
-                                 typeof window.markmap !== 'undefined' ||
-                                 (window.markmapLib && window.markmapView);
+                                 typeof window.markmap !== 'undefined';
                                  
                 if (typeof d3 === 'undefined' || !hasMarkmap) {
                     throw new Error('思维导图库未正确加载');
                 }
                 
-                // 使用正确的markmap对象
-                const markmapObj = markmap || window.markmap || window;
+                // 使用正确的markmap对象和API
+                const markmapModule = markmap || window.markmap;
+                
+                // 检查markmap的结构
+                console.log('Markmap模块结构:', markmapModule);
+                
+                // 尝试不同的API调用方式
+                let transformFn, MarkmapClass;
+                
+                if (markmapModule.transform) {
+                    transformFn = markmapModule.transform;
+                    MarkmapClass = markmapModule.Markmap;
+                } else if (markmapModule.transformer && markmapModule.transformer.transform) {
+                    transformFn = markmapModule.transformer.transform;
+                    MarkmapClass = markmapModule.Markmap;
+                } else if (window.markmap && window.markmap.transform) {
+                    transformFn = window.markmap.transform;
+                    MarkmapClass = window.markmap.Markmap;
+                } else {
+                    // 尝试从全局对象中获取
+                    transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
+                    MarkmapClass = window.Markmap || (window.markmapView && window.markmapView.Markmap);
+                }
+                
+                if (!transformFn || !MarkmapClass) {
+                    throw new Error('无法找到markmap的transform或Markmap函数');
+                }
 
                 // 清空容器
                 elements.mindmapContainer.innerHTML = '';
@@ -1155,26 +1263,40 @@ ${details ? `详细描述：${details}` : ''}
                     .attr('height', '100%');
 
                 // 使用 markmap 解析 Markdown 并创建思维导图
-                const { root } = markmapObj.transform(markdown);
+                let root;
+                try {
+                    const result = transformFn(markdown);
+                    root = result.root || result;
+                } catch (transformError) {
+                    console.error('Transform错误:', transformError);
+                    // 如果transform失败，尝试简单的解析
+                    root = parseMarkdownToRoot(markdown);
+                }
                 
                 // 创建 markmap 实例
-                markmapInstance = markmapObj.Markmap.create(svg.node(), {
-                    color: (node) => {
-                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                        return colors[node.depth % colors.length];
-                    },
-                    duration: 800,
-                    maxWidth: 200,
-                    spacingVertical: 10,
-                    spacingHorizontal: 80,
-                    autoFit: true,
-                    pan: true,
-                    zoom: true
-                });
-                
-                // 渲染思维导图
-                markmapInstance.setData(root);
-                markmapInstance.fit();
+                try {
+                    markmapInstance = MarkmapClass.create(svg.node(), {
+                        color: (node) => {
+                            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                            return colors[node.depth % colors.length];
+                        },
+                        duration: 800,
+                        maxWidth: 200,
+                        spacingVertical: 10,
+                        spacingHorizontal: 80,
+                        autoFit: true,
+                        pan: true,
+                        zoom: true
+                    });
+                    
+                    // 渲染思维导图
+                    markmapInstance.setData(root);
+                    markmapInstance.fit();
+                } catch (createError) {
+                    console.error('Markmap创建错误:', createError);
+                    // 如果创建失败，显示简单的可视化
+                    renderSimpleSVGMindmap(markdown, svg);
+                }
 
             } catch (error) {
                 console.error('渲染思维导图时出错:', error);
@@ -1199,13 +1321,13 @@ ${details ? `详细描述：${details}` : ''}
 
         // 下载 SVG
         function downloadSvg() {
-            if (!markmapInstance) {
+            const svgElement = elements.mindmapContainer.querySelector('svg');
+            if (!svgElement) {
                 showError('请先生成思维导图');
                 return;
             }
 
             try {
-                const svgElement = elements.mindmapContainer.querySelector('svg');
                 const svgData = new XMLSerializer().serializeToString(svgElement);
                 const blob = new Blob([svgData], { type: 'image/svg+xml' });
                 const url = URL.createObjectURL(blob);
@@ -1224,13 +1346,13 @@ ${details ? `详细描述：${details}` : ''}
 
         // 下载 PNG
         function downloadPng() {
-            if (!markmapInstance) {
+            const svgElement = elements.mindmapContainer.querySelector('svg');
+            if (!svgElement) {
                 showError('请先生成思维导图');
                 return;
             }
 
             try {
-                const svgElement = elements.mindmapContainer.querySelector('svg');
                 const svgData = new XMLSerializer().serializeToString(svgElement);
                 
                 const canvas = document.createElement('canvas');
