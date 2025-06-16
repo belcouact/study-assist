@@ -662,31 +662,47 @@
                 
                 elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在加载 markmap 库...';
                 
-                // 加载 markmap 库（尝试多个版本）
+                // 加载 markmap 库（使用正确的CDN路径）
                 await loadScriptWithFallback([
-                    'https://unpkg.com/markmap-lib@0.14.3/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-lib@0.13.2/dist/browser/index.min.js',
-                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.14.3/dist/browser/index.min.js',
-                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.13.2/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-lib@latest/dist/browser/index.min.js'
+                    'https://cdn.jsdelivr.net/npm/markmap-lib@latest/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-lib@latest/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.15.8/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-lib@0.15.8/dist/browser/index.min.js'
                 ]);
                 
                 await loadScriptWithFallback([
-                    'https://unpkg.com/markmap-view@0.14.3/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-view@0.13.2/dist/browser/index.min.js',
-                    'https://cdn.jsdelivr.net/npm/markmap-view@0.14.3/dist/browser/index.min.js',
-                    'https://cdn.jsdelivr.net/npm/markmap-view@0.13.2/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-view@latest/dist/browser/index.min.js'
+                    'https://cdn.jsdelivr.net/npm/markmap-view@latest',
+                    'https://unpkg.com/markmap-view@latest',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.18.12',
+                    'https://unpkg.com/markmap-view@0.18.12',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.15.8/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@0.15.8/dist/browser/index.min.js'
                 ]);
+                
+                // 等待库完全加载
+                await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 // 验证库是否正确加载
                 if (typeof d3 === 'undefined') {
                     throw new Error('D3.js 加载失败');
                 }
                 
-                if (typeof markmap === 'undefined') {
+                // 检查markmap库的多种可能的全局变量名
+                const hasMarkmap = typeof markmap !== 'undefined' || 
+                                 typeof window.markmap !== 'undefined' ||
+                                 (window.markmapLib && window.markmapView);
+                
+                if (!hasMarkmap) {
                     throw new Error('markmap 库加载失败');
                 }
+                
+                console.log('库加载验证成功:', {
+                    d3: typeof d3,
+                    markmap: typeof markmap,
+                    windowMarkmap: typeof window.markmap,
+                    markmapLib: typeof window.markmapLib,
+                    markmapView: typeof window.markmapView
+                });
                 
                 librariesLoaded = true;
                 elements.libraryStatus.className = 'library-status ready';
@@ -701,20 +717,27 @@
             } catch (error) {
                 console.error('加载库时出错:', error);
                 
-                // 启用纯文本模式作为备选方案
-                window.markdownOnlyMode = true;
-                librariesLoaded = true; // 允许生成按钮启用
-                
-                elements.libraryStatus.className = 'library-status warning';
-                elements.libraryStatus.innerHTML = `
-                    <div style="text-align: left;">
-                        <i class="fas fa-exclamation-triangle"></i> 思维导图库加载失败，已启用<strong>纯文本模式</strong><br>
-                        <small style="opacity: 0.8;">您仍可以生成 Markdown 格式的思维导图内容</small>
-                        <br><button onclick="retryLibraryLoad()" style="margin-top: 5px; padding: 2px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">重试加载</button>
-                    </div>
-                `;
-                elements.generateBtn.disabled = false;
-                elements.generateBtn.textContent = '生成思维导图内容';
+                // 尝试最后的备用加载方案
+                try {
+                    await tryAlternativeMarkmap();
+                } catch (fallbackError) {
+                    console.error('备用方案也失败:', fallbackError);
+                    
+                    // 启用纯文本模式作为最终备选方案
+                    window.markdownOnlyMode = true;
+                    librariesLoaded = true; // 允许生成按钮启用
+                    
+                    elements.libraryStatus.className = 'library-status warning';
+                    elements.libraryStatus.innerHTML = `
+                        <div style="text-align: left;">
+                            <i class="fas fa-exclamation-triangle"></i> 思维导图库加载失败，已启用<strong>纯文本模式</strong><br>
+                            <small style="opacity: 0.8;">您仍可以生成 Markdown 格式的思维导图内容</small>
+                            <br><button onclick="retryLibraryLoad()" style="margin-top: 5px; padding: 2px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">重试加载</button>
+                        </div>
+                    `;
+                    elements.generateBtn.disabled = false;
+                    elements.generateBtn.textContent = '生成思维导图内容';
+                }
             }
         }
 
@@ -834,11 +857,133 @@
             });
         }
 
+        // 最后的备用markmap加载方案
+        async function tryAlternativeMarkmap() {
+            elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 尝试备用加载方案...';
+            
+            // 尝试更直接的CDN路径
+            const alternativeSources = [
+                'https://cdn.jsdelivr.net/npm/markmap-lib@0.15.8',
+                'https://cdn.jsdelivr.net/npm/markmap-view@0.15.8',
+                'https://unpkg.com/markmap-lib@0.15.8',
+                'https://unpkg.com/markmap-view@0.15.8'
+            ];
+            
+            for (const src of alternativeSources) {
+                try {
+                    await loadScript(src, 5000); // 短超时
+                } catch (e) {
+                    console.warn(`备用源失败: ${src}`);
+                }
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 再次验证
+            const hasMarkmap = typeof markmap !== 'undefined' || 
+                             typeof window.markmap !== 'undefined' ||
+                             (window.markmapLib && window.markmapView);
+                             
+            if (hasMarkmap) {
+                librariesLoaded = true;
+                elements.libraryStatus.className = 'library-status ready';
+                elements.libraryStatus.innerHTML = '<i class="fas fa-check-circle"></i> 备用方案加载成功！';
+                elements.generateBtn.disabled = false;
+                return;
+            }
+            
+            throw new Error('备用方案也无法加载markmap');
+        }
+
+        // 渲染文本版思维导图
+        function renderTextMindmap(markdown) {
+            // 解析markdown为树状结构并显示
+            const lines = markdown.split('\n').filter(line => line.trim());
+            let htmlContent = '<div style="padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); height: 100%; overflow-y: auto; font-family: \'Segoe UI\', sans-serif;">';
+            
+            htmlContent += `
+                <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 10px; border-left: 4px solid #007bff;">
+                    <i class="fas fa-sitemap" style="font-size: 2em; color: #007bff; margin-bottom: 10px; display: block;"></i>
+                    <h3 style="color: #495057; margin: 0;">文本版思维导图</h3>
+                    <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 14px;">思维导图库加载失败，显示文本结构</p>
+                </div>
+            `;
+            
+            let currentLevel = 0;
+            const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1'];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const text = match[2].trim();
+                    const indent = Math.max(0, (level - 1) * 30);
+                    const color = colors[(level - 1) % colors.length];
+                    
+                    const icon = level === 1 ? 'fas fa-circle' : 
+                               level === 2 ? 'fas fa-dot-circle' : 
+                               'fas fa-angle-right';
+                    
+                    htmlContent += `
+                        <div style="margin-left: ${indent}px; margin-bottom: 8px; padding: 8px 12px; background: rgba(255,255,255,0.6); border-radius: 6px; border-left: 3px solid ${color}; animation: fadeIn 0.3s ease-in;">
+                            <i class="${icon}" style="color: ${color}; margin-right: 8px; font-size: ${Math.max(0.8, 1.2 - level * 0.1)}em;"></i>
+                            <span style="color: #333; font-weight: ${level <= 2 ? 'bold' : 'normal'}; font-size: ${Math.max(0.8, 1.1 - level * 0.05)}em;">${text}</span>
+                        </div>
+                    `;
+                } else if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                    const text = line.trim().substring(1).trim();
+                    htmlContent += `
+                        <div style="margin-left: 60px; margin-bottom: 4px; padding: 4px 8px; color: #666; font-size: 0.9em;">
+                            <i class="fas fa-chevron-right" style="color: #999; margin-right: 6px; font-size: 0.8em;"></i>
+                            ${text}
+                        </div>
+                    `;
+                }
+            });
+            
+            htmlContent += `
+                <div style="margin-top: 30px; text-align: center; padding: 15px; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                        <button onclick="switchTab('markdown')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-code"></i> 查看源码
+                        </button>
+                        <button onclick="copyMarkdown()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-copy"></i> 复制内容
+                        </button>
+                        <button onclick="downloadMarkdown()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-download"></i> 下载文件
+                        </button>
+                        <button onclick="retryLibraryLoad()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-redo"></i> 重试加载
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            htmlContent += '</div>';
+            
+            // 添加动画CSS
+            if (!document.getElementById('textMindmapStyles')) {
+                const style = document.createElement('style');
+                style.id = 'textMindmapStyles';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateX(-10px); }
+                        to { opacity: 1; transform: translateX(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            elements.mindmapContainer.innerHTML = htmlContent;
+        }
+
         // 重试加载库
         function retryLibraryLoad() {
             window.markdownOnlyMode = false;
             elements.generateBtn.disabled = true;
             elements.generateBtn.textContent = '生成思维导图';
+            librariesLoaded = false;
             loadLibraries();
         }
 
@@ -976,29 +1121,9 @@ ${details ? `详细描述：${details}` : ''}
                 // 更新 Markdown 显示
                 elements.markdownContent.textContent = currentMarkdown;
 
-                // 如果是纯文本模式，显示提示信息而不是思维导图
+                // 如果是纯文本模式，显示文本版思维导图
                 if (window.markdownOnlyMode) {
-                    elements.mindmapContainer.innerHTML = `
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
-                            <i class="fas fa-file-text" style="font-size: 4em; color: #6c757d; margin-bottom: 20px;"></i>
-                            <h3 style="color: #495057; margin-bottom: 15px;">纯文本模式</h3>
-                            <p style="color: #6c757d; margin-bottom: 20px; max-width: 400px; line-height: 1.6;">
-                                思维导图库加载失败，但 Markdown 内容已生成完成。<br>
-                                您可以查看右侧的"Markdown源码"标签页，复制或下载内容。
-                            </p>
-                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
-                                <button onclick="switchTab('markdown')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                    <i class="fas fa-code"></i> 查看源码
-                                </button>
-                                <button onclick="copyMarkdown()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                    <i class="fas fa-copy"></i> 复制内容
-                                </button>
-                                <button onclick="downloadMarkdown()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                                    <i class="fas fa-download"></i> 下载文件
-                                </button>
-                            </div>
-                        </div>
-                    `;
+                    renderTextMindmap(markdown);
                     
                     // 自动切换到 Markdown 标签页
                     setTimeout(() => {
@@ -1009,9 +1134,16 @@ ${details ? `详细描述：${details}` : ''}
                 }
 
                 // 验证库是否可用（正常模式）
-                if (typeof d3 === 'undefined' || typeof markmap === 'undefined') {
+                const hasMarkmap = typeof markmap !== 'undefined' || 
+                                 typeof window.markmap !== 'undefined' ||
+                                 (window.markmapLib && window.markmapView);
+                                 
+                if (typeof d3 === 'undefined' || !hasMarkmap) {
                     throw new Error('思维导图库未正确加载');
                 }
+                
+                // 使用正确的markmap对象
+                const markmapObj = markmap || window.markmap || window;
 
                 // 清空容器
                 elements.mindmapContainer.innerHTML = '';
@@ -1023,10 +1155,10 @@ ${details ? `详细描述：${details}` : ''}
                     .attr('height', '100%');
 
                 // 使用 markmap 解析 Markdown 并创建思维导图
-                const { root } = markmap.transform(markdown);
+                const { root } = markmapObj.transform(markdown);
                 
                 // 创建 markmap 实例
-                markmapInstance = markmap.Markmap.create(svg.node(), {
+                markmapInstance = markmapObj.Markmap.create(svg.node(), {
                     color: (node) => {
                         const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
                         return colors[node.depth % colors.length];
