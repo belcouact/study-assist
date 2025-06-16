@@ -350,6 +350,12 @@
             color: var(--error-color);
         }
 
+        .library-status.warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+        }
+
         /* 移动端响应式设计 */
         @media (max-width: 768px) {
             .container {
@@ -656,15 +662,21 @@
                 
                 elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在加载 markmap 库...';
                 
-                // 加载 markmap 库
+                // 加载 markmap 库（尝试多个版本）
                 await loadScriptWithFallback([
-                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.15.8/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-lib@0.15.8/dist/browser/index.min.js'
+                    'https://unpkg.com/markmap-lib@0.14.3/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-lib@0.13.2/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.14.3/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-lib@0.13.2/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-lib@latest/dist/browser/index.min.js'
                 ]);
                 
                 await loadScriptWithFallback([
-                    'https://cdn.jsdelivr.net/npm/markmap-view@0.15.8/dist/browser/index.min.js',
-                    'https://unpkg.com/markmap-view@0.15.8/dist/browser/index.min.js'
+                    'https://unpkg.com/markmap-view@0.14.3/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@0.13.2/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.14.3/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.13.2/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@latest/dist/browser/index.min.js'
                 ]);
                 
                 // 验证库是否正确加载
@@ -688,9 +700,21 @@
                 
             } catch (error) {
                 console.error('加载库时出错:', error);
-                elements.libraryStatus.className = 'library-status error';
-                elements.libraryStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 库加载失败，请检查网络连接并刷新页面重试';
-                showError('思维导图库加载失败，请检查网络连接并刷新页面');
+                
+                // 启用纯文本模式作为备选方案
+                window.markdownOnlyMode = true;
+                librariesLoaded = true; // 允许生成按钮启用
+                
+                elements.libraryStatus.className = 'library-status warning';
+                elements.libraryStatus.innerHTML = `
+                    <div style="text-align: left;">
+                        <i class="fas fa-exclamation-triangle"></i> 思维导图库加载失败，已启用<strong>纯文本模式</strong><br>
+                        <small style="opacity: 0.8;">您仍可以生成 Markdown 格式的思维导图内容</small>
+                        <br><button onclick="retryLibraryLoad()" style="margin-top: 5px; padding: 2px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">重试加载</button>
+                    </div>
+                `;
+                elements.generateBtn.disabled = false;
+                elements.generateBtn.textContent = '生成思维导图内容';
             }
         }
 
@@ -808,6 +832,14 @@
                     elements.topicInput.focus();
                 });
             });
+        }
+
+        // 重试加载库
+        function retryLibraryLoad() {
+            window.markdownOnlyMode = false;
+            elements.generateBtn.disabled = true;
+            elements.generateBtn.textContent = '生成思维导图';
+            loadLibraries();
         }
 
         // 生成思维导图
@@ -941,7 +973,42 @@ ${details ? `详细描述：${details}` : ''}
         // 渲染思维导图
         function renderMindmap(markdown) {
             try {
-                // 验证库是否可用
+                // 更新 Markdown 显示
+                elements.markdownContent.textContent = currentMarkdown;
+
+                // 如果是纯文本模式，显示提示信息而不是思维导图
+                if (window.markdownOnlyMode) {
+                    elements.mindmapContainer.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 40px; text-align: center; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);">
+                            <i class="fas fa-file-text" style="font-size: 4em; color: #6c757d; margin-bottom: 20px;"></i>
+                            <h3 style="color: #495057; margin-bottom: 15px;">纯文本模式</h3>
+                            <p style="color: #6c757d; margin-bottom: 20px; max-width: 400px; line-height: 1.6;">
+                                思维导图库加载失败，但 Markdown 内容已生成完成。<br>
+                                您可以查看右侧的"Markdown源码"标签页，复制或下载内容。
+                            </p>
+                            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                                <button onclick="switchTab('markdown')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    <i class="fas fa-code"></i> 查看源码
+                                </button>
+                                <button onclick="copyMarkdown()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    <i class="fas fa-copy"></i> 复制内容
+                                </button>
+                                <button onclick="downloadMarkdown()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                    <i class="fas fa-download"></i> 下载文件
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 自动切换到 Markdown 标签页
+                    setTimeout(() => {
+                        switchTab('markdown');
+                    }, 1000);
+                    
+                    return;
+                }
+
+                // 验证库是否可用（正常模式）
                 if (typeof d3 === 'undefined' || typeof markmap === 'undefined') {
                     throw new Error('思维导图库未正确加载');
                 }
@@ -976,9 +1043,6 @@ ${details ? `详细描述：${details}` : ''}
                 // 渲染思维导图
                 markmapInstance.setData(root);
                 markmapInstance.fit();
-
-                // 更新 Markdown 显示
-                elements.markdownContent.textContent = currentMarkdown;
 
             } catch (error) {
                 console.error('渲染思维导图时出错:', error);
