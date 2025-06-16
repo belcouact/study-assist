@@ -422,28 +422,15 @@
                 hideError();
                 
                 try {
-                    // Check if the input is already wrapped in ```mermaid and ``` tags
-                    let mermaidCode;
+                    // Create a markdown string with the input as a mermaid code block
+                    let mermaidCode = prompt;
                     
-                    // Check for ```mermaid code block format
-                    const mermaidBlockRegex = /^\s*```mermaid\s*([\s\S]*?)\s*```\s*$/;
-                    const mermaidBlockMatch = prompt.match(mermaidBlockRegex);
-                    
-                    if (mermaidBlockMatch) {
-                        // Input is already wrapped in ```mermaid and ``` tags, extract the code
-                        mermaidCode = mermaidBlockMatch[1].trim();
-                    } else if (prompt.startsWith('```mermaid')) {
-                        // Input starts with ```mermaid but doesn't properly end with ```
-                        showError('Mermaid代码块必须以```mermaid开始并以```结束');
-                        setLoading(false);
-                        return;
-                    } else if (prompt.endsWith('```')) {
-                        // Input ends with ``` but doesn't properly start with ```mermaid
-                        showError('Mermaid代码块必须以```mermaid开始并以```结束');
-                        setLoading(false);
-                        return;
+                    // If the input doesn't start with "flowchart", "graph", "sequenceDiagram", etc.,
+                    // assume it's already a complete mermaid diagram
+                    if (!prompt.match(/^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|gantt|pie|journey|gitGraph|erDiagram)/i)) {
+                        // It's already a complete mermaid diagram, use as is
                     } else {
-                        // Input is just the mermaid code without markdown formatting
+                        // It's just the mermaid code, wrap it in markdown
                         mermaidCode = prompt;
                     }
                     
@@ -634,38 +621,14 @@ flowchart TD
             
             // Extract Mermaid code from markdown
             function extractMermaidCode(markdown) {
-                // More precise regex to match ```mermaid code blocks
                 const mermaidRegex = /```mermaid\s*([\s\S]*?)\s*```/;
                 const match = markdown.match(mermaidRegex);
-                
-                if (match) {
-                    const code = match[1].trim();
-                    // Validate that the extracted code is not empty
-                    if (code.length > 0) {
-                        return code;
-                    } else {
-                        console.warn('Empty Mermaid code block found');
-                        return null;
-                    }
-                } else {
-                    console.warn('No Mermaid code block found in markdown');
-                    return null;
-                }
+                return match ? match[1].trim() : null;
             }
             
             // Render Mermaid diagram
             async function renderMermaidDiagram(mermaidCode) {
                 diagramOutput.innerHTML = '';
-                
-                if (!mermaidCode) {
-                    diagramOutput.innerHTML = `
-                        <div class="alert alert-warning">
-                            <h5>未找到有效的Mermaid代码</h5>
-                            <p>请确保您的代码格式正确，以 \`\`\`mermaid 开始，以 \`\`\` 结束。</p>
-                        </div>
-                    `;
-                    return;
-                }
                 
                 if (typeof mermaid !== 'undefined') {
                     try {
@@ -681,7 +644,6 @@ flowchart TD
                                 <div class="alert alert-danger">
                                     <h5>Mermaid语法错误</h5>
                                     <p>${parseError.message || '未知错误'}</p>
-                                    <p>请确保您的代码格式正确，以 \`\`\`mermaid 开始，以 \`\`\` 结束，并且内容符合Mermaid语法。</p>
                                     <pre class="p-3 bg-light border rounded"><code>${mermaidCode}</code></pre>
                                 </div>
                             `;
