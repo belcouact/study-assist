@@ -671,10 +671,10 @@
                 ]);
                 
                 await loadScriptWithFallback([
-                    'https://cdn.jsdelivr.net/npm/markmap-view@latest',
-                    'https://unpkg.com/markmap-view@latest',
-                    'https://cdn.jsdelivr.net/npm/markmap-view@0.18.12',
-                    'https://unpkg.com/markmap-view@0.18.12',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@latest/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@latest/dist/browser/index.min.js',
+                    'https://cdn.jsdelivr.net/npm/markmap-view@0.18.12/dist/browser/index.min.js',
+                    'https://unpkg.com/markmap-view@0.18.12/dist/browser/index.min.js',
                     'https://cdn.jsdelivr.net/npm/markmap-view@0.15.8/dist/browser/index.min.js',
                     'https://unpkg.com/markmap-view@0.15.8/dist/browser/index.min.js'
                 ]);
@@ -702,8 +702,21 @@
                     markmap: typeof markmap,
                     windowMarkmap: typeof window.markmap,
                     markmapLib: typeof window.markmapLib,
-                    markmapView: typeof window.markmapView
+                    markmapView: typeof window.markmapView,
+                    allGlobals: Object.keys(window).filter(key => key.toLowerCase().includes('markmap'))
                 });
+                
+                // 检查具体的markmap结构
+                const markmapObj = markmap || window.markmap;
+                if (markmapObj) {
+                    console.log('Markmap对象属性:', Object.keys(markmapObj));
+                    if (markmapObj.Transformer) {
+                        console.log('Transformer类存在');
+                    }
+                    if (markmapObj.Markmap) {
+                        console.log('Markmap类存在');
+                    }
+                }
                 
                 librariesLoaded = true;
                 elements.libraryStatus.className = 'library-status ready';
@@ -1234,23 +1247,60 @@ ${details ? `详细描述：${details}` : ''}
                 // 尝试不同的API调用方式
                 let transformFn, MarkmapClass;
                 
-                if (markmapModule.transform) {
+                // 检查markmap-lib的Transformer类
+                if (markmapModule.Transformer) {
+                    const transformer = new markmapModule.Transformer();
+                    transformFn = (markdown) => transformer.transform(markdown);
+                    console.log('使用 Transformer 类');
+                } else if (markmapModule.transform) {
                     transformFn = markmapModule.transform;
-                    MarkmapClass = markmapModule.Markmap;
+                    console.log('使用直接 transform 函数');
                 } else if (markmapModule.transformer && markmapModule.transformer.transform) {
                     transformFn = markmapModule.transformer.transform;
-                    MarkmapClass = markmapModule.Markmap;
+                    console.log('使用 transformer.transform');
                 } else if (window.markmap && window.markmap.transform) {
                     transformFn = window.markmap.transform;
-                    MarkmapClass = window.markmap.Markmap;
+                    console.log('使用 window.markmap.transform');
                 } else {
                     // 尝试从全局对象中获取
                     transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
-                    MarkmapClass = window.Markmap || (window.markmapView && window.markmapView.Markmap);
+                    console.log('使用全局 transform');
                 }
                 
-                if (!transformFn || !MarkmapClass) {
-                    throw new Error('无法找到markmap的transform或Markmap函数');
+                // 检查Markmap类（通常在markmap-view中）
+                if (markmapModule.Markmap) {
+                    MarkmapClass = markmapModule.Markmap;
+                } else if (window.markmap && window.markmap.Markmap) {
+                    MarkmapClass = window.markmap.Markmap;
+                } else if (window.Markmap) {
+                    MarkmapClass = window.Markmap;
+                } else if (window.markmapView && window.markmapView.Markmap) {
+                    MarkmapClass = window.markmapView.Markmap;
+                } else {
+                    // 检查其他可能的全局变量
+                    const globals = Object.keys(window).filter(key => key.toLowerCase().includes('markmap'));
+                    console.log('相关全局变量:', globals);
+                    
+                    // 尝试从这些全局变量中找到Markmap
+                    for (const globalName of globals) {
+                        const globalObj = window[globalName];
+                        if (globalObj && globalObj.Markmap) {
+                            MarkmapClass = globalObj.Markmap;
+                            console.log(`从 ${globalName} 找到Markmap类`);
+                            break;
+                        }
+                    }
+                }
+                
+                console.log('Transform函数:', typeof transformFn);
+                console.log('Markmap类:', typeof MarkmapClass);
+                
+                if (!transformFn) {
+                    throw new Error('无法找到markmap的transform函数');
+                }
+                
+                if (!MarkmapClass) {
+                    console.warn('未找到Markmap类，将使用备用渲染方案');
                 }
 
                 // 清空容器
@@ -1274,27 +1324,34 @@ ${details ? `详细描述：${details}` : ''}
                 }
                 
                 // 创建 markmap 实例
-                try {
-                    markmapInstance = MarkmapClass.create(svg.node(), {
-                        color: (node) => {
-                            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                            return colors[node.depth % colors.length];
-                        },
-                        duration: 800,
-                        maxWidth: 200,
-                        spacingVertical: 10,
-                        spacingHorizontal: 80,
-                        autoFit: true,
-                        pan: true,
-                        zoom: true
-                    });
-                    
-                    // 渲染思维导图
-                    markmapInstance.setData(root);
-                    markmapInstance.fit();
-                } catch (createError) {
-                    console.error('Markmap创建错误:', createError);
-                    // 如果创建失败，显示简单的可视化
+                if (MarkmapClass) {
+                    try {
+                        markmapInstance = MarkmapClass.create(svg.node(), {
+                            color: (node) => {
+                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                                return colors[node.depth % colors.length];
+                            },
+                            duration: 800,
+                            maxWidth: 200,
+                            spacingVertical: 10,
+                            spacingHorizontal: 80,
+                            autoFit: true,
+                            pan: true,
+                            zoom: true
+                        });
+                        
+                        // 渲染思维导图
+                        markmapInstance.setData(root);
+                        markmapInstance.fit();
+                        console.log('Markmap实例创建成功');
+                    } catch (createError) {
+                        console.error('Markmap创建错误:', createError);
+                        // 如果创建失败，显示简单的可视化
+                        renderSimpleSVGMindmap(markdown, svg);
+                    }
+                } else {
+                    // 没有Markmap类，直接使用简单的可视化
+                    console.log('使用备用SVG渲染');
                     renderSimpleSVGMindmap(markdown, svg);
                 }
 
