@@ -1847,44 +1847,261 @@
                 }, 1000);
             }
 
-            function startReadingTest(level, type, container) {
+            async function startReadingTest(level, type, container) {
                 container.style.display = 'block';
-                container.innerHTML = '<p class="text-center">正在加载阅读测试，请稍候...</p>';
+                container.innerHTML = '<p class="text-center"><i class="fas fa-brain"></i> AI正在生成阅读测试，请稍候...</p>';
                 
-                // Simulate loading time
-                setTimeout(() => {
-                    generateReadingTest(level, type, container);
-                }, 1000);
+                try {
+                    await generateReadingTest(level, type, container);
+                } catch (error) {
+                    console.error('Reading test generation failed:', error);
+                    container.innerHTML = '<p class="text-center error-message">生成测试失败，请重试</p>';
+                }
             }
 
-            function generateReadingTest(level, type, container) {
-                let html = `
-                    <h3>阅读测试 - ${getLevelName(level)}</h3>
-                    <p>阅读以下文章，然后回答问题。</p>
-                    
-                    <div class="test-question">
-                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
-                            <p>这里将显示阅读文章内容。文章长度和难度将根据所选级别调整。</p>
-                            <p>实际测试中将提供完整的阅读材料和多个相关问题。</p>
-                        </div>
-                        
-                        <div class="question-text">1. 根据文章，以下哪项是正确的？</div>
-                        <ul class="options-list">
-                            <li class="option-item">A. 选项一</li>
-                            <li class="option-item">B. 选项二</li>
-                            <li class="option-item">C. 选项三</li>
-                            <li class="option-item">D. 选项四</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="form-group">
-                        <button class="btn btn-primary">
-                            <i class="fas fa-check"></i> 提交答案
-                        </button>
-                    </div>
-                `;
+            async function generateReadingTest(level, type, container) {
+                let html = '';
+                
+                switch(type) {
+                    case 'comprehension':
+                        html = await generateReadingComprehensionTest(level);
+                        break;
+                    case 'cloze':
+                        html = await generateClozeTest(level);
+                        break;
+                    case 'matching':
+                        html = await generateMatchingTest(level);
+                        break;
+                    case 'mixed':
+                        html = await generateMixedReadingTest(level);
+                        break;
+                    default:
+                        html = await generateReadingComprehensionTest(level);
+                }
                 
                 container.innerHTML = html;
+                
+                // Add event listeners
+                addReadingTestEventListeners(container, type);
+                
+                // Scroll to test container
+                container.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            // Mixed Reading Test Function
+            async function generateMixedReadingTest(level) {
+                try {
+                    const [comprehension, cloze, matching] = await Promise.all([
+                        generateReadingComprehensionTest(level),
+                        generateClozeTest(level),
+                        generateMatchingTest(level)
+                    ]);
+                    
+                    return `
+                        <div class="reading-test-container">
+                            <h3><i class="fas fa-layer-group"></i> 混合阅读测试 - ${getLevelName(level)}</h3>
+                            
+                            <div class="mixed-test-tabs">
+                                <button class="test-tab active" data-section="comprehension">
+                                    <i class="fas fa-book-open"></i> 阅读理解
+                                </button>
+                                <button class="test-tab" data-section="cloze">
+                                    <i class="fas fa-edit"></i> 完形填空
+                                </button>
+                                <button class="test-tab" data-section="matching">
+                                    <i class="fas fa-link"></i> 匹配题
+                                </button>
+                            </div>
+                            
+                            <div class="mixed-test-content">
+                                <div class="test-section active" id="section-comprehension">
+                                    ${comprehension}
+                                </div>
+                                <div class="test-section" id="section-cloze" style="display: none;">
+                                    ${cloze}
+                                </div>
+                                <div class="test-section" id="section-matching" style="display: none;">
+                                    ${matching}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Mixed reading test generation failed:', error);
+                    return '<div class="error-message">混合测试生成失败，请重试</div>';
+                }
+            }
+
+            // Static Test Data Functions (fallback when AI fails)
+            function getReadingPassages(level) {
+                return {
+                    beginner: [
+                        {
+                            title: "My Daily Routine",
+                            content: `<p>My name is Sarah and I am a high school student. Every morning, I wake up at 6:30 AM. I brush my teeth, wash my face, and get dressed. Then I have breakfast with my family. We usually eat bread, eggs, and drink milk or juice.</p>
+                            <p>At 7:30 AM, I walk to school with my friends. Our school starts at 8:00 AM. I have six classes every day: English, Math, Science, History, Art, and Physical Education. My favorite subject is English because I like reading stories and writing essays.</p>
+                            <p>After school, I go home and do my homework. In the evening, I sometimes watch TV or play games with my younger brother. I go to bed at 10:00 PM.</p>`,
+                            questions: [
+                                {
+                                    question: "What time does Sarah wake up?",
+                                    options: ["6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM"],
+                                    correct: 1,
+                                    explanation: "Sarah wakes up at 6:30 AM according to the text."
+                                },
+                                {
+                                    question: "What is Sarah's favorite subject?",
+                                    options: ["Math", "Science", "English", "History"],
+                                    correct: 2,
+                                    explanation: "Sarah's favorite subject is English because she likes reading stories and writing essays."
+                                }
+                            ]
+                        }
+                    ],
+                    intermediate: [
+                        {
+                            title: "The Benefits of Reading",
+                            content: `<p>Reading is one of the most valuable skills a person can develop. It not only provides entertainment but also offers numerous educational and personal benefits. When we read regularly, we expand our vocabulary, improve our writing skills, and enhance our understanding of the world around us.</p>
+                            <p>Research has shown that people who read frequently have better concentration and analytical thinking skills. Reading different types of books exposes us to various writing styles, cultures, and perspectives. This exposure helps us become more empathetic and open-minded individuals.</p>
+                            <p>Furthermore, reading can reduce stress and improve mental health. When we immerse ourselves in a good book, we can temporarily escape from daily worries and pressures. This mental break is essential for maintaining psychological well-being.</p>`,
+                            questions: [
+                                {
+                                    question: "According to the passage, reading helps improve all of the following EXCEPT:",
+                                    options: ["vocabulary", "writing skills", "physical strength", "understanding of the world"],
+                                    correct: 2,
+                                    explanation: "The passage mentions vocabulary, writing skills, and understanding of the world as benefits of reading, but not physical strength."
+                                },
+                                {
+                                    question: "What does the passage suggest about people who read frequently?",
+                                    options: ["They are always happy", "They have better concentration", "They earn more money", "They live longer"],
+                                    correct: 1,
+                                    explanation: "The passage states that people who read frequently have better concentration and analytical thinking skills."
+                                }
+                            ]
+                        }
+                    ],
+                    advanced: [
+                        {
+                            title: "The Impact of Artificial Intelligence on Society",
+                            content: `<p>Artificial Intelligence (AI) has emerged as one of the most transformative technologies of the 21st century, fundamentally altering how we work, communicate, and interact with the world. From autonomous vehicles to sophisticated chatbots, AI applications are becoming increasingly prevalent across various sectors, including healthcare, finance, education, and entertainment.</p>
+                            <p>While the potential benefits of AI are substantial—increased efficiency, enhanced decision-making capabilities, and the automation of mundane tasks—there are also significant concerns that must be addressed. The displacement of traditional jobs, privacy issues related to data collection, and the ethical implications of algorithmic decision-making represent challenges that society must navigate carefully.</p>
+                            <p>Moreover, the rapid pace of AI development has outstripped regulatory frameworks, creating a gap between technological capabilities and governance structures. This discrepancy raises questions about accountability, transparency, and the equitable distribution of AI's benefits across different socioeconomic groups.</p>`,
+                            questions: [
+                                {
+                                    question: "The author's attitude toward AI can best be described as:",
+                                    options: ["entirely optimistic", "completely pessimistic", "cautiously balanced", "indifferent"],
+                                    correct: 2,
+                                    explanation: "The author presents both benefits and concerns about AI, showing a balanced perspective."
+                                },
+                                {
+                                    question: "What does the passage suggest about AI regulation?",
+                                    options: ["It is too strict", "It is keeping pace with technology", "It is lagging behind technological development", "It is unnecessary"],
+                                    correct: 2,
+                                    explanation: "The passage mentions that the rapid pace of AI development has outstripped regulatory frameworks."
+                                }
+                            ]
+                        }
+                    ]
+                };
+            }
+
+            function getClozeTexts(level) {
+                return {
+                    beginner: [
+                        {
+                            title: "At School",
+                            content: "Tom is a {0} student. He goes to {1} every day by bus. His favorite {2} is English because he wants to {3} to other countries. After school, he {4} his homework and then plays with his friends.",
+                            blanks: [
+                                {
+                                    context: "Tom is a ___ student",
+                                    options: ["good", "bad", "lazy", "tired"],
+                                    correct: 0,
+                                    explanation: "The context suggests Tom is a good student."
+                                },
+                                {
+                                    context: "He goes to ___ every day",
+                                    options: ["work", "school", "home", "store"],
+                                    correct: 1,
+                                    explanation: "Students go to school every day."
+                                }
+                            ]
+                        }
+                    ],
+                    intermediate: [
+                        {
+                            title: "Environmental Protection",
+                            content: "Climate change is one of the most {0} challenges facing our planet today. Scientists {1} that global temperatures have risen significantly over the past century. To {2} this problem, we must reduce our carbon emissions and develop {3} energy sources. Every individual can {4} by making small changes in their daily lives.",
+                            blanks: [
+                                {
+                                    context: "one of the most ___ challenges",
+                                    options: ["serious", "easy", "funny", "simple"],
+                                    correct: 0,
+                                    explanation: "Climate change is a serious challenge."
+                                },
+                                {
+                                    context: "Scientists ___ that global temperatures",
+                                    options: ["deny", "report", "ignore", "forget"],
+                                    correct: 1,
+                                    explanation: "Scientists report their findings about temperature rises."
+                                }
+                            ]
+                        }
+                    ],
+                    advanced: [
+                        {
+                            title: "Technological Innovation",
+                            content: "The {0} advancement of technology has {1} transformed modern society. Innovations in artificial intelligence and machine learning have {2} new possibilities for automation and efficiency. However, these developments also {3} significant ethical and social {4} that require careful consideration.",
+                            blanks: [
+                                {
+                                    context: "The ___ advancement of technology",
+                                    options: ["slow", "rapid", "backward", "limited"],
+                                    correct: 1,
+                                    explanation: "Technology advancement has been rapid in recent times."
+                                },
+                                {
+                                    context: "has ___ transformed modern society",
+                                    options: ["slightly", "fundamentally", "rarely", "barely"],
+                                    correct: 1,
+                                    explanation: "Technology has fundamentally transformed society."
+                                }
+                            ]
+                        }
+                    ]
+                };
+            }
+
+            function getMatchingTests(level) {
+                return {
+                    beginner: [
+                        {
+                            instructions: "Match each profession with the place where they work.",
+                            leftTitle: "Professions",
+                            rightTitle: "Workplaces",
+                            leftItems: ["Doctor", "Teacher", "Chef", "Firefighter", "Librarian"],
+                            rightItems: ["Fire station", "Kitchen", "Hospital", "Library", "School"],
+                            correctMatches: [2, 4, 1, 0, 3]
+                        }
+                    ],
+                    intermediate: [
+                        {
+                            instructions: "Match each environmental problem with its primary solution.",
+                            leftTitle: "Environmental Problems",
+                            rightTitle: "Solutions",
+                            leftItems: ["Air pollution", "Deforestation", "Water shortage", "Global warming", "Plastic waste"],
+                            rightItems: ["Recycling programs", "Renewable energy", "Tree planting", "Clean transportation", "Water conservation"],
+                            correctMatches: [3, 2, 4, 1, 0]
+                        }
+                    ],
+                    advanced: [
+                        {
+                            instructions: "Match each scientific discovery with its social impact.",
+                            leftTitle: "Scientific Discoveries",
+                            rightTitle: "Social Impacts",
+                            leftItems: ["Internet", "Antibiotics", "DNA sequencing", "Artificial Intelligence", "Renewable energy"],
+                            rightItems: ["Personalized medicine", "Global communication", "Automation of jobs", "Sustainable development", "Extended life expectancy"],
+                            correctMatches: [1, 4, 0, 2, 3]
+                        }
+                    ]
+                };
             }
 
             // AI Response Parsing Functions
