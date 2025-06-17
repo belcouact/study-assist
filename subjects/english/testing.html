@@ -2104,6 +2104,429 @@
                 };
             }
 
+            // AI-Powered Test Generation Functions
+            async function generateReadingComprehensionTest(level) {
+                try {
+                    // Create prompt for AI reading comprehension generation
+                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一篇阅读理解测试。
+
+要求：
+1. 生成一篇适合${getLevelName(level)}难度的英语文章（150-300词）
+2. 文章主题要有趣且具有教育意义
+3. 根据文章内容设计4道阅读理解选择题
+4. 每道题有4个选项(A、B、C、D)，只有一个正确答案
+5. 题目要测试不同的理解技能：主旨大意、细节理解、推理判断、词义猜测等
+
+请严格按照以下JSON格式返回：
+
+{
+  "title": "文章标题",
+  "content": "文章内容（用<p>标签分段）",
+  "questions": [
+    {
+      "question": "问题内容",
+      "options": ["选项A", "选项B", "选项C", "选项D"],
+      "correct": 0,
+      "explanation": "答案解释"
+    }
+  ]
+}
+
+注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)`;
+
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ prompt: prompt })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        throw new Error(result.message || 'AI生成失败');
+                    }
+
+                    // Parse the AI response
+                    const passage = parseAIResponse(result.output, 'reading');
+                    
+                    return generateReadingHTML(passage, level);
+                    
+                } catch (error) {
+                    console.error('生成阅读理解测试失败:', error);
+                    // Fallback to static content
+                    const passages = getReadingPassages(level);
+                    const passage = passages[level][Math.floor(Math.random() * passages[level].length)];
+                    
+                    return generateReadingHTML(passage, level, true);
+                }
+            }
+
+            async function generateClozeTest(level) {
+                try {
+                    // Create prompt for AI cloze test generation
+                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一道完形填空测试。
+
+要求：
+1. 生成一篇适合${getLevelName(level)}难度的英语短文（100-200词）
+2. 从文中选择6-8个关键词设为空白，用{0}, {1}, {2}等标记
+3. 为每个空白提供4个选项(A、B、C、D)，只有一个正确答案
+4. 空白应该测试语法、词汇、语境理解等不同技能
+5. 选项要有一定迷惑性，但只有一个明显正确
+
+请严格按照以下JSON格式返回：
+
+{
+  "title": "文章标题",
+  "content": "文章内容（用{0}, {1}, {2}等标记空白位置）",
+  "blanks": [
+    {
+      "context": "空白前后的语境提示",
+      "options": ["选项A", "选项B", "选项C", "选项D"],
+      "correct": 0,
+      "explanation": "答案解释"
+    }
+  ]
+}
+
+注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)`;
+
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ prompt: prompt })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        throw new Error(result.message || 'AI生成失败');
+                    }
+
+                    // Parse the AI response
+                    const clozeTest = parseAIResponse(result.output, 'cloze');
+                    
+                    return generateClozeHTML(clozeTest, level);
+                    
+                } catch (error) {
+                    console.error('生成完形填空测试失败:', error);
+                    // Fallback to static content
+                    const clozeTexts = getClozeTexts(level);
+                    const clozeTest = clozeTexts[level][Math.floor(Math.random() * clozeTexts[level].length)];
+                    
+                    return generateClozeHTML(clozeTest, level, true);
+                }
+            }
+
+            async function generateMatchingTest(level) {
+                try {
+                    // Create prompt for AI matching test generation
+                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一道匹配题测试。
+
+要求：
+1. 选择一个适合${getLevelName(level)}难度的主题
+2. 创建5个左边项目和5个右边项目
+3. 题目要测试词汇理解、语言知识或文化常识
+4. 确保匹配关系明确且符合逻辑
+5. 提供清晰的指导说明
+
+请严格按照以下JSON格式返回：
+
+{
+  "instructions": "匹配指导说明",
+  "leftTitle": "左边栏目标题",
+  "rightTitle": "右边栏目标题",
+  "leftItems": ["左边项目1", "左边项目2", "左边项目3", "左边项目4", "左边项目5"],
+  "rightItems": ["右边项目1", "右边项目2", "右边项目3", "右边项目4", "右边项目5"],
+  "correctMatches": [2, 0, 4, 1, 3]
+}
+
+注意：correctMatches数组表示每个左边项目对应的右边项目索引(从0开始)`;
+
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ prompt: prompt })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        throw new Error(result.message || 'AI生成失败');
+                    }
+
+                    // Parse the AI response
+                    const test = parseAIResponse(result.output, 'matching');
+                    
+                    return generateMatchingHTML(test, level);
+                    
+                } catch (error) {
+                    console.error('生成匹配题测试失败:', error);
+                    // Fallback to static content
+                    const matchingTests = getMatchingTests(level);
+                    const test = matchingTests[level][Math.floor(Math.random() * matchingTests[level].length)];
+                    
+                    return generateMatchingHTML(test, level, true);
+                }
+            }
+
+            // HTML Generation Helper Functions
+            function generateReadingHTML(passage, level, isStaticFallback = false) {
+                let html = `
+                    <div class="reading-test-container">
+                        <h3><i class="fas fa-book-open"></i> 阅读理解测试 - ${getLevelName(level)}</h3>
+                        ${isStaticFallback ? '<div class="error-message" style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><p><i class="fas fa-exclamation-triangle"></i> AI生成失败，使用备用题目</p></div>' : ''}
+                        
+                        <!-- 移动端友好的阅读区域 -->
+                        <div class="reading-passage-container">
+                            <div class="passage-header">
+                                <h4><i class="fas fa-file-text"></i> 阅读文章</h4>
+                                <div class="reading-controls">
+                                    <button class="btn-icon" id="increase-font" title="增大字体">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button class="btn-icon" id="decrease-font" title="减小字体">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="reading-passage" id="reading-passage">
+                                <h5 class="passage-title">${passage.title}</h5>
+                                <div class="passage-content">
+                                    ${passage.content}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 问题区域 -->
+                        <div class="questions-container">
+                            <h4><i class="fas fa-question-circle"></i> 问题 (${passage.questions.length}题)</h4>
+                            <div class="progress-container">
+                                <div class="progress-bar" id="reading-progress" style="width: 0%"></div>
+                            </div>
+                            <p class="progress-text">已完成: <span id="reading-progress-text">0/${passage.questions.length}</span></p>
+                `;
+                
+                passage.questions.forEach((question, index) => {
+                    html += `
+                        <div class="test-question" data-question="${index}">
+                            <div class="question-text">
+                                <span class="question-number">${index + 1}.</span>
+                                ${question.question}
+                            </div>
+                            <ul class="options-list">
+                    `;
+                    
+                    question.options.forEach((option, optionIndex) => {
+                        const letter = String.fromCharCode(65 + optionIndex);
+                        html += `
+                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" data-correct="${question.correct}">
+                                <span class="option-letter">${letter}.</span>
+                                <span class="option-text">${option}</span>
+                            </li>
+                        `;
+                    });
+                    
+                    html += `
+                            </ul>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <div class="submit-container">
+                            <button id="submit-reading-test" class="btn btn-primary" disabled>
+                                <i class="fas fa-check"></i> 提交答案
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                return html;
+            }
+
+            function generateClozeHTML(clozeTest, level, isStaticFallback = false) {
+                let html = `
+                    <div class="reading-test-container">
+                        <h3><i class="fas fa-edit"></i> 完形填空测试 - ${getLevelName(level)}</h3>
+                        ${isStaticFallback ? '<div class="error-message" style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><p><i class="fas fa-exclamation-triangle"></i> AI生成失败，使用备用题目</p></div>' : ''}
+                        
+                        <div class="cloze-instructions">
+                            <p><i class="fas fa-info-circle"></i> 阅读下面的短文，从每题所给的四个选项中选出最佳答案。</p>
+                        </div>
+                        
+                        <div class="cloze-passage-container">
+                            <div class="passage-header">
+                                <h4><i class="fas fa-file-text"></i> ${clozeTest.title}</h4>
+                                <div class="reading-controls">
+                                    <button class="btn-icon" id="increase-font" title="增大字体">
+                                        <i class="fas fa-search-plus"></i>
+                                    </button>
+                                    <button class="btn-icon" id="decrease-font" title="减小字体">
+                                        <i class="fas fa-search-minus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="cloze-passage" id="cloze-passage">
+                `;
+                
+                // 处理完形填空文本，插入题目
+                let passageHTML = clozeTest.content;
+                clozeTest.blanks.forEach((blank, index) => {
+                    const blankHTML = `<span class="cloze-blank" data-blank="${index}">____${index + 1}____</span>`;
+                    passageHTML = passageHTML.replace(`{${index}}`, blankHTML);
+                });
+                
+                html += `
+                                ${passageHTML}
+                            </div>
+                        </div>
+                        
+                        <!-- 选择题区域 -->
+                        <div class="cloze-questions-container">
+                            <h4><i class="fas fa-list-ol"></i> 选择题 (${clozeTest.blanks.length}题)</h4>
+                            <div class="progress-container">
+                                <div class="progress-bar" id="cloze-progress" style="width: 0%"></div>
+                            </div>
+                            <p class="progress-text">已完成: <span id="cloze-progress-text">0/${clozeTest.blanks.length}</span></p>
+                            
+                            <div class="cloze-questions-grid">
+                `;
+                
+                clozeTest.blanks.forEach((blank, index) => {
+                    html += `
+                        <div class="cloze-question" data-question="${index}">
+                            <div class="question-header">
+                                <span class="question-number">${index + 1}.</span>
+                                <span class="context-hint">"...${blank.context}..."</span>
+                            </div>
+                            <ul class="options-list compact">
+                    `;
+                    
+                    blank.options.forEach((option, optionIndex) => {
+                        const letter = String.fromCharCode(65 + optionIndex);
+                        html += `
+                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" data-correct="${blank.correct}">
+                                <span class="option-letter">${letter}.</span>
+                                <span class="option-text">${option}</span>
+                            </li>
+                        `;
+                    });
+                    
+                    html += `
+                            </ul>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                            </div>
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <div class="submit-container">
+                            <button id="submit-cloze-test" class="btn btn-primary" disabled>
+                                <i class="fas fa-check"></i> 提交答案
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                return html;
+            }
+
+            function generateMatchingHTML(test, level, isStaticFallback = false) {
+                let html = `
+                    <div class="reading-test-container">
+                        <h3><i class="fas fa-link"></i> 匹配题测试 - ${getLevelName(level)}</h3>
+                        ${isStaticFallback ? '<div class="error-message" style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"><p><i class="fas fa-exclamation-triangle"></i> AI生成失败，使用备用题目</p></div>' : ''}
+                        
+                        <div class="matching-instructions">
+                            <p><i class="fas fa-info-circle"></i> ${test.instructions}</p>
+                        </div>
+                        
+                        <div class="matching-container">
+                            <div class="matching-left">
+                                <h4><i class="fas fa-list"></i> ${test.leftTitle}</h4>
+                                <div class="matching-items">
+                `;
+                
+                test.leftItems.forEach((item, index) => {
+                    html += `
+                        <div class="matching-item" data-left="${index}" data-correct="${test.correctMatches[index]}">
+                            <span class="item-number">${index + 1}.</span>
+                            <span class="item-content">${item}</span>
+                            <span class="match-indicator" id="match-${index}">
+                                <i class="fas fa-circle-notch"></i>
+                            </span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                                </div>
+                            </div>
+                            
+                            <div class="matching-right">
+                                <h4><i class="fas fa-list"></i> ${test.rightTitle}</h4>
+                                <div class="matching-options">
+                `;
+                
+                test.rightItems.forEach((item, index) => {
+                    const letter = String.fromCharCode(65 + index);
+                    html += `
+                        <div class="matching-option" data-right="${index}">
+                            <span class="option-letter">${letter}.</span>
+                            <span class="option-content">${item}</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 匹配答案区域 -->
+                        <div class="matching-answers">
+                            <h4><i class="fas fa-check-double"></i> 你的答案</h4>
+                            <div class="answers-grid" id="matching-answers-grid">
+                                <!-- 答案会在这里显示 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <div class="submit-container">
+                            <button id="submit-matching-test" class="btn btn-primary" disabled>
+                                <i class="fas fa-check"></i> 提交答案
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                return html;
+            }
+
             // AI Response Parsing Functions
             function parseAIResponse(aiOutput, testType) {
                 try {
