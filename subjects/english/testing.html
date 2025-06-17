@@ -1028,6 +1028,119 @@
                 align-self: flex-start;
             }
         }
+        
+        /* Detailed Results Styles */
+        .reading-test-results {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .detailed-results {
+            margin-top: 30px;
+        }
+        
+        .result-item {
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            background: white;
+            overflow: hidden;
+        }
+        
+        .result-item.correct {
+            border-left: 4px solid #00b894;
+        }
+        
+        .result-item.incorrect {
+            border-left: 4px solid #e74c3c;
+        }
+        
+        .result-header {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e1e5e9;
+        }
+        
+        .result-header h5 {
+            margin: 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .result-content {
+            padding: 15px;
+        }
+        
+        .answer-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .answer-comparison {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+        
+        .user-answer, .correct-answer {
+            padding: 10px;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        
+        .user-answer {
+            border-left: 3px solid #007bff;
+        }
+        
+        .correct-answer {
+            border-left: 3px solid #00b894;
+        }
+        
+        .explanation {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .explanation strong {
+            color: #8b4513;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        
+        .explanation p {
+            margin: 0;
+            line-height: 1.6;
+            color: #5d4e37;
+        }
+        
+        .text-success {
+            color: #00b894 !important;
+        }
+        
+        .text-danger {
+            color: #e74c3c !important;
+        }
+        
+        .result-actions {
+            margin-top: 30px;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 2px solid #e1e5e9;
+        }
+        
+        .result-actions .btn {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
@@ -1282,10 +1395,26 @@
                     <div class="form-group">
                         <label for="reading-type">测试类型：</label>
                         <select id="reading-type" class="form-control">
-                            <option value="comprehension" selected>阅读理解</option>
-                            <option value="cloze">完形填空</option>
+                            <option value="comprehension" selected>阅读理解 (5题)</option>
+                            <option value="cloze">完形填空 (10题)</option>
                             <option value="matching">匹配题</option>
                             <option value="mixed">混合类型</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="reading-topic">内容主题：</label>
+                        <select id="reading-topic" class="form-control">
+                            <option value="story">故事类</option>
+                            <option value="news" selected>时事新闻</option>
+                            <option value="technology">科技发展</option>
+                            <option value="education">教育学习</option>
+                            <option value="environment">环境保护</option>
+                            <option value="culture">文化社会</option>
+                            <option value="health">健康生活</option>
+                            <option value="travel">旅行探索</option>
+                            <option value="sports">体育运动</option>
+                            <option value="science">科学发现</option>
                         </select>
                     </div>
                     
@@ -1573,7 +1702,8 @@
             startReadingBtn.addEventListener('click', function() {
                 const level = document.getElementById('reading-level').value;
                 const type = document.getElementById('reading-type').value;
-                startReadingTest(level, type, readingContainer);
+                const topic = document.getElementById('reading-topic').value;
+                startReadingTest(level, type, topic, readingContainer);
             });
 
             // Writing test
@@ -1847,36 +1977,36 @@
                 }, 1000);
             }
 
-            async function startReadingTest(level, type, container) {
+            async function startReadingTest(level, type, topic, container) {
                 container.style.display = 'block';
                 container.innerHTML = '<p class="text-center"><i class="fas fa-brain"></i> AI正在生成阅读测试，请稍候...</p>';
                 
                 try {
-                    await generateReadingTest(level, type, container);
+                    await generateReadingTest(level, type, topic, container);
                 } catch (error) {
                     console.error('Reading test generation failed:', error);
                     container.innerHTML = '<p class="text-center error-message">生成测试失败，请重试</p>';
                 }
             }
 
-            async function generateReadingTest(level, type, container) {
+            async function generateReadingTest(level, type, topic, container) {
                 let html = '';
                 
                 switch(type) {
                     case 'comprehension':
-                        html = await generateReadingComprehensionTest(level);
+                        html = await generateReadingComprehensionTest(level, topic);
                         break;
                     case 'cloze':
-                        html = await generateClozeTest(level);
+                        html = await generateClozeTest(level, topic);
                         break;
                     case 'matching':
-                        html = await generateMatchingTest(level);
+                        html = await generateMatchingTest(level, topic);
                         break;
                     case 'mixed':
-                        html = await generateMixedReadingTest(level);
+                        html = await generateMixedReadingTest(level, topic);
                         break;
                     default:
-                        html = await generateReadingComprehensionTest(level);
+                        html = await generateReadingComprehensionTest(level, topic);
                 }
                 
                 container.innerHTML = html;
@@ -1889,12 +2019,12 @@
             }
 
             // Mixed Reading Test Function
-            async function generateMixedReadingTest(level) {
+            async function generateMixedReadingTest(level, topic) {
                 try {
                     const [comprehension, cloze, matching] = await Promise.all([
-                        generateReadingComprehensionTest(level),
-                        generateClozeTest(level),
-                        generateMatchingTest(level)
+                        generateReadingComprehensionTest(level, topic),
+                        generateClozeTest(level, topic),
+                        generateMatchingTest(level, topic)
                     ]);
                     
                     return `
@@ -1946,13 +2076,31 @@
                                     question: "What time does Sarah wake up?",
                                     options: ["6:00 AM", "6:30 AM", "7:00 AM", "7:30 AM"],
                                     correct: 1,
-                                    explanation: "Sarah wakes up at 6:30 AM according to the text."
+                                    explanation: "根据文章第一段'Every morning, I wake up at 6:30 AM'可知，Sarah每天早上6:30起床，所以答案是B。A项6:00太早，C项7:00和D项7:30都比实际时间晚。"
                                 },
                                 {
                                     question: "What is Sarah's favorite subject?",
                                     options: ["Math", "Science", "English", "History"],
                                     correct: 2,
-                                    explanation: "Sarah's favorite subject is English because she likes reading stories and writing essays."
+                                    explanation: "文章第二段明确提到'My favorite subject is English because I like reading stories and writing essays'，说明Sarah最喜欢的科目是英语，因为她喜欢阅读故事和写作文。其他选项Math、Science、History虽然都是她学习的科目，但不是最喜欢的。"
+                                },
+                                {
+                                    question: "How does Sarah go to school?",
+                                    options: ["By bus", "By car", "On foot", "By bike"],
+                                    correct: 2,
+                                    explanation: "文章第二段提到'I walk to school with my friends'，表明Sarah是步行上学的，所以答案是C。walk to school意思就是步行上学。"
+                                },
+                                {
+                                    question: "How many classes does Sarah have every day?",
+                                    options: ["Five", "Six", "Seven", "Eight"],
+                                    correct: 1,
+                                    explanation: "文章明确写道'I have six classes every day: English, Math, Science, History, Art, and Physical Education'，Sarah每天有六节课，所以答案是B。"
+                                },
+                                {
+                                    question: "What does Sarah do in the evening?",
+                                    options: ["Only does homework", "Only watches TV", "Sometimes watches TV or plays games", "Always goes to bed early"],
+                                    correct: 2,
+                                    explanation: "文章最后一段提到'In the evening, I sometimes watch TV or play games with my younger brother'，说明Sarah晚上有时看电视或和弟弟玩游戏，关键词是'sometimes'，所以答案是C。"
                                 }
                             ]
                         }
@@ -2008,20 +2156,68 @@
                 return {
                     beginner: [
                         {
-                            title: "At School",
-                            content: "Tom is a {0} student. He goes to {1} every day by bus. His favorite {2} is English because he wants to {3} to other countries. After school, he {4} his homework and then plays with his friends.",
+                            title: "Tom的校园生活",
+                            content: "Tom is a {0} student. He goes to {1} every day by bus. His favorite {2} is English because he wants to {3} to other countries. After school, he {4} his homework and then plays with his friends. Tom also {5} in the school basketball team. He {6} very hard for the games. His teachers {7} him because he is polite and helpful. Tom's {8} is to become a teacher when he grows up. He believes that {9} can change the world.",
                             blanks: [
                                 {
                                     context: "Tom is a ___ student",
                                     options: ["good", "bad", "lazy", "tired"],
                                     correct: 0,
-                                    explanation: "The context suggests Tom is a good student."
+                                    explanation: "从上下文可以看出Tom是个积极向上的学生，所以应该选'good'。后文提到他努力学习、参加体育队、有礼貌等都说明他是个好学生。"
                                 },
                                 {
                                     context: "He goes to ___ every day",
                                     options: ["work", "school", "home", "store"],
                                     correct: 1,
-                                    explanation: "Students go to school every day."
+                                    explanation: "从上下文'student'和'by bus'可知，学生每天去的地方是学校。work(工作)、home(家)、store(商店)都不符合学生的日常行为。"
+                                },
+                                {
+                                    context: "His favorite ___ is English",
+                                    options: ["book", "subject", "teacher", "sport"],
+                                    correct: 1,
+                                    explanation: "从语法结构和逻辑来看，这里说的是最喜欢的学科是英语。subject意为'学科'，符合语境。"
+                                },
+                                {
+                                    context: "because he wants to ___ to other countries",
+                                    options: ["walk", "drive", "travel", "move"],
+                                    correct: 2,
+                                    explanation: "want to travel to other countries意为'想要去其他国家旅行'，这是学习英语的常见目的。travel是最合适的动词。"
+                                },
+                                {
+                                    context: "After school, he ___ his homework",
+                                    options: ["forgets", "does", "loses", "buys"],
+                                    correct: 1,
+                                    explanation: "do homework是固定搭配，意为'做作业'。这是学生放学后的正常活动，符合Tom作为好学生的形象。"
+                                },
+                                {
+                                    context: "Tom also ___ in the school basketball team",
+                                    options: ["works", "plays", "studies", "teaches"],
+                                    correct: 1,
+                                    explanation: "play in the team意为'在队里打球'，这是参加体育队的常用表达。works、studies、teaches都不符合语境。"
+                                },
+                                {
+                                    context: "He ___ very hard for the games",
+                                    options: ["sleeps", "eats", "practices", "talks"],
+                                    correct: 2,
+                                    explanation: "practice hard意为'努力练习'，这是为比赛做准备的正确表达。体育队员需要刻苦训练才能在比赛中表现好。"
+                                },
+                                {
+                                    context: "His teachers ___ him",
+                                    options: ["hate", "like", "forget", "ignore"],
+                                    correct: 1,
+                                    explanation: "从后文'because he is polite and helpful'可知，老师们喜欢Tom，因为他有礼貌且乐于助人。like符合逻辑。"
+                                },
+                                {
+                                    context: "Tom's ___ is to become a teacher",
+                                    options: ["hobby", "dream", "problem", "fear"],
+                                    correct: 1,
+                                    explanation: "dream意为'梦想'，成为老师是Tom的梦想/目标。这里表达的是对未来的期望和目标。"
+                                },
+                                {
+                                    context: "He believes that ___ can change the world",
+                                    options: ["money", "education", "games", "food"],
+                                    correct: 1,
+                                    explanation: "education意为'教育'，这与Tom想成为老师的梦想呼应。教育确实有改变世界的力量，这是一个积极向上的观点。"
                                 }
                             ]
                         }
@@ -2105,17 +2301,19 @@
             }
 
             // AI-Powered Test Generation Functions
-            async function generateReadingComprehensionTest(level) {
+            async function generateReadingComprehensionTest(level, topic) {
                 try {
+                    const topicName = getTopicName(topic);
                     // Create prompt for AI reading comprehension generation
-                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一篇阅读理解测试。
+                    const prompt = `请为英语${getLevelName(level)}水平的初高中学习者生成一篇${topicName}主题的阅读理解测试。
 
 要求：
-1. 生成一篇适合${getLevelName(level)}难度的英语文章（150-300词）
-2. 文章主题要有趣且具有教育意义
-3. 根据文章内容设计4道阅读理解选择题
+1. 生成一篇适合${getLevelName(level)}难度的英语文章（200-400词），主题为：${topicName}
+2. 文章内容要有趣、具有教育意义，适合初高中学生阅读
+3. 根据文章内容设计5道阅读理解选择题
 4. 每道题有4个选项(A、B、C、D)，只有一个正确答案
-5. 题目要测试不同的理解技能：主旨大意、细节理解、推理判断、词义猜测等
+5. 题目要测试不同的理解技能：主旨大意、细节理解、推理判断、词义猜测、作者态度等
+6. 每道题必须提供详细的中文讲解，帮助学生理解为什么这个答案是正确的
 
 请严格按照以下JSON格式返回：
 
@@ -2127,12 +2325,12 @@
       "question": "问题内容",
       "options": ["选项A", "选项B", "选项C", "选项D"],
       "correct": 0,
-      "explanation": "答案解释"
+      "explanation": "详细的中文答案讲解，解释为什么这个选项是正确的，其他选项为什么不对"
     }
   ]
 }
 
-注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)`;
+注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)，explanation必须是详细的中文讲解`;
 
                     const response = await fetch('/api/chat', {
                         method: 'POST',
@@ -2167,34 +2365,36 @@
                 }
             }
 
-            async function generateClozeTest(level) {
+            async function generateClozeTest(level, topic) {
                 try {
+                    const topicName = getTopicName(topic);
                     // Create prompt for AI cloze test generation
-                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一道完形填空测试。
+                    const prompt = `请为英语${getLevelName(level)}水平的初高中学习者生成一道${topicName}主题的完形填空测试。
 
 要求：
-1. 生成一篇适合${getLevelName(level)}难度的英语短文（100-200词）
-2. 从文中选择6-8个关键词设为空白，用{0}, {1}, {2}等标记
+1. 生成一篇适合${getLevelName(level)}难度的英语短文（150-250词），主题为：${topicName}
+2. 从文中选择10个关键词设为空白，用{0}, {1}, {2}...{9}等标记
 3. 为每个空白提供4个选项(A、B、C、D)，只有一个正确答案
-4. 空白应该测试语法、词汇、语境理解等不同技能
+4. 空白应该测试语法、词汇、语境理解、逻辑关系等不同技能
 5. 选项要有一定迷惑性，但只有一个明显正确
+6. 每个空白必须提供详细的中文讲解，帮助学生理解语法和词汇知识
 
 请严格按照以下JSON格式返回：
 
 {
   "title": "文章标题",
-  "content": "文章内容（用{0}, {1}, {2}等标记空白位置）",
+  "content": "文章内容（用{0}, {1}, {2}...{9}等标记空白位置）",
   "blanks": [
     {
       "context": "空白前后的语境提示",
       "options": ["选项A", "选项B", "选项C", "选项D"],
       "correct": 0,
-      "explanation": "答案解释"
+      "explanation": "详细的中文讲解，解释为什么这个选项正确，涉及什么语法或词汇知识"
     }
   ]
 }
 
-注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)`;
+注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)，必须生成10个空白，explanation必须是详细的中文讲解`;
 
                     const response = await fetch('/api/chat', {
                         method: 'POST',
@@ -2229,17 +2429,19 @@
                 }
             }
 
-            async function generateMatchingTest(level) {
+            async function generateMatchingTest(level, topic) {
                 try {
+                    const topicName = getTopicName(topic);
                     // Create prompt for AI matching test generation
-                    const prompt = `请为英语${getLevelName(level)}水平的学习者生成一道匹配题测试。
+                    const prompt = `请为英语${getLevelName(level)}水平的初高中学习者生成一道${topicName}主题的匹配题测试。
 
 要求：
-1. 选择一个适合${getLevelName(level)}难度的主题
+1. 基于${topicName}主题，选择适合${getLevelName(level)}难度的内容
 2. 创建5个左边项目和5个右边项目
-3. 题目要测试词汇理解、语言知识或文化常识
+3. 题目要测试词汇理解、语言知识或相关文化常识
 4. 确保匹配关系明确且符合逻辑
 5. 提供清晰的指导说明
+6. 为每对正确匹配提供中文解释
 
 请严格按照以下JSON格式返回：
 
@@ -2249,10 +2451,11 @@
   "rightTitle": "右边栏目标题",
   "leftItems": ["左边项目1", "左边项目2", "左边项目3", "左边项目4", "左边项目5"],
   "rightItems": ["右边项目1", "右边项目2", "右边项目3", "右边项目4", "右边项目5"],
-  "correctMatches": [2, 0, 4, 1, 3]
+  "correctMatches": [2, 0, 4, 1, 3],
+  "explanations": ["匹配1的解释", "匹配2的解释", "匹配3的解释", "匹配4的解释", "匹配5的解释"]
 }
 
-注意：correctMatches数组表示每个左边项目对应的右边项目索引(从0开始)`;
+注意：correctMatches数组表示每个左边项目对应的右边项目索引(从0开始)，explanations数组按照左边项目的顺序解释每个匹配`;
 
                     const response = await fetch('/api/chat', {
                         method: 'POST',
@@ -2326,7 +2529,7 @@
                 
                 passage.questions.forEach((question, index) => {
                     html += `
-                        <div class="test-question" data-question="${index}">
+                        <div class="test-question" data-question="${index}" data-explanation="${question.explanation || ''}">
                             <div class="question-text">
                                 <span class="question-number">${index + 1}.</span>
                                 ${question.question}
@@ -2336,8 +2539,9 @@
                     
                     question.options.forEach((option, optionIndex) => {
                         const letter = String.fromCharCode(65 + optionIndex);
+                        const isCorrect = optionIndex === question.correct;
                         html += `
-                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" data-correct="${question.correct}">
+                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" ${isCorrect ? 'data-correct="true"' : ''} data-explanation="${question.explanation || ''}">
                                 <span class="option-letter">${letter}.</span>
                                 <span class="option-text">${option}</span>
                             </li>
@@ -2415,7 +2619,7 @@
                 
                 clozeTest.blanks.forEach((blank, index) => {
                     html += `
-                        <div class="cloze-question" data-question="${index}">
+                        <div class="cloze-question" data-question="${index}" data-explanation="${blank.explanation || ''}">
                             <div class="question-header">
                                 <span class="question-number">${index + 1}.</span>
                                 <span class="context-hint">"...${blank.context}..."</span>
@@ -2425,8 +2629,9 @@
                     
                     blank.options.forEach((option, optionIndex) => {
                         const letter = String.fromCharCode(65 + optionIndex);
+                        const isCorrect = optionIndex === blank.correct;
                         html += `
-                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" data-correct="${blank.correct}">
+                            <li class="option-item" data-question="${index}" data-option="${optionIndex}" ${isCorrect ? 'data-correct="true"' : ''} data-explanation="${blank.explanation || ''}">
                                 <span class="option-letter">${letter}.</span>
                                 <span class="option-text">${option}</span>
                             </li>
@@ -2472,8 +2677,9 @@
                 `;
                 
                 test.leftItems.forEach((item, index) => {
+                    const explanation = test.explanations && test.explanations[index] ? test.explanations[index] : '';
                     html += `
-                        <div class="matching-item" data-left="${index}" data-correct="${test.correctMatches[index]}">
+                        <div class="matching-item" data-left="${index}" data-correct="${test.correctMatches[index]}" data-explanation="${explanation}">
                             <span class="item-number">${index + 1}.</span>
                             <span class="item-content">${item}</span>
                             <span class="match-indicator" id="match-${index}">
@@ -2711,30 +2917,129 @@
             }
 
             function handleReadingTestSubmit(container, type) {
-                const selectedOptions = container.querySelectorAll('.option-item.selected');
-                const correctAnswers = container.querySelectorAll('.option-item[data-correct]');
+                const questions = container.querySelectorAll('.test-question, .cloze-question, .matching-group');
+                const results = [];
+                let totalScore = 0;
                 
-                let score = 0;
-                selectedOptions.forEach(selected => {
-                    const questionId = selected.getAttribute('data-question');
-                    const selectedOption = parseInt(selected.getAttribute('data-option'));
-                    const correctOption = parseInt(selected.getAttribute('data-correct'));
-                    
-                    if (selectedOption === correctOption) {
-                        score++;
+                // Collect answers and calculate results
+                questions.forEach((question, index) => {
+                    if (type === 'comprehension' || type === 'mixed') {
+                        const selectedOption = question.querySelector('.option-item.selected');
+                        const correctOption = question.querySelector('.option-item[data-correct="true"]');
+                        const questionText = question.querySelector('.question-text')?.textContent || `题目 ${index + 1}`;
+                        const explanation = question.getAttribute('data-explanation') || '';
+                        
+                        if (selectedOption && correctOption) {
+                            const userChoice = selectedOption.textContent;
+                            const correctChoice = correctOption.textContent;
+                            const isCorrect = selectedOption === correctOption;
+                            
+                            results.push({
+                                question: questionText,
+                                userAnswer: userChoice,
+                                correctAnswer: correctChoice,
+                                isCorrect: isCorrect,
+                                explanation: explanation,
+                                type: 'choice'
+                            });
+                            
+                            if (isCorrect) totalScore++;
+                        }
+                    } else if (type === 'cloze') {
+                        const blankInputs = question.querySelectorAll('.blank-input, .option-item.selected');
+                        blankInputs.forEach((input, blankIndex) => {
+                            const correctAnswer = input.getAttribute('data-correct') || '';
+                            const userAnswer = input.value || input.textContent || '';
+                            const explanation = input.getAttribute('data-explanation') || '';
+                            const isCorrect = userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+                            
+                            results.push({
+                                question: `空白 ${blankIndex + 1}`,
+                                userAnswer: userAnswer,
+                                correctAnswer: correctAnswer,
+                                isCorrect: isCorrect,
+                                explanation: explanation,
+                                type: 'blank'
+                            });
+                            
+                            if (isCorrect) totalScore++;
+                        });
+                    } else if (type === 'matching') {
+                        // Handle matching test results
+                        const matches = question.querySelectorAll('.match-pair');
+                        matches.forEach((match, matchIndex) => {
+                            const userMatch = match.getAttribute('data-user-match') || '';
+                            const correctMatch = match.getAttribute('data-correct-match') || '';
+                            const explanation = match.getAttribute('data-explanation') || '';
+                            const isCorrect = userMatch === correctMatch;
+                            
+                            results.push({
+                                question: `匹配 ${matchIndex + 1}`,
+                                userAnswer: userMatch,
+                                correctAnswer: correctMatch,
+                                isCorrect: isCorrect,
+                                explanation: explanation,
+                                type: 'match'
+                            });
+                            
+                            if (isCorrect) totalScore++;
+                        });
                     }
                 });
                 
-                const percentage = Math.round((score / selectedOptions.length) * 100);
+                const totalQuestions = results.length;
+                const percentage = Math.round((totalScore / totalQuestions) * 100);
                 
-                container.innerHTML = `
-                    <div class="result-summary">
-                        <h3>阅读测试完成！</h3>
-                        <div class="score-display">${score}/${selectedOptions.length}</div>
-                        <div class="level-badge">${percentage}%</div>
-                        <p>恭喜你完成了阅读测试！基于你的表现，你的正确率为${percentage}%。</p>
+                // Generate detailed results with explanations
+                let html = `
+                    <div class="reading-test-results">
+                        <div class="result-summary">
+                            <h3><i class="fas fa-trophy"></i> 测试完成！</h3>
+                            <div class="score-display">${totalScore}/${totalQuestions}</div>
+                            <div class="level-badge">${percentage}%</div>
+                            <p>恭喜你完成了测试！你的正确率为 ${percentage}%。</p>
+                        </div>
+                        
+                        <div class="detailed-results">
+                            <h4><i class="fas fa-list-alt"></i> 详细答题情况</h4>
+                `;
+                
+                results.forEach((result, index) => {
+                    const statusIcon = result.isCorrect ? '<i class="fas fa-check text-success"></i>' : '<i class="fas fa-times text-danger"></i>';
+                    const statusClass = result.isCorrect ? 'correct' : 'incorrect';
+                    
+                    html += `
+                        <div class="result-item ${statusClass}">
+                            <div class="result-header">
+                                <h5>${statusIcon} ${result.question}</h5>
+                            </div>
+                            <div class="result-content">
+                                <div class="answer-comparison">
+                                    <div class="user-answer">
+                                        <strong>你的答案：</strong>
+                                        <span class="${result.isCorrect ? 'text-success' : 'text-danger'}">${result.userAnswer}</span>
+                                    </div>
+                                    <div class="correct-answer">
+                                        <strong>正确答案：</strong>
+                                        <span class="text-success">${result.correctAnswer}</span>
+                                    </div>
+                                </div>
+                                ${result.explanation ? `
+                                    <div class="explanation">
+                                        <strong><i class="fas fa-lightbulb"></i> 详细讲解：</strong>
+                                        <p>${result.explanation}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        
                         <div class="result-actions">
-                            <button class="btn btn-primary" onclick="location.reload()">
+                            <button class="btn btn-secondary" onclick="location.reload()">
                                 <i class="fas fa-redo"></i> 重新测试
                             </button>
                             <button class="btn btn-primary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
@@ -2743,6 +3048,11 @@
                         </div>
                     </div>
                 `;
+                
+                container.innerHTML = html;
+                
+                // Update results tab
+                updateResultsTab(totalScore, totalQuestions, percentage, '');
             }
 
             function updateResultsTab(score, total, percentage, level) {
@@ -3346,6 +3656,22 @@
             function getLevelName(level) {
                 return level === 'beginner' ? '初级' : 
                        level === 'intermediate' ? '中级' : '高级';
+            }
+            
+            function getTopicName(topic) {
+                const topics = {
+                    story: '故事类',
+                    news: '时事新闻',
+                    technology: '科技发展',
+                    education: '教育学习',
+                    environment: '环境保护',
+                    culture: '文化社会',
+                    health: '健康生活',
+                    travel: '旅行探索',
+                    sports: '体育运动',
+                    science: '科学发现'
+                };
+                return topics[topic] || '时事新闻';
             }
 
             function getWritingTypeName(type) {
