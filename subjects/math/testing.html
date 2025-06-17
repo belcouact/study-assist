@@ -458,6 +458,125 @@
             padding-top: 2px;
         }
 
+        /* Detailed results styles */
+        .detailed-results {
+            margin-top: 2rem;
+        }
+
+        .detailed-results h4 {
+            color: #4361ee;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 0.5rem;
+        }
+
+        .question-result {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .question-result.correct {
+            border-left: 4px solid #28a745;
+            background: linear-gradient(to right, rgba(40, 167, 69, 0.05), white);
+        }
+
+        .question-result.incorrect {
+            border-left: 4px solid #dc3545;
+            background: linear-gradient(to right, rgba(220, 53, 69, 0.05), white);
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .question-number {
+            font-weight: 600;
+            color: #495057;
+            font-size: 1.1rem;
+        }
+
+        .result-icon {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .question-content {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .answer-analysis {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .answer-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .user-answer, .correct-answer {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .user-answer.correct {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .user-answer.incorrect {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .correct-answer {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .explanation {
+            line-height: 1.6;
+        }
+
+        .explanation-content {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border-left: 3px solid #4361ee;
+            margin-top: 0.5rem;
+            white-space: pre-line;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #e9ecef;
+        }
+
         @media (max-width: 768px) {
             .testing-tabs {
                 flex-direction: column;
@@ -487,6 +606,31 @@
             .quiz-navigation {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .answer-info {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .user-answer, .correct-answer {
+                margin-bottom: 0.5rem;
+            }
+
+            .result-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .question-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
+            .explanation-content {
+                font-size: 0.9rem;
+                padding: 0.8rem;
             }
         }
     </style>
@@ -1707,21 +1851,49 @@
             };
 
             const difficultyDescriptions = {
-                'easy': '侧重基础概念和简单计算，适合初学者巩固基础',
-                'medium': '需要综合应用多个知识点，包含一定的思维转换',
-                'hard': '涉及复杂计算和高级技巧，需要深入理解和灵活运用'
+                'easy': '基础运算和公式应用，相当于中考基础题难度',
+                'medium': '多步骤计算和综合应用，相当于中考中等题和高考基础题难度',
+                'hard': '复杂运算和技巧性强的计算，相当于高考中等偏难题难度'
+            };
+
+            const levelExamples = {
+                'elementary': {
+                    'easy': '四则混合运算、简单分数小数计算',
+                    'medium': '较复杂分数运算、百分数应用',
+                    'hard': '多步骤应用题的计算部分'
+                },
+                'middle': {
+                    'easy': '有理数运算、简单代数式计算、基础根式运算',
+                    'medium': '二次根式化简、分式运算、一元二次方程求解',
+                    'hard': '复杂代数式变形、含参数的方程组求解'
+                },
+                'high': {
+                    'easy': '三角函数基本计算、简单数列求和、基础导数运算',
+                    'medium': '三角恒等变换、数列通项公式、函数最值计算',
+                    'hard': '复合函数导数、参数方程、极坐标运算'
+                }
             };
             
             try {
+                const currentExamples = levelExamples[level] || levelExamples['middle'];
+                const exampleContent = currentExamples[difficulty] || currentExamples['medium'];
+                
                 const prompt = `请生成5道${typeNames[type] || '计算'}的${getLevelName(level)}${difficultyNames[difficulty]}测试题目。
 
-要求：
+难度要求：
+1. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
+2. 题目类型示例：${exampleContent}
+3. 必须达到真实考试的难度水平，不能过于简单
+4. 题目应该有一定的计算量和思维含量
+
+具体要求：
 1. 每道题必须是单选题，有4个选项(A、B、C、D)
-2. 题目要符合${getLevelName(level)}水平的难度要求
-3. 重点测试计算能力和运算技巧
+2. 题目要符合${getLevelName(level)}实际考试难度
+3. 重点测试计算能力、运算技巧和数学思维
 4. 数学表达式请使用LaTeX格式，用$符号包围
-5. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
-6. 正确答案必须随机分布在A、B、C、D选项中，不能都集中在同一个选项
+5. 设置合理的干扰项，错误选项要有一定的迷惑性
+6. 正确答案必须随机分布在A、B、C、D选项中
+7. 每道题的explanation必须包含详细的解题步骤和思路分析
 
 请按以下格式返回：
 
@@ -1730,13 +1902,13 @@
     {
       "question": "题目内容",
       "options": ["选项A", "选项B", "选项C", "选项D"],
-      "correct": 正确答案的索引(请在0,1,2,3之间随机选择),
-      "explanation": "答案解释"
+      "correct": 正确答案的索引(0-3),
+      "explanation": "详细解题步骤：1. 分析思路... 2. 具体计算... 3. 验证答案..."
     }
   ]
 }
 
-注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)，正确答案要在0,1,2,3之间随机分布`;
+注意：explanation必须包含完整的解题过程，包括分析思路、计算步骤、易错点提醒等`;
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -1821,27 +1993,106 @@
                     return;
                 }
                 
-                let score = 0;
-                selectedOptions.forEach(selectedOption => {
-                    const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
-                    const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
-                    if (selectedIndex === correctIndex) {
-                        score++;
-                    }
-                });
-                
-                const total = test.questions?.length || 1;
-                const percentage = Math.round((score / total) * 100);
-                
-                container.innerHTML = `
-                    <div class="result-summary">
-                        <h3>计算测试完成！</h3>
-                        <div class="score-display">${score}/${total}</div>
-                        <div class="level-badge">${percentage}%</div>
-                        <p>你的计算能力正确率为${percentage}%。</p>
-                    </div>
-                `;
+                showCalculationTestResults(test, selectedOptions, container);
             });
+        }
+
+        function showCalculationTestResults(test, selectedOptions, container) {
+            let score = 0;
+            let userAnswers = [];
+            
+            // 收集用户答案
+            selectedOptions.forEach(selectedOption => {
+                const questionIndex = parseInt(selectedOption.getAttribute('data-question'));
+                const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
+                const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
+                
+                userAnswers[questionIndex] = {
+                    selected: selectedIndex,
+                    correct: correctIndex,
+                    isCorrect: selectedIndex === correctIndex
+                };
+                
+                if (selectedIndex === correctIndex) {
+                    score++;
+                }
+            });
+            
+            const total = test.questions?.length || 1;
+            const percentage = Math.round((score / total) * 100);
+            
+            // 生成结果HTML
+            let html = `
+                <div class="result-summary">
+                    <h3>计算测试完成！</h3>
+                    <div class="score-display">${score}/${total}</div>
+                    <div class="level-badge">${percentage}%</div>
+                    <p>你的计算能力正确率为${percentage}%。</p>
+                </div>
+                <div class="detailed-results">
+                    <h4><i class="fas fa-list-alt"></i> 详细答案解析</h4>
+            `;
+            
+            // 为每道题生成详细解析
+            if (test.questions && Array.isArray(test.questions)) {
+                test.questions.forEach((question, index) => {
+                    const userAnswer = userAnswers[index];
+                    const isCorrect = userAnswer && userAnswer.isCorrect;
+                    const selectedLetter = userAnswer ? String.fromCharCode(65 + userAnswer.selected) : '未选';
+                    const correctLetter = String.fromCharCode(65 + question.correct);
+                    const correctOption = question.options[question.correct];
+                    
+                    html += `
+                        <div class="question-result ${isCorrect ? 'correct' : 'incorrect'}">
+                            <div class="question-header">
+                                <span class="question-number">第${index + 1}题</span>
+                                <span class="result-icon">
+                                    ${isCorrect ? 
+                                        '<i class="fas fa-check-circle" style="color: #28a745;"></i> 正确' : 
+                                        '<i class="fas fa-times-circle" style="color: #dc3545;"></i> 错误'
+                                    }
+                                </span>
+                            </div>
+                            <div class="question-content math-expression">
+                                <strong>题目：</strong>${question.question}
+                            </div>
+                            <div class="answer-analysis">
+                                <div class="answer-info">
+                                    <span class="user-answer ${isCorrect ? 'correct' : 'incorrect'}">
+                                        <strong>你的答案：</strong>${selectedLetter}
+                                    </span>
+                                    <span class="correct-answer">
+                                        <strong>正确答案：</strong>${correctLetter}. ${correctOption}
+                                    </span>
+                                </div>
+                                <div class="explanation math-expression">
+                                    <strong><i class="fas fa-lightbulb"></i> 解题过程：</strong>
+                                    <div class="explanation-content">${question.explanation || '暂无详细解释'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="fas fa-redo"></i> 重新测试
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
+                        <i class="fas fa-chart-bar"></i> 查看报告
+                    </button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Render MathJax for the results
+            if (window.MathJax) {
+                MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+            }
         }
 
         async function startGeometryTest(level, difficulty, type, container) {
@@ -1862,21 +2113,49 @@
             };
 
             const difficultyDescriptions = {
-                'easy': '基础图形识别和简单公式应用，重点考查基本概念',
-                'medium': '综合运用几何定理和公式，需要一定的推理能力',
-                'hard': '复杂图形分析和几何证明，要求深度理解和创新思维'
+                'easy': '基础图形识别和公式应用，相当于中考基础几何题难度',
+                'medium': '几何定理综合应用和推理，相当于中考中等题和高考基础题难度',
+                'hard': '复杂几何证明和计算，相当于高考中等偏难题难度'
+            };
+
+            const levelExamples = {
+                'elementary': {
+                    'easy': '简单图形周长面积、基本角度计算',
+                    'medium': '组合图形面积、简单几何推理',
+                    'hard': '复杂图形分割、空间图形认识'
+                },
+                'middle': {
+                    'easy': '三角形基本性质、简单四边形、圆的基本计算',
+                    'medium': '相似三角形、全等证明、圆的性质应用',
+                    'hard': '几何综合证明、坐标几何、复杂图形计算'
+                },
+                'high': {
+                    'easy': '立体几何基础、简单向量运算、解析几何基础',
+                    'medium': '空间几何关系、向量应用、圆锥曲线性质',
+                    'hard': '立体几何证明、复杂向量问题、圆锥曲线综合'
+                }
             };
             
             try {
+                const currentExamples = levelExamples[level] || levelExamples['middle'];
+                const exampleContent = currentExamples[difficulty] || currentExamples['medium'];
+                
                 const prompt = `请生成5道${typeNames[type] || '几何'}的${getLevelName(level)}${difficultyNames[difficulty]}测试题目。
 
-要求：
+难度要求：
+1. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
+2. 题目类型示例：${exampleContent}
+3. 必须达到真实考试的难度水平，不能过于简单
+4. 题目应该有一定的思维含量和推理要求
+
+具体要求：
 1. 每道题必须是单选题，有4个选项(A、B、C、D)
-2. 题目要符合${getLevelName(level)}水平的难度要求
-3. 重点测试几何理解和空间想象能力
+2. 题目要符合${getLevelName(level)}实际考试难度
+3. 重点测试几何理解、空间想象和推理能力
 4. 数学表达式请使用LaTeX格式，用$符号包围
-5. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
-6. 正确答案必须随机分布在A、B、C、D选项中，不能都集中在同一个选项
+5. 设置合理的干扰项，错误选项要有一定的迷惑性
+6. 正确答案必须随机分布在A、B、C、D选项中
+7. 每道题的explanation必须包含详细的解题步骤和几何推理过程
 
 请按以下格式返回：
 
@@ -1885,13 +2164,13 @@
     {
       "question": "题目内容",
       "options": ["选项A", "选项B", "选项C", "选项D"],
-      "correct": 正确答案的索引(请在0,1,2,3之间随机选择),
-      "explanation": "答案解释"
+      "correct": 正确答案的索引(0-3),
+      "explanation": "详细解题步骤：1. 几何分析... 2. 定理应用... 3. 计算过程... 4. 结论验证..."
     }
   ]
 }
 
-注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)，正确答案要在0,1,2,3之间随机分布`;
+注意：explanation必须包含完整的几何推理过程，包括图形分析、定理运用、计算步骤、结论验证等`;
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -1987,26 +2266,7 @@
                     return;
                 }
                 
-                let score = 0;
-                selectedOptions.forEach(selectedOption => {
-                    const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
-                    const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
-                    if (selectedIndex === correctIndex) {
-                        score++;
-                    }
-                });
-                
-                const total = test.questions?.length || 1;
-                const percentage = Math.round((score / total) * 100);
-                
-                container.innerHTML = `
-                    <div class="result-summary">
-                        <h3>几何测试完成！</h3>
-                        <div class="score-display">${score}/${total}</div>
-                        <div class="level-badge">${percentage}%</div>
-                        <p>你的几何理解正确率为${percentage}%。</p>
-                    </div>
-                `;
+                showGeometryTestResults(test, selectedOptions, container);
             });
         }
 
@@ -2028,21 +2288,49 @@
             };
 
             const difficultyDescriptions = {
-                'easy': '基础代数运算和简单方程，重点考查运算技能',
-                'medium': '方程组和函数应用，需要灵活运用代数知识',
-                'hard': '复杂代数变换和高级方程，要求深入理解和综合分析'
+                'easy': '基础代数运算和简单方程，相当于中考基础代数题难度',
+                'medium': '方程组和函数综合应用，相当于中考中等题和高考基础题难度',
+                'hard': '复杂代数变换和高级方程，相当于高考中等偏难题难度'
+            };
+
+            const levelExamples = {
+                'middle': {
+                    'easy': '一元一次方程、简单不等式、基础因式分解',
+                    'medium': '一元二次方程、二次函数、分式方程',
+                    'hard': '含参方程组、复杂二次函数、高次不等式'
+                },
+                'high': {
+                    'easy': '指数对数基础、三角函数基本性质、简单数列',
+                    'medium': '函数性质综合、三角恒等变换、数列求和',
+                    'hard': '复合函数、参数方程、数列极限'
+                },
+                'university': {
+                    'easy': '高等代数基础、线性方程组、矩阵运算',
+                    'medium': '特征值问题、多项式理论、抽象代数',
+                    'hard': '高级代数结构、代数几何、范畴论'
+                }
             };
             
             try {
+                const currentExamples = levelExamples[level] || levelExamples['middle'];
+                const exampleContent = currentExamples[difficulty] || currentExamples['medium'];
+                
                 const prompt = `请生成5道${typeNames[type] || '代数'}的${getLevelName(level)}${difficultyNames[difficulty]}测试题目。
 
-要求：
+难度要求：
+1. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
+2. 题目类型示例：${exampleContent}
+3. 必须达到真实考试的难度水平，不能过于简单
+4. 题目应该有一定的运算量和思维含量
+
+具体要求：
 1. 每道题必须是单选题，有4个选项(A、B、C、D)
-2. 题目要符合${getLevelName(level)}水平的难度要求
-3. 重点测试代数运算和方程求解能力
+2. 题目要符合${getLevelName(level)}实际考试难度
+3. 重点测试代数运算、方程求解和函数理解能力
 4. 数学表达式请使用LaTeX格式，用$符号包围
-5. 难度等级：${difficultyNames[difficulty]} - ${difficultyDescriptions[difficulty]}
-6. 正确答案必须随机分布在A、B、C、D选项中，不能都集中在同一个选项
+5. 设置合理的干扰项，错误选项要有一定的迷惑性
+6. 正确答案必须随机分布在A、B、C、D选项中
+7. 每道题的explanation必须包含详细的解题步骤和代数推理过程
 
 请按以下格式返回：
 
@@ -2051,13 +2339,13 @@
     {
       "question": "题目内容",
       "options": ["选项A", "选项B", "选项C", "选项D"],
-      "correct": 正确答案的索引(请在0,1,2,3之间随机选择),
-      "explanation": "答案解释"
+      "correct": 正确答案的索引(0-3),
+      "explanation": "详细解题步骤：1. 问题分析... 2. 代数变换... 3. 求解过程... 4. 结果验证..."
     }
   ]
 }
 
-注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)，正确答案要在0,1,2,3之间随机分布`;
+注意：explanation必须包含完整的代数解题过程，包括问题分析、变换技巧、求解步骤、结果验证等`;
 
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -2153,27 +2441,204 @@
                     return;
                 }
                 
-                let score = 0;
-                selectedOptions.forEach(selectedOption => {
-                    const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
-                    const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
-                    if (selectedIndex === correctIndex) {
-                        score++;
-                    }
-                });
-                
-                const total = test.questions?.length || 1;
-                const percentage = Math.round((score / total) * 100);
-                
-                container.innerHTML = `
-                    <div class="result-summary">
-                        <h3>代数测试完成！</h3>
-                        <div class="score-display">${score}/${total}</div>
-                        <div class="level-badge">${percentage}%</div>
-                        <p>你的代数运算正确率为${percentage}%。</p>
-                    </div>
-                `;
+                showAlgebraTestResults(test, selectedOptions, container);
             });
+        }
+
+        function showGeometryTestResults(test, selectedOptions, container) {
+            let score = 0;
+            let userAnswers = [];
+            
+            // 收集用户答案
+            selectedOptions.forEach(selectedOption => {
+                const questionIndex = parseInt(selectedOption.getAttribute('data-question'));
+                const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
+                const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
+                
+                userAnswers[questionIndex] = {
+                    selected: selectedIndex,
+                    correct: correctIndex,
+                    isCorrect: selectedIndex === correctIndex
+                };
+                
+                if (selectedIndex === correctIndex) {
+                    score++;
+                }
+            });
+            
+            const total = test.questions?.length || 1;
+            const percentage = Math.round((score / total) * 100);
+            
+            // 生成结果HTML
+            let html = `
+                <div class="result-summary">
+                    <h3>几何测试完成！</h3>
+                    <div class="score-display">${score}/${total}</div>
+                    <div class="level-badge">${percentage}%</div>
+                    <p>你的几何理解正确率为${percentage}%。</p>
+                </div>
+                <div class="detailed-results">
+                    <h4><i class="fas fa-list-alt"></i> 详细答案解析</h4>
+            `;
+            
+            // 为每道题生成详细解析
+            if (test.questions && Array.isArray(test.questions)) {
+                test.questions.forEach((question, index) => {
+                    const userAnswer = userAnswers[index];
+                    const isCorrect = userAnswer && userAnswer.isCorrect;
+                    const selectedLetter = userAnswer ? String.fromCharCode(65 + userAnswer.selected) : '未选';
+                    const correctLetter = String.fromCharCode(65 + question.correct);
+                    const correctOption = question.options[question.correct];
+                    
+                    html += `
+                        <div class="question-result ${isCorrect ? 'correct' : 'incorrect'}">
+                            <div class="question-header">
+                                <span class="question-number">第${index + 1}题</span>
+                                <span class="result-icon">
+                                    ${isCorrect ? 
+                                        '<i class="fas fa-check-circle" style="color: #28a745;"></i> 正确' : 
+                                        '<i class="fas fa-times-circle" style="color: #dc3545;"></i> 错误'
+                                    }
+                                </span>
+                            </div>
+                            <div class="question-content math-expression">
+                                <strong>题目：</strong>${question.question}
+                            </div>
+                            <div class="answer-analysis">
+                                <div class="answer-info">
+                                    <span class="user-answer ${isCorrect ? 'correct' : 'incorrect'}">
+                                        <strong>你的答案：</strong>${selectedLetter}
+                                    </span>
+                                    <span class="correct-answer">
+                                        <strong>正确答案：</strong>${correctLetter}. ${correctOption}
+                                    </span>
+                                </div>
+                                <div class="explanation math-expression">
+                                    <strong><i class="fas fa-lightbulb"></i> 几何分析：</strong>
+                                    <div class="explanation-content">${question.explanation || '暂无详细解释'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="fas fa-redo"></i> 重新测试
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
+                        <i class="fas fa-chart-bar"></i> 查看报告
+                    </button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Render MathJax for the results
+            if (window.MathJax) {
+                MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+            }
+        }
+
+        function showAlgebraTestResults(test, selectedOptions, container) {
+            let score = 0;
+            let userAnswers = [];
+            
+            // 收集用户答案
+            selectedOptions.forEach(selectedOption => {
+                const questionIndex = parseInt(selectedOption.getAttribute('data-question'));
+                const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
+                const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
+                
+                userAnswers[questionIndex] = {
+                    selected: selectedIndex,
+                    correct: correctIndex,
+                    isCorrect: selectedIndex === correctIndex
+                };
+                
+                if (selectedIndex === correctIndex) {
+                    score++;
+                }
+            });
+            
+            const total = test.questions?.length || 1;
+            const percentage = Math.round((score / total) * 100);
+            
+            // 生成结果HTML
+            let html = `
+                <div class="result-summary">
+                    <h3>代数测试完成！</h3>
+                    <div class="score-display">${score}/${total}</div>
+                    <div class="level-badge">${percentage}%</div>
+                    <p>你的代数运算正确率为${percentage}%。</p>
+                </div>
+                <div class="detailed-results">
+                    <h4><i class="fas fa-list-alt"></i> 详细答案解析</h4>
+            `;
+            
+            // 为每道题生成详细解析
+            if (test.questions && Array.isArray(test.questions)) {
+                test.questions.forEach((question, index) => {
+                    const userAnswer = userAnswers[index];
+                    const isCorrect = userAnswer && userAnswer.isCorrect;
+                    const selectedLetter = userAnswer ? String.fromCharCode(65 + userAnswer.selected) : '未选';
+                    const correctLetter = String.fromCharCode(65 + question.correct);
+                    const correctOption = question.options[question.correct];
+                    
+                    html += `
+                        <div class="question-result ${isCorrect ? 'correct' : 'incorrect'}">
+                            <div class="question-header">
+                                <span class="question-number">第${index + 1}题</span>
+                                <span class="result-icon">
+                                    ${isCorrect ? 
+                                        '<i class="fas fa-check-circle" style="color: #28a745;"></i> 正确' : 
+                                        '<i class="fas fa-times-circle" style="color: #dc3545;"></i> 错误'
+                                    }
+                                </span>
+                            </div>
+                            <div class="question-content math-expression">
+                                <strong>题目：</strong>${question.question}
+                            </div>
+                            <div class="answer-analysis">
+                                <div class="answer-info">
+                                    <span class="user-answer ${isCorrect ? 'correct' : 'incorrect'}">
+                                        <strong>你的答案：</strong>${selectedLetter}
+                                    </span>
+                                    <span class="correct-answer">
+                                        <strong>正确答案：</strong>${correctLetter}. ${correctOption}
+                                    </span>
+                                </div>
+                                <div class="explanation math-expression">
+                                    <strong><i class="fas fa-lightbulb"></i> 代数推导：</strong>
+                                    <div class="explanation-content">${question.explanation || '暂无详细解释'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            html += `
+                </div>
+                <div class="result-actions">
+                    <button class="btn btn-primary" onclick="location.reload()">
+                        <i class="fas fa-redo"></i> 重新测试
+                    </button>
+                    <button class="btn btn-secondary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
+                        <i class="fas fa-chart-bar"></i> 查看报告
+                    </button>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Render MathJax for the results
+            if (window.MathJax) {
+                MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+            }
         }
 
         function getLevelName(level) {
