@@ -1787,16 +1787,6 @@
                             result += '\\\\';
                             i++;
                         }
-                    } else if (char === '^' || char === '_') {
-                        // Handle LaTeX superscript and subscript
-                        if (nextChar && nextChar !== '{' && nextChar !== '\\' && nextChar !== '$') {
-                            // Single character after ^ or _, add braces
-                            result += char + '{' + nextChar + '}';
-                            i += 2;
-                        } else {
-                            result += char;
-                            i++;
-                        }
                     } else {
                         result += char;
                         i++;
@@ -3518,59 +3508,17 @@
             // This function fixes common LaTeX syntax issues in JSON strings
             console.log('修复LaTeX语法...');
             
-            // First pass: Fix LaTeX syntax within strings using regex patterns
+            // Simple and conservative approach - only fix obvious cases
             let result = jsonStr;
             
-            // Pattern to find content within JSON string values
-            result = result.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, function(match, content) {
-                // Skip if this is a JSON key (followed by colon)
-                let afterMatch = jsonStr.substring(jsonStr.indexOf(match) + match.length).trim();
-                if (afterMatch.startsWith(':')) {
-                    return match; // This is a key, don't process
-                }
-                
-                let fixed = content;
-                
-                // Fix superscripts and subscripts - more comprehensive patterns
-                // Handle cases like x^2, x^{2}, x^23, ABC^2, etc.
-                fixed = fixed.replace(/\^([a-zA-Z0-9]+)(?![}])/g, '^{$1}');
-                fixed = fixed.replace(/_([a-zA-Z0-9]+)(?![}])/g, '_{$1}');
-                
-                // Handle edge cases where there might be spaces or other characters
-                fixed = fixed.replace(/\^\s*([a-zA-Z0-9]+)(?![}])/g, '^{$1}');
-                fixed = fixed.replace(/_\s*([a-zA-Z0-9]+)(?![}])/g, '_{$1}');
-                
-                // Fix cases where there are already partial braces
-                fixed = fixed.replace(/\^{([^}]*?)(?![}])/g, '^{$1}');
-                fixed = fixed.replace(/_{([^}]*?)(?![}])/g, '_{$1}');
-                
-                // Fix common math symbols
-                fixed = fixed
-                    .replace(/°/g, '\\\\circ')
-                    .replace(/△/g, '\\\\triangle')
-                    .replace(/∠/g, '\\\\angle')
-                    .replace(/√/g, '\\\\sqrt')
-                    .replace(/≈/g, '\\\\approx')
-                    .replace(/≤/g, '\\\\leq')
-                    .replace(/≥/g, '\\\\geq')
-                    .replace(/∞/g, '\\\\infty')
-                    .replace(/π/g, '\\\\pi')
-                    .replace(/α/g, '\\\\alpha')
-                    .replace(/β/g, '\\\\beta')
-                    .replace(/γ/g, '\\\\gamma')
-                    .replace(/θ/g, '\\\\theta');
-                
-                // Fix spacing issues with LaTeX commands
-                fixed = fixed.replace(/(\\\\[a-zA-Z]+)([A-Z])/g, '$1 $2');
-                
-                // Fix common fraction patterns
-                fixed = fixed.replace(/\\\\frac([^{])/g, '\\\\frac{$1');
-                
-                // Fix square root patterns
-                fixed = fixed.replace(/\\\\sqrt([^{])/g, '\\\\sqrt{$1');
-                
-                return '"' + fixed + '"';
-            });
+            // Fix superscripts/subscripts only for single digits/letters that clearly need braces
+            result = result.replace(/\^(\d)(?![}])/g, '^{$1}');
+            result = result.replace(/_(\d)(?![}])/g, '_{$1}');
+            
+            // Fix common Unicode symbols to LaTeX (only if not already LaTeX)
+            result = result.replace(/°/g, '\\\\circ');
+            result = result.replace(/△/g, '\\\\triangle');
+            result = result.replace(/∠/g, '\\\\angle');
             
             console.log('LaTeX语法修复完成');
             return result;
@@ -3665,27 +3613,14 @@
             // Final pass to catch any remaining LaTeX syntax issues
             console.log('最终LaTeX语法验证...');
             
-            return jsonStr.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, function(match, content) {
-                // Skip JSON keys
-                let afterMatch = jsonStr.substring(jsonStr.indexOf(match) + match.length).trim();
-                if (afterMatch.startsWith(':')) {
-                    return match;
-                }
-                
-                let fixed = content;
-                
-                // Final superscript/subscript fixes - catch any edge cases
-                fixed = fixed.replace(/([A-Za-z0-9}])\^([A-Za-z0-9]+)(?![{}])/g, '$1^{$2}');
-                fixed = fixed.replace(/([A-Za-z0-9}])_([A-Za-z0-9]+)(?![{}])/g, '$1_{$2}');
-                
-                // Fix incomplete LaTeX commands
-                fixed = fixed.replace(/\\([a-zA-Z]+)(?![a-zA-Z{])/g, '\\\\$1');
-                
-                // Ensure proper braces for common functions
-                fixed = fixed.replace(/\\\\(frac|sqrt|sin|cos|tan|log|ln)([^{])/g, '\\\\$1{$2');
-                
-                return '"' + fixed + '"';
-            });
+            // Fix malformed LaTeX commands (like \\\angle -> \\angle)
+            jsonStr = jsonStr.replace(/\\\\\\([a-zA-Z]+)/g, '\\\\$1');
+            
+            // Fix malformed superscript braces like ^{}\\circ} -> ^{\\circ}
+            jsonStr = jsonStr.replace(/\^{}\\\\/g, '^{\\\\');
+            jsonStr = jsonStr.replace(/}\\\\([a-zA-Z]+)}/g, '\\\\$1}');
+            
+            return jsonStr;
         }
     </script>
 </body>
