@@ -1703,8 +1703,7 @@
             const gradeInfo = gradeDetails[specificGrade] || '初中水平';
 
             // Special handling for JSON format issues
-            const needsSpecialHandling = topic === 'geometry' || topic === 'trigonometry' || topic === 'calculus';
-            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要分段清晰，使用\\n进行换行\n- 数学符号只能在LaTeX格式中使用($符号包围)';
+            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- LaTeX上标和下标必须用大括号包围，如：x^{2}而不是x^2，A_{BC}而不是A_BC\n- 度数符号使用:\\\\circ 而不是 °\n- 三角形符号使用:\\\\triangle 而不是直接的△\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要分段清晰，使用\\\\n进行换行\n- 数学符号只能在LaTeX格式中使用($符号包围)\n- 确保所有LaTeX命令都是标准的，避免自定义命令';
 
             return `请生成${count}道关于"${topicName}"的数学测试题目。
 
@@ -1745,7 +1744,7 @@
         }
 
         function fixLatexBackslashes(jsonStr) {
-            // This function specifically handles LaTeX backslashes in JSON strings
+            // This function specifically handles LaTeX backslashes and syntax in JSON strings
             let result = '';
             let inString = false;
             let stringChar = null;
@@ -1786,6 +1785,16 @@
                         } else {
                             // LaTeX backslash, double it for JSON
                             result += '\\\\';
+                            i++;
+                        }
+                    } else if (char === '^' || char === '_') {
+                        // Handle LaTeX superscript and subscript
+                        if (nextChar && nextChar !== '{' && nextChar !== '\\' && nextChar !== '$') {
+                            // Single character after ^ or _, add braces
+                            result += char + '{' + nextChar + '}';
+                            i += 2;
+                        } else {
+                            result += char;
                             i++;
                         }
                     } else {
@@ -1994,9 +2003,10 @@
                     .replace(/\r\n/g, '\n')          // Normalize line endings
                     .replace(/\n\s*\n/g, '\n');      // Remove empty lines
                 
-                // Fix LaTeX backslashes in JSON strings
+                // Fix LaTeX backslashes and syntax in JSON strings
                 console.log('修复前:', jsonStr.substring(0, 200) + '...');
                 jsonStr = fixLatexBackslashes(jsonStr);
+                jsonStr = fixLatexSyntax(jsonStr);
                 console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
                 // Try to find JSON object if wrapped in other text
@@ -2055,6 +2065,9 @@
                         q.explanation = '暂无详细解释'; // Provide default explanation
                     }
                 });
+                
+                // Additional LaTeX syntax validation and fixes
+                quiz = validateLatexSyntax(quiz);
                 
                 return quiz;
                 
@@ -3479,6 +3492,134 @@
         // Make functions globally available
         window.previousQuestion = previousQuestion;
         window.restartAIQuiz = restartAIQuiz;
+
+        function fixLatexSyntax(jsonStr) {
+            // This function fixes common LaTeX syntax issues in JSON strings
+            let result = '';
+            let inString = false;
+            let inMath = false;
+            let stringChar = null;
+            
+            for (let i = 0; i < jsonStr.length; i++) {
+                let char = jsonStr[i];
+                let prevChar = i > 0 ? jsonStr[i-1] : '';
+                let nextChar = i < jsonStr.length - 1 ? jsonStr[i+1] : '';
+                let next2Char = i < jsonStr.length - 2 ? jsonStr[i+2] : '';
+                
+                if (!inString) {
+                    // Not in string
+                    if (char === '"' && prevChar !== '\\') {
+                        inString = true;
+                        stringChar = '"';
+                    }
+                    result += char;
+                } else {
+                    // In string
+                    if (char === stringChar && prevChar !== '\\') {
+                        inString = false;
+                        stringChar = null;
+                        inMath = false;
+                        result += char;
+                    } else if (char === '$') {
+                        inMath = !inMath;
+                        result += char;
+                    } else if (inMath) {
+                        // In math mode, fix common issues
+                        if (char === '^' || char === '_') {
+                            // Check if next character needs braces
+                            if (nextChar && nextChar !== '{' && nextChar !== '\\' && nextChar !== '$' && nextChar !== '^' && nextChar !== '_') {
+                                // Look ahead to see if it's a multi-character sequence
+                                let j = i + 1;
+                                let sequence = '';
+                                while (j < jsonStr.length && jsonStr[j] !== ' ' && jsonStr[j] !== '$' && 
+                                       jsonStr[j] !== '^' && jsonStr[j] !== '_' && jsonStr[j] !== '{' && 
+                                       jsonStr[j] !== '}' && jsonStr[j] !== '\\' && jsonStr[j] !== '"') {
+                                    sequence += jsonStr[j];
+                                    j++;
+                                }
+                                
+                                if (sequence.length === 1) {
+                                    // Single character, add braces
+                                    result += char + '{' + sequence + '}';
+                                    i = j - 1; // Skip the sequence
+                                } else if (sequence.length > 1) {
+                                    // Multi-character, definitely needs braces
+                                    result += char + '{' + sequence + '}';
+                                    i = j - 1; // Skip the sequence
+                                } else {
+                                    result += char;
+                                }
+                            } else {
+                                result += char;
+                            }
+                        } else if (char === '\\' && nextChar === '\\') {
+                            // Double backslash is fine
+                            result += char;
+                        } else if (char === '\\' && nextChar && nextChar.match(/[a-zA-Z]/)) {
+                            // LaTeX command, check for common issues
+                            let command = '\\';
+                            let j = i + 1;
+                            while (j < jsonStr.length && jsonStr[j].match(/[a-zA-Z]/)) {
+                                command += jsonStr[j];
+                                j++;
+                            }
+                            
+                            // Some common LaTeX commands that often need space after them
+                            const needsSpace = ['\\angle', '\\sin', '\\cos', '\\tan', '\\log', '\\ln', '\\sqrt'];
+                            if (needsSpace.includes(command) && j < jsonStr.length && jsonStr[j].match(/[a-zA-Z]/)) {
+                                result += command + ' ';
+                                i = j - 1;
+                            } else {
+                                result += char;
+                            }
+                        } else {
+                            result += char;
+                        }
+                    } else {
+                        result += char;
+                    }
+                }
+            }
+            
+            return result;
+        }
+
+        function validateLatexSyntax(quiz) {
+            // This function validates and fixes LaTeX syntax issues in the quiz
+            quiz.questions.forEach((question, qIndex) => {
+                // Check question text
+                question.question = fixLatexInText(question.question);
+                
+                // Check options
+                question.options = question.options.map(option => fixLatexInText(option));
+                
+                // Check explanation
+                if (question.explanation) {
+                    question.explanation = fixLatexInText(question.explanation);
+                }
+            });
+            
+            return quiz;
+        }
+        
+        function fixLatexInText(text) {
+            if (!text || typeof text !== 'string') return text;
+            
+            // Fix common LaTeX issues
+            return text
+                // Fix superscripts without braces
+                .replace(/\^([a-zA-Z0-9](?![}]))/g, '^{$1}')
+                // Fix subscripts without braces  
+                .replace(/_([a-zA-Z0-9](?![}]))/g, '_{$1}')
+                // Fix degree symbol
+                .replace(/°/g, '\\circ')
+                // Fix triangle symbol
+                .replace(/△/g, '\\triangle')
+                // Fix common spacing issues with LaTeX commands
+                .replace(/(\\[a-zA-Z]+)([A-Z])/g, '$1 $2')
+                // Ensure proper spacing after commands like \angle
+                .replace(/(\\angle|\\sin|\\cos|\\tan|\\log|\\ln)([A-Z])/g, '$1 $2');
+        }
     </script>
 </body>
 </html> 
