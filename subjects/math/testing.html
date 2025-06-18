@@ -931,21 +931,67 @@
                             </div>
                         </div>
                         
+                        <!-- Grade Level Selection -->
+                        <div class="form-group">
+                            <label for="ai-grade-level"><strong>选择学校级别：</strong></label>
+                            <select id="ai-grade-level" class="form-control">
+                                <option value="elementary">小学</option>
+                                <option value="middle" selected>初中</option>
+                                <option value="high">高中</option>
+                                <option value="university">大学</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Specific Grade Selection -->
+                        <div class="form-group">
+                            <label for="ai-specific-grade"><strong>选择具体年级：</strong></label>
+                            <select id="ai-specific-grade" class="form-control">
+                                <!-- Elementary grades -->
+                                <optgroup label="小学">
+                                    <option value="grade1">一年级</option>
+                                    <option value="grade2">二年级</option>
+                                    <option value="grade3">三年级</option>
+                                    <option value="grade4">四年级</option>
+                                    <option value="grade5">五年级</option>
+                                    <option value="grade6">六年级</option>
+                                </optgroup>
+                                <!-- Middle school grades -->
+                                <optgroup label="初中">
+                                    <option value="grade7">七年级(初一)</option>
+                                    <option value="grade8">八年级(初二)</option>
+                                    <option value="grade9" selected>九年级(初三)</option>
+                                </optgroup>
+                                <!-- High school grades -->
+                                <optgroup label="高中">
+                                    <option value="grade10">高一</option>
+                                    <option value="grade11">高二</option>
+                                    <option value="grade12">高三</option>
+                                </optgroup>
+                                <!-- University -->
+                                <optgroup label="大学">
+                                    <option value="university1">大学一年级</option>
+                                    <option value="university2">大学二年级</option>
+                                    <option value="university3">大学三年级</option>
+                                    <option value="university4">大学四年级</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
                         <!-- Difficulty Selection -->
                         <div class="form-group">
-                            <label><strong>选择难度级别：</strong></label>
-                            <div class="difficulty-selector" id="difficulty-selector">
-                                <button class="difficulty-btn" data-difficulty="elementary">
-                                    <i class="fas fa-seedling"></i> 小学
+                            <label><strong>选择题目难度：</strong></label>
+                            <div class="difficulty-selector" id="ai-difficulty-selector">
+                                <button class="difficulty-btn" data-difficulty="easy">
+                                    <i class="fas fa-seedling"></i> 基础
                                 </button>
-                                <button class="difficulty-btn" data-difficulty="middle">
-                                    <i class="fas fa-tree"></i> 初中
+                                <button class="difficulty-btn" data-difficulty="medium">
+                                    <i class="fas fa-tree"></i> 中等
                                 </button>
-                                <button class="difficulty-btn" data-difficulty="high">
-                                    <i class="fas fa-mountain"></i> 高中
+                                <button class="difficulty-btn" data-difficulty="hard">
+                                    <i class="fas fa-mountain"></i> 困难
                                 </button>
-                                <button class="difficulty-btn" data-difficulty="university">
-                                    <i class="fas fa-graduation-cap"></i> 大学
+                                <button class="difficulty-btn" data-difficulty="expert">
+                                    <i class="fas fa-crown"></i> 专家
                                 </button>
                             </div>
                         </div>
@@ -1051,6 +1097,17 @@
                             <option value="easy">低难度 - 基础概念理解</option>
                             <option value="medium" selected>中难度 - 综合知识应用</option>
                             <option value="hard">高难度 - 深度思维挑战</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="comprehensive-question-count"><strong>选择题目数量：</strong></label>
+                        <select id="comprehensive-question-count" class="form-control" style="max-width: 200px;">
+                            <option value="5" selected>5题</option>
+                            <option value="8">8题</option>
+                            <option value="10">10题</option>
+                            <option value="15">15题</option>
+                            <option value="20">20题</option>
                         </select>
                     </div>
                     
@@ -1401,7 +1458,8 @@
                     
                     const testLevel = selectedType.getAttribute('data-test');
                     const difficulty = document.getElementById('comprehensive-difficulty').value;
-                    await startComprehensiveTest(testLevel, difficulty, document.getElementById('comprehensive-test-container'));
+                    const questionCount = parseInt(document.getElementById('comprehensive-question-count').value);
+                    await startComprehensiveTest(testLevel, difficulty, document.getElementById('comprehensive-test-container'), questionCount);
                 });
             }
 
@@ -1459,8 +1517,12 @@
                 });
             });
 
+            // Grade level selection for AI quiz
+            const gradeLevel = document.getElementById('ai-grade-level');
+            gradeLevel.addEventListener('change', updateAIGradeOptions);
+
             // Difficulty selection
-            const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+            const difficultyBtns = document.querySelectorAll('#ai-difficulty-selector .difficulty-btn');
             difficultyBtns.forEach(btn => {
                 btn.addEventListener('click', function() {
                     difficultyBtns.forEach(b => b.classList.remove('selected'));
@@ -1478,6 +1540,38 @@
             // Generate AI Quiz button
             const generateBtn = document.getElementById('generate-ai-quiz');
             generateBtn.addEventListener('click', generateAIQuiz);
+            
+            // Initialize AI grade options
+            updateAIGradeOptions();
+        }
+
+        function updateAIGradeOptions() {
+            const gradeLevel = document.getElementById('ai-grade-level').value;
+            const specificGrade = document.getElementById('ai-specific-grade');
+            const optgroups = specificGrade.querySelectorAll('optgroup');
+            
+            // Hide all optgroups first
+            optgroups.forEach(group => group.style.display = 'none');
+            
+            // Show relevant optgroup based on selected level
+            switch(gradeLevel) {
+                case 'elementary':
+                    specificGrade.querySelector('optgroup[label="小学"]').style.display = 'block';
+                    specificGrade.value = 'grade3'; // Default to grade 3
+                    break;
+                case 'middle':
+                    specificGrade.querySelector('optgroup[label="初中"]').style.display = 'block';
+                    specificGrade.value = 'grade9'; // Default to grade 9
+                    break;
+                case 'high':
+                    specificGrade.querySelector('optgroup[label="高中"]').style.display = 'block';
+                    specificGrade.value = 'grade10'; // Default to grade 10
+                    break;
+                case 'university':
+                    specificGrade.querySelector('optgroup[label="大学"]').style.display = 'block';
+                    specificGrade.value = 'university1'; // Default to university 1
+                    break;
+            }
         }
 
         async function generateAIQuiz() {
@@ -1487,7 +1581,15 @@
                 return;
             }
             if (!selectedDifficulty) {
-                alert('请选择难度级别');
+                alert('请选择题目难度');
+                return;
+            }
+
+            const gradeLevel = document.getElementById('ai-grade-level').value;
+            const specificGrade = document.getElementById('ai-specific-grade').value;
+            
+            if (!gradeLevel || !specificGrade) {
+                alert('请选择学校级别和具体年级');
                 return;
             }
 
@@ -1500,7 +1602,7 @@
 
             try {
                 // Prepare the prompt for DeepSeek API
-                const prompt = createQuizPrompt(selectedTopic, selectedDifficulty, questionCount, customTopic);
+                const prompt = createQuizPrompt(selectedTopic, selectedDifficulty, questionCount, customTopic, gradeLevel, specificGrade);
                 
                 // Call DeepSeek API
                 const response = await fetch('/api/chat', {
@@ -1539,7 +1641,7 @@
             }
         }
 
-        function createQuizPrompt(topic, difficulty, count, customTopic) {
+        function createQuizPrompt(topic, difficulty, count, customTopic, gradeLevel, specificGrade) {
             const topicMap = {
                 'arithmetic': '四则运算',
                 'algebra': '代数运算',
@@ -1552,34 +1654,72 @@
             };
 
             const difficultyMap = {
-                'elementary': '小学',
-                'middle': '初中',
-                'high': '高中',
-                'university': '大学'
+                'easy': '基础难度',
+                'medium': '中等难度',
+                'hard': '困难',
+                'expert': '专家级'
+            };
+
+            const gradeDetails = {
+                'grade1': '小学一年级 - 20以内加减法、数的认识、简单图形',
+                'grade2': '小学二年级 - 100以内加减法、乘法口诀、长度单位',
+                'grade3': '小学三年级 - 万以内加减法、表内乘除法、周长面积基础',
+                'grade4': '小学四年级 - 大数运算、小数初步、平行四边形和梯形',
+                'grade5': '小学五年级 - 小数四则运算、分数基础、体积和容积',
+                'grade6': '小学六年级 - 分数四则运算、比和比例、圆的周长面积',
+                'grade7': '初中七年级 - 有理数运算、一元一次方程、几何图形初步',
+                'grade8': '初中八年级 - 分式方程、函数基础、全等三角形、勾股定理',
+                'grade9': '初中九年级 - 二次函数、相似三角形、圆的性质、中考综合题',
+                'grade10': '高中一年级 - 集合函数、三角函数、立体几何初步',
+                'grade11': '高中二年级 - 数列、导数基础、圆锥曲线、概率统计',
+                'grade12': '高中三年级 - 导数应用、复数、高考综合题型',
+                'university1': '大学一年级 - 极限、导数、积分基础',
+                'university2': '大学二年级 - 多元函数、重积分、级数',
+                'university3': '大学三年级 - 复变函数、偏微分方程',
+                'university4': '大学四年级 - 实变函数、泛函分析'
+            };
+
+            const difficultyDescriptions = {
+                'easy': '接近课本例题和基础练习题难度，主要考查基本概念和基础计算',
+                'medium': '相当于期中期末考试中等题难度，需要综合运用多个知识点',
+                'hard': '相当于重点学校考试难题或竞赛初赛难度，需要较强的数学思维',
+                'expert': '相当于数学竞赛复赛或高考压轴题难度，需要深度思考和创新思路'
             };
 
             const topicName = customTopic || topicMap[topic] || '数学';
-            const difficultyName = difficultyMap[difficulty] || '初中';
+            const difficultyName = difficultyMap[difficulty] || '中等难度';
+            const gradeInfo = gradeDetails[specificGrade] || '初中水平';
 
-            return `请生成${count}道关于"${topicName}"的${difficultyName}难度数学测试题目。
+            return `请生成${count}道关于"${topicName}"的数学测试题目。
 
-要求：
+学生信息：${gradeInfo}
+难度要求：${difficultyName} - ${difficultyDescriptions[difficulty]}
+
+题目要求：
 1. 每道题必须是单选题，有4个选项(A、B、C、D)
-2. 题目要符合${difficultyName}水平的难度要求
-3. 每道题都要有明确的正确答案
-4. 题目要有教育价值，能够测试学习者的相关技能
+2. 题目难度必须严格符合${gradeInfo}的教学大纲和考试标准
+3. 题目应该模拟真实的中国学校考试题目，围绕"${topicName}"这个话题
+4. 难度等级按照${difficultyName}标准设计，${difficultyDescriptions[difficulty]}
 5. 数学表达式请使用LaTeX格式，用$符号包围
-6. 题目内容要符合数学学习特点
+6. 每道题都要有详细的解题步骤说明
+7. 正确答案必须随机分布在A、B、C、D选项中
+8. 题目应该涵盖该年级关于${topicName}的核心知识点
 
-请严格按照以下JSON格式返回，不要添加任何其他文字说明：
+特别要求：
+- 如果是初中九年级，题目应该接近中考真题水平
+- 如果是高中，题目应该接近高考真题水平  
+- 题目计算量要适中，但思维含量要足够
+- 避免过于简单的直接套公式题目
+
+请严格按照以下JSON格式返回：
 
 {
   "questions": [
     {
       "question": "题目内容",
       "options": ["选项A", "选项B", "选项C", "选项D"],
-      "correct": 0,
-      "explanation": "答案解释"
+      "correct": 正确答案的索引(0-3),
+      "explanation": "详细的解题步骤和答案解释"
     }
   ]
 }
@@ -1901,7 +2041,7 @@
         }
 
         // Other test functions
-        async function startComprehensiveTest(level, difficulty, container) {
+        async function startComprehensiveTest(level, difficulty, container, questionCount = 5) {
             container.style.display = 'block';
             container.innerHTML = '<p class="text-center">正在生成AI综合测试，请稍候...</p>';
             
@@ -1946,7 +2086,7 @@
             };
             
             try {
-                const prompt = `请生成5道符合中国教育体系的数学综合能力测试题目。
+                const prompt = `请生成${questionCount}道符合中国教育体系的数学综合能力测试题目。
 
 学生信息：${gradeDetails[grade]}
 难度要求：${difficultyNames[difficulty]} - ${examStandards[difficulty]}
