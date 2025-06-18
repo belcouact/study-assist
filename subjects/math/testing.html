@@ -1791,12 +1791,11 @@
                             result += char;
                             i++;
                         } else if (nextChar === '\\') {
-                            // Already escaped backslash for LaTeX, keep both
+                            // Already escaped backslash, keep both
                             result += char + nextChar;
                             i += 2;
                         } else {
-                            // Single backslash followed by letter (LaTeX command)
-                            // Only double it if it's not already doubled
+                            // LaTeX backslash, double it for JSON
                             result += '\\\\';
                             i++;
                         }
@@ -3542,10 +3541,16 @@
             result = result.replace(/\^(\d)(?![}])/g, '^{$1}');
             result = result.replace(/_(\d)(?![}])/g, '_{$1}');
             
-            // Fix common Unicode symbols to LaTeX (only if not already LaTeX)
-            result = result.replace(/°/g, '\\\\circ');
-            result = result.replace(/△/g, '\\\\triangle');
-            result = result.replace(/∠/g, '\\\\angle');
+            // Fix common Unicode symbols to LaTeX (only if not already converted)
+            if (!result.includes('\\\\circ')) {
+                result = result.replace(/°/g, '\\\\circ');
+            }
+            if (!result.includes('\\\\triangle')) {
+                result = result.replace(/△/g, '\\\\triangle');
+            }
+            if (!result.includes('\\\\angle')) {
+                result = result.replace(/∠/g, '\\\\angle');
+            }
             
             console.log('LaTeX语法修复完成');
             return result;
@@ -3640,13 +3645,17 @@
             // Final pass to catch any remaining LaTeX syntax issues
             console.log('最终LaTeX语法验证...');
             
-            // Fix malformed LaTeX commands (like \\\angle -> \\angle)
+            // Fix triple backslashes (most common issue)
             jsonStr = jsonStr.replace(/\\\\\\([a-zA-Z]+)/g, '\\\\$1');
             
             // Fix malformed superscript braces like ^{}\\circ} -> ^{\\circ}
             jsonStr = jsonStr.replace(/\^{}\\\\/g, '^{\\\\');
             jsonStr = jsonStr.replace(/}\\\\([a-zA-Z]+)}/g, '\\\\$1}');
             
+            // Fix any remaining triple backslashes that might have been missed
+            jsonStr = jsonStr.replace(/\\\\\\\\/g, '\\\\');
+            
+            console.log('最终LaTeX语法验证完成');
             return jsonStr;
         }
     </script>
