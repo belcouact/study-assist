@@ -177,6 +177,180 @@
             transform: none;
         }
 
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-left: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        /* 详细结果样式 */
+        .detailed-results {
+            margin-top: 2rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+
+        .detailed-results h4 {
+            color: #4361ee;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .question-result {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+            border-left: 4px solid #ddd;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .question-result.correct {
+            border-left-color: #28a745;
+        }
+
+        .question-result.incorrect {
+            border-left-color: #dc3545;
+        }
+
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .question-number {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #4361ee;
+        }
+
+        .question-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+        }
+
+        .question-status .fa-check-circle {
+            color: #28a745;
+        }
+
+        .question-status .fa-times-circle {
+            color: #dc3545;
+        }
+
+        .original-question {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            line-height: 1.6;
+        }
+
+        .answer-analysis {
+            margin-bottom: 1rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .user-answer, .correct-answer {
+            padding: 0.75rem;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+
+        .answer-option {
+            display: block;
+            margin-top: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .answer-option.correct-answer {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .answer-option.wrong-answer {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .explanation-content {
+            background: #e8f4fd;
+            border: 1px solid #bee5eb;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .explanation-content strong {
+            color: #4361ee;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .explanation-text {
+            line-height: 1.7;
+            color: #2d3436;
+            background: white;
+            padding: 1rem;
+            border-radius: 4px;
+            border-left: 3px solid #4361ee;
+        }
+
+        .result-actions {
+            margin-top: 2rem;
+            text-align: center;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .answer-analysis {
+                grid-template-columns: 1fr;
+            }
+            
+            .btn-secondary {
+                margin-left: 0;
+                margin-top: 0.5rem;
+            }
+            
+            .result-actions {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+
         .test-question {
             background: #f8f9fa;
             border-radius: 10px;
@@ -1925,28 +2099,110 @@
         function showComprehensiveResults(container, quiz) {
             let score = 0;
             const selectedOptions = container.querySelectorAll('.option-item.selected');
+            const userAnswers = [];
             
-            selectedOptions.forEach(selectedOption => {
-                const selectedIndex = parseInt(selectedOption.getAttribute('data-option'));
-                const correctIndex = parseInt(selectedOption.getAttribute('data-correct'));
-                if (selectedIndex === correctIndex) {
+            // 收集用户答案
+            quiz.questions.forEach((question, index) => {
+                const selectedOption = container.querySelector(`.option-item.selected[data-question="${index+1}"]`);
+                const selectedIndex = selectedOption ? parseInt(selectedOption.getAttribute('data-option')) : -1;
+                const correctIndex = parseInt(selectedOption ? selectedOption.getAttribute('data-correct') : question.correct);
+                const isCorrect = selectedIndex === correctIndex;
+                
+                if (isCorrect) {
                     score++;
                 }
+                
+                userAnswers.push({
+                    questionIndex: index,
+                    selectedIndex: selectedIndex,
+                    correctIndex: correctIndex,
+                    isCorrect: isCorrect
+                });
             });
 
             const percentage = Math.round((score / quiz.questions.length) * 100);
             
-            container.innerHTML = `
+            let html = `
                 <div class="result-summary">
                     <h3>AI综合测试完成！</h3>
                     <div class="score-display">${score}/${quiz.questions.length}</div>
                     <div class="level-badge">${percentage}%</div>
                     <p>恭喜你完成了AI生成的综合测试！基于你的表现，你的正确率为${percentage}%。</p>
+                </div>
+                
+                <div class="detailed-results">
+                    <h4><i class="fas fa-clipboard-list"></i> 详细题目讲解</h4>
+                    <div class="results-explanation">
+            `;
+            
+            // 为每道题目添加详细讲解
+            quiz.questions.forEach((question, index) => {
+                const userAnswer = userAnswers[index];
+                const statusClass = userAnswer.isCorrect ? 'correct' : 'incorrect';
+                const statusIcon = userAnswer.isCorrect ? 'fas fa-check-circle' : 'fas fa-times-circle';
+                const statusText = userAnswer.isCorrect ? '答对了' : '答错了';
+                
+                html += `
+                    <div class="question-result ${statusClass}">
+                        <div class="question-header">
+                            <span class="question-number">第${index + 1}题</span>
+                            <span class="question-status">
+                                <i class="${statusIcon}"></i> ${statusText}
+                            </span>
+                        </div>
+                        
+                        <div class="question-content">
+                            <div class="original-question math-expression">
+                                <strong>题目：</strong>${question.question}
+                            </div>
+                            
+                            <div class="answer-analysis">
+                                <div class="user-answer">
+                                    <strong>你的答案：</strong>
+                                    <span class="answer-option ${userAnswer.isCorrect ? 'correct-answer' : 'wrong-answer'}">
+                                        ${userAnswer.selectedIndex >= 0 ? String.fromCharCode(65 + userAnswer.selectedIndex) + '. ' + question.options[userAnswer.selectedIndex] : '未选择'}
+                                    </span>
+                                </div>
+                                
+                                <div class="correct-answer">
+                                    <strong>正确答案：</strong>
+                                    <span class="answer-option correct-answer">
+                                        ${String.fromCharCode(65 + userAnswer.correctIndex)}. ${question.options[userAnswer.correctIndex]}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="explanation-content">
+                                <strong><i class="fas fa-lightbulb"></i> 详细讲解：</strong>
+                                <div class="explanation-text math-expression">
+                                    ${question.explanation || '暂无详细解释'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+                
+                <div class="result-actions">
                     <button class="btn btn-primary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
                         <i class="fas fa-chart-bar"></i> 查看详细报告
                     </button>
+                    <button class="btn btn-secondary" onclick="location.reload()">
+                        <i class="fas fa-redo"></i> 重新测试
+                    </button>
                 </div>
             `;
+            
+            container.innerHTML = html;
+            
+            // Render MathJax for the results
+            if (window.MathJax) {
+                MathJax.typesetPromise([container]).catch((err) => console.log('MathJax error:', err));
+            }
             
             updateResultsTab(score, quiz.questions.length, percentage, '良好');
         }
