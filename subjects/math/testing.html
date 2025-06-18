@@ -1703,7 +1703,7 @@
             const gradeInfo = gradeDetails[specificGrade] || '初中水平';
 
             // Special handling for JSON format issues
-            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- LaTeX上标和下标必须用大括号包围，如：x^{2}而不是x^2，A_{BC}而不是A_BC\n- 度数符号使用:\\\\circ 而不是 °\n- 三角形符号使用:\\\\triangle 而不是直接的△\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要简洁明了，控制在3-4个步骤内，每个步骤用\\\\n分隔\n- 解释中避免使用引号，如需要用引号请转义为\\\\\n- 数学符号只能在LaTeX格式中使用($符号包围)\n- 确保所有LaTeX命令都是标准的，避免自定义命令';
+            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n\n【LaTeX格式严格要求】：\n- 上标和下标必须用大括号包围：x^{2}而不是x^2，A_{BC}而不是A_BC\n- 多字符上下标必须用大括号：x^{10}而不是x^10，log_{10}而不是log_10\n- 分数格式：\\\\frac{分子}{分母}，如\\\\frac{1}{2}\n- 根号格式：\\\\sqrt{内容}，如\\\\sqrt{2}\n- 三角函数：\\\\sin{角度}，\\\\cos{角度}，\\\\tan{角度}\n- 常用符号：度数\\\\circ，三角形\\\\triangle，角度\\\\angle，约等于\\\\approx\n- 希腊字母：\\\\pi，\\\\alpha，\\\\beta，\\\\gamma，\\\\theta\n\n【其他格式要求】：\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要简洁明了，控制在3-4个步骤内，每个步骤用\\\\n分隔\n- 解释中避免使用引号，如需要用引号请转义为\\\\\n- 数学符号只能在LaTeX格式中使用($符号包围)\n- 确保所有LaTeX命令都是标准的，避免自定义命令';
 
             return `请生成${count}道关于"${topicName}"的数学测试题目。
 
@@ -2027,6 +2027,7 @@
                 jsonStr = fixLatexBackslashes(jsonStr);
                 jsonStr = fixLatexSyntax(jsonStr);
                 jsonStr = fixLongExplanation(jsonStr);
+                jsonStr = finalLatexValidation(jsonStr);
                 console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
                 // Try to find JSON object if wrapped in other text
@@ -3515,92 +3516,63 @@
 
         function fixLatexSyntax(jsonStr) {
             // This function fixes common LaTeX syntax issues in JSON strings
-            let result = '';
-            let inString = false;
-            let inMath = false;
-            let stringChar = null;
+            console.log('修复LaTeX语法...');
             
-            for (let i = 0; i < jsonStr.length; i++) {
-                let char = jsonStr[i];
-                let prevChar = i > 0 ? jsonStr[i-1] : '';
-                let nextChar = i < jsonStr.length - 1 ? jsonStr[i+1] : '';
-                let next2Char = i < jsonStr.length - 2 ? jsonStr[i+2] : '';
-                
-                if (!inString) {
-                    // Not in string
-                    if (char === '"' && prevChar !== '\\') {
-                        inString = true;
-                        stringChar = '"';
-                    }
-                    result += char;
-                } else {
-                    // In string
-                    if (char === stringChar && prevChar !== '\\') {
-                        inString = false;
-                        stringChar = null;
-                        inMath = false;
-                        result += char;
-                    } else if (char === '$') {
-                        inMath = !inMath;
-                        result += char;
-                    } else if (inMath) {
-                        // In math mode, fix common issues
-                        if (char === '^' || char === '_') {
-                            // Check if next character needs braces
-                            if (nextChar && nextChar !== '{' && nextChar !== '\\' && nextChar !== '$' && nextChar !== '^' && nextChar !== '_') {
-                                // Look ahead to see if it's a multi-character sequence
-                                let j = i + 1;
-                                let sequence = '';
-                                while (j < jsonStr.length && jsonStr[j] !== ' ' && jsonStr[j] !== '$' && 
-                                       jsonStr[j] !== '^' && jsonStr[j] !== '_' && jsonStr[j] !== '{' && 
-                                       jsonStr[j] !== '}' && jsonStr[j] !== '\\' && jsonStr[j] !== '"') {
-                                    sequence += jsonStr[j];
-                                    j++;
-                                }
-                                
-                                if (sequence.length === 1) {
-                                    // Single character, add braces
-                                    result += char + '{' + sequence + '}';
-                                    i = j - 1; // Skip the sequence
-                                } else if (sequence.length > 1) {
-                                    // Multi-character, definitely needs braces
-                                    result += char + '{' + sequence + '}';
-                                    i = j - 1; // Skip the sequence
-                                } else {
-                                    result += char;
-                                }
-                            } else {
-                                result += char;
-                            }
-                        } else if (char === '\\' && nextChar === '\\') {
-                            // Double backslash is fine
-                            result += char;
-                        } else if (char === '\\' && nextChar && nextChar.match(/[a-zA-Z]/)) {
-                            // LaTeX command, check for common issues
-                            let command = '\\';
-                            let j = i + 1;
-                            while (j < jsonStr.length && jsonStr[j].match(/[a-zA-Z]/)) {
-                                command += jsonStr[j];
-                                j++;
-                            }
-                            
-                            // Some common LaTeX commands that often need space after them
-                            const needsSpace = ['\\angle', '\\sin', '\\cos', '\\tan', '\\log', '\\ln', '\\sqrt'];
-                            if (needsSpace.includes(command) && j < jsonStr.length && jsonStr[j].match(/[a-zA-Z]/)) {
-                                result += command + ' ';
-                                i = j - 1;
-                            } else {
-                                result += char;
-                            }
-                        } else {
-                            result += char;
-                        }
-                    } else {
-                        result += char;
-                    }
+            // First pass: Fix LaTeX syntax within strings using regex patterns
+            let result = jsonStr;
+            
+            // Pattern to find content within JSON string values
+            result = result.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, function(match, content) {
+                // Skip if this is a JSON key (followed by colon)
+                let afterMatch = jsonStr.substring(jsonStr.indexOf(match) + match.length).trim();
+                if (afterMatch.startsWith(':')) {
+                    return match; // This is a key, don't process
                 }
-            }
+                
+                let fixed = content;
+                
+                // Fix superscripts and subscripts - more comprehensive patterns
+                // Handle cases like x^2, x^{2}, x^23, ABC^2, etc.
+                fixed = fixed.replace(/\^([a-zA-Z0-9]+)(?![}])/g, '^{$1}');
+                fixed = fixed.replace(/_([a-zA-Z0-9]+)(?![}])/g, '_{$1}');
+                
+                // Handle edge cases where there might be spaces or other characters
+                fixed = fixed.replace(/\^\s*([a-zA-Z0-9]+)(?![}])/g, '^{$1}');
+                fixed = fixed.replace(/_\s*([a-zA-Z0-9]+)(?![}])/g, '_{$1}');
+                
+                // Fix cases where there are already partial braces
+                fixed = fixed.replace(/\^{([^}]*?)(?![}])/g, '^{$1}');
+                fixed = fixed.replace(/_{([^}]*?)(?![}])/g, '_{$1}');
+                
+                // Fix common math symbols
+                fixed = fixed
+                    .replace(/°/g, '\\\\circ')
+                    .replace(/△/g, '\\\\triangle')
+                    .replace(/∠/g, '\\\\angle')
+                    .replace(/√/g, '\\\\sqrt')
+                    .replace(/≈/g, '\\\\approx')
+                    .replace(/≤/g, '\\\\leq')
+                    .replace(/≥/g, '\\\\geq')
+                    .replace(/∞/g, '\\\\infty')
+                    .replace(/π/g, '\\\\pi')
+                    .replace(/α/g, '\\\\alpha')
+                    .replace(/β/g, '\\\\beta')
+                    .replace(/γ/g, '\\\\gamma')
+                    .replace(/θ/g, '\\\\theta');
+                
+                // Fix spacing issues with LaTeX commands
+                fixed = fixed.replace(/(\\\\[a-zA-Z]+)([A-Z])/g, '$1 $2');
+                
+                // Fix common fraction patterns
+                fixed = fixed.replace(/\\\\frac([^{])/g, '\\\\frac{$1');
+                
+                // Fix square root patterns
+                fixed = fixed.replace(/\\\\sqrt([^{])/g, '\\\\sqrt{$1');
+                
+                return '"' + fixed + '"';
+            });
             
+            console.log('LaTeX语法修复完成');
             return result;
         }
 
@@ -3627,18 +3599,32 @@
             
             // Fix common LaTeX issues
             return text
-                // Fix superscripts without braces
-                .replace(/\^([a-zA-Z0-9](?![}]))/g, '^{$1}')
-                // Fix subscripts without braces  
-                .replace(/_([a-zA-Z0-9](?![}]))/g, '_{$1}')
-                // Fix degree symbol
+                // Fix superscripts without braces - handle multi-character sequences
+                .replace(/\^([a-zA-Z0-9]+)(?![}])/g, '^{$1}')
+                // Fix subscripts without braces - handle multi-character sequences
+                .replace(/_([a-zA-Z0-9]+)(?![}])/g, '_{$1}')
+                // Fix common math symbols
                 .replace(/°/g, '\\circ')
-                // Fix triangle symbol
                 .replace(/△/g, '\\triangle')
+                .replace(/∠/g, '\\angle')
+                .replace(/√/g, '\\sqrt')
+                .replace(/≈/g, '\\approx')
+                .replace(/≤/g, '\\leq')
+                .replace(/≥/g, '\\geq')
+                .replace(/∞/g, '\\infty')
+                .replace(/π/g, '\\pi')
+                .replace(/α/g, '\\alpha')
+                .replace(/β/g, '\\beta')
+                .replace(/γ/g, '\\gamma')
+                .replace(/θ/g, '\\theta')
                 // Fix common spacing issues with LaTeX commands
                 .replace(/(\\[a-zA-Z]+)([A-Z])/g, '$1 $2')
                 // Ensure proper spacing after commands like \angle
-                .replace(/(\\angle|\\sin|\\cos|\\tan|\\log|\\ln)([A-Z])/g, '$1 $2');
+                .replace(/(\\angle|\\sin|\\cos|\\tan|\\log|\\ln)([A-Z])/g, '$1 $2')
+                // Fix common fraction patterns
+                .replace(/\\frac([^{])/g, '\\frac{$1')
+                // Fix square root patterns
+                .replace(/\\sqrt([^{])/g, '\\sqrt{$1');
         }
 
         function fixLongExplanation(jsonStr) {
@@ -3672,6 +3658,33 @@
                     .replace(/\\n\\n+/g, '\\n'); // Remove excessive line breaks
                 
                 return `"explanation": "${explanation}"`;
+            });
+        }
+
+        function finalLatexValidation(jsonStr) {
+            // Final pass to catch any remaining LaTeX syntax issues
+            console.log('最终LaTeX语法验证...');
+            
+            return jsonStr.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, function(match, content) {
+                // Skip JSON keys
+                let afterMatch = jsonStr.substring(jsonStr.indexOf(match) + match.length).trim();
+                if (afterMatch.startsWith(':')) {
+                    return match;
+                }
+                
+                let fixed = content;
+                
+                // Final superscript/subscript fixes - catch any edge cases
+                fixed = fixed.replace(/([A-Za-z0-9}])\^([A-Za-z0-9]+)(?![{}])/g, '$1^{$2}');
+                fixed = fixed.replace(/([A-Za-z0-9}])_([A-Za-z0-9]+)(?![{}])/g, '$1_{$2}');
+                
+                // Fix incomplete LaTeX commands
+                fixed = fixed.replace(/\\([a-zA-Z]+)(?![a-zA-Z{])/g, '\\\\$1');
+                
+                // Ensure proper braces for common functions
+                fixed = fixed.replace(/\\\\(frac|sqrt|sin|cos|tan|log|ln)([^{])/g, '\\\\$1{$2');
+                
+                return '"' + fixed + '"';
             });
         }
     </script>
