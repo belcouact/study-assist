@@ -1702,9 +1702,9 @@
             const difficultyName = difficultyMap[difficulty] || '中等难度';
             const gradeInfo = gradeDetails[specificGrade] || '初中水平';
 
-            // Special handling for geometry topics to avoid JSON format issues
-            const isGeometry = topic === 'geometry';
-            const jsonNote = isGeometry ? '\n\n【重要提醒】：\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要分段清晰，避免使用特殊符号\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- 数学符号只能在LaTeX格式中使用($符号包围)' : '';
+            // Special handling for JSON format issues
+            const needsSpecialHandling = topic === 'geometry' || topic === 'trigonometry' || topic === 'calculus';
+            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要分段清晰，使用\\n进行换行\n- 数学符号只能在LaTeX格式中使用($符号包围)';
 
             return `请生成${count}道关于"${topicName}"的数学测试题目。
 
@@ -1742,6 +1742,60 @@
 
 注意：correct字段表示正确答案的索引(0=A, 1=B, 2=C, 3=D)
 重要：请确保返回的是完整有效的JSON格式，所有字符串都要用双引号包围！`;
+        }
+
+        function fixLatexBackslashes(jsonStr) {
+            // This function specifically handles LaTeX backslashes in JSON strings
+            let result = '';
+            let inString = false;
+            let stringChar = null;
+            let i = 0;
+            
+            while (i < jsonStr.length) {
+                let char = jsonStr[i];
+                let prevChar = i > 0 ? jsonStr[i-1] : '';
+                let nextChar = i < jsonStr.length - 1 ? jsonStr[i+1] : '';
+                
+                if (!inString) {
+                    // Not in string, check if entering string
+                    if (char === '"' && prevChar !== '\\') {
+                        inString = true;
+                        stringChar = '"';
+                    }
+                    result += char;
+                    i++;
+                } else {
+                    // In string, check if exiting string
+                    if (char === stringChar && prevChar !== '\\') {
+                        inString = false;
+                        stringChar = null;
+                        result += char;
+                        i++;
+                    } else if (char === '\\') {
+                        // Handle backslash in string
+                        if (nextChar === 'n' || nextChar === 'r' || nextChar === 't' || 
+                            nextChar === '"' || nextChar === '\\' || nextChar === '/' || 
+                            nextChar === 'b' || nextChar === 'f' || nextChar === 'u') {
+                            // Valid JSON escape sequence, keep as is
+                            result += char;
+                            i++;
+                        } else if (nextChar === '\\') {
+                            // Already escaped backslash, keep both
+                            result += char + nextChar;
+                            i += 2;
+                        } else {
+                            // LaTeX backslash, double it for JSON
+                            result += '\\\\';
+                            i++;
+                        }
+                    } else {
+                        result += char;
+                        i++;
+                    }
+                }
+            }
+            
+            return result;
         }
 
         function repairJsonString(jsonStr) {
@@ -1939,6 +1993,11 @@
                     .replace(/[\u00A0]/g, ' ')        // Replace non-breaking spaces
                     .replace(/\r\n/g, '\n')          // Normalize line endings
                     .replace(/\n\s*\n/g, '\n');      // Remove empty lines
+                
+                // Fix LaTeX backslashes in JSON strings
+                console.log('修复前:', jsonStr.substring(0, 200) + '...');
+                jsonStr = fixLatexBackslashes(jsonStr);
+                console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
                 // Try to find JSON object if wrapped in other text
                 const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
