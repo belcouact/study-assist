@@ -1744,6 +1744,182 @@
 重要：请确保返回的是完整有效的JSON格式，所有字符串都要用双引号包围！`;
         }
 
+        function repairJsonString(jsonStr) {
+            try {
+                // First, try to parse as-is
+                JSON.parse(jsonStr);
+                return jsonStr; // If successful, return original
+            } catch (error) {
+                console.log('JSON需要修复，开始修复过程...');
+                
+                // Split into lines for easier processing
+                let lines = jsonStr.split('\n');
+                let repairedLines = [];
+                let inString = false;
+                let stringChar = null;
+                
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+                    let repairedLine = '';
+                    
+                    for (let j = 0; j < line.length; j++) {
+                        let char = line[j];
+                        let prevChar = j > 0 ? line[j-1] : '';
+                        
+                        if (!inString) {
+                            // Not in a string, look for string start
+                            if (char === '"' && prevChar !== '\\') {
+                                inString = true;
+                                stringChar = '"';
+                                repairedLine += char;
+                            } else {
+                                repairedLine += char;
+                            }
+                        } else {
+                            // In a string, look for string end or handle special cases
+                            if (char === stringChar && prevChar !== '\\') {
+                                inString = false;
+                                stringChar = null;
+                                repairedLine += char;
+                            } else if (char === '\n' || char === '\r') {
+                                // Newline in string - escape it
+                                repairedLine += '\\n';
+                            } else if (char === '\t') {
+                                // Tab in string - escape it
+                                repairedLine += '\\t';
+                            } else if (char === '"' && prevChar === '\\') {
+                                // Already escaped quote
+                                repairedLine += char;
+                            } else if (char === '"') {
+                                // Unescaped quote in string - escape it
+                                repairedLine += '\\"';
+                            } else if (char === '\\' && j < line.length - 1) {
+                                // Backslash - check next character
+                                let nextChar = line[j + 1];
+                                if (nextChar === 'n' || nextChar === 't' || nextChar === 'r' || 
+                                    nextChar === '"' || nextChar === '\\' || nextChar === '/') {
+                                    // Valid escape sequence
+                                    repairedLine += char;
+                                } else {
+                                    // Invalid escape - escape the backslash
+                                    repairedLine += '\\\\';
+                                }
+                            } else {
+                                repairedLine += char;
+                            }
+                        }
+                    }
+                    
+                    // If we're still in a string at the end of line, close it
+                    if (inString && i === lines.length - 1) {
+                        repairedLine += '"';
+                        inString = false;
+                    }
+                    
+                    repairedLines.push(repairedLine);
+                }
+                
+                let repairedJson = repairedLines.join('\n');
+                
+                // Additional common fixes
+                repairedJson = repairedJson
+                    .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+                    .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Quote unquoted keys
+                    .replace(/:\s*([^",\[\]{}0-9true false null][^",\[\]{}]*?)([,\]}])/g, ': "$1"$2'); // Quote unquoted string values
+                
+                console.log('JSON修复完成');
+                return repairedJson;
+            }
+        }
+
+        function aggressiveJsonRepair(jsonStr) {
+            console.log('开始强力JSON修复...');
+            
+            // Try to extract just the questions array portion if possible
+            let questionsMatch = jsonStr.match(/"questions"\s*:\s*\[[\s\S]*?\]/);
+            if (questionsMatch) {
+                jsonStr = '{\n' + questionsMatch[0] + '\n}';
+            }
+            
+            // More aggressive string repair
+            let chars = jsonStr.split('');
+            let result = [];
+            let inString = false;
+            let braceCount = 0;
+            let bracketCount = 0;
+            
+            for (let i = 0; i < chars.length; i++) {
+                let char = chars[i];
+                let prevChar = i > 0 ? chars[i-1] : '';
+                let nextChar = i < chars.length - 1 ? chars[i+1] : '';
+                
+                if (!inString) {
+                    if (char === '"') {
+                        inString = true;
+                        result.push(char);
+                    } else if (char === '{') {
+                        braceCount++;
+                        result.push(char);
+                    } else if (char === '}') {
+                        braceCount--;
+                        result.push(char);
+                    } else if (char === '[') {
+                        bracketCount++;
+                        result.push(char);
+                    } else if (char === ']') {
+                        bracketCount--;
+                        result.push(char);
+                    } else {
+                        result.push(char);
+                    }
+                } else {
+                    // Inside string
+                    if (char === '"' && prevChar !== '\\') {
+                        inString = false;
+                        result.push(char);
+                    } else if (char === '\n') {
+                        result.push('\\n');
+                    } else if (char === '\r') {
+                        result.push('\\r');
+                    } else if (char === '\t') {
+                        result.push('\\t');
+                    } else if (char === '\\' && (nextChar === 'n' || nextChar === 'r' || nextChar === 't' || nextChar === '"' || nextChar === '\\')) {
+                        result.push(char);
+                    } else if (char === '\\') {
+                        result.push('\\\\');
+                    } else {
+                        result.push(char);
+                    }
+                }
+            }
+            
+            // If still in string, close it
+            if (inString) {
+                result.push('"');
+            }
+            
+            // Balance braces and brackets
+            while (braceCount > 0) {
+                result.push('}');
+                braceCount--;
+            }
+            while (bracketCount > 0) {
+                result.push(']');
+                bracketCount--;
+            }
+            
+            let repaired = result.join('');
+            
+            // Final cleanup
+            repaired = repaired
+                .replace(/,(\s*[}\]])/g, '$1')  // Remove trailing commas
+                .replace(/}\s*{/g, '},{')       // Fix missing commas between objects
+                .replace(/]\s*\[/g, '],[');     // Fix missing commas between arrays
+            
+            console.log('强力修复完成');
+            return repaired;
+        }
+
         function parseAIQuizResponse(response) {
             try {
                 // Try to extract JSON from the response
@@ -1770,10 +1946,27 @@
                     jsonStr = jsonMatch[0];
                 }
                 
+                // Advanced JSON repair for unterminated strings
+                jsonStr = repairJsonString(jsonStr);
+                
                 // Log the cleaned JSON for debugging
                 console.log('Cleaned JSON string:', jsonStr.substring(0, 500) + (jsonStr.length > 500 ? '...' : ''));
                 
-                const quiz = JSON.parse(jsonStr);
+                let quiz;
+                try {
+                    quiz = JSON.parse(jsonStr);
+                } catch (parseError) {
+                    console.log('标准解析失败，尝试强力修复...');
+                    try {
+                        // Try aggressive repair as last resort
+                        jsonStr = aggressiveJsonRepair(jsonStr);
+                        quiz = JSON.parse(jsonStr);
+                        console.log('强力修复成功！');
+                    } catch (aggressiveError) {
+                        console.log('强力修复也失败了，抛出详细错误信息');
+                        throw parseError; // Throw original error with better context
+                    }
+                }
                 
                 if (!quiz.questions || !Array.isArray(quiz.questions)) {
                     throw new Error('AI返回的数据格式无效：缺少题目数组');
@@ -1815,8 +2008,22 @@
                 if (error instanceof SyntaxError) {
                     errorMsg = `JSON语法错误: ${error.message}`;
                     if (error.message.includes('position')) {
-                        errorMsg += '\n这通常是由于AI返回的内容中包含了未正确转义的特殊字符导致的。';
+                        const position = error.message.match(/position (\d+)/);
+                        if (position) {
+                            const pos = parseInt(position[1]);
+                            const context = response.substring(Math.max(0, pos - 50), pos + 50);
+                            errorMsg += `\n\n错误位置附近的内容:\n"${context}"`;
+                        }
+                        errorMsg += '\n\n这通常是由于以下原因导致的:';
+                        errorMsg += '\n• AI返回的内容中包含了未正确转义的特殊字符';
+                        errorMsg += '\n• 字符串中包含了换行符或引号但未转义';
+                        errorMsg += '\n• JSON结构不完整（缺少括号或引号）';
+                        errorMsg += '\n• 内容被意外截断';
                     }
+                    errorMsg += '\n\n已尝试自动修复但失败，建议:';
+                    errorMsg += '\n• 重新生成测试';
+                    errorMsg += '\n• 尝试选择不同的话题或难度';
+                    errorMsg += '\n• 减少题目数量';
                 }
                 
                 throw new Error(`AI生成内容解析失败: ${errorMsg}`);
