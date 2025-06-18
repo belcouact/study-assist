@@ -1703,7 +1703,7 @@
             const gradeInfo = gradeDetails[specificGrade] || '初中水平';
 
             // Special handling for JSON format issues
-            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- LaTeX上标和下标必须用大括号包围，如：x^{2}而不是x^2，A_{BC}而不是A_BC\n- 度数符号使用:\\\\circ 而不是 °\n- 三角形符号使用:\\\\triangle 而不是直接的△\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要分段清晰，使用\\\\n进行换行\n- 数学符号只能在LaTeX格式中使用($符号包围)\n- 确保所有LaTeX命令都是标准的，避免自定义命令';
+            const jsonNote = '\n\n【JSON格式重要提醒】：\n- 确保JSON格式完全正确，所有字符串都要用双引号包围\n- LaTeX数学表达式中的反斜杠(\\)必须转义为双反斜杠(\\\\)\n- 例如：\\angle 应写成 \\\\angle，\\frac 应写成 \\\\frac，\\sqrt 应写成 \\\\sqrt\n- LaTeX上标和下标必须用大括号包围，如：x^{2}而不是x^2，A_{BC}而不是A_BC\n- 度数符号使用:\\\\circ 而不是 °\n- 三角形符号使用:\\\\triangle 而不是直接的△\n- 题目描述要简洁明了，避免过长的文字描述\n- 解释部分要简洁明了，控制在3-4个步骤内，每个步骤用\\\\n分隔\n- 解释中避免使用引号，如需要用引号请转义为\\\\\n- 数学符号只能在LaTeX格式中使用($符号包围)\n- 确保所有LaTeX命令都是标准的，避免自定义命令';
 
             return `请生成${count}道关于"${topicName}"的数学测试题目。
 
@@ -1898,12 +1898,31 @@
         function aggressiveJsonRepair(jsonStr) {
             console.log('开始强力JSON修复...');
             
+            // First, try to fix common structural issues
+            jsonStr = jsonStr
+                .replace(/}\s*{/g, '},{') // Fix missing commas between objects
+                .replace(/]\s*\[/g, '],[') // Fix missing commas between arrays
+                .replace(/("\s*explanation"\s*:\s*"[^"]*?)([^\\])"([^"}]*")\s*}/g, '$1$2\\"$3}') // Fix unescaped quotes in explanation
+                .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
+            
             // Try to extract just the questions array portion if possible
             let questionsMatch = jsonStr.match(/"questions"\s*:\s*\[[\s\S]*?\]/);
             if (questionsMatch) {
                 jsonStr = '{\n' + questionsMatch[0] + '\n}';
             }
             
+            // Try to fix incomplete JSON structure first
+            if (!jsonStr.trim().endsWith('}')) {
+                console.log('JSON不完整，尝试补全...');
+                // Look for the last complete question object
+                let lastCompleteQuestion = jsonStr.lastIndexOf('}');
+                if (lastCompleteQuestion > 0) {
+                    jsonStr = jsonStr.substring(0, lastCompleteQuestion + 1);
+                    // Close the questions array and main object
+                    jsonStr += '\n  ]\n}';
+                }
+            }
+
             // More aggressive string repair
             let chars = jsonStr.split('');
             let result = [];
@@ -2007,6 +2026,7 @@
                 console.log('修复前:', jsonStr.substring(0, 200) + '...');
                 jsonStr = fixLatexBackslashes(jsonStr);
                 jsonStr = fixLatexSyntax(jsonStr);
+                jsonStr = fixLongExplanation(jsonStr);
                 console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
                 // Try to find JSON object if wrapped in other text
@@ -3619,6 +3639,40 @@
                 .replace(/(\\[a-zA-Z]+)([A-Z])/g, '$1 $2')
                 // Ensure proper spacing after commands like \angle
                 .replace(/(\\angle|\\sin|\\cos|\\tan|\\log|\\ln)([A-Z])/g, '$1 $2');
+        }
+
+        function fixLongExplanation(jsonStr) {
+            // This function fixes issues with overly long explanation fields that break JSON parsing
+            console.log('修复超长explanation字段...');
+            
+            // Find and fix explanation fields
+            return jsonStr.replace(/"explanation":\s*"([^"]*(?:\\.[^"]*)*)"([^"}]*)/g, (match, p1, remaining) => {
+                console.log('发现explanation字段，长度:', match.length);
+                
+                // If the explanation is too long or contains unescaped quotes, truncate and clean it
+                let explanation = p1;
+                
+                // Remove excessive detail and keep only essential parts
+                if (explanation.length > 500) {
+                    console.log('explanation过长，进行截断...');
+                    explanation = explanation
+                        .split('\\n')
+                        .slice(0, 4) // Keep only first 4 steps
+                        .join('\\n');
+                    
+                    // Add a conclusion if truncated
+                    if (!explanation.includes('答案')) {
+                        explanation += '\\n因此答案为对应选项。';
+                    }
+                }
+                
+                // Fix any remaining quote issues
+                explanation = explanation
+                    .replace(/([^\\])"/g, '$1\\"') // Escape unescaped quotes
+                    .replace(/\\n\\n+/g, '\\n'); // Remove excessive line breaks
+                
+                return `"explanation": "${explanation}"`;
+            });
         }
     </script>
 </body>
