@@ -1745,6 +1745,18 @@
 
         function fixLatexBackslashes(jsonStr) {
             // This function specifically handles LaTeX backslashes and syntax in JSON strings
+            console.log('检查LaTeX反斜杠转义...');
+            
+            // First, let's try to parse the JSON to see if it's already properly formatted
+            try {
+                JSON.parse(jsonStr);
+                console.log('JSON已经格式正确，无需修复反斜杠');
+                return jsonStr; // If it parses successfully, don't modify it
+            } catch (e) {
+                console.log('JSON需要反斜杠修复');
+            }
+            
+            // Only fix if JSON parsing failed
             let result = '';
             let inString = false;
             let stringChar = null;
@@ -1779,11 +1791,12 @@
                             result += char;
                             i++;
                         } else if (nextChar === '\\') {
-                            // Already escaped backslash, keep both
+                            // Already escaped backslash for LaTeX, keep both
                             result += char + nextChar;
                             i += 2;
                         } else {
-                            // LaTeX backslash, double it for JSON
+                            // Single backslash followed by letter (LaTeX command)
+                            // Only double it if it's not already doubled
                             result += '\\\\';
                             i++;
                         }
@@ -2014,10 +2027,24 @@
                 
                 // Fix LaTeX backslashes and syntax in JSON strings
                 console.log('修复前:', jsonStr.substring(0, 200) + '...');
-                jsonStr = fixLatexBackslashes(jsonStr);
-                jsonStr = fixLatexSyntax(jsonStr);
-                jsonStr = fixLongExplanation(jsonStr);
-                jsonStr = finalLatexValidation(jsonStr);
+                
+                // Try to parse first - if it works, we don't need to fix anything
+                let needsFixing = false;
+                try {
+                    JSON.parse(jsonStr);
+                    console.log('JSON格式正确，跳过LaTeX修复');
+                } catch (e) {
+                    console.log('JSON需要修复，开始LaTeX修复流程');
+                    needsFixing = true;
+                }
+                
+                if (needsFixing) {
+                    jsonStr = fixLatexBackslashes(jsonStr);
+                    jsonStr = fixLatexSyntax(jsonStr);
+                    jsonStr = fixLongExplanation(jsonStr);
+                    jsonStr = finalLatexValidation(jsonStr);
+                }
+                
                 console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
                 // Try to find JSON object if wrapped in other text
