@@ -1748,8 +1748,8 @@
             console.log('检查LaTeX反斜杠转义...');
             
             // Check if LaTeX commands are already properly escaped for JSON
-            // Look for patterns like \\angle, \\triangle, \\circ which indicate proper escaping
-            const hasProperlyEscapedLatex = /\\\\(angle|triangle|circ|sqrt|frac|sin|cos|tan|pi|alpha|beta|gamma|theta|infty|leq|geq|approx)/.test(jsonStr);
+            // Look for patterns like \\frac, \\angle, \\triangle, \\circ which indicate proper escaping
+            const hasProperlyEscapedLatex = /\\\\(frac|angle|triangle|circ|sqrt|sin|cos|tan|pi|alpha|beta|gamma|theta|infty|leq|geq|approx)/.test(jsonStr);
             
             if (hasProperlyEscapedLatex) {
                 console.log('LaTeX命令已正确转义，跳过反斜杠修复');
@@ -3533,6 +3533,13 @@
             // This function fixes common LaTeX syntax issues in JSON strings
             console.log('修复LaTeX语法...');
             
+            // Check if LaTeX is already properly formatted - if so, skip processing
+            const hasProperlyEscapedLatex = /\\\\(frac|angle|triangle|circ|sqrt|sin|cos|tan)/.test(jsonStr);
+            if (hasProperlyEscapedLatex) {
+                console.log('LaTeX命令已正确格式化，跳过语法修复');
+                return jsonStr;
+            }
+            
             // Simple and conservative approach - only fix obvious cases
             let result = jsonStr;
             
@@ -3643,6 +3650,15 @@
         function finalLatexValidation(jsonStr) {
             // Final pass to catch any remaining LaTeX syntax issues
             console.log('最终LaTeX语法验证...');
+            
+            // Check if there are actually any issues to fix
+            const hasTripleBackslashes = /\\\\\\[a-zA-Z]/.test(jsonStr);
+            const hasMalformedBraces = /\^{}\\\\/g.test(jsonStr) || /}\\\\([a-zA-Z]+)}/g.test(jsonStr);
+            
+            if (!hasTripleBackslashes && !hasMalformedBraces) {
+                console.log('LaTeX格式正确，跳过最终验证');
+                return jsonStr;
+            }
             
             // Fix triple backslashes (most common issue)
             jsonStr = jsonStr.replace(/\\\\\\([a-zA-Z]+)/g, '\\\\$1');
