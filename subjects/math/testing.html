@@ -1863,10 +1863,19 @@
                                 let nextChar = line[j + 1];
                                 if (nextChar === 'n' || nextChar === 't' || nextChar === 'r' || 
                                     nextChar === '"' || nextChar === '\\' || nextChar === '/') {
-                                    // Valid escape sequence
+                                    // Valid JSON escape sequence
                                     repairedLine += char;
+                                } else if (nextChar && nextChar.match(/[a-zA-Z]/)) {
+                                    // LaTeX command (like \frac, \angle) - check if already escaped
+                                    if (prevChar === '\\') {
+                                        // Already escaped LaTeX command (\\frac)
+                                        repairedLine += char;
+                                    } else {
+                                        // Single backslash LaTeX command - needs escaping
+                                        repairedLine += '\\\\';
+                                    }
                                 } else {
-                                    // Invalid escape - escape the backslash
+                                    // Other invalid escape - escape the backslash
                                     repairedLine += '\\\\';
                                 }
                             } else {
@@ -1969,6 +1978,15 @@
                         result.push('\\t');
                     } else if (char === '\\' && (nextChar === 'n' || nextChar === 'r' || nextChar === 't' || nextChar === '"' || nextChar === '\\')) {
                         result.push(char);
+                    } else if (char === '\\' && nextChar && nextChar.match(/[a-zA-Z]/)) {
+                        // LaTeX command - check if already escaped
+                        if (prevChar === '\\') {
+                            // Already escaped LaTeX command
+                            result.push(char);
+                        } else {
+                            // Single backslash LaTeX command - needs escaping
+                            result.push('\\\\');
+                        }
                     } else if (char === '\\') {
                         result.push('\\\\');
                     } else {
