@@ -1747,16 +1747,16 @@
             // This function specifically handles LaTeX backslashes and syntax in JSON strings
             console.log('检查LaTeX反斜杠转义...');
             
-            // First, let's try to parse the JSON to see if it's already properly formatted
-            try {
-                JSON.parse(jsonStr);
-                console.log('JSON已经格式正确，无需修复反斜杠');
-                return jsonStr; // If it parses successfully, don't modify it
-            } catch (e) {
-                console.log('JSON需要反斜杠修复');
+            // Check if LaTeX commands are already properly escaped for JSON
+            // Look for patterns like \\angle, \\triangle, \\circ which indicate proper escaping
+            const hasProperlyEscapedLatex = /\\\\(angle|triangle|circ|sqrt|frac|sin|cos|tan|pi|alpha|beta|gamma|theta|infty|leq|geq|approx)/.test(jsonStr);
+            
+            if (hasProperlyEscapedLatex) {
+                console.log('LaTeX命令已正确转义，跳过反斜杠修复');
+                return jsonStr;
             }
             
-            // Only fix if JSON parsing failed
+            console.log('LaTeX命令需要转义，开始反斜杠修复...');
             let result = '';
             let inString = false;
             let stringChar = null;
@@ -2027,22 +2027,11 @@
                 // Fix LaTeX backslashes and syntax in JSON strings
                 console.log('修复前:', jsonStr.substring(0, 200) + '...');
                 
-                // Try to parse first - if it works, we don't need to fix anything
-                let needsFixing = false;
-                try {
-                    JSON.parse(jsonStr);
-                    console.log('JSON格式正确，跳过LaTeX修复');
-                } catch (e) {
-                    console.log('JSON需要修复，开始LaTeX修复流程');
-                    needsFixing = true;
-                }
-                
-                if (needsFixing) {
-                    jsonStr = fixLatexBackslashes(jsonStr);
-                    jsonStr = fixLatexSyntax(jsonStr);
-                    jsonStr = fixLongExplanation(jsonStr);
-                    jsonStr = finalLatexValidation(jsonStr);
-                }
+                // Apply conservative LaTeX fixes - each function has its own detection logic
+                jsonStr = fixLatexBackslashes(jsonStr);
+                jsonStr = fixLatexSyntax(jsonStr);
+                jsonStr = fixLongExplanation(jsonStr);
+                jsonStr = finalLatexValidation(jsonStr);
                 
                 console.log('修复后:', jsonStr.substring(0, 200) + '...');
                 
