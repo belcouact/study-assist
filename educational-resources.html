@@ -145,6 +145,8 @@
             height: 320px;
             border-radius: 12px;
             position: relative;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent; /* Remove touch highlight on mobile */
         }
 
         .resource-card-inner {
@@ -153,12 +155,22 @@
             height: 100%;
             transition: transform 0.8s;
             transform-style: preserve-3d;
+            -webkit-transform-style: preserve-3d;
+            -moz-transform-style: preserve-3d;
             border-radius: 12px;
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
 
-        .resource-card:hover .resource-card-inner {
+        .resource-card:hover .resource-card-inner,
+        .resource-card.flipped .resource-card-inner {
             transform: rotateY(180deg);
+        }
+
+        /* Touch device support */
+        @media (hover: none) {
+            .resource-card:active .resource-card-inner {
+                transform: rotateY(180deg);
+            }
         }
 
         .resource-card-front,
@@ -168,6 +180,7 @@
             height: 100%;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
+            -moz-backface-visibility: hidden;
             border-radius: 12px;
             overflow: hidden;
         }
@@ -190,7 +203,7 @@
         .resource-header {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
-            padding: 1rem;
+            padding: 1.5rem 1rem;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -218,6 +231,7 @@
             flex: 1;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
         }
 
         .resource-description {
@@ -228,7 +242,9 @@
             flex: 1;
             display: -webkit-box;
             -webkit-line-clamp: 3;
+            line-clamp: 3;
             -webkit-box-orient: vertical;
+            box-orient: vertical;
             overflow: hidden;
         }
 
@@ -236,7 +252,11 @@
             display: flex;
             flex-wrap: wrap;
             gap: 0.4rem;
-            margin: 0.5rem 0;
+            margin: 0.5rem 0 1rem 0;
+            justify-content: center;
+            overflow-y: auto;
+            max-height: 100px;
+            padding-right: 5px;
         }
 
         .subject-tag {
@@ -246,6 +266,7 @@
             border-radius: 12px;
             font-size: 0.7rem;
             font-weight: 500;
+            white-space: nowrap;
         }
 
         .features-list {
@@ -290,6 +311,8 @@
             justify-content: center;
             gap: 0.5rem;
             font-size: 0.9rem;
+            position: relative;
+            z-index: 10; /* Ensure button is clickable */
         }
 
         .btn-visit:hover {
@@ -312,9 +335,11 @@
 
         .description-full {
             margin-bottom: 1rem;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             flex: 1;
             overflow-y: auto;
+            line-height: 1.6;
+            text-align: justify;
         }
 
         .rating {
@@ -384,7 +409,7 @@
             }
 
             .resource-card {
-                height: 300px;
+                height: 350px;
             }
 
             .search-container {
@@ -415,7 +440,7 @@
             }
 
             .resource-card {
-                height: 250px;
+                height: 300px;
             }
 
             .resource-title {
@@ -425,6 +450,7 @@
             .resource-description {
                 font-size: 0.8rem;
                 -webkit-line-clamp: 2;
+                line-clamp: 2;
             }
 
             .search-container {
@@ -440,6 +466,11 @@
             .search-btn {
                 width: 100%;
                 justify-content: center;
+            }
+
+            .subject-tag {
+                font-size: 0.65rem;
+                padding: 0.15rem 0.4rem;
             }
         }
     </style>
@@ -923,6 +954,26 @@
                     searchResources();
                 }
             });
+
+            // Handle touch interactions for card flipping
+            document.addEventListener('click', function(e) {
+                const card = e.target.closest('.resource-card');
+                // Only flip if clicking on the card but not on a link
+                if (card && !e.target.closest('a')) {
+                    // Toggle a class for touch devices
+                    card.classList.toggle('flipped');
+                    
+                    // Apply the transform directly for immediate feedback
+                    const inner = card.querySelector('.resource-card-inner');
+                    if (card.classList.contains('flipped')) {
+                        inner.style.transform = 'rotateY(180deg)';
+                    } else {
+                        inner.style.transform = 'rotateY(0)';
+                    }
+                    
+                    e.preventDefault(); // Prevent link navigation if clicking on card
+                }
+            });
         }
 
         function searchResources() {
@@ -973,8 +1024,6 @@
         }
 
         function createResourceCard(resource) {
-            const ratingStars = '⭐'.repeat(Math.round(resource.rating));
-            
             return `
                 <div class="resource-card" data-category="${resource.category.join(' ')}">
                     ${resource.featured ? '<div class="featured-badge">推荐</div>' : ''}
@@ -986,11 +1035,8 @@
                                 <p class="resource-subtitle">${resource.subtitle}</p>
                             </div>
                             <div class="resource-body">
-                                <p class="resource-description">${resource.description}</p>
-                                
                                 <div class="subjects-tags">
-                                    ${resource.subjects.slice(0, 3).map(subject => `<span class="subject-tag">${subject}</span>`).join('')}
-                                    ${resource.subjects.length > 3 ? `<span class="subject-tag">+${resource.subjects.length - 3}</span>` : ''}
+                                    ${resource.subjects.map(subject => `<span class="subject-tag">${subject}</span>`).join('')}
                                 </div>
                                 
                                 <div class="resource-actions">
@@ -1003,15 +1049,7 @@
                         </div>
                         <div class="resource-card-back">
                             <h3 class="resource-title">${resource.title}</h3>
-                            <div class="rating">${ratingStars} ${resource.rating.toFixed(1)}</div>
-                            <div class="description-full">${resource.description}
-                                <ul class="features-list">
-                                    ${resource.features.map(feature => `<li>${feature}</li>`).join('')}
-                                </ul>
-                            </div>
-                            <div class="subjects-tags">
-                                ${resource.subjects.map(subject => `<span class="subject-tag">${subject}</span>`).join('')}
-                            </div>
+                            <div class="description-full">${resource.description}</div>
                             <div class="resource-actions">
                                 <a href="${resource.url}" target="_blank" rel="noopener noreferrer" class="btn-visit">
                                     <i class="fas fa-external-link-alt"></i>
