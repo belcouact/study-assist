@@ -321,7 +321,11 @@
                     <div class="output-section">
                         <div class="output-header">
                             <div class="output-title">Mermaid 流程图</div>
-                            <button class="copy-btn" id="copyDiagramBtn">复制</button>
+                            <div>
+                                <button class="copy-btn" id="copyDiagramBtn">复制</button>
+                                <button class="copy-btn ms-2" id="downloadSvgBtn">下载 SVG</button>
+                                <button class="copy-btn ms-2" id="downloadPngBtn">下载 PNG</button>
+                            </div>
                         </div>
                         <div class="diagram-container" id="diagramOutput"></div>
                     </div>
@@ -383,6 +387,8 @@
             const diagramOutput = document.getElementById('diagramOutput');
             const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
             const copyDiagramBtn = document.getElementById('copyDiagramBtn');
+            const downloadSvgBtn = document.getElementById('downloadSvgBtn');
+            const downloadPngBtn = document.getElementById('downloadPngBtn');
             const errorContainer = document.getElementById('errorContainer');
             const templateButtons = document.querySelectorAll('.template-btn');
             
@@ -643,6 +649,16 @@ ${rawCode}
                 showCopyFeedback(copyDiagramBtn);
             });
             
+            // Download SVG button event listener
+            downloadSvgBtn.addEventListener('click', () => {
+                downloadDiagramAsSvg();
+            });
+            
+            // Download PNG button event listener
+            downloadPngBtn.addEventListener('click', () => {
+                downloadDiagramAsPng();
+            });
+            
             // Call the DeepSeek API
             async function callDeepSeekAPI(prompt) {
                 // Enhanced prompt to get better Mermaid diagrams
@@ -849,6 +865,118 @@ flowchart TD
                         </div>
                     `;
                 }
+            }
+            
+            // Download diagram as SVG
+            function downloadDiagramAsSvg() {
+                const svgElement = diagramOutput.querySelector('svg');
+                if (!svgElement) {
+                    showError('没有找到可下载的图表');
+                    return;
+                }
+                
+                // Clone the SVG to avoid modifying the original
+                const clonedSvg = svgElement.cloneNode(true);
+                
+                // Get the actual dimensions of the SVG content
+                const bbox = svgElement.getBBox();
+                const padding = 20;
+                
+                // Set proper viewBox and dimensions
+                clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + 2 * padding} ${bbox.height + 2 * padding}`);
+                clonedSvg.setAttribute('width', bbox.width + 2 * padding);
+                clonedSvg.setAttribute('height', bbox.height + 2 * padding);
+                
+                // Add XML declaration and namespace
+                clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+                
+                // Convert to string
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(clonedSvg);
+                const fullSvgString = '<?xml version="1.0" encoding="UTF-8"?>\n' + svgString;
+                
+                // Create download
+                const blob = new Blob([fullSvgString], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'mermaid-diagram.svg';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+            
+            // Download diagram as PNG
+            function downloadDiagramAsPng() {
+                const svgElement = diagramOutput.querySelector('svg');
+                if (!svgElement) {
+                    showError('没有找到可下载的图表');
+                    return;
+                }
+                
+                // Clone the SVG to avoid modifying the original
+                const clonedSvg = svgElement.cloneNode(true);
+                
+                // Get the actual dimensions of the SVG content
+                const bbox = svgElement.getBBox();
+                const padding = 20;
+                const scale = 2; // High resolution multiplier
+                
+                // Set proper viewBox and dimensions
+                clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${bbox.width + 2 * padding} ${bbox.height + 2 * padding}`);
+                clonedSvg.setAttribute('width', bbox.width + 2 * padding);
+                clonedSvg.setAttribute('height', bbox.height + 2 * padding);
+                
+                // Add XML declaration and namespace
+                clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                clonedSvg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+                
+                // Convert SVG to data URL
+                const serializer = new XMLSerializer();
+                const svgString = serializer.serializeToString(clonedSvg);
+                const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+                
+                // Create canvas for high-resolution rendering
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                img.onload = function() {
+                    // Set canvas size with high resolution
+                    canvas.width = (bbox.width + 2 * padding) * scale;
+                    canvas.height = (bbox.height + 2 * padding) * scale;
+                    
+                    // Enable high-DPI rendering
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // Fill background with white
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw the SVG
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to PNG and download
+                    canvas.toBlob(function(blob) {
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'mermaid-diagram.png';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }, 'image/png', 1.0);
+                };
+                
+                img.onerror = function() {
+                    showError('PNG转换失败，请尝试下载SVG格式');
+                };
+                
+                img.src = svgDataUrl;
             }
             
             // Copy text to clipboard
