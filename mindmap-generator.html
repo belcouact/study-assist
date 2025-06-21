@@ -1542,9 +1542,12 @@ ${details ? `详细描述：${details}` : ''}
                 // 更新 Markdown 显示
                 elements.markdownContent.textContent = currentMarkdown;
 
-                // 如果是纯文本模式，显示文本版思维导图
+                // 获取选择的图表类型
+                const diagramType = document.getElementById('diagramTypeSelect').value;
+
+                // 如果是纯文本模式，显示文本版图表
                 if (window.markdownOnlyMode) {
-                    renderTextMindmap(markdown);
+                    renderTextDiagram(markdown, diagramType);
                     
                     // 自动切换到 Markdown 标签页
                     setTimeout(() => {
@@ -1552,79 +1555,6 @@ ${details ? `详细描述：${details}` : ''}
                     }, 1000);
                     
                     return;
-                }
-
-                // 验证库是否可用（正常模式）
-                const hasMarkmap = typeof markmap !== 'undefined' || 
-                                 typeof window.markmap !== 'undefined';
-                                 
-                if (typeof d3 === 'undefined' || !hasMarkmap) {
-                    throw new Error('思维导图库未正确加载');
-                }
-                
-                // 使用正确的markmap对象和API
-                const markmapModule = markmap || window.markmap;
-                
-                // 检查markmap的结构
-                console.log('Markmap模块结构:', markmapModule);
-                
-                // 尝试不同的API调用方式
-                let transformFn, MarkmapClass;
-                
-                // 检查markmap-lib的Transformer类
-                if (markmapModule.Transformer) {
-                    const transformer = new markmapModule.Transformer();
-                    transformFn = (markdown) => transformer.transform(markdown);
-                    console.log('使用 Transformer 类');
-                } else if (markmapModule.transform) {
-                    transformFn = markmapModule.transform;
-                    console.log('使用直接 transform 函数');
-                } else if (markmapModule.transformer && markmapModule.transformer.transform) {
-                    transformFn = markmapModule.transformer.transform;
-                    console.log('使用 transformer.transform');
-                } else if (window.markmap && window.markmap.transform) {
-                    transformFn = window.markmap.transform;
-                    console.log('使用 window.markmap.transform');
-                } else {
-                    // 尝试从全局对象中获取
-                    transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
-                    console.log('使用全局 transform');
-                }
-                
-                // 检查Markmap类（通常在markmap-view中）
-                if (markmapModule.Markmap) {
-                    MarkmapClass = markmapModule.Markmap;
-                } else if (window.markmap && window.markmap.Markmap) {
-                    MarkmapClass = window.markmap.Markmap;
-                } else if (window.Markmap) {
-                    MarkmapClass = window.Markmap;
-                } else if (window.markmapView && window.markmapView.Markmap) {
-                    MarkmapClass = window.markmapView.Markmap;
-                } else {
-                    // 检查其他可能的全局变量
-                    const globals = Object.keys(window).filter(key => key.toLowerCase().includes('markmap'));
-                    console.log('相关全局变量:', globals);
-                    
-                    // 尝试从这些全局变量中找到Markmap
-                    for (const globalName of globals) {
-                        const globalObj = window[globalName];
-                        if (globalObj && globalObj.Markmap) {
-                            MarkmapClass = globalObj.Markmap;
-                            console.log(`从 ${globalName} 找到Markmap类`);
-                            break;
-                        }
-                    }
-                }
-                
-                console.log('Transform函数:', typeof transformFn);
-                console.log('Markmap类:', typeof MarkmapClass);
-                
-                if (!transformFn) {
-                    throw new Error('无法找到markmap的transform函数');
-                }
-                
-                if (!MarkmapClass) {
-                    console.warn('未找到Markmap类，将使用备用渲染方案');
                 }
 
                 // 清空容器
@@ -1657,63 +1587,175 @@ ${details ? `详细描述：${details}` : ''}
                     console.warn('使用默认容器尺寸:', { width, height });
                 }
                 
-                // 创建 SVG 元素
-                const svg = d3.select('#mindmapContainer')
-                    .append('svg')
-                    .attr('width', width)
-                    .attr('height', height)
-                    .attr('viewBox', `0 0 ${width} ${height}`)
-                    .style('width', '100%')
-                    .style('height', '100%')
-                    .style('display', 'block')
-                    .style('margin', '0 auto');
-
-                // 使用 markmap 解析 Markdown 并创建思维导图
-                let root;
-                try {
-                    const result = transformFn(markdown);
-                    root = result.root || result;
-                } catch (transformError) {
-                    console.error('Transform错误:', transformError);
-                    // 如果transform失败，尝试简单的解析
-                    root = parseMarkdownToRoot(markdown);
-                }
-                
-                // 创建 markmap 实例
-                if (MarkmapClass) {
-                    try {
-                        markmapInstance = MarkmapClass.create(svg.node(), {
-                            color: (node) => {
-                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                                return colors[node.depth % colors.length];
-                            },
-                            duration: 800,
-                            maxWidth: 200,
-                            spacingVertical: 10,
-                            spacingHorizontal: 80,
-                            autoFit: true,
-                            pan: true,
-                            zoom: true
-                        });
-                        
-                        // 渲染思维导图
-                        markmapInstance.setData(root);
-                        markmapInstance.fit();
-                        console.log('Markmap实例创建成功');
-                    } catch (createError) {
-                        console.error('Markmap创建错误:', createError);
-                        // 如果创建失败，显示简单的可视化
-                        renderSimpleSVGMindmap(markdown, svg);
-                    }
-                } else {
-                    // 没有Markmap类，直接使用简单的可视化
-                    console.log('使用备用SVG渲染');
-                    renderSimpleSVGMindmap(markdown, svg);
+                // 根据图表类型选择渲染方式
+                switch(diagramType) {
+                    case 'mindmap':
+                        await renderMarkmapDiagram(markdown, width, height);
+                        break;
+                    case 'fishbone':
+                        renderFishboneDiagram(markdown, width, height);
+                        break;
+                    case 'orgchart':
+                        renderOrgChartDiagram(markdown, width, height);
+                        break;
+                    case 'treechart':
+                        renderTreeChartDiagram(markdown, width, height);
+                        break;
+                    case 'timeline':
+                        renderTimelineDiagram(markdown, width, height);
+                        break;
+                    case 'flowchart':
+                        renderFlowchartDiagram(markdown, width, height);
+                        break;
+                    case 'logicmap':
+                        renderLogicMapDiagram(markdown, width, height);
+                        break;
+                    case 'concept':
+                        renderConceptMapDiagram(markdown, width, height);
+                        break;
+                    case 'swot':
+                        renderSwotDiagram(markdown, width, height);
+                        break;
+                    case 'pyramid':
+                        renderPyramidDiagram(markdown, width, height);
+                        break;
+                    default:
+                        await renderMarkmapDiagram(markdown, width, height);
                 }
 
             } catch (error) {
-                console.error('渲染思维导图时出错:', error);
-                showError('思维导图渲染失败：' + error.message);
+                console.error('渲染图表时出错:', error);
+                showError('图表渲染失败：' + error.message);
+            }
+        }
+
+        // 渲染markmap思维导图（原有功能）
+        async function renderMarkmapDiagram(markdown, width, height) {
+            // 验证库是否可用（正常模式）
+            const hasMarkmap = typeof markmap !== 'undefined' || 
+                             typeof window.markmap !== 'undefined';
+                             
+            if (typeof d3 === 'undefined' || !hasMarkmap) {
+                throw new Error('思维导图库未正确加载');
+            }
+            
+            // 使用正确的markmap对象和API
+            const markmapModule = markmap || window.markmap;
+            
+            // 检查markmap的结构
+            console.log('Markmap模块结构:', markmapModule);
+            
+            // 尝试不同的API调用方式
+            let transformFn, MarkmapClass;
+            
+            // 检查markmap-lib的Transformer类
+            if (markmapModule.Transformer) {
+                const transformer = new markmapModule.Transformer();
+                transformFn = (markdown) => transformer.transform(markdown);
+                console.log('使用 Transformer 类');
+            } else if (markmapModule.transform) {
+                transformFn = markmapModule.transform;
+                console.log('使用直接 transform 函数');
+            } else if (markmapModule.transformer && markmapModule.transformer.transform) {
+                transformFn = markmapModule.transformer.transform;
+                console.log('使用 transformer.transform');
+            } else if (window.markmap && window.markmap.transform) {
+                transformFn = window.markmap.transform;
+                console.log('使用 window.markmap.transform');
+            } else {
+                // 尝试从全局对象中获取
+                transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
+                console.log('使用全局 transform');
+            }
+            
+            // 检查Markmap类（通常在markmap-view中）
+            if (markmapModule.Markmap) {
+                MarkmapClass = markmapModule.Markmap;
+            } else if (window.markmap && window.markmap.Markmap) {
+                MarkmapClass = window.markmap.Markmap;
+            } else if (window.Markmap) {
+                MarkmapClass = window.Markmap;
+            } else if (window.markmapView && window.markmapView.Markmap) {
+                MarkmapClass = window.markmapView.Markmap;
+            } else {
+                // 检查其他可能的全局变量
+                const globals = Object.keys(window).filter(key => key.toLowerCase().includes('markmap'));
+                console.log('相关全局变量:', globals);
+                
+                // 尝试从这些全局变量中找到Markmap
+                for (const globalName of globals) {
+                    const globalObj = window[globalName];
+                    if (globalObj && globalObj.Markmap) {
+                        MarkmapClass = globalObj.Markmap;
+                        console.log(`从 ${globalName} 找到Markmap类`);
+                        break;
+                    }
+                }
+            }
+            
+            console.log('Transform函数:', typeof transformFn);
+            console.log('Markmap类:', typeof MarkmapClass);
+            
+            if (!transformFn) {
+                throw new Error('无法找到markmap的transform函数');
+            }
+            
+            if (!MarkmapClass) {
+                console.warn('未找到Markmap类，将使用备用渲染方案');
+            }
+            
+            // 创建 SVG 元素
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%')
+                .style('display', 'block')
+                .style('margin', '0 auto');
+
+            // 使用 markmap 解析 Markdown 并创建思维导图
+            let root;
+            try {
+                const result = transformFn(markdown);
+                root = result.root || result;
+            } catch (transformError) {
+                console.error('Transform错误:', transformError);
+                // 如果transform失败，尝试简单的解析
+                root = parseMarkdownToRoot(markdown);
+            }
+            
+            // 创建 markmap 实例
+            if (MarkmapClass) {
+                try {
+                    markmapInstance = MarkmapClass.create(svg.node(), {
+                        color: (node) => {
+                            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                            return colors[node.depth % colors.length];
+                        },
+                        duration: 800,
+                        maxWidth: 200,
+                        spacingVertical: 10,
+                        spacingHorizontal: 80,
+                        autoFit: true,
+                        pan: true,
+                        zoom: true
+                    });
+                    
+                    // 渲染思维导图
+                    markmapInstance.setData(root);
+                    markmapInstance.fit();
+                    console.log('Markmap实例创建成功');
+                } catch (createError) {
+                    console.error('Markmap创建错误:', createError);
+                    // 如果创建失败，显示简单的可视化
+                    renderSimpleSVGMindmap(markdown, svg);
+                }
+            } else {
+                // 没有Markmap类，直接使用简单的可视化
+                console.log('使用备用SVG渲染');
+                renderSimpleSVGMindmap(markdown, svg);
             }
         }
 
@@ -1903,6 +1945,496 @@ ${details ? `详细描述：${details}` : ''}
         function hideMessages() {
             elements.errorMessage.style.display = 'none';
             elements.successMessage.style.display = 'none';
+        }
+
+        // 渲染鱼骨图
+        function renderFishboneDiagram(markdown, width, height) {
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            // 解析markdown为鱼骨图结构
+            const data = parseMarkdownForFishbone(markdown);
+            
+            // 绘制鱼骨图
+            const centerY = height / 2;
+            const startX = 50;
+            const endX = width - 100;
+            
+            // 绘制主干（鱼脊）
+            svg.append('line')
+                .attr('x1', startX)
+                .attr('y1', centerY)
+                .attr('x2', endX)
+                .attr('y2', centerY)
+                .attr('stroke', '#333')
+                .attr('stroke-width', 3);
+            
+            // 绘制鱼头（问题）
+            svg.append('polygon')
+                .attr('points', `${endX},${centerY} ${endX + 40},${centerY - 15} ${endX + 40},${centerY + 15}`)
+                .attr('fill', '#e74c3c')
+                .attr('stroke', '#333');
+            
+            // 添加问题文本
+            svg.append('text')
+                .attr('x', endX + 50)
+                .attr('y', centerY + 5)
+                .attr('text-anchor', 'start')
+                .style('font-size', '14px')
+                .style('font-weight', 'bold')
+                .text(data.problem || '问题');
+            
+            // 绘制分支（鱼骨）
+            const categories = data.categories || [];
+            const angleStep = Math.PI / (categories.length + 1);
+            
+            categories.forEach((category, i) => {
+                const isUpper = i % 2 === 0;
+                const angle = isUpper ? -Math.PI/4 : Math.PI/4;
+                const branchX = startX + (endX - startX) * (i + 1) / (categories.length + 1);
+                const branchLength = 80;
+                const branchEndX = branchX + branchLength * Math.cos(angle);
+                const branchEndY = centerY + branchLength * Math.sin(angle);
+                
+                // 绘制主分支
+                svg.append('line')
+                    .attr('x1', branchX)
+                    .attr('y1', centerY)
+                    .attr('x2', branchEndX)
+                    .attr('y2', branchEndY)
+                    .attr('stroke', '#3498db')
+                    .attr('stroke-width', 2);
+                
+                // 添加分类标签
+                svg.append('text')
+                    .attr('x', branchEndX + (isUpper ? -10 : 10))
+                    .attr('y', branchEndY + (isUpper ? -10 : 20))
+                    .attr('text-anchor', isUpper ? 'end' : 'start')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', '#3498db')
+                    .text(category.name);
+                
+                // 绘制子分支
+                category.items.forEach((item, j) => {
+                    const subBranchLength = 40;
+                    const subAngle = angle * 0.7;
+                    const subStartX = branchX + (branchLength * 0.3 + j * 15) * Math.cos(angle);
+                    const subStartY = centerY + (branchLength * 0.3 + j * 15) * Math.sin(angle);
+                    const subEndX = subStartX + subBranchLength * Math.cos(subAngle);
+                    const subEndY = subStartY + subBranchLength * Math.sin(subAngle);
+                    
+                    svg.append('line')
+                        .attr('x1', subStartX)
+                        .attr('y1', subStartY)
+                        .attr('x2', subEndX)
+                        .attr('y2', subEndY)
+                        .attr('stroke', '#95a5a6')
+                        .attr('stroke-width', 1);
+                    
+                    svg.append('text')
+                        .attr('x', subEndX + (isUpper ? -5 : 5))
+                        .attr('y', subEndY + (isUpper ? -5 : 10))
+                        .attr('text-anchor', isUpper ? 'end' : 'start')
+                        .style('font-size', '10px')
+                        .style('fill', '#666')
+                        .text(item);
+                });
+            });
+        }
+
+        // 渲染SWOT分析图
+        function renderSwotDiagram(markdown, width, height) {
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForSWOT(markdown);
+            const quadrantWidth = width / 2 - 20;
+            const quadrantHeight = height / 2 - 20;
+            
+            const quadrants = [
+                { name: '优势 (Strengths)', items: data.strengths, x: 10, y: 10, color: '#2ecc71' },
+                { name: '劣势 (Weaknesses)', items: data.weaknesses, x: width/2 + 10, y: 10, color: '#e74c3c' },
+                { name: '机会 (Opportunities)', items: data.opportunities, x: 10, y: height/2 + 10, color: '#3498db' },
+                { name: '威胁 (Threats)', items: data.threats, x: width/2 + 10, y: height/2 + 10, color: '#f39c12' }
+            ];
+            
+            quadrants.forEach(quadrant => {
+                // 绘制象限背景
+                svg.append('rect')
+                    .attr('x', quadrant.x)
+                    .attr('y', quadrant.y)
+                    .attr('width', quadrantWidth)
+                    .attr('height', quadrantHeight)
+                    .attr('fill', quadrant.color)
+                    .attr('opacity', 0.1)
+                    .attr('stroke', quadrant.color)
+                    .attr('stroke-width', 2);
+                
+                // 添加标题
+                svg.append('text')
+                    .attr('x', quadrant.x + quadrantWidth/2)
+                    .attr('y', quadrant.y + 25)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '14px')
+                    .style('font-weight', 'bold')
+                    .style('fill', quadrant.color)
+                    .text(quadrant.name);
+                
+                // 添加项目列表
+                quadrant.items.forEach((item, i) => {
+                    svg.append('text')
+                        .attr('x', quadrant.x + 10)
+                        .attr('y', quadrant.y + 50 + i * 20)
+                        .style('font-size', '11px')
+                        .style('fill', '#333')
+                        .text(`• ${item}`);
+                });
+            });
+        }
+
+        // 渲染时间线图
+        function renderTimelineDiagram(markdown, width, height) {
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForTimeline(markdown);
+            const timelineY = height / 2;
+            const startX = 50;
+            const endX = width - 50;
+            const stepX = (endX - startX) / (data.events.length - 1);
+            
+            // 绘制时间线主线
+            svg.append('line')
+                .attr('x1', startX)
+                .attr('y1', timelineY)
+                .attr('x2', endX)
+                .attr('y2', timelineY)
+                .attr('stroke', '#34495e')
+                .attr('stroke-width', 3);
+            
+            // 绘制事件点和标签
+            data.events.forEach((event, i) => {
+                const x = startX + i * stepX;
+                const isUpper = i % 2 === 0;
+                const textY = isUpper ? timelineY - 30 : timelineY + 30;
+                
+                // 绘制事件点
+                svg.append('circle')
+                    .attr('cx', x)
+                    .attr('cy', timelineY)
+                    .attr('r', 8)
+                    .attr('fill', '#e74c3c')
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 2);
+                
+                // 绘制连接线
+                svg.append('line')
+                    .attr('x1', x)
+                    .attr('y1', timelineY)
+                    .attr('x2', x)
+                    .attr('y2', textY + (isUpper ? 15 : -15))
+                    .attr('stroke', '#95a5a6')
+                    .attr('stroke-width', 1);
+                
+                // 添加时间标签
+                svg.append('text')
+                    .attr('x', x)
+                    .attr('y', textY)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', '#2c3e50')
+                    .text(event.time);
+                
+                // 添加事件描述
+                svg.append('text')
+                    .attr('x', x)
+                    .attr('y', textY + (isUpper ? -15 : 15))
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '10px')
+                    .style('fill', '#7f8c8d')
+                    .text(event.description);
+            });
+        }
+
+        // 添加其他图表类型的占位符函数
+        function renderOrgChartDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '组织架构图', '#9b59b6');
+        }
+
+        function renderTreeChartDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '树状图', '#16a085');
+        }
+
+        function renderFlowchartDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '流程图', '#e67e22');
+        }
+
+        function renderLogicMapDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '逻辑图', '#8e44ad');
+        }
+
+        function renderConceptMapDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '概念图', '#27ae60');
+        }
+
+        function renderPyramidDiagram(markdown, width, height) {
+            renderGenericDiagram(markdown, width, height, '金字塔图', '#f39c12');
+        }
+
+        // 通用图表渲染（用于暂未实现的图表类型）
+        function renderGenericDiagram(markdown, width, height, diagramName, color) {
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            // 显示图表类型和内容预览
+            svg.append('rect')
+                .attr('x', 20)
+                .attr('y', 20)
+                .attr('width', width - 40)
+                .attr('height', height - 40)
+                .attr('fill', color)
+                .attr('opacity', 0.1)
+                .attr('stroke', color)
+                .attr('stroke-width', 2)
+                .attr('rx', 10);
+
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', 60)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '24px')
+                .style('font-weight', 'bold')
+                .style('fill', color)
+                .text(diagramName);
+
+            svg.append('text')
+                .attr('x', width / 2)
+                .attr('y', 90)
+                .attr('text-anchor', 'middle')
+                .style('font-size', '14px')
+                .style('fill', '#666')
+                .text('此图表类型的可视化功能正在开发中');
+
+            // 显示markdown内容的简化版本
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const maxLines = Math.floor((height - 120) / 20);
+            lines.slice(0, maxLines).forEach((line, i) => {
+                svg.append('text')
+                    .attr('x', 40)
+                    .attr('y', 120 + i * 20)
+                    .style('font-size', '12px')
+                    .style('fill', '#333')
+                    .text(line.length > 80 ? line.substring(0, 80) + '...' : line);
+            });
+        }
+
+        // 解析markdown为鱼骨图数据
+        function parseMarkdownForFishbone(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const data = { problem: '', categories: [] };
+            
+            let currentCategory = null;
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('# ')) {
+                    data.problem = trimmed.substring(2);
+                } else if (trimmed.startsWith('## ')) {
+                    currentCategory = {
+                        name: trimmed.substring(3),
+                        items: []
+                    };
+                    data.categories.push(currentCategory);
+                } else if (trimmed.startsWith('### ') && currentCategory) {
+                    currentCategory.items.push(trimmed.substring(4));
+                } else if (trimmed.startsWith('- ') && currentCategory) {
+                    currentCategory.items.push(trimmed.substring(2));
+                }
+            });
+            
+            return data;
+        }
+
+        // 解析markdown为SWOT数据
+        function parseMarkdownForSWOT(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const data = { strengths: [], weaknesses: [], opportunities: [], threats: [] };
+            
+            let currentSection = null;
+            
+            lines.forEach(line => {
+                const trimmed = line.trim().toLowerCase();
+                if (trimmed.includes('优势') || trimmed.includes('strength')) {
+                    currentSection = 'strengths';
+                } else if (trimmed.includes('劣势') || trimmed.includes('weakness')) {
+                    currentSection = 'weaknesses';
+                } else if (trimmed.includes('机会') || trimmed.includes('opportunit')) {
+                    currentSection = 'opportunities';
+                } else if (trimmed.includes('威胁') || trimmed.includes('threat')) {
+                    currentSection = 'threats';
+                } else if ((line.trim().startsWith('- ') || line.trim().startsWith('* ')) && currentSection) {
+                    const item = line.trim().substring(2);
+                    data[currentSection].push(item);
+                } else if (line.trim().startsWith('### ') && currentSection) {
+                    const item = line.trim().substring(4);
+                    data[currentSection].push(item);
+                }
+            });
+            
+            return data;
+        }
+
+        // 解析markdown为时间线数据
+        function parseMarkdownForTimeline(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const data = { events: [] };
+            
+            let currentEvent = null;
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('## ')) {
+                    if (currentEvent) {
+                        data.events.push(currentEvent);
+                    }
+                    currentEvent = {
+                        time: trimmed.substring(3),
+                        description: ''
+                    };
+                } else if (trimmed.startsWith('### ') && currentEvent) {
+                    currentEvent.description = trimmed.substring(4);
+                } else if (trimmed.startsWith('- ') && currentEvent) {
+                    if (!currentEvent.description) {
+                        currentEvent.description = trimmed.substring(2);
+                    }
+                }
+            });
+            
+            if (currentEvent) {
+                data.events.push(currentEvent);
+            }
+            
+            return data;
+        }
+
+        // 更新文本版图表渲染函数
+        function renderTextDiagram(markdown, diagramType) {
+            const diagramNames = {
+                'mindmap': '思维导图',
+                'fishbone': '鱼骨图',
+                'orgchart': '组织架构图',
+                'treechart': '树状图',
+                'timeline': '时间线图',
+                'flowchart': '流程图',
+                'logicmap': '逻辑图',
+                'concept': '概念图',
+                'swot': 'SWOT分析图',
+                'pyramid': '金字塔图'
+            };
+            
+            const diagramName = diagramNames[diagramType] || '图表';
+            
+            // 解析markdown为树状结构并显示
+            const lines = markdown.split('\n').filter(line => line.trim());
+            let htmlContent = '<div style="padding: 20px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); height: 100%; overflow-y: auto; font-family: \'Segoe UI\', sans-serif;">';
+            
+            htmlContent += `
+                <div style="text-align: center; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 10px; border-left: 4px solid #007bff;">
+                    <i class="fas fa-sitemap" style="font-size: 2em; color: #007bff; margin-bottom: 10px; display: block;"></i>
+                    <h3 style="color: #495057; margin: 0;">文本版${diagramName}</h3>
+                    <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 14px;">图表库加载失败，显示文本结构</p>
+                </div>
+            `;
+            
+            let currentLevel = 0;
+            const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6f42c1'];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const text = match[2].trim();
+                    const indent = Math.max(0, (level - 1) * 30);
+                    const color = colors[(level - 1) % colors.length];
+                    
+                    const icon = level === 1 ? 'fas fa-circle' : 
+                               level === 2 ? 'fas fa-dot-circle' : 
+                               'fas fa-angle-right';
+                    
+                    htmlContent += `
+                        <div style="margin-left: ${indent}px; margin-bottom: 8px; padding: 8px 12px; background: rgba(255,255,255,0.6); border-radius: 6px; border-left: 3px solid ${color}; animation: fadeIn 0.3s ease-in;">
+                            <i class="${icon}" style="color: ${color}; margin-right: 8px; font-size: ${Math.max(0.8, 1.2 - level * 0.1)}em;"></i>
+                            <span style="color: #333; font-weight: ${level <= 2 ? 'bold' : 'normal'}; font-size: ${Math.max(0.8, 1.1 - level * 0.05)}em;">${text}</span>
+                        </div>
+                    `;
+                } else if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                    const text = line.trim().substring(1).trim();
+                    htmlContent += `
+                        <div style="margin-left: 60px; margin-bottom: 4px; padding: 4px 8px; color: #666; font-size: 0.9em;">
+                            <i class="fas fa-chevron-right" style="color: #999; margin-right: 6px; font-size: 0.8em;"></i>
+                            ${text}
+                        </div>
+                    `;
+                }
+            });
+            
+            htmlContent += `
+                <div style="margin-top: 30px; text-align: center; padding: 15px; background: rgba(255,255,255,0.7); border-radius: 8px;">
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                        <button onclick="switchTab('markdown')" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-code"></i> 查看源码
+                        </button>
+                        <button onclick="copyMarkdown()" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-copy"></i> 复制内容
+                        </button>
+                        <button onclick="downloadMarkdown()" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-download"></i> 下载文件
+                        </button>
+                        <button onclick="retryLibraryLoad()" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s;">
+                            <i class="fas fa-redo"></i> 重试加载
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            htmlContent += '</div>';
+            
+            // 添加动画CSS
+            if (!document.getElementById('textMindmapStyles')) {
+                const style = document.createElement('style');
+                style.id = 'textMindmapStyles';
+                style.textContent = `
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateX(-10px); }
+                        to { opacity: 1; transform: translateX(0); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            elements.mindmapContainer.innerHTML = htmlContent;
         }
     </script>
 </body>
