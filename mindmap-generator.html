@@ -524,6 +524,60 @@
                 transform: none;
             }
         }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 1.8rem;
+            }
+            
+            .hero p {
+                font-size: 0.9rem;
+            }
+            
+            .settings-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .settings-group {
+                margin-bottom: 1rem;
+            }
+            
+            .form-group label {
+                font-size: 0.9rem;
+            }
+            
+            #mindmapContainer {
+                min-height: 300px;
+                max-height: 60vh;
+                overflow: auto;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background: #fafafa;
+                touch-action: pan-x pan-y pinch-zoom;
+            }
+            
+            #mindmapContainer svg {
+                max-width: 100%;
+                height: auto;
+            }
+            
+            .btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+            
+            .input-group {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .input-group input,
+            .input-group select {
+                margin-bottom: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1960,10 +2014,13 @@ ${details ? `详细描述：${details}` : ''}
             // 解析markdown为鱼骨图结构
             const data = parseMarkdownForFishbone(markdown);
             
-            // 绘制鱼骨图
+            // 响应式参数
+            const isMobile = width < 768;
             const centerY = height / 2;
-            const startX = 50;
-            const endX = width - 100;
+            const startX = isMobile ? 30 : 50;
+            const endX = width - (isMobile ? 80 : 120);
+            const branchLength = isMobile ? 60 : 100;
+            const subBranchLength = isMobile ? 30 : 50;
             
             // 绘制主干（鱼脊）
             svg.append('line')
@@ -1971,33 +2028,64 @@ ${details ? `详细描述：${details}` : ''}
                 .attr('y1', centerY)
                 .attr('x2', endX)
                 .attr('y2', centerY)
-                .attr('stroke', '#333')
-                .attr('stroke-width', 3);
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', isMobile ? 2 : 3);
             
             // 绘制鱼头（问题）
+            const arrowSize = isMobile ? 25 : 40;
             svg.append('polygon')
-                .attr('points', `${endX},${centerY} ${endX + 40},${centerY - 15} ${endX + 40},${centerY + 15}`)
+                .attr('points', `${endX},${centerY} ${endX + arrowSize},${centerY - arrowSize/2.5} ${endX + arrowSize},${centerY + arrowSize/2.5}`)
                 .attr('fill', '#e74c3c')
-                .attr('stroke', '#333');
+                .attr('stroke', '#c0392b')
+                .attr('stroke-width', 1);
             
-            // 添加问题文本
-            svg.append('text')
-                .attr('x', endX + 50)
-                .attr('y', centerY + 5)
-                .attr('text-anchor', 'start')
-                .style('font-size', '14px')
-                .style('font-weight', 'bold')
-                .text(data.problem || '问题');
+            // 添加问题文本 - 使用文本换行
+            const problemText = data.problem || '主要问题';
+            const problemX = endX + arrowSize + 10;
+            const problemY = centerY;
+            
+            // 文本换行函数
+            function wrapText(text, maxWidth, fontSize) {
+                const words = text.split('');
+                const lines = [];
+                let currentLine = '';
+                
+                for (let word of words) {
+                    const testLine = currentLine + word;
+                    if (testLine.length * fontSize * 0.6 > maxWidth && currentLine !== '') {
+                        lines.push(currentLine);
+                        currentLine = word;
+                    } else {
+                        currentLine = testLine;
+                    }
+                }
+                if (currentLine) lines.push(currentLine);
+                return lines;
+            }
+            
+            const problemLines = wrapText(problemText, isMobile ? 60 : 100, isMobile ? 10 : 12);
+            problemLines.forEach((line, i) => {
+                svg.append('text')
+                    .attr('x', problemX)
+                    .attr('y', problemY + (i - problemLines.length/2 + 0.5) * (isMobile ? 12 : 15))
+                    .attr('text-anchor', 'start')
+                    .style('font-size', isMobile ? '10px' : '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', '#2c3e50')
+                    .text(line);
+            });
             
             // 绘制分支（鱼骨）
             const categories = data.categories || [];
-            const angleStep = Math.PI / (categories.length + 1);
+            if (categories.length === 0) return;
+            
+            const spineLength = endX - startX;
+            const categorySpacing = spineLength / (categories.length + 1);
             
             categories.forEach((category, i) => {
                 const isUpper = i % 2 === 0;
-                const angle = isUpper ? -Math.PI/4 : Math.PI/4;
-                const branchX = startX + (endX - startX) * (i + 1) / (categories.length + 1);
-                const branchLength = 80;
+                const angle = isUpper ? -Math.PI/3 : Math.PI/3; // 60度角更美观
+                const branchX = startX + categorySpacing * (i + 1);
                 const branchEndX = branchX + branchLength * Math.cos(angle);
                 const branchEndY = centerY + branchLength * Math.sin(angle);
                 
@@ -2008,27 +2096,38 @@ ${details ? `详细描述：${details}` : ''}
                     .attr('x2', branchEndX)
                     .attr('y2', branchEndY)
                     .attr('stroke', '#3498db')
-                    .attr('stroke-width', 2);
+                    .attr('stroke-width', isMobile ? 1.5 : 2);
                 
-                // 添加分类标签
-                svg.append('text')
-                    .attr('x', branchEndX + (isUpper ? -10 : 10))
-                    .attr('y', branchEndY + (isUpper ? -10 : 20))
-                    .attr('text-anchor', isUpper ? 'end' : 'start')
-                    .style('font-size', '12px')
-                    .style('font-weight', 'bold')
-                    .style('fill', '#3498db')
-                    .text(category.name);
+                // 添加分类标签 - 改善位置避免重叠
+                const labelOffset = isMobile ? 15 : 20;
+                const labelX = branchEndX + (isUpper ? -labelOffset : labelOffset);
+                const labelY = branchEndY + (isUpper ? -labelOffset : labelOffset);
                 
-                // 绘制子分支
-                category.items.forEach((item, j) => {
-                    const subBranchLength = 40;
-                    const subAngle = angle * 0.7;
-                    const subStartX = branchX + (branchLength * 0.3 + j * 15) * Math.cos(angle);
-                    const subStartY = centerY + (branchLength * 0.3 + j * 15) * Math.sin(angle);
+                const categoryLines = wrapText(category.name, isMobile ? 40 : 60, isMobile ? 9 : 11);
+                categoryLines.forEach((line, lineIndex) => {
+                    svg.append('text')
+                        .attr('x', labelX)
+                        .attr('y', labelY + lineIndex * (isMobile ? 10 : 12))
+                        .attr('text-anchor', isUpper ? 'end' : 'start')
+                        .style('font-size', isMobile ? '9px' : '11px')
+                        .style('font-weight', 'bold')
+                        .style('fill', '#2980b9')
+                        .text(line);
+                });
+                
+                // 绘制子分支 - 改善布局避免重叠
+                const maxItems = Math.min(category.items.length, isMobile ? 3 : 5); // 限制显示数量
+                const itemSpacing = branchLength / (maxItems + 1);
+                
+                category.items.slice(0, maxItems).forEach((item, j) => {
+                    const subAngle = angle * 0.6; // 子分支角度更小
+                    const progress = (j + 1) / (maxItems + 1);
+                    const subStartX = branchX + branchLength * progress * Math.cos(angle);
+                    const subStartY = centerY + branchLength * progress * Math.sin(angle);
                     const subEndX = subStartX + subBranchLength * Math.cos(subAngle);
                     const subEndY = subStartY + subBranchLength * Math.sin(subAngle);
                     
+                    // 绘制子分支线
                     svg.append('line')
                         .attr('x1', subStartX)
                         .attr('y1', subStartY)
@@ -2037,15 +2136,48 @@ ${details ? `详细描述：${details}` : ''}
                         .attr('stroke', '#95a5a6')
                         .attr('stroke-width', 1);
                     
+                    // 添加子项文本 - 改善位置和大小
+                    const textOffset = isMobile ? 8 : 12;
+                    const textX = subEndX + (isUpper ? -textOffset : textOffset);
+                    const textY = subEndY + (isUpper ? -5 : 10);
+                    
+                    // 限制文本长度
+                    const maxTextLength = isMobile ? 8 : 15;
+                    const displayText = item.length > maxTextLength ? 
+                        item.substring(0, maxTextLength) + '...' : item;
+                    
                     svg.append('text')
-                        .attr('x', subEndX + (isUpper ? -5 : 5))
-                        .attr('y', subEndY + (isUpper ? -5 : 10))
+                        .attr('x', textX)
+                        .attr('y', textY)
                         .attr('text-anchor', isUpper ? 'end' : 'start')
-                        .style('font-size', '10px')
-                        .style('fill', '#666')
-                        .text(item);
+                        .style('font-size', isMobile ? '8px' : '9px')
+                        .style('fill', '#7f8c8d')
+                        .text(displayText);
                 });
+                
+                // 如果有更多项目，显示省略号
+                if (category.items.length > maxItems) {
+                    const moreX = branchEndX + (isUpper ? -10 : 10);
+                    const moreY = branchEndY + (isUpper ? 15 : -15);
+                    svg.append('text')
+                        .attr('x', moreX)
+                        .attr('y', moreY)
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', isMobile ? '8px' : '9px')
+                        .style('fill', '#bdc3c7')
+                        .text(`+${category.items.length - maxItems}更多`);
+                }
             });
+            
+            // 添加图例说明
+            if (!isMobile) {
+                svg.append('text')
+                    .attr('x', 20)
+                    .attr('y', height - 20)
+                    .style('font-size', '10px')
+                    .style('fill', '#7f8c8d')
+                    .text('鱼骨图：分析问题的根本原因');
+            }
         }
 
         // 渲染SWOT分析图
