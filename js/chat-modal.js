@@ -1247,4 +1247,5 @@ function initializeChatWithFloatingButton() {
 // Expose functions to global scope
 window.openChatModal = openChatModal;
 window.closeChatModal = closeChatModal;
-window.initializeChatWithFloatingButton = initializeChatWithFloatingButton; 
+window.initializeChatWithFloatingButton = initializeChatWithFloatingButton;
+window.makeDraggable = makeDraggable; // For debugging and manual initialization 
