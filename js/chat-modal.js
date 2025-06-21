@@ -952,27 +952,48 @@ async function sendChatMessage() {
 // Add floating chat button to the page
 function addFloatingChatButton() {
     if (!document.querySelector('.ai-chat-float-btn')) {
+        console.log('Creating new floating chat button...');
         const button = document.createElement('div');
         button.className = 'ai-chat-float-btn';
         button.innerHTML = '<i class="fas fa-comment-dots"></i>';
         button.setAttribute('title', 'AI 学习助手');
         
         // Add drag functionality
+        console.log('Adding drag functionality to button...');
         makeDraggable(button);
         
         // Add click event (only if not dragging)
         button.addEventListener('click', function(e) {
+            console.log('Button clicked, wasDragged:', button.wasDragged);
             if (!button.wasDragged) {
                 openChatModal();
             }
         });
         
         document.body.appendChild(button);
+        console.log('Floating chat button added to DOM');
+    } else {
+        console.log('Floating chat button already exists');
+        // If button already exists, make sure it has drag functionality
+        const existingButton = document.querySelector('.ai-chat-float-btn');
+        if (!existingButton.hasAttribute('data-draggable-initialized')) {
+            console.log('Adding drag functionality to existing button...');
+            makeDraggable(existingButton);
+        }
     }
 }
 
 // Make the floating button draggable
 function makeDraggable(element) {
+    // Prevent multiple initialization
+    if (element.hasAttribute('data-draggable-initialized')) {
+        console.log('Button already has drag functionality');
+        return;
+    }
+    
+    console.log('Making element draggable...');
+    element.setAttribute('data-draggable-initialized', 'true');
+    
     let isDragging = false;
     let hasMoved = false;
     let startX, startY, startLeft, startTop;
@@ -987,7 +1008,10 @@ function makeDraggable(element) {
     document.addEventListener('touchmove', drag, { passive: false });
     document.addEventListener('touchend', endDrag);
     
+    console.log('Event listeners added for dragging');
+    
     function startDrag(e) {
+        console.log('Start drag event:', e.type);
         isDragging = true;
         hasMoved = false;
         element.wasDragged = false;
@@ -1003,6 +1027,8 @@ function makeDraggable(element) {
         
         startX = clientX;
         startY = clientY;
+        
+        console.log('Drag started at:', { startX, startY, startLeft, startTop });
         
         // Add dragging class
         element.classList.add('dragging');
@@ -1054,6 +1080,7 @@ function makeDraggable(element) {
     
     function endDrag(e) {
         if (!isDragging) return;
+        console.log('End drag, hasMoved:', hasMoved);
         isDragging = false;
         
         // Remove dragging class
@@ -1104,6 +1131,7 @@ function makeDraggable(element) {
             bottom: element.style.bottom
         };
         localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
+        console.log('Saved position:', position);
     }
     
     // Restore button position from localStorage
@@ -1112,6 +1140,7 @@ function makeDraggable(element) {
         if (savedPosition) {
             try {
                 const position = JSON.parse(savedPosition);
+                console.log('Restoring position:', position);
                 if (position.left && position.left !== 'auto') {
                     element.style.left = position.left;
                     element.style.right = 'auto';
