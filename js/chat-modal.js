@@ -1,15 +1,24 @@
 // Chat modal functionality for Study Assistant
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Chat modal DOMContentLoaded event fired');
+    
     // Create the modal elements if they don't exist
     if (!document.getElementById('aiChatModal')) {
+        console.log('Creating chat modal...');
         createChatModal();
     }
+
+    // Create floating button if it doesn't exist
+    console.log('Adding floating chat button...');
+    addFloatingChatButton();
 
     // Add event listener to toggle button if it exists
     const chatButtons = document.querySelectorAll('.chat-ai-btn');
     chatButtons.forEach(button => {
         button.addEventListener('click', openChatModal);
     });
+    
+    console.log('Chat modal initialization complete');
 });
 
 // Create and insert the chat modal into the document
