@@ -2389,7 +2389,7 @@ ${details ? `详细描述：${details}` : ''}
             const isMobile = width < 768;
             
             // 使用D3的树布局
-            const treeLayout = d3.tree().size([width - 40, height - 40]);
+            const treeLayout = d3.tree().size([width - 80, height - 80]);
             const root = d3.hierarchy(data);
             treeLayout(root);
             
@@ -2400,32 +2400,108 @@ ${details ? `详细描述：${details}` : ''}
                 .append('path')
                 .attr('class', 'link')
                 .attr('d', d3.linkVertical()
-                    .x(d => d.x + 20)
-                    .y(d => d.y + 20))
+                    .x(d => d.x + 40)
+                    .y(d => d.y + 40))
                 .attr('fill', 'none')
                 .attr('stroke', '#7f8c8d')
-                .attr('stroke-width', 1.5);
+                .attr('stroke-width', isMobile ? 1.5 : 2);
             
-            // 绘制节点
+            // 绘制节点组
             const nodes = svg.selectAll('.node')
                 .data(root.descendants())
                 .enter()
                 .append('g')
                 .attr('class', 'node')
-                .attr('transform', d => `translate(${d.x + 20},${d.y + 20})`);
+                .attr('transform', d => `translate(${d.x + 40},${d.y + 40})`);
             
+            // 计算节点大小
+            const getNodeRadius = (d) => {
+                const textLength = d.data.name.length;
+                const baseRadius = isMobile ? 20 : 25;
+                return Math.max(baseRadius, textLength * (isMobile ? 2.5 : 3));
+            };
+            
+            // 绘制节点背景圆
             nodes.append('circle')
-                .attr('r', isMobile ? 15 : 20)
+                .attr('r', d => getNodeRadius(d))
                 .attr('fill', d => d.depth === 0 ? '#e74c3c' : '#3498db')
                 .attr('stroke', '#2c3e50')
-                .attr('stroke-width', 1);
+                .attr('stroke-width', isMobile ? 1.5 : 2)
+                .attr('opacity', 0.9);
             
-            nodes.append('text')
-                .attr('dy', '.35em')
+            // 添加文本标签 - 使用多行文本
+            nodes.each(function(d) {
+                const node = d3.select(this);
+                const text = d.data.name;
+                const maxRadius = getNodeRadius(d);
+                const fontSize = isMobile ? 10 : 12;
+                const maxCharsPerLine = Math.floor(maxRadius * 2 / (fontSize * 0.6));
+                
+                // 分割文本为多行
+                const words = text.split('');
+                const lines = [];
+                let currentLine = '';
+                
+                for (let word of words) {
+                    if (currentLine.length < maxCharsPerLine) {
+                        currentLine += word;
+                    } else {
+                        if (currentLine) lines.push(currentLine);
+                        currentLine = word;
+                    }
+                }
+                if (currentLine) lines.push(currentLine);
+                
+                // 限制最大行数
+                const maxLines = isMobile ? 2 : 3;
+                const displayLines = lines.slice(0, maxLines);
+                if (lines.length > maxLines) {
+                    displayLines[displayLines.length - 1] = displayLines[displayLines.length - 1].substring(0, maxCharsPerLine - 2) + '...';
+                }
+                
+                // 添加每行文本
+                displayLines.forEach((line, i) => {
+                    node.append('text')
+                        .attr('dy', (i - displayLines.length/2 + 0.5) * (fontSize + 2))
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', `${fontSize}px`)
+                        .style('font-weight', d.depth === 0 ? 'bold' : 'normal')
+                        .style('fill', 'white')
+                        .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.5)')
+                        .text(line);
+                });
+            });
+            
+            // 添加外部标签（当节点内文字太长时）
+            nodes.filter(d => d.data.name.length > (isMobile ? 8 : 12))
+                .append('text')
+                .attr('dy', d => getNodeRadius(d) + (isMobile ? 15 : 20))
                 .attr('text-anchor', 'middle')
-                .style('font-size', isMobile ? '8px' : '10px')
-                .style('fill', 'white')
-                .text(d => d.data.name.length > 6 ? d.data.name.substring(0, 6) + '...' : d.data.name);
+                .style('font-size', isMobile ? '9px' : '11px')
+                .style('fill', '#2c3e50')
+                .style('font-weight', 'bold')
+                .style('background', 'white')
+                .text(d => d.data.name);
+            
+            // 添加缩放功能
+            const zoom = d3.zoom()
+                .scaleExtent([0.5, 3])
+                .on('zoom', function(event) {
+                    svg.selectAll('.node, .link')
+                        .attr('transform', event.transform);
+                });
+            
+            svg.call(zoom);
+            
+            // 添加图例
+            if (!isMobile) {
+                svg.append('text')
+                    .attr('x', 20)
+                    .attr('y', height - 20)
+                    .style('font-size', '10px')
+                    .style('fill', '#7f8c8d')
+                    .text('树状图：可缩放查看详细信息');
+            }
         }
 
         // 渲染流程图
@@ -2796,29 +2872,63 @@ ${details ? `详细描述：${details}` : ''}
         // 解析函数：树状图
         function parseMarkdownForTree(markdown) {
             const lines = markdown.split('\n').filter(line => line.trim());
-            const root = { name: '根节点', children: [] };
-            const stack = [{ node: root, level: 0 }];
+            let root = null;
+            const stack = [];
             
             lines.forEach(line => {
-                const match = line.match(/^(#+)\s*(.+)$/);
-                if (match) {
-                    const level = match[1].length;
-                    const name = match[2].trim();
+                const trimmed = line.trim();
+                
+                // 匹配标题格式
+                const headerMatch = trimmed.match(/^(#+)\s*(.+)$/);
+                if (headerMatch) {
+                    const level = headerMatch[1].length;
+                    const name = headerMatch[2].trim();
                     const newNode = { name, children: [] };
                     
-                    while (stack.length > 0 && stack[stack.length - 1].level >= level) {
-                        stack.pop();
+                    if (level === 1 && !root) {
+                        // 第一个一级标题作为根节点
+                        root = newNode;
+                        stack.push({ node: newNode, level });
+                    } else {
+                        // 找到合适的父节点
+                        while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+                            stack.pop();
+                        }
+                        
+                        if (stack.length > 0) {
+                            stack[stack.length - 1].node.children.push(newNode);
+                        } else if (!root) {
+                            root = newNode;
+                        }
+                        
+                        stack.push({ node: newNode, level });
                     }
+                }
+                // 匹配列表格式
+                else if (trimmed.match(/^[-*+]\s*(.+)$/)) {
+                    const name = trimmed.replace(/^[-*+]\s*/, '').trim();
+                    const newNode = { name, children: [] };
                     
                     if (stack.length > 0) {
                         stack[stack.length - 1].node.children.push(newNode);
+                    } else if (!root) {
+                        root = newNode;
                     }
-                    
-                    stack.push({ node: newNode, level });
                 }
             });
             
-            return root.children[0] || root;
+            // 如果没有找到合适的根节点，创建一个默认的
+            if (!root) {
+                root = { 
+                    name: '主题', 
+                    children: lines.slice(0, 5).map(line => ({ 
+                        name: line.trim().substring(0, 20), 
+                        children: [] 
+                    }))
+                };
+            }
+            
+            return root;
         }
 
         // 解析函数：流程图
