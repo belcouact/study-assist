@@ -86,15 +86,110 @@
             console.log('Manually forcing drag initialization...');
             const button = document.querySelector('.ai-chat-float-btn');
             if (button) {
-                if (typeof makeDraggable === 'function') {
-                    makeDraggable(button);
+                const dragFunc = window.makeDraggable || makeDraggable;
+                if (typeof dragFunc === 'function') {
+                    dragFunc(button);
                     console.log('Manual drag init complete!');
                 } else {
-                    console.log('makeDraggable function not available!');
+                    console.log('makeDraggable function not available, creating inline version...');
+                    createInlineDragFunctionality(button);
                 }
             } else {
                 console.log('No button found for manual init!');
             }
+        }
+        
+        // Inline drag functionality as fallback
+        function createInlineDragFunctionality(element) {
+            console.log('Creating inline drag functionality...');
+            
+            if (element.hasAttribute('data-draggable-initialized')) {
+                console.log('Element already has drag functionality');
+                return;
+            }
+            
+            element.setAttribute('data-draggable-initialized', 'true');
+            
+            let isDragging = false;
+            let hasMoved = false;
+            let startX, startY, startLeft, startTop;
+            
+            function startDrag(e) {
+                console.log('Inline drag started');
+                isDragging = true;
+                hasMoved = false;
+                element.wasDragged = false;
+                
+                const rect = element.getBoundingClientRect();
+                startLeft = rect.left;
+                startTop = rect.top;
+                
+                const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+                
+                startX = clientX;
+                startY = clientY;
+                
+                element.classList.add('dragging');
+                e.preventDefault();
+            }
+            
+            function drag(e) {
+                if (!isDragging) return;
+                
+                const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+                
+                const deltaX = clientX - startX;
+                const deltaY = clientY - startY;
+                
+                if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+                    hasMoved = true;
+                }
+                
+                let newLeft = startLeft + deltaX;
+                let newTop = startTop + deltaY;
+                
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const elementWidth = element.offsetWidth;
+                const elementHeight = element.offsetHeight;
+                
+                const padding = 10;
+                newLeft = Math.max(padding, Math.min(viewportWidth - elementWidth - padding, newLeft));
+                newTop = Math.max(padding, Math.min(viewportHeight - elementHeight - padding, newTop));
+                
+                element.style.left = newLeft + 'px';
+                element.style.top = newTop + 'px';
+                element.style.right = 'auto';
+                element.style.bottom = 'auto';
+                
+                e.preventDefault();
+            }
+            
+            function endDrag(e) {
+                if (!isDragging) return;
+                console.log('Inline drag ended, moved:', hasMoved);
+                isDragging = false;
+                
+                element.classList.remove('dragging');
+                element.wasDragged = hasMoved;
+                
+                setTimeout(() => {
+                    element.wasDragged = false;
+                }, 100);
+            }
+            
+            // Add event listeners
+            element.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', endDrag);
+            
+            element.addEventListener('touchstart', startDrag, { passive: false });
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('touchend', endDrag);
+            
+            console.log('Inline drag functionality added!');
         }
         
         function testDrag() {
@@ -123,6 +218,14 @@
         // Initialize the chat functionality
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, initializing chat...');
+            
+            // Check what functions are available
+            console.log('Available functions:');
+            console.log('- initializeChatWithFloatingButton:', typeof initializeChatWithFloatingButton);
+            console.log('- makeDraggable:', typeof makeDraggable);
+            console.log('- addFloatingChatButton:', typeof addFloatingChatButton);
+            console.log('- openChatModal:', typeof openChatModal);
+            
             if (typeof initializeChatWithFloatingButton === 'function') {
                 initializeChatWithFloatingButton();
             } else {
@@ -132,16 +235,28 @@
             // Add additional check and force drag initialization if needed
             setTimeout(function() {
                 console.log('Checking button after timeout...');
+                console.log('Functions available after timeout:');
+                console.log('- makeDraggable:', typeof makeDraggable);
+                console.log('- window.makeDraggable:', typeof window.makeDraggable);
+                
                 const button = document.querySelector('.ai-chat-float-btn');
                 if (button && !button.hasAttribute('data-draggable-initialized')) {
                     console.log('Button found but not draggable, forcing initialization...');
-                    if (typeof makeDraggable === 'function') {
-                        makeDraggable(button);
+                    
+                    // Try both direct and window reference
+                    const dragFunc = window.makeDraggable || makeDraggable;
+                    if (typeof dragFunc === 'function') {
+                        dragFunc(button);
                         console.log('Drag functionality force-applied!');
                     } else {
-                        console.log('makeDraggable function not available!');
+                        console.log('makeDraggable function still not available!');
+                        console.log('Trying to reinitialize everything...');
+                        if (typeof window.addFloatingChatButton === 'function') {
+                            console.log('Calling addFloatingChatButton again...');
+                            window.addFloatingChatButton();
+                        }
                     }
-                } else if (button) {
+                } else if (button && button.hasAttribute('data-draggable-initialized')) {
                     console.log('Button is already draggable!');
                 } else {
                     console.log('No button found after timeout!');
