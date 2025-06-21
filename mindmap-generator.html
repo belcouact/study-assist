@@ -2305,29 +2305,623 @@ ${details ? `详细描述：${details}` : ''}
             });
         }
 
-        // 添加其他图表类型的占位符函数
+        // 渲染组织架构图
         function renderOrgChartDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '组织架构图', '#9b59b6');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForOrgChart(markdown);
+            const isMobile = width < 768;
+            
+            // 计算层级布局
+            const levels = organizeLevels(data);
+            const levelHeight = height / (levels.length + 1);
+            const nodeWidth = isMobile ? 100 : 140;
+            const nodeHeight = isMobile ? 40 : 50;
+            
+            levels.forEach((level, levelIndex) => {
+                const y = levelHeight * (levelIndex + 1);
+                const nodeSpacing = width / (level.length + 1);
+                
+                level.forEach((node, nodeIndex) => {
+                    const x = nodeSpacing * (nodeIndex + 1);
+                    
+                    // 绘制节点
+                    svg.append('rect')
+                        .attr('x', x - nodeWidth/2)
+                        .attr('y', y - nodeHeight/2)
+                        .attr('width', nodeWidth)
+                        .attr('height', nodeHeight)
+                        .attr('fill', getNodeColor(levelIndex))
+                        .attr('stroke', '#2c3e50')
+                        .attr('stroke-width', 1)
+                        .attr('rx', 5);
+                    
+                    // 添加文本
+                    const lines = wrapTextForDiagram(node.name, nodeWidth - 10, isMobile ? 10 : 12);
+                    lines.forEach((line, i) => {
+                        svg.append('text')
+                            .attr('x', x)
+                            .attr('y', y + (i - lines.length/2 + 0.5) * (isMobile ? 12 : 15))
+                            .attr('text-anchor', 'middle')
+                            .style('font-size', isMobile ? '9px' : '11px')
+                            .style('fill', '#2c3e50')
+                            .text(line);
+                    });
+                    
+                    // 绘制连接线到上级
+                    if (node.parent && levelIndex > 0) {
+                        const parentLevel = levels[levelIndex - 1];
+                        const parent = parentLevel.find(p => p.id === node.parent);
+                        if (parent) {
+                            const parentX = nodeSpacing * (parentLevel.indexOf(parent) + 1);
+                            const parentY = levelHeight * levelIndex;
+                            
+                            svg.append('line')
+                                .attr('x1', parentX)
+                                .attr('y1', parentY + nodeHeight/2)
+                                .attr('x2', x)
+                                .attr('y2', y - nodeHeight/2)
+                                .attr('stroke', '#7f8c8d')
+                                .attr('stroke-width', 1);
+                        }
+                    }
+                });
+            });
         }
 
+        // 渲染树状图
         function renderTreeChartDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '树状图', '#16a085');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForTree(markdown);
+            const isMobile = width < 768;
+            
+            // 使用D3的树布局
+            const treeLayout = d3.tree().size([width - 40, height - 40]);
+            const root = d3.hierarchy(data);
+            treeLayout(root);
+            
+            // 绘制连接线
+            svg.selectAll('.link')
+                .data(root.links())
+                .enter()
+                .append('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkVertical()
+                    .x(d => d.x + 20)
+                    .y(d => d.y + 20))
+                .attr('fill', 'none')
+                .attr('stroke', '#7f8c8d')
+                .attr('stroke-width', 1.5);
+            
+            // 绘制节点
+            const nodes = svg.selectAll('.node')
+                .data(root.descendants())
+                .enter()
+                .append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.x + 20},${d.y + 20})`);
+            
+            nodes.append('circle')
+                .attr('r', isMobile ? 15 : 20)
+                .attr('fill', d => d.depth === 0 ? '#e74c3c' : '#3498db')
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', 1);
+            
+            nodes.append('text')
+                .attr('dy', '.35em')
+                .attr('text-anchor', 'middle')
+                .style('font-size', isMobile ? '8px' : '10px')
+                .style('fill', 'white')
+                .text(d => d.data.name.length > 6 ? d.data.name.substring(0, 6) + '...' : d.data.name);
         }
 
+        // 渲染流程图
         function renderFlowchartDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '流程图', '#e67e22');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForFlowchart(markdown);
+            const isMobile = width < 768;
+            
+            // 计算节点位置
+            const nodeWidth = isMobile ? 100 : 140;
+            const nodeHeight = isMobile ? 40 : 50;
+            const levelHeight = height / (data.levels.length + 1);
+            
+            // 定义箭头标记
+            svg.append('defs').append('marker')
+                .attr('id', 'arrowhead')
+                .attr('viewBox', '0 -5 10 10')
+                .attr('refX', 8)
+                .attr('refY', 0)
+                .attr('markerWidth', 6)
+                .attr('markerHeight', 6)
+                .attr('orient', 'auto')
+                .append('path')
+                .attr('d', 'M0,-5L10,0L0,5')
+                .attr('fill', '#7f8c8d');
+            
+            data.levels.forEach((level, levelIndex) => {
+                const y = levelHeight * (levelIndex + 1);
+                const nodeSpacing = width / (level.length + 1);
+                
+                level.forEach((node, nodeIndex) => {
+                    const x = nodeSpacing * (nodeIndex + 1);
+                    
+                    // 根据节点类型选择形状
+                    if (node.type === 'decision') {
+                        // 菱形决策节点
+                        const points = `${x},${y - nodeHeight/2} ${x + nodeWidth/2},${y} ${x},${y + nodeHeight/2} ${x - nodeWidth/2},${y}`;
+                        svg.append('polygon')
+                            .attr('points', points)
+                            .attr('fill', '#f39c12')
+                            .attr('stroke', '#2c3e50')
+                            .attr('stroke-width', 1);
+                    } else if (node.type === 'process') {
+                        // 矩形处理节点
+                        svg.append('rect')
+                            .attr('x', x - nodeWidth/2)
+                            .attr('y', y - nodeHeight/2)
+                            .attr('width', nodeWidth)
+                            .attr('height', nodeHeight)
+                            .attr('fill', '#3498db')
+                            .attr('stroke', '#2c3e50')
+                            .attr('stroke-width', 1)
+                            .attr('rx', 5);
+                    } else {
+                        // 椭圆开始/结束节点
+                        svg.append('ellipse')
+                            .attr('cx', x)
+                            .attr('cy', y)
+                            .attr('rx', nodeWidth/2)
+                            .attr('ry', nodeHeight/2)
+                            .attr('fill', '#e74c3c')
+                            .attr('stroke', '#2c3e50')
+                            .attr('stroke-width', 1);
+                    }
+                    
+                    // 添加文本
+                    const lines = wrapTextForDiagram(node.text, nodeWidth - 10, isMobile ? 9 : 11);
+                    lines.forEach((line, i) => {
+                        svg.append('text')
+                            .attr('x', x)
+                            .attr('y', y + (i - lines.length/2 + 0.5) * (isMobile ? 11 : 13))
+                            .attr('text-anchor', 'middle')
+                            .style('font-size', isMobile ? '8px' : '10px')
+                            .style('fill', 'white')
+                            .text(line);
+                    });
+                    
+                    // 绘制箭头连接
+                    if (node.next && levelIndex < data.levels.length - 1) {
+                        const nextY = levelHeight * (levelIndex + 2);
+                        svg.append('line')
+                            .attr('x1', x)
+                            .attr('y1', y + nodeHeight/2)
+                            .attr('x2', x)
+                            .attr('y2', nextY - nodeHeight/2)
+                            .attr('stroke', '#7f8c8d')
+                            .attr('stroke-width', 2)
+                            .attr('marker-end', 'url(#arrowhead)');
+                    }
+                });
+            });
         }
 
+        // 渲染逻辑图
         function renderLogicMapDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '逻辑图', '#8e44ad');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForLogicMap(markdown);
+            const isMobile = width < 768;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // 绘制中心主题
+            const centralRadius = isMobile ? 40 : 60;
+            svg.append('circle')
+                .attr('cx', centerX)
+                .attr('cy', centerY)
+                .attr('r', centralRadius)
+                .attr('fill', '#e74c3c')
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', 2);
+            
+            const centralLines = wrapTextForDiagram(data.central, centralRadius * 1.5, isMobile ? 10 : 12);
+            centralLines.forEach((line, i) => {
+                svg.append('text')
+                    .attr('x', centerX)
+                    .attr('y', centerY + (i - centralLines.length/2 + 0.5) * (isMobile ? 12 : 15))
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', isMobile ? '10px' : '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', 'white')
+                    .text(line);
+            });
+            
+            // 绘制逻辑分支
+            const branches = data.branches || [];
+            const angleStep = (2 * Math.PI) / branches.length;
+            const branchRadius = isMobile ? 120 : 180;
+            
+            branches.forEach((branch, i) => {
+                const angle = i * angleStep - Math.PI / 2;
+                const branchX = centerX + branchRadius * Math.cos(angle);
+                const branchY = centerY + branchRadius * Math.sin(angle);
+                
+                // 绘制连接线
+                svg.append('line')
+                    .attr('x1', centerX + centralRadius * Math.cos(angle))
+                    .attr('y1', centerY + centralRadius * Math.sin(angle))
+                    .attr('x2', branchX - 30 * Math.cos(angle))
+                    .attr('y2', branchY - 30 * Math.sin(angle))
+                    .attr('stroke', '#3498db')
+                    .attr('stroke-width', 2);
+                
+                // 绘制分支节点
+                svg.append('rect')
+                    .attr('x', branchX - 40)
+                    .attr('y', branchY - 20)
+                    .attr('width', 80)
+                    .attr('height', 40)
+                    .attr('fill', '#3498db')
+                    .attr('stroke', '#2c3e50')
+                    .attr('stroke-width', 1)
+                    .attr('rx', 5);
+                
+                const branchLines = wrapTextForDiagram(branch.title, 75, isMobile ? 8 : 10);
+                branchLines.forEach((line, lineIndex) => {
+                    svg.append('text')
+                        .attr('x', branchX)
+                        .attr('y', branchY + (lineIndex - branchLines.length/2 + 0.5) * (isMobile ? 10 : 12))
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', isMobile ? '8px' : '10px')
+                        .style('fill', 'white')
+                        .text(line);
+                });
+            });
         }
 
+        // 渲染概念图
         function renderConceptMapDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '概念图', '#27ae60');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForConceptMap(markdown);
+            const isMobile = width < 768;
+            
+            // 使用力导向布局
+            const simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(isMobile ? 80 : 120))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2));
+            
+            // 绘制连接线
+            const links = svg.selectAll('.link')
+                .data(data.links)
+                .enter()
+                .append('line')
+                .attr('class', 'link')
+                .attr('stroke', '#7f8c8d')
+                .attr('stroke-width', 1.5);
+            
+            // 绘制节点
+            const nodes = svg.selectAll('.node')
+                .data(data.nodes)
+                .enter()
+                .append('g')
+                .attr('class', 'node');
+            
+            nodes.append('circle')
+                .attr('r', d => d.type === 'main' ? (isMobile ? 25 : 35) : (isMobile ? 15 : 20))
+                .attr('fill', d => d.type === 'main' ? '#e74c3c' : '#3498db')
+                .attr('stroke', '#2c3e50')
+                .attr('stroke-width', 1);
+            
+            nodes.append('text')
+                .attr('dy', '.35em')
+                .attr('text-anchor', 'middle')
+                .style('font-size', isMobile ? '8px' : '10px')
+                .style('fill', 'white')
+                .text(d => d.name.length > 8 ? d.name.substring(0, 8) + '...' : d.name);
+            
+            // 更新位置
+            simulation.on('tick', () => {
+                links
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                nodes.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
         }
 
+        // 渲染金字塔图
         function renderPyramidDiagram(markdown, width, height) {
-            renderGenericDiagram(markdown, width, height, '金字塔图', '#f39c12');
+            const svg = d3.select('#mindmapContainer')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`)
+                .style('width', '100%')
+                .style('height', '100%');
+
+            const data = parseMarkdownForPyramid(markdown);
+            const isMobile = width < 768;
+            const levels = data.levels || [];
+            const levelHeight = height / levels.length;
+            const maxWidth = width * 0.8;
+            
+            levels.forEach((level, i) => {
+                const y = i * levelHeight;
+                const levelWidth = maxWidth * (levels.length - i) / levels.length;
+                const x = (width - levelWidth) / 2;
+                
+                // 绘制梯形层级
+                const topWidth = i === 0 ? levelWidth : maxWidth * (levels.length - i + 1) / levels.length;
+                const bottomWidth = levelWidth;
+                
+                const points = `${(width - topWidth) / 2},${y} ${(width + topWidth) / 2},${y} ${x + bottomWidth},${y + levelHeight} ${x},${y + levelHeight}`;
+                
+                svg.append('polygon')
+                    .attr('points', points)
+                    .attr('fill', getColorByLevel(i, levels.length))
+                    .attr('stroke', '#2c3e50')
+                    .attr('stroke-width', 1);
+                
+                // 添加文本
+                const textY = y + levelHeight / 2;
+                const lines = wrapTextForDiagram(level.text, levelWidth - 20, isMobile ? 10 : 12);
+                lines.forEach((line, lineIndex) => {
+                    svg.append('text')
+                        .attr('x', width / 2)
+                        .attr('y', textY + (lineIndex - lines.length/2 + 0.5) * (isMobile ? 12 : 15))
+                        .attr('text-anchor', 'middle')
+                        .style('font-size', isMobile ? '9px' : '11px')
+                        .style('font-weight', 'bold')
+                        .style('fill', 'white')
+                        .text(line);
+                });
+            });
+        }
+
+        // 辅助函数：文本换行（用于所有图表类型）
+        function wrapTextForDiagram(text, maxWidth, fontSize) {
+            const words = text.split('');
+            const lines = [];
+            let currentLine = '';
+            
+            for (let word of words) {
+                const testLine = currentLine + word;
+                if (testLine.length * fontSize * 0.6 > maxWidth && currentLine !== '') {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine) lines.push(currentLine);
+            return lines;
+        }
+
+        // 辅助函数：获取节点颜色
+        function getNodeColor(level) {
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+            return colors[level % colors.length];
+        }
+
+        // 辅助函数：获取层级颜色
+        function getColorByLevel(level, totalLevels) {
+            const colors = ['#e74c3c', '#e67e22', '#f39c12', '#f1c40f', '#2ecc71', '#1abc9c'];
+            return colors[level % colors.length];
+        }
+
+        // 辅助函数：组织层级结构
+        function organizeLevels(data) {
+            const levels = [];
+            const visited = new Set();
+            
+            function addToLevel(nodes, levelIndex) {
+                if (!levels[levelIndex]) levels[levelIndex] = [];
+                nodes.forEach(node => {
+                    if (!visited.has(node.id)) {
+                        levels[levelIndex].push(node);
+                        visited.add(node.id);
+                        
+                        const children = data.filter(item => item.parent === node.id);
+                        if (children.length > 0) {
+                            addToLevel(children, levelIndex + 1);
+                        }
+                    }
+                });
+            }
+            
+            const roots = data.filter(item => !item.parent);
+            addToLevel(roots, 0);
+            
+            return levels;
+        }
+
+        // 解析函数：组织架构图
+        function parseMarkdownForOrgChart(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const data = [];
+            let idCounter = 1;
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const name = match[2].trim();
+                    const id = idCounter++;
+                    const parent = level > 1 ? data.find(item => item.level === level - 1)?.id : null;
+                    
+                    data.push({ id, name, level, parent });
+                }
+            });
+            
+            return data;
+        }
+
+        // 解析函数：树状图
+        function parseMarkdownForTree(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const root = { name: '根节点', children: [] };
+            const stack = [{ node: root, level: 0 }];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const name = match[2].trim();
+                    const newNode = { name, children: [] };
+                    
+                    while (stack.length > 0 && stack[stack.length - 1].level >= level) {
+                        stack.pop();
+                    }
+                    
+                    if (stack.length > 0) {
+                        stack[stack.length - 1].node.children.push(newNode);
+                    }
+                    
+                    stack.push({ node: newNode, level });
+                }
+            });
+            
+            return root.children[0] || root;
+        }
+
+        // 解析函数：流程图
+        function parseMarkdownForFlowchart(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const levels = [];
+            let currentLevel = [];
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('# ')) {
+                    if (currentLevel.length > 0) {
+                        levels.push([...currentLevel]);
+                        currentLevel = [];
+                    }
+                    currentLevel.push({
+                        text: trimmed.substring(2),
+                        type: 'start',
+                        next: true
+                    });
+                } else if (trimmed.startsWith('## ')) {
+                    currentLevel.push({
+                        text: trimmed.substring(3),
+                        type: 'process',
+                        next: true
+                    });
+                } else if (trimmed.includes('?')) {
+                    currentLevel.push({
+                        text: trimmed,
+                        type: 'decision',
+                        next: true
+                    });
+                }
+            });
+            
+            if (currentLevel.length > 0) {
+                levels.push(currentLevel);
+            }
+            
+            return { levels };
+        }
+
+        // 解析函数：逻辑图
+        function parseMarkdownForLogicMap(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const data = { central: '中心主题', branches: [] };
+            
+            lines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('# ')) {
+                    data.central = trimmed.substring(2);
+                } else if (trimmed.startsWith('## ')) {
+                    data.branches.push({
+                        title: trimmed.substring(3),
+                        items: []
+                    });
+                }
+            });
+            
+            return data;
+        }
+
+        // 解析函数：概念图
+        function parseMarkdownForConceptMap(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const nodes = [];
+            const links = [];
+            let nodeId = 1;
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const name = match[2].trim();
+                    const id = nodeId++;
+                    const type = level === 1 ? 'main' : 'sub';
+                    
+                    nodes.push({ id, name, type });
+                    
+                    if (level > 1 && nodes.length > 1) {
+                        const parentId = nodes.find(n => n.type === 'main')?.id || 1;
+                        links.push({ source: parentId, target: id });
+                    }
+                }
+            });
+            
+            return { nodes, links };
+        }
+
+        // 解析函数：金字塔图
+        function parseMarkdownForPyramid(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const levels = [];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const text = match[2].trim();
+                    levels.push({ text });
+                }
+            });
+            
+            return { levels };
         }
 
         // 通用图表渲染（用于暂未实现的图表类型）
