@@ -595,6 +595,8 @@ function createChatModal() {
                 cursor: pointer;
                 z-index: 99;
                 transition: transform 0.3s, box-shadow 0.3s;
+                touch-action: none;
+                user-select: none;
             }
             
             .ai-chat-float-btn:hover {
@@ -602,8 +604,29 @@ function createChatModal() {
                 box-shadow: 0 6px 15px rgba(0,0,0,0.25);
             }
             
+            .ai-chat-float-btn.dragging {
+                transform: scale(1.05);
+                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+                transition: none;
+            }
+            
             .ai-chat-float-btn i {
                 font-size: 24px;
+                pointer-events: none;
+            }
+
+            /* Mobile responsive adjustments for floating button */
+            @media (max-width: 768px) {
+                .ai-chat-float-btn {
+                    width: 56px;
+                    height: 56px;
+                    bottom: 20px;
+                    right: 20px;
+                }
+                
+                .ai-chat-float-btn i {
+                    font-size: 20px;
+                }
             }
         `;
         document.head.appendChild(styleElement);
@@ -933,8 +956,235 @@ function addFloatingChatButton() {
         button.className = 'ai-chat-float-btn';
         button.innerHTML = '<i class="fas fa-comment-dots"></i>';
         button.setAttribute('title', 'AI 学习助手');
-        button.addEventListener('click', openChatModal);
+        
+        // Add drag functionality
+        makeDraggable(button);
+        
+        // Add click event (only if not dragging)
+        button.addEventListener('click', function(e) {
+            if (!button.wasDragged) {
+                openChatModal();
+            }
+        });
+        
         document.body.appendChild(button);
+    }
+}
+
+// Make the floating button draggable
+function makeDraggable(element) {
+    let isDragging = false;
+    let hasMoved = false;
+    let startX, startY, startLeft, startTop;
+    
+    // Mouse events
+    element.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', endDrag);
+    
+    // Touch events for mobile
+    element.addEventListener('touchstart', startDrag, { passive: false });
+    document.addEventListener('touchmove', drag, { passive: false });
+    document.addEventListener('touchend', endDrag);
+    
+    function startDrag(e) {
+        isDragging = true;
+        hasMoved = false;
+        element.wasDragged = false;
+        
+        // Get initial position
+        const rect = element.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        
+        // Get initial mouse/touch position
+        const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+        
+        startX = clientX;
+        startY = clientY;
+        
+        // Add dragging class
+        element.classList.add('dragging');
+        
+        // Prevent default behavior
+        e.preventDefault();
+    }
+    
+    function drag(e) {
+        if (!isDragging) return;
+        
+        // Get current mouse/touch position
+        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+        
+        // Calculate movement
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+        
+        // Check if moved significantly (to distinguish from click)
+        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+            hasMoved = true;
+        }
+        
+        // Calculate new position
+        let newLeft = startLeft + deltaX;
+        let newTop = startTop + deltaY;
+        
+        // Get viewport bounds
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const elementWidth = element.offsetWidth;
+        const elementHeight = element.offsetHeight;
+        
+        // Constrain to viewport with some padding
+        const padding = 10;
+        newLeft = Math.max(padding, Math.min(viewportWidth - elementWidth - padding, newLeft));
+        newTop = Math.max(padding, Math.min(viewportHeight - elementHeight - padding, newTop));
+        
+        // Update position
+        element.style.left = newLeft + 'px';
+        element.style.top = newTop + 'px';
+        element.style.right = 'auto';
+        element.style.bottom = 'auto';
+        
+        // Prevent default behavior
+        e.preventDefault();
+    }
+    
+    function endDrag(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        
+        // Remove dragging class
+        element.classList.remove('dragging');
+        
+        // Set wasDragged flag to prevent click event
+        element.wasDragged = hasMoved;
+        
+        // Reset the flag after a short delay
+        setTimeout(() => {
+            element.wasDragged = false;
+        }, 100);
+        
+        // Snap to edges for better UX on mobile
+        if (window.innerWidth <= 768) {
+            snapToEdge(element);
+        }
+        
+        // Save position to localStorage
+        saveButtonPosition(element);
+    }
+    
+    // Snap to nearest edge on mobile
+    function snapToEdge(element) {
+        const rect = element.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const centerX = rect.left + rect.width / 2;
+        
+        // Snap to left or right edge
+        if (centerX < viewportWidth / 2) {
+            // Snap to left
+            element.style.left = '20px';
+            element.style.right = 'auto';
+        } else {
+            // Snap to right
+            element.style.right = '20px';
+            element.style.left = 'auto';
+        }
+    }
+    
+    // Save button position to localStorage
+    function saveButtonPosition(element) {
+        const rect = element.getBoundingClientRect();
+        const position = {
+            left: element.style.left,
+            top: element.style.top,
+            right: element.style.right,
+            bottom: element.style.bottom
+        };
+        localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
+    }
+    
+    // Restore button position from localStorage
+    function restoreButtonPosition(element) {
+        const savedPosition = localStorage.getItem('aiChatButtonPosition');
+        if (savedPosition) {
+            try {
+                const position = JSON.parse(savedPosition);
+                if (position.left && position.left !== 'auto') {
+                    element.style.left = position.left;
+                    element.style.right = 'auto';
+                }
+                if (position.top && position.top !== 'auto') {
+                    element.style.top = position.top;
+                    element.style.bottom = 'auto';
+                }
+                if (position.right && position.right !== 'auto' && (!position.left || position.left === 'auto')) {
+                    element.style.right = position.right;
+                    element.style.left = 'auto';
+                }
+                if (position.bottom && position.bottom !== 'auto' && (!position.top || position.top === 'auto')) {
+                    element.style.bottom = position.bottom;
+                    element.style.top = 'auto';
+                }
+            } catch (e) {
+                console.warn('Failed to restore button position:', e);
+            }
+        }
+    }
+    
+    // Restore position on load
+    restoreButtonPosition(element);
+}
+
+// Handle window resize to keep button in bounds
+function handleWindowResize() {
+    const button = document.querySelector('.ai-chat-float-btn');
+    if (button && (button.style.left !== 'auto' || button.style.top !== 'auto')) {
+        const rect = button.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const elementWidth = button.offsetWidth;
+        const elementHeight = button.offsetHeight;
+        
+        let needsUpdate = false;
+        let newLeft = rect.left;
+        let newTop = rect.top;
+        
+        // Check and adjust horizontal position
+        if (rect.right > viewportWidth - 10) {
+            newLeft = viewportWidth - elementWidth - 20;
+            needsUpdate = true;
+        } else if (rect.left < 10) {
+            newLeft = 20;
+            needsUpdate = true;
+        }
+        
+        // Check and adjust vertical position
+        if (rect.bottom > viewportHeight - 10) {
+            newTop = viewportHeight - elementHeight - 20;
+            needsUpdate = true;
+        } else if (rect.top < 10) {
+            newTop = 20;
+            needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+            button.style.left = newLeft + 'px';
+            button.style.top = newTop + 'px';
+            button.style.right = 'auto';
+            button.style.bottom = 'auto';
+            
+            // Save new position
+            const position = {
+                left: button.style.left,
+                top: button.style.top,
+                right: 'auto',
+                bottom: 'auto'
+            };
+            localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
+        }
     }
 }
 
@@ -947,6 +1197,13 @@ function initializeChatWithFloatingButton() {
     
     // Add floating button
     addFloatingChatButton();
+    
+    // Add window resize handler
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleWindowResize, 250);
+    });
 }
 
 // Expose functions to global scope
