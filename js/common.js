@@ -309,8 +309,35 @@ function initFirstVisitPrompt() {
     }
 }
 
-// Common script for all pages - Chat initialization moved to dedicated chat-init.js
-// This prevents duplicate initialization when both common.js and chat-init.js are loaded
+// Common script for all pages
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if the chat modal script is already loaded
+    if (typeof initializeChatWithFloatingButton === 'undefined') {
+        // Load the chat-modal.js script dynamically
+        const script = document.createElement('script');
+        script.src = '/js/chat-modal.js';
+        script.onload = function() {
+            // Initialize chat once the script is loaded
+            if (typeof initializeChatWithFloatingButton === 'function') {
+                initializeChatWithFloatingButton();
+            }
+        };
+        document.head.appendChild(script);
+    } else {
+        // If already loaded, just initialize the chat
+        initializeChatWithFloatingButton();
+    }
+    
+    // Add event listeners to all chat buttons
+    document.querySelectorAll('.chat-ai-btn').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof openChatModal === 'function') {
+                openChatModal();
+                }
+        });
+    });
+});
 
 // Function to get the base URL for relative paths
 function getBaseUrl() {

@@ -1,24 +1,15 @@
 // Chat modal functionality for Study Assistant
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Chat modal DOMContentLoaded event fired');
-    
     // Create the modal elements if they don't exist
     if (!document.getElementById('aiChatModal')) {
-        console.log('Creating chat modal...');
         createChatModal();
     }
-
-    // Create floating button if it doesn't exist
-    console.log('Adding floating chat button...');
-    addFloatingChatButton();
 
     // Add event listener to toggle button if it exists
     const chatButtons = document.querySelectorAll('.chat-ai-btn');
     chatButtons.forEach(button => {
         button.addEventListener('click', openChatModal);
     });
-    
-    console.log('Chat modal initialization complete');
 });
 
 // Create and insert the chat modal into the document
@@ -604,8 +595,6 @@ function createChatModal() {
                 cursor: pointer;
                 z-index: 99;
                 transition: transform 0.3s, box-shadow 0.3s;
-                touch-action: none;
-                user-select: none;
             }
             
             .ai-chat-float-btn:hover {
@@ -613,29 +602,8 @@ function createChatModal() {
                 box-shadow: 0 6px 15px rgba(0,0,0,0.25);
             }
             
-            .ai-chat-float-btn.dragging {
-                transform: scale(1.05);
-                box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-                transition: none;
-            }
-            
             .ai-chat-float-btn i {
                 font-size: 24px;
-                pointer-events: none;
-            }
-
-            /* Mobile responsive adjustments for floating button */
-            @media (max-width: 768px) {
-                .ai-chat-float-btn {
-                    width: 56px;
-                    height: 56px;
-                    bottom: 20px;
-                    right: 20px;
-                }
-                
-                .ai-chat-float-btn i {
-                    font-size: 20px;
-                }
             }
         `;
         document.head.appendChild(styleElement);
@@ -961,380 +929,12 @@ async function sendChatMessage() {
 // Add floating chat button to the page
 function addFloatingChatButton() {
     if (!document.querySelector('.ai-chat-float-btn')) {
-        console.log('Creating new floating chat button...');
         const button = document.createElement('div');
         button.className = 'ai-chat-float-btn';
         button.innerHTML = '<i class="fas fa-comment-dots"></i>';
         button.setAttribute('title', 'AI 学习助手');
-        
-        // Add drag functionality
-        console.log('Adding drag functionality to button...');
-        try {
-            makeDraggable(button);
-        } catch (error) {
-            console.log('makeDraggable call failed, creating inline drag functionality:', error);
-            createInlineDragForButton(button);
-        }
-        
-        // Add click event (only if not dragging)
-        button.addEventListener('click', function(e) {
-            console.log('Button clicked, wasDragged:', button.wasDragged);
-            if (!button.wasDragged) {
-                openChatModal();
-            }
-        });
-        
+        button.addEventListener('click', openChatModal);
         document.body.appendChild(button);
-        console.log('Floating chat button added to DOM');
-    } else {
-        console.log('Floating chat button already exists');
-        // If button already exists, make sure it has drag functionality
-        const existingButton = document.querySelector('.ai-chat-float-btn');
-        if (!existingButton.hasAttribute('data-draggable-initialized')) {
-            console.log('Adding drag functionality to existing button...');
-            try {
-                makeDraggable(existingButton);
-            } catch (error) {
-                console.log('makeDraggable call failed for existing button, creating inline drag functionality:', error);
-                createInlineDragForButton(existingButton);
-            }
-        }
-    }
-}
-
-// Inline drag functionality as fallback
-function createInlineDragForButton(element) {
-    console.log('Creating inline drag functionality for button...');
-    
-    if (element.hasAttribute('data-draggable-initialized')) {
-        console.log('Element already has drag functionality');
-        return;
-    }
-    
-    element.setAttribute('data-draggable-initialized', 'true');
-    
-    let isDragging = false;
-    let hasMoved = false;
-    let startX, startY, startLeft, startTop;
-    
-    function startDrag(e) {
-        console.log('Inline drag started:', e.type);
-        isDragging = true;
-        hasMoved = false;
-        element.wasDragged = false;
-        
-        const rect = element.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        
-        const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-        
-        startX = clientX;
-        startY = clientY;
-        
-        element.classList.add('dragging');
-        e.preventDefault();
-    }
-    
-    function drag(e) {
-        if (!isDragging) return;
-        
-        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        
-        const deltaX = clientX - startX;
-        const deltaY = clientY - startY;
-        
-        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-            hasMoved = true;
-        }
-        
-        let newLeft = startLeft + deltaX;
-        let newTop = startTop + deltaY;
-        
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const elementWidth = element.offsetWidth;
-        const elementHeight = element.offsetHeight;
-        
-        const padding = 10;
-        newLeft = Math.max(padding, Math.min(viewportWidth - elementWidth - padding, newLeft));
-        newTop = Math.max(padding, Math.min(viewportHeight - elementHeight - padding, newTop));
-        
-        element.style.left = newLeft + 'px';
-        element.style.top = newTop + 'px';
-        element.style.right = 'auto';
-        element.style.bottom = 'auto';
-        
-        e.preventDefault();
-    }
-    
-    function endDrag(e) {
-        if (!isDragging) return;
-        console.log('Inline drag ended, moved:', hasMoved);
-        isDragging = false;
-        
-        element.classList.remove('dragging');
-        element.wasDragged = hasMoved;
-        
-        setTimeout(() => {
-            element.wasDragged = false;
-        }, 100);
-        
-        // Save position
-        const position = {
-            left: element.style.left,
-            top: element.style.top,
-            right: element.style.right,
-            bottom: element.style.bottom
-        };
-        localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
-    }
-    
-    // Add event listeners
-    element.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', endDrag);
-    
-    element.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', drag, { passive: false });
-    document.addEventListener('touchend', endDrag);
-    
-    console.log('Inline drag functionality successfully added!');
-}
-
-// Make the floating button draggable
-function makeDraggable(element) {
-    // Prevent multiple initialization
-    if (element.hasAttribute('data-draggable-initialized')) {
-        console.log('Button already has drag functionality');
-        return;
-    }
-    
-    console.log('Making element draggable...');
-    element.setAttribute('data-draggable-initialized', 'true');
-    
-    let isDragging = false;
-    let hasMoved = false;
-    let startX, startY, startLeft, startTop;
-    
-    // Mouse events
-    element.addEventListener('mousedown', startDrag);
-    document.addEventListener('mousemove', drag);
-    document.addEventListener('mouseup', endDrag);
-    
-    // Touch events for mobile
-    element.addEventListener('touchstart', startDrag, { passive: false });
-    document.addEventListener('touchmove', drag, { passive: false });
-    document.addEventListener('touchend', endDrag);
-    
-    console.log('Event listeners added for dragging');
-    
-    function startDrag(e) {
-        console.log('Start drag event:', e.type);
-        isDragging = true;
-        hasMoved = false;
-        element.wasDragged = false;
-        
-        // Get initial position
-        const rect = element.getBoundingClientRect();
-        startLeft = rect.left;
-        startTop = rect.top;
-        
-        // Get initial mouse/touch position
-        const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-        
-        startX = clientX;
-        startY = clientY;
-        
-        console.log('Drag started at:', { startX, startY, startLeft, startTop });
-        
-        // Add dragging class
-        element.classList.add('dragging');
-        
-        // Prevent default behavior
-        e.preventDefault();
-    }
-    
-    function drag(e) {
-        if (!isDragging) return;
-        
-        // Get current mouse/touch position
-        const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-        const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-        
-        // Calculate movement
-        const deltaX = clientX - startX;
-        const deltaY = clientY - startY;
-        
-        // Check if moved significantly (to distinguish from click)
-        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-            hasMoved = true;
-        }
-        
-        // Calculate new position
-        let newLeft = startLeft + deltaX;
-        let newTop = startTop + deltaY;
-        
-        // Get viewport bounds
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const elementWidth = element.offsetWidth;
-        const elementHeight = element.offsetHeight;
-        
-        // Constrain to viewport with some padding
-        const padding = 10;
-        newLeft = Math.max(padding, Math.min(viewportWidth - elementWidth - padding, newLeft));
-        newTop = Math.max(padding, Math.min(viewportHeight - elementHeight - padding, newTop));
-        
-        // Update position
-        element.style.left = newLeft + 'px';
-        element.style.top = newTop + 'px';
-        element.style.right = 'auto';
-        element.style.bottom = 'auto';
-        
-        // Prevent default behavior
-        e.preventDefault();
-    }
-    
-    function endDrag(e) {
-        if (!isDragging) return;
-        console.log('End drag, hasMoved:', hasMoved);
-        isDragging = false;
-        
-        // Remove dragging class
-        element.classList.remove('dragging');
-        
-        // Set wasDragged flag to prevent click event
-        element.wasDragged = hasMoved;
-        
-        // Reset the flag after a short delay
-        setTimeout(() => {
-            element.wasDragged = false;
-        }, 100);
-        
-        // Snap to edges for better UX on mobile
-        if (window.innerWidth <= 768) {
-            snapToEdge(element);
-        }
-        
-        // Save position to localStorage
-        saveButtonPosition(element);
-    }
-    
-    // Snap to nearest edge on mobile
-    function snapToEdge(element) {
-        const rect = element.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const centerX = rect.left + rect.width / 2;
-        
-        // Snap to left or right edge
-        if (centerX < viewportWidth / 2) {
-            // Snap to left
-            element.style.left = '20px';
-            element.style.right = 'auto';
-        } else {
-            // Snap to right
-            element.style.right = '20px';
-            element.style.left = 'auto';
-        }
-    }
-    
-    // Save button position to localStorage
-    function saveButtonPosition(element) {
-        const rect = element.getBoundingClientRect();
-        const position = {
-            left: element.style.left,
-            top: element.style.top,
-            right: element.style.right,
-            bottom: element.style.bottom
-        };
-        localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
-        console.log('Saved position:', position);
-    }
-    
-    // Restore button position from localStorage
-    function restoreButtonPosition(element) {
-        const savedPosition = localStorage.getItem('aiChatButtonPosition');
-        if (savedPosition) {
-            try {
-                const position = JSON.parse(savedPosition);
-                console.log('Restoring position:', position);
-                if (position.left && position.left !== 'auto') {
-                    element.style.left = position.left;
-                    element.style.right = 'auto';
-                }
-                if (position.top && position.top !== 'auto') {
-                    element.style.top = position.top;
-                    element.style.bottom = 'auto';
-                }
-                if (position.right && position.right !== 'auto' && (!position.left || position.left === 'auto')) {
-                    element.style.right = position.right;
-                    element.style.left = 'auto';
-                }
-                if (position.bottom && position.bottom !== 'auto' && (!position.top || position.top === 'auto')) {
-                    element.style.bottom = position.bottom;
-                    element.style.top = 'auto';
-                }
-            } catch (e) {
-                console.warn('Failed to restore button position:', e);
-            }
-        }
-    }
-    
-    // Restore position on load
-    restoreButtonPosition(element);
-}
-
-// Handle window resize to keep button in bounds
-function handleWindowResize() {
-    const button = document.querySelector('.ai-chat-float-btn');
-    if (button && (button.style.left !== 'auto' || button.style.top !== 'auto')) {
-        const rect = button.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        const elementWidth = button.offsetWidth;
-        const elementHeight = button.offsetHeight;
-        
-        let needsUpdate = false;
-        let newLeft = rect.left;
-        let newTop = rect.top;
-        
-        // Check and adjust horizontal position
-        if (rect.right > viewportWidth - 10) {
-            newLeft = viewportWidth - elementWidth - 20;
-            needsUpdate = true;
-        } else if (rect.left < 10) {
-            newLeft = 20;
-            needsUpdate = true;
-        }
-        
-        // Check and adjust vertical position
-        if (rect.bottom > viewportHeight - 10) {
-            newTop = viewportHeight - elementHeight - 20;
-            needsUpdate = true;
-        } else if (rect.top < 10) {
-            newTop = 20;
-            needsUpdate = true;
-        }
-        
-        if (needsUpdate) {
-            button.style.left = newLeft + 'px';
-            button.style.top = newTop + 'px';
-            button.style.right = 'auto';
-            button.style.bottom = 'auto';
-            
-            // Save new position
-            const position = {
-                left: button.style.left,
-                top: button.style.top,
-                right: 'auto',
-                bottom: 'auto'
-            };
-            localStorage.setItem('aiChatButtonPosition', JSON.stringify(position));
-        }
     }
 }
 
@@ -1347,20 +947,9 @@ function initializeChatWithFloatingButton() {
     
     // Add floating button
     addFloatingChatButton();
-    
-    // Add window resize handler
-    let resizeTimeout;
-    window.addEventListener('resize', function() {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(handleWindowResize, 250);
-    });
 }
 
 // Expose functions to global scope
-console.log('Exposing functions to global scope...');
 window.openChatModal = openChatModal;
 window.closeChatModal = closeChatModal;
-window.initializeChatWithFloatingButton = initializeChatWithFloatingButton;
-window.makeDraggable = makeDraggable; // For debugging and manual initialization
-window.addFloatingChatButton = addFloatingChatButton; // For debugging and manual initialization
-console.log('Functions exposed. makeDraggable type:', typeof window.makeDraggable); 
+window.initializeChatWithFloatingButton = initializeChatWithFloatingButton; 
