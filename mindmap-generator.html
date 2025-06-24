@@ -122,6 +122,8 @@
             box-shadow: var(--shadow-lg);
             padding: 32px;
             margin-bottom: 32px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .input-section {
@@ -270,14 +272,15 @@
             width: 100%;
             min-height: 600px;
             height: 600px;
-            border: 2px solid var(--border-color);
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
-            background: var(--bg-secondary);
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             position: relative;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.3);
         }
 
         /* 移动端适配 */
@@ -719,6 +722,10 @@
                     <div class="example-title">区块链技术原理</div>
                     <div class="example-description">区块链的技术原理和应用场景</div>
                 </div>
+                <div class="example-card" data-topic="Plotly内置数据集" data-details="Plotly库中常用的数据集，包括gapminder人口经济数据、tips餐厅小费数据、iris鸢尾花数据、wind风力数据、election选举数据、carshare汽车共享数据、stock股票数据等，每个数据集都有详细的字段说明和作用描述">
+                    <div class="example-title">Plotly内置数据集</div>
+                    <div class="example-description">数据可视化常用的内置数据集结构图</div>
+                </div>
             </div>
         </div>
     </div>
@@ -1078,160 +1085,237 @@
             return root;
         }
 
-        // 简单的SVG思维导图渲染
+        // 渲染简单的 SVG 思维导图（备用方案）
         function renderSimpleSVGMindmap(markdown, svg) {
             try {
+                console.log('开始渲染简单SVG思维导图');
+                
+                // 解析 Markdown 为树状结构
                 const root = parseMarkdownToRoot(markdown);
+                console.log('解析的根节点:', root);
                 
-                // 清空SVG
-                svg.selectAll('*').remove();
-                
-                // 安全地获取容器尺寸
-                const container = document.getElementById('mindmapContainer');
-                const containerRect = container.getBoundingClientRect();
-                
-                // 使用更安全的尺寸计算，确保不为0或NaN
-                let width = containerRect.width;
-                let height = containerRect.height;
-                
-                // 移动端适配：根据屏幕大小调整
+                // 获取SVG容器尺寸
+                const containerRect = elements.mindmapContainer.getBoundingClientRect();
                 const isMobile = window.innerWidth < 768;
-                const minWidth = isMobile ? 320 : 800;
-                const minHeight = isMobile ? 400 : 600;
-                const maxWidth = isMobile ? window.innerWidth - 40 : 1200;
-                const maxHeight = isMobile ? window.innerHeight - 100 : 800;
                 
-                // 确保尺寸有效且在合理范围内
-                width = Math.max(minWidth, Math.min(maxWidth, width || minWidth));
-                height = Math.max(minHeight, Math.min(maxHeight, height || minHeight));
+                let width = containerRect.width || (isMobile ? 350 : 1000);
+                let height = containerRect.height || (isMobile ? 400 : 700);
                 
-                // 验证尺寸有效性
-                if (!width || !height || isNaN(width) || isNaN(height)) {
-                    width = minWidth;
-                    height = minHeight;
-                    console.warn('容器尺寸无效，使用默认值:', { width, height });
-                }
+                // 设置深色主题背景
+                svg.style('background', 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)')
+                   .style('border-radius', '12px');
                 
-                // 移动端优化的边距
-                const margin = isMobile ? 
-                    { top: 30, right: 20, bottom: 30, left: 20 } :
-                    { top: 50, right: 50, bottom: 50, left: 50 };
+                // 创建定义区域用于渐变和阴影
+                const defs = svg.append('defs');
                 
-                // 设置SVG尺寸
-                svg.attr('width', width)
-                   .attr('height', height)
-                   .attr('viewBox', `0 0 ${width} ${height}`)
-                   .style('width', '100%')
-                   .style('height', '100%');
+                // 定义节点渐变
+                const gradients = [
+                    { id: 'grad1', colors: ['#667eea', '#764ba2'] },
+                    { id: 'grad2', colors: ['#f093fb', '#f5576c'] },
+                    { id: 'grad3', colors: ['#4facfe', '#00f2fe'] },
+                    { id: 'grad4', colors: ['#43e97b', '#38f9d7'] },
+                    { id: 'grad5', colors: ['#fa709a', '#fee140'] },
+                    { id: 'grad6', colors: ['#a8edea', '#fed6e3'] },
+                    { id: 'grad7', colors: ['#d299c2', '#fef9d7'] },
+                    { id: 'grad8', colors: ['#89f7fe', '#66a6ff'] }
+                ];
                 
-                // 计算可用空间
-                const availableWidth = width - margin.left - margin.right;
-                const availableHeight = height - margin.top - margin.bottom;
+                gradients.forEach(grad => {
+                    const gradient = defs.append('linearGradient')
+                        .attr('id', grad.id)
+                        .attr('x1', '0%')
+                        .attr('y1', '0%')
+                        .attr('x2', '100%')
+                        .attr('y2', '100%');
+                    
+                    gradient.append('stop')
+                        .attr('offset', '0%')
+                        .attr('stop-color', grad.colors[0]);
+                    
+                    gradient.append('stop')
+                        .attr('offset', '100%')
+                        .attr('stop-color', grad.colors[1]);
+                });
                 
-                // 确保可用空间为正数
-                if (availableWidth <= 0 || availableHeight <= 0) {
-                    throw new Error('可用空间不足');
-                }
+                // 添加阴影滤镜
+                const filter = defs.append('filter')
+                    .attr('id', 'shadow')
+                    .attr('x', '-50%')
+                    .attr('y', '-50%')
+                    .attr('width', '200%')
+                    .attr('height', '200%');
                 
-                const g = svg.append('g')
-                    .attr('transform', `translate(${margin.left},${margin.top})`);
+                filter.append('feDropShadow')
+                    .attr('dx', 2)
+                    .attr('dy', 2)
+                    .attr('stdDeviation', 3)
+                    .attr('flood-color', 'rgba(0,0,0,0.3)');
                 
-                // 创建树状布局
-                const tree = d3.tree()
-                    .size([availableHeight, availableWidth]);
+                // 添加发光效果滤镜
+                const glowFilter = defs.append('filter')
+                    .attr('id', 'glow')
+                    .attr('x', '-50%')
+                    .attr('y', '-50%')
+                    .attr('width', '200%')
+                    .attr('height', '200%');
                 
+                glowFilter.append('feGaussianBlur')
+                    .attr('stdDeviation', 3)
+                    .attr('result', 'coloredBlur');
+                
+                const feMerge = glowFilter.append('feMerge');
+                feMerge.append('feMergeNode').attr('in', 'coloredBlur');
+                feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+                
+                // 使用 d3.hierarchy 处理数据
                 const hierarchy = d3.hierarchy(root);
-                const treeData = tree(hierarchy);
+                const treeLayout = d3.tree().size([width - 100, height - 100]);
+                const nodes = treeLayout(hierarchy);
                 
-                // 验证树数据
-                if (!treeData || !treeData.descendants) {
-                    throw new Error('树数据无效');
-                }
+                // 计算节点位置 - 以中心为起点的放射状布局
+                const centerX = width / 2;
+                const centerY = height / 2;
                 
-                const nodes = treeData.descendants();
-                const links = treeData.links();
+                // 重新布局节点位置
+                const angleStep = (2 * Math.PI) / Math.max(1, nodes.children ? nodes.children.length : 1);
+                let angle = -Math.PI / 2; // 从顶部开始
                 
-                // 验证节点数据
-                nodes.forEach(node => {
-                    if (isNaN(node.x) || isNaN(node.y)) {
-                        console.error('节点坐标无效:', node);
-                        node.x = node.x || 0;
-                        node.y = node.y || 0;
+                nodes.descendants().forEach((d, i) => {
+                    if (d.depth === 0) {
+                        // 根节点位于中心
+                        d.x = centerX;
+                        d.y = centerY;
+                    } else if (d.depth === 1) {
+                        // 一级节点围绕中心呈放射状分布
+                        const radius = isMobile ? 120 : 180;
+                        d.x = centerX + Math.cos(angle) * radius;
+                        d.y = centerY + Math.sin(angle) * radius;
+                        angle += angleStep;
+                    } else {
+                        // 二级及以下节点
+                        const parent = d.parent;
+                        const siblings = parent.children || [];
+                        const siblingIndex = siblings.indexOf(d);
+                        const siblingCount = siblings.length;
+                        
+                        // 计算相对于父节点的位置
+                        const parentAngle = Math.atan2(parent.y - centerY, parent.x - centerX);
+                        const spreadAngle = Math.PI / 3; // 60度扇形
+                        const startAngle = parentAngle - spreadAngle / 2;
+                        const childAngle = startAngle + (spreadAngle * siblingIndex) / Math.max(1, siblingCount - 1);
+                        
+                        const radius = isMobile ? 80 : 120;
+                        d.x = parent.x + Math.cos(childAngle) * radius;
+                        d.y = parent.y + Math.sin(childAngle) * radius;
                     }
                 });
                 
+                // 创建主要的 g 元素
+                const g = svg.append('g');
+                
                 // 绘制连接线
+                const links = nodes.links();
+                const linkColors = ['#00f2fe', '#f093fb', '#43e97b', '#fa709a', '#89f7fe', '#a8edea'];
+                
                 g.selectAll('.link')
                     .data(links)
-                    .enter().append('path')
+                    .enter()
+                    .append('path')
                     .attr('class', 'link')
                     .attr('d', d => {
-                        // 安全的路径生成
-                        const sourceX = isNaN(d.source.x) ? 0 : d.source.x;
-                        const sourceY = isNaN(d.source.y) ? 0 : d.source.y;
-                        const targetX = isNaN(d.target.x) ? 0 : d.target.x;
-                        const targetY = isNaN(d.target.y) ? 0 : d.target.y;
-                        
-                        return d3.linkHorizontal()
-                            .x(d => d.y)
-                            .y(d => d.x)({
-                                source: { x: sourceX, y: sourceY },
-                                target: { x: targetX, y: targetY }
-                            });
+                        return `M${d.source.x},${d.source.y} Q${(d.source.x + d.target.x) / 2},${(d.source.y + d.target.y) / 2 - 30} ${d.target.x},${d.target.y}`;
                     })
                     .style('fill', 'none')
-                    .style('stroke', '#ccc')
-                    .style('stroke-width', isMobile ? 1 : 2);
+                    .style('stroke', d => linkColors[d.target.depth % linkColors.length])
+                    .style('stroke-width', d => d.target.depth === 1 ? 3 : 2)
+                    .style('opacity', 0.8)
+                    .style('filter', 'url(#glow)')
+                    .style('stroke-linecap', 'round');
                 
                 // 绘制节点
                 const node = g.selectAll('.node')
-                    .data(nodes)
-                    .enter().append('g')
+                    .data(nodes.descendants())
+                    .enter()
+                    .append('g')
                     .attr('class', 'node')
-                    .attr('transform', d => {
-                        const x = isNaN(d.x) ? 0 : d.x;
-                        const y = isNaN(d.y) ? 0 : d.y;
-                        return `translate(${y},${x})`;
-                    });
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
                 
-                // 响应式圆圈大小
-                const circleRadius = isMobile ? 6 : 8;
-                
-                node.append('circle')
-                    .attr('r', circleRadius)
-                    .style('fill', d => {
-                        const colors = ['#007bff', '#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6f42c1'];
-                        return colors[d.depth % colors.length];
+                // 添加节点背景矩形
+                node.append('rect')
+                    .attr('rx', 15)
+                    .attr('ry', 15)
+                    .attr('width', d => {
+                        const content = d.data.content || '';
+                        const baseWidth = isMobile ? 100 : 140;
+                        return Math.max(baseWidth, content.length * (isMobile ? 8 : 10) + 20);
                     })
-                    .style('stroke', '#fff')
-                    .style('stroke-width', 2);
+                    .attr('height', d => d.depth === 0 ? (isMobile ? 45 : 55) : (isMobile ? 35 : 45))
+                    .attr('x', d => {
+                        const content = d.data.content || '';
+                        const baseWidth = isMobile ? 100 : 140;
+                        const width = Math.max(baseWidth, content.length * (isMobile ? 8 : 10) + 20);
+                        return -width / 2;
+                    })
+                    .attr('y', d => d.depth === 0 ? (isMobile ? -22.5 : -27.5) : (isMobile ? -17.5 : -22.5))
+                    .style('fill', d => `url(#grad${(d.depth % gradients.length) + 1})`)
+                    .style('filter', 'url(#shadow)')
+                    .style('stroke', 'rgba(255,255,255,0.3)')
+                    .style('stroke-width', 1);
                 
-                // 响应式文字大小
-                const fontSize = isMobile ? '10px' : '12px';
-                const textOffset = isMobile ? 8 : 12;
-                
+                // 添加节点文本
                 node.append('text')
                     .attr('dy', 4)
-                    .attr('x', d => d.children ? -textOffset : textOffset)
-                    .style('text-anchor', d => d.children ? 'end' : 'start')
-                    .style('font-size', fontSize)
-                    .style('font-family', 'Arial, sans-serif')
-                    .style('fill', '#333')
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', d => d.depth === 0 ? (isMobile ? '14px' : '16px') : (isMobile ? '11px' : '13px'))
+                    .style('font-family', '"Microsoft YaHei", "PingFang SC", "Helvetica Neue", Arial, sans-serif')
+                    .style('font-weight', d => d.depth === 0 ? 'bold' : '500')
+                    .style('fill', 'white')
+                    .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.5)')
                     .text(d => {
-                        // 移动端文字截断
                         const content = d.data.content || '';
-                        const maxLength = isMobile ? 15 : 25;
+                        const maxLength = d.depth === 0 ? (isMobile ? 12 : 15) : (isMobile ? 10 : 12);
                         return content.length > maxLength ? 
                             content.substring(0, maxLength) + '...' : 
                             content;
-                    });
+                    })
+                    .append('title')
+                    .text(d => d.data.content || '');
+                
+                // 添加节点编号（仅对一级节点）
+                node.filter(d => d.depth === 1)
+                    .append('circle')
+                    .attr('r', isMobile ? 10 : 12)
+                    .attr('cx', d => {
+                        const content = d.data.content || '';
+                        const baseWidth = isMobile ? 100 : 140;
+                        const width = Math.max(baseWidth, content.length * (isMobile ? 8 : 10) + 20);
+                        return -width / 2 + (isMobile ? 15 : 18);
+                    })
+                    .attr('cy', isMobile ? -8 : -10)
+                    .style('fill', 'rgba(255,255,255,0.9)')
+                    .style('stroke', d => linkColors[d.depth % linkColors.length])
+                    .style('stroke-width', 2);
+                
+                node.filter(d => d.depth === 1)
+                    .append('text')
+                    .attr('x', d => {
+                        const content = d.data.content || '';
+                        const baseWidth = isMobile ? 100 : 140;
+                        const width = Math.max(baseWidth, content.length * (isMobile ? 8 : 10) + 20);
+                        return -width / 2 + (isMobile ? 15 : 18);
+                    })
+                    .attr('y', isMobile ? -5 : -6)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', isMobile ? '10px' : '12px')
+                    .style('font-weight', 'bold')
+                    .style('fill', '#333')
+                    .text((d, i) => i + 1);
                 
                 // 添加缩放和拖拽功能
                 const zoom = d3.zoom()
-                    .scaleExtent([0.1, 3])
+                    .scaleExtent([0.3, 3])
                     .on('zoom', function(event) {
-                        g.attr('transform', 
-                            `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+                        g.attr('transform', event.transform);
                     });
                 
                 svg.call(zoom);
@@ -1241,17 +1325,48 @@
                     svg.style('touch-action', 'manipulation');
                 }
                 
-                console.log('SVG思维导图渲染成功:', { width, height, nodes: nodes.length });
+                // 添加节点交互效果
+                node.on('mouseenter', function(event, d) {
+                    if (!isMobile) {
+                        d3.select(this).select('rect')
+                            .transition()
+                            .duration(200)
+                            .style('filter', 'url(#glow) brightness(1.2)');
+                    }
+                })
+                .on('mouseleave', function(event, d) {
+                    if (!isMobile) {
+                        d3.select(this).select('rect')
+                            .transition()
+                            .duration(200)
+                            .style('filter', 'url(#shadow)');
+                    }
+                });
+                
+                // 添加点击效果
+                node.on('click', function(event, d) {
+                    // 简单的点击反馈
+                    d3.select(this)
+                        .transition()
+                        .duration(100)
+                        .attr('transform', `translate(${d.x},${d.y}) scale(1.1)`)
+                        .transition()
+                        .duration(100)
+                        .attr('transform', `translate(${d.x},${d.y}) scale(1)`);
+                });
+                
+                console.log('深色主题SVG思维导图渲染成功:', { width, height, nodes: nodes.descendants().length });
                 
             } catch (error) {
-                console.error('SVG思维导图渲染失败:', error);
+                console.error('深色主题SVG思维导图渲染失败:', error);
                 
                 // 降级处理：显示错误信息
                 svg.selectAll('*').remove();
+                svg.style('background', '#1a1a2e');
                 svg.append('text')
                     .attr('x', 50)
                     .attr('y', 50)
-                    .style('fill', '#dc3545')
+                    .style('fill', '#ff6b6b')
                     .style('font-family', 'Arial, sans-serif')
                     .style('font-size', '14px')
                     .text('思维导图渲染失败，请查看Markdown标签页');
