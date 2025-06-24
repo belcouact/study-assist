@@ -1223,8 +1223,8 @@
                 if (layoutType === 'radial') {
                     // 径向布局（中心辐射）- 强制执行
                     console.log('执行径向布局');
-                    const baseRadius = Math.min(width, height) * 0.12;
-                    const minRadius = isMobile ? 60 : 80;
+                    const baseRadius = Math.min(width, height) * 0.15;
+                    const minRadius = isMobile ? 80 : 100;
                     
                     function calculateRadialPositions(node, depth = 0, angle = 0, parentX = centerX, parentY = centerY) {
                         if (depth === 0) {
@@ -1240,7 +1240,7 @@
                                 console.log('主分支数量:', childCount);
                                 
                                 node.children.forEach((child, i) => {
-                                    // 均匀分布在圆周上
+                                    // 均匀分布在圆周上，从右侧开始（0度）
                                     const childAngle = (2 * Math.PI / childCount) * i;
                                     allLinks.push({ source: node, target: child });
                                     calculateRadialPositions(child, depth + 1, childAngle, node.x, node.y);
@@ -1261,11 +1261,14 @@
                                 // 根据深度调整角度扩散范围
                                 let angleSpread;
                                 if (depth === 1) {
-                                    // 第二层：围绕父节点小幅扩散
+                                    // 第二层：围绕父节点适度扩散
+                                    angleSpread = Math.PI / 1.5; // 120度
+                                } else if (depth === 2) {
+                                    // 第三层：中等扩散
                                     angleSpread = Math.PI / 2; // 90度
                                 } else {
-                                    // 更深层：更小的扩散
-                                    angleSpread = Math.PI / 4; // 45度
+                                    // 更深层：小幅扩散
+                                    angleSpread = Math.PI / 3; // 60度
                                 }
                                 
                                 const startAngle = angle - angleSpread / 2;
@@ -1461,6 +1464,12 @@
                     width, height, nodes: allNodes.length, 
                     complexity, style, layoutType, nodeStyle 
                 });
+                
+                // 显示布局类型信息
+                const layoutInfo = layoutType === 'radial' ? 
+                    `✨ 径向布局 - 从中心向四周散开` : 
+                    `📄 树形布局 - 从左到右展开`;
+                console.log(`布局信息: ${layoutInfo}`);
                 
             } catch (error) {
                 console.error('SVG思维导图渲染失败:', error);
@@ -1910,7 +1919,11 @@ ${details ? `**详细描述：** ${details}` : ''}
                 }
                 
                 // 创建 markmap 实例
-                if (MarkmapClass) {
+                const complexity = elements.complexitySelect.value;
+                const useRadialLayout = ['intermediate', 'advanced', 'expert'].includes(complexity);
+                
+                if (MarkmapClass && !useRadialLayout) {
+                    // 只有基础级别使用markmap库（传统树形布局）
                     try {
                         markmapInstance = MarkmapClass.create(svg.node(), {
                             color: (node) => {
@@ -1929,15 +1942,14 @@ ${details ? `**详细描述：** ${details}` : ''}
                         // 渲染思维导图
                         markmapInstance.setData(root);
                         markmapInstance.fit();
-                        console.log('Markmap实例创建成功');
+                        console.log('Markmap库渲染成功（基础级别）');
                     } catch (createError) {
-                        console.error('Markmap创建错误:', createError);
-                        // 如果创建失败，显示简单的可视化
+                        console.error('Markmap创建错误，回退到自定义渲染:', createError);
                         renderSimpleSVGMindmap(markdown, svg);
                     }
                 } else {
-                    // 没有Markmap类，直接使用简单的可视化
-                    console.log('使用备用SVG渲染');
+                    // 径向布局或markmap不可用时，使用自定义渲染器
+                    console.log(useRadialLayout ? '使用自定义径向布局渲染器' : '使用备用SVG渲染器');
                     renderSimpleSVGMindmap(markdown, svg);
                 }
 
