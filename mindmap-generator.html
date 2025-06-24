@@ -1628,8 +1628,13 @@ ${details ? `详细描述：${details}` : ''}
                     .style('margin', '0 auto');
 
                 // 解析Markdown为树结构
+                console.log('原始Markdown内容:');
+                console.log(markdown);
+                console.log('---分割线---');
+                
                 const root = parseMarkdownToHierarchy(markdown);
                 console.log('解析得到根节点:', root);
+                logTreeStructure(root, 0);
 
                 // 根据布局类型渲染
                 switch (layoutType) {
@@ -1696,28 +1701,99 @@ ${details ? `详细描述：${details}` : ''}
         // 解析Markdown为层次结构
         function parseMarkdownToHierarchy(markdown) {
             const lines = markdown.split('\n').filter(line => line.trim());
-            const root = { name: '根节点', children: [], level: 0 };
-            const stack = [root];
+            let root = null;
+            const stack = [];
             
             lines.forEach(line => {
                 const match = line.match(/^(#+)\s*(.+)$/);
                 if (match) {
                     const level = match[1].length;
                     const name = match[2].trim();
-                    const node = { name, children: [], level };
+                    const node = { name, children: [], level: level - 1 }; // 调整level从0开始
                     
-                    // 找到正确的父节点
-                    while (stack.length > level) {
-                        stack.pop();
+                    // 如果是第一个标题（# 标题），作为根节点
+                    if (level === 1) {
+                        if (!root) {
+                            root = node;
+                            stack.length = 0; // 清空栈
+                            stack.push(node);
+                        } else {
+                            // 如果已经有根节点，创建一个虚拟根节点
+                            if (root.name !== 'Multiple Roots') {
+                                const originalRoot = root;
+                                root = { name: 'Multiple Roots', children: [originalRoot], level: -1 };
+                                stack.length = 0;
+                                stack.push(root);
+                            }
+                            root.children.push(node);
+                            stack.push(node);
+                        }
+                    } else {
+                        // 找到正确的父节点
+                        while (stack.length > 0 && stack[stack.length - 1].level >= level - 1) {
+                            stack.pop();
+                        }
+                        
+                        if (stack.length === 0) {
+                            // 如果栈为空，说明结构有问题，创建一个默认根节点
+                            if (!root) {
+                                root = { name: '思维导图', children: [], level: 0 };
+                                stack.push(root);
+                            } else {
+                                stack.push(root);
+                            }
+                        }
+                        
+                        const parent = stack[stack.length - 1];
+                        parent.children.push(node);
+                        stack.push(node);
                     }
-                    
-                    const parent = stack[stack.length - 1];
-                    parent.children.push(node);
-                    stack.push(node);
+                } else if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                    // 处理列表项
+                    const text = line.trim().substring(1).trim();
+                    if (text && stack.length > 0) {
+                        const parent = stack[stack.length - 1];
+                        const listNode = { name: text, children: [], level: parent.level + 1 };
+                        parent.children.push(listNode);
+                    }
                 }
             });
             
-            return root.children.length > 0 ? root : { name: '示例思维导图', children: [] };
+            // 如果没有解析到任何内容，返回默认结构
+            if (!root) {
+                root = { name: '示例思维导图', children: [], level: 0 };
+            }
+            
+            console.log('解析结果:', root);
+            console.log('最大深度:', getMaxDepth(root));
+            
+            return root;
+        }
+        
+        // 获取树的最大深度
+        function getMaxDepth(node) {
+            if (!node.children || node.children.length === 0) {
+                return node.level;
+            }
+            
+            let maxChildDepth = 0;
+            node.children.forEach(child => {
+                maxChildDepth = Math.max(maxChildDepth, getMaxDepth(child));
+            });
+            
+            return maxChildDepth;
+        }
+
+        // 递归打印树结构（用于调试）
+        function logTreeStructure(node, indent = 0) {
+            const prefix = '  '.repeat(indent);
+            console.log(`${prefix}${node.name} (level: ${node.level}, children: ${node.children ? node.children.length : 0})`);
+            
+            if (node.children && node.children.length > 0) {
+                node.children.forEach(child => {
+                    logTreeStructure(child, indent + 1);
+                });
+            }
         }
 
                 // 层级布局渲染
@@ -2026,7 +2102,7 @@ ${details ? `详细描述：${details}` : ''}
                 const nodeObj = { 
                     id: node.name, 
                     name: node.name, 
-                    level: depth,
+                    level: node.level !== undefined ? node.level : depth,
                     originalLevel: node.level || depth,
                     fx: !parent ? width / 2 : null,  // 只固定根节点
                     fy: !parent ? height / 2 : null
@@ -2037,7 +2113,7 @@ ${details ? `详细描述：${details}` : ''}
                     links.push({ source: parent.name, target: node.name });
                 }
                 
-                if (node.children) {
+                if (node.children && node.children.length > 0) {
                     node.children.forEach(child => traverse(child, node, depth + 1));
                 }
             }
