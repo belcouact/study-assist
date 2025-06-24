@@ -1802,10 +1802,10 @@ ${details ? `详细描述：${details}` : ''}
             const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
             
             const margin = isMobile ? 
-                { top: 30, right: 20, bottom: 30, left: 20 } :
+                { top: 20, right: 10, bottom: 20, left: 10 } :
                 isTablet ?
-                { top: 40, right: 40, bottom: 40, left: 40 } :
-                { top: 50, right: 50, bottom: 50, left: 50 };
+                { top: 30, right: 20, bottom: 30, left: 20 } :
+                { top: 40, right: 30, bottom: 40, left: 30 };
             
             const innerWidth = width - margin.left - margin.right;
             const innerHeight = height - margin.top - margin.bottom;
@@ -1816,16 +1816,20 @@ ${details ? `详细描述：${details}` : ''}
             const hierarchy = d3.hierarchy(data);
             const maxDepth = hierarchy.height;
             
-            // 改进树布局，确保节点间有足够间距
+            // 大幅增加节点间距，确保充分利用空间
             const tree = d3.tree()
                 .size([innerHeight, innerWidth])
                 .separation((a, b) => {
-                    // 根据节点内容长度调整间距
+                    // 大幅增加基础间距
+                    const baseSeparation = a.parent == b.parent ? 2.5 : 4;
+                    // 根据深度调整间距，深层节点间距更大
+                    const depthMultiplier = 1 + (a.depth * 0.3);
+                    // 根据文本长度调整
                     const aLength = a.data.name.length;
                     const bLength = b.data.name.length;
-                    const avgLength = (aLength + bLength) / 2;
-                    const baseSeparation = a.parent == b.parent ? 1 : 2;
-                    return baseSeparation + avgLength * 0.02; // 根据文本长度动态调整
+                    const textMultiplier = 1 + Math.max(aLength, bLength) * 0.05;
+                    
+                    return baseSeparation * depthMultiplier * textMultiplier;
                 });
             
             const treeData = tree(hierarchy);
@@ -1865,31 +1869,36 @@ ${details ? `详细描述：${details}` : ''}
                 .style('stroke', '#fff')
                 .style('stroke-width', d => d.depth === 0 ? 3 : 2);
             
-            // 改进节点文本
+            // 改进节点文本 - 增加间距避免重叠
             node.append('text')
                 .attr('dy', 4)
                 .attr('x', d => {
-                    const textOffset = isMobile ? 8 : 12;
+                    // 大幅增加文本偏移量
+                    const baseOffset = isMobile ? 15 : isTablet ? 20 : 25;
+                    const depthOffset = d.depth * (isMobile ? 3 : 5); // 根据深度增加偏移
+                    const textOffset = baseOffset + depthOffset;
                     return d.children ? -textOffset : textOffset;
                 })
                 .style('text-anchor', d => d.children ? 'end' : 'start')
                 .style('font-size', d => {
-                    if (d.depth === 0) return isMobile ? '12px' : '14px';
-                    if (d.depth === 1) return isMobile ? '10px' : '12px';
-                    return isMobile ? '9px' : '10px';
+                    // 适当增大字体，提升可读性
+                    if (d.depth === 0) return isMobile ? '14px' : '16px';
+                    if (d.depth === 1) return isMobile ? '12px' : '14px';
+                    if (d.depth === 2) return isMobile ? '10px' : '12px';
+                    return isMobile ? '9px' : '11px';
                 })
                 .style('font-family', 'Arial, sans-serif')
                 .style('fill', '#333')
                 .style('font-weight', d => d.depth <= 1 ? 'bold' : 'normal')
                 .text(d => {
-                    // 根据深度和设备类型调整文字长度
+                    // 增加文字显示长度，充分利用空间
                     let maxLength;
                     if (isMobile) {
-                        maxLength = d.depth === 0 ? 8 : d.depth === 1 ? 10 : 8;
+                        maxLength = d.depth === 0 ? 10 : d.depth === 1 ? 12 : d.depth === 2 ? 10 : 8;
                     } else if (isTablet) {
-                        maxLength = d.depth === 0 ? 12 : d.depth === 1 ? 15 : 12;
+                        maxLength = d.depth === 0 ? 15 : d.depth === 1 ? 18 : d.depth === 2 ? 15 : 12;
                     } else {
-                        maxLength = d.depth === 0 ? 15 : d.depth === 1 ? 20 : 15;
+                        maxLength = d.depth === 0 ? 20 : d.depth === 1 ? 25 : d.depth === 2 ? 20 : 18;
                     }
                     
                     const name = d.data.name;
@@ -1942,8 +1951,8 @@ ${details ? `详细描述：${details}` : ''}
             const isMobile = window.innerWidth < 768;
             const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
             
-            // 改进半径计算，给边缘留更多空间
-            const padding = isMobile ? 80 : isTablet ? 120 : 150;
+            // 减少边缘留白，充分利用空间
+            const padding = isMobile ? 60 : isTablet ? 80 : 100;
             const maxRadius = Math.min(width, height) / 2 - padding;
             
             const g = svg.append('g')
@@ -1952,27 +1961,34 @@ ${details ? `详细描述：${details}` : ''}
             const hierarchy = d3.hierarchy(data);
             const maxDepth = hierarchy.height;
             
-            // 自定义树布局，根据深度分配更合理的半径
+            // 大幅增加节点间距，避免拥挤
             const tree = d3.tree()
                 .size([2 * Math.PI, maxRadius])
                 .separation((a, b) => {
-                    // 增加同级节点间的分离度，减少重叠
-                    const baseSeparation = (a.parent == b.parent ? 1.5 : 2.5) / (a.depth + 1);
-                    return Math.max(baseSeparation, 0.5);
+                    // 大幅增加基础间距
+                    const baseSeparation = a.parent == b.parent ? 3 : 5;
+                    // 根据深度调整，深层节点需要更多间距
+                    const depthFactor = 1 / Math.max(a.depth, 1);
+                    // 根据同级节点数量调整
+                    const siblingCount = a.parent ? a.parent.children.length : 1;
+                    const siblingFactor = Math.min(siblingCount * 0.2, 2);
+                    
+                    return (baseSeparation + siblingFactor) * depthFactor;
                 });
             
             const treeData = tree(hierarchy);
             const nodes = treeData.descendants();
             const links = treeData.links();
             
-            // 重新计算节点位置，给根节点和内层节点更多空间
+            // 重新计算节点位置，优化空间分布
             nodes.forEach(d => {
                 if (d.depth === 0) {
                     d.y = 0; // 根节点在中心
                 } else {
-                    // 根据深度重新分配半径，避免中心拥挤
-                    const radiusStep = maxRadius / maxDepth;
-                    d.y = radiusStep * d.depth + (d.depth === 1 ? 40 : 0); // 第一层离中心远一些
+                    // 优化半径分布，每层有更大间距
+                    const minRadius = isMobile ? 50 : isTablet ? 60 : 80; // 第一层最小半径
+                    const radiusStep = (maxRadius - minRadius) / Math.max(maxDepth - 1, 1);
+                    d.y = minRadius + radiusStep * (d.depth - 1);
                 }
             });
             
@@ -2012,13 +2028,15 @@ ${details ? `详细描述：${details}` : ''}
                 .style('stroke', '#fff')
                 .style('stroke-width', d => d.depth === 0 ? 3 : 2);
             
-            // 改进文本显示
+            // 改进文本显示 - 增大间距和字体
             node.append('text')
                 .attr('dy', d => d.depth === 0 ? 4 : 3)
                 .attr('x', d => {
                     if (d.depth === 0) return 0; // 根节点居中
-                    // 其他节点根据角度调整位置
-                    const textOffset = isMobile ? 8 : 12;
+                    // 增加文本偏移量，避免与节点重叠
+                    const baseOffset = isMobile ? 12 : isTablet ? 15 : 18;
+                    const depthOffset = d.depth * 2; // 深层节点偏移更多
+                    const textOffset = baseOffset + depthOffset;
                     return d.x < Math.PI === !d.children ? textOffset : -textOffset;
                 })
                 .style('text-anchor', d => {
@@ -2031,22 +2049,26 @@ ${details ? `详细描述：${details}` : ''}
                     return d.x >= Math.PI ? 'rotate(180)' : null;
                 })
                 .style('font-size', d => {
-                    if (d.depth === 0) return isMobile ? '12px' : '14px'; // 根节点最大
-                    if (d.depth === 1) return isMobile ? '10px' : '12px'; // 第一层中等
-                    return isMobile ? '9px' : '10px'; // 其他层较小
+                    // 增大字体提升可读性
+                    if (d.depth === 0) return isMobile ? '14px' : '16px';
+                    if (d.depth === 1) return isMobile ? '12px' : '14px';
+                    if (d.depth === 2) return isMobile ? '10px' : '12px';
+                    return isMobile ? '9px' : '11px';
                 })
                 .style('font-family', 'Arial, sans-serif')
                 .style('fill', '#333')
                 .style('font-weight', d => d.depth <= 1 ? 'bold' : 'normal')
                 .text(d => {
-                    // 根据深度和设备调整文字长度
+                    // 增加文字显示长度
                     let maxLength;
                     if (d.depth === 0) {
-                        maxLength = isMobile ? 8 : 12;
+                        maxLength = isMobile ? 10 : isTablet ? 15 : 18;
                     } else if (d.depth === 1) {
-                        maxLength = isMobile ? 10 : 15;
+                        maxLength = isMobile ? 12 : isTablet ? 18 : 22;
+                    } else if (d.depth === 2) {
+                        maxLength = isMobile ? 10 : isTablet ? 15 : 18;
                     } else {
-                        maxLength = isMobile ? 8 : 12;
+                        maxLength = isMobile ? 8 : isTablet ? 12 : 15;
                     }
                     
                     const name = d.data.name;
@@ -2054,12 +2076,7 @@ ${details ? `详细描述：${details}` : ''}
                         name.substring(0, maxLength) + '...' : 
                         name;
                 })
-                .each(function(d) {
-                    // 为长文本添加 title 属性显示完整内容
-                    if (d.data.name.length > (d.depth === 0 ? 12 : d.depth === 1 ? 15 : 12)) {
-                        d3.select(this).attr('title', d.data.name);
-                    }
-                });
+                .attr('title', d => d.data.name); // 为所有文本添加完整提示
             
             // 添加交互功能
             node
@@ -2120,10 +2137,10 @@ ${details ? `详细描述：${details}` : ''}
             
             traverse(data);
             
-            // 根据设备调整力的参数
-            const linkDistance = isMobile ? 60 : isTablet ? 80 : 100;
-            const chargeStrength = isMobile ? -150 : isTablet ? -250 : -300;
-            const collisionRadius = isMobile ? 20 : isTablet ? 30 : 40;
+            // 大幅增加节点间距，充分利用空间
+            const linkDistance = isMobile ? 100 : isTablet ? 130 : 160;
+            const chargeStrength = isMobile ? -300 : isTablet ? -500 : -700;
+            const collisionRadius = isMobile ? 30 : isTablet ? 45 : 60;
             
             // 创建力仿真
             const simulation = d3.forceSimulation(nodes)
@@ -2156,39 +2173,41 @@ ${details ? `详细描述：${details}` : ''}
                     .on('drag', dragged)
                     .on('end', dragended));
             
-            // 节点圆圈 - 根据深度调整大小
+            // 节点圆圈 - 增大节点尺寸
             node.append('circle')
                 .attr('r', d => {
-                    if (d.level === 0) return isMobile ? 10 : 15;
-                    if (d.level === 1) return isMobile ? 8 : 12;
-                    return isMobile ? 6 : 9;
+                    if (d.level === 0) return isMobile ? 15 : 20;
+                    if (d.level === 1) return isMobile ? 12 : 16;
+                    if (d.level === 2) return isMobile ? 10 : 13;
+                    return isMobile ? 8 : 11;
                 })
                 .style('fill', d => colors[d.level % colors.length])
                 .style('stroke', '#fff')
                 .style('stroke-width', d => d.level === 0 ? 3 : 2);
             
-            // 节点文本
+            // 节点文本 - 增大字体和显示长度
             node.append('text')
                 .attr('dy', 4)
                 .attr('text-anchor', 'middle')
                 .style('font-size', d => {
-                    if (d.level === 0) return isMobile ? '12px' : '14px';
-                    if (d.level === 1) return isMobile ? '10px' : '12px';
-                    return isMobile ? '9px' : '10px';
+                    if (d.level === 0) return isMobile ? '14px' : '16px';
+                    if (d.level === 1) return isMobile ? '12px' : '14px';
+                    if (d.level === 2) return isMobile ? '10px' : '12px';
+                    return isMobile ? '9px' : '11px';
                 })
                 .style('font-family', 'Arial, sans-serif')
                 .style('fill', '#333')
                 .style('font-weight', d => d.level <= 1 ? 'bold' : 'normal')
                 .style('pointer-events', 'none')
                 .text(d => {
-                    // 根据深度和设备调整文字长度
+                    // 增加文字显示长度，充分利用空间
                     let maxLength;
                     if (isMobile) {
-                        maxLength = d.level === 0 ? 6 : d.level === 1 ? 8 : 6;
+                        maxLength = d.level === 0 ? 8 : d.level === 1 ? 10 : d.level === 2 ? 8 : 6;
                     } else if (isTablet) {
-                        maxLength = d.level === 0 ? 8 : d.level === 1 ? 12 : 10;
+                        maxLength = d.level === 0 ? 12 : d.level === 1 ? 15 : d.level === 2 ? 12 : 10;
                     } else {
-                        maxLength = d.level === 0 ? 10 : d.level === 1 ? 15 : 12;
+                        maxLength = d.level === 0 ? 15 : d.level === 1 ? 20 : d.level === 2 ? 18 : 15;
                     }
                     
                     return d.name.length > maxLength ? 
@@ -2225,9 +2244,10 @@ ${details ? `详细描述：${details}` : ''}
                         .transition()
                         .duration(200)
                         .attr('r', function() {
-                            if (d.level === 0) return isMobile ? 10 : 15;
-                            if (d.level === 1) return isMobile ? 8 : 12;
-                            return isMobile ? 6 : 9;
+                            if (d.level === 0) return isMobile ? 15 : 20;
+                            if (d.level === 1) return isMobile ? 12 : 16;
+                            if (d.level === 2) return isMobile ? 10 : 13;
+                            return isMobile ? 8 : 11;
                         });
                     
                     // 恢复原始文本
@@ -2245,7 +2265,12 @@ ${details ? `详细描述：${details}` : ''}
             simulation.on('tick', () => {
                 // 限制节点在画布范围内
                 nodes.forEach(d => {
-                    const radius = d.level === 0 ? 15 : d.level === 1 ? 12 : 9;
+                    let radius;
+                    if (d.level === 0) radius = isMobile ? 15 : 20;
+                    else if (d.level === 1) radius = isMobile ? 12 : 16;
+                    else if (d.level === 2) radius = isMobile ? 10 : 13;
+                    else radius = isMobile ? 8 : 11;
+                    
                     d.x = Math.max(radius, Math.min(width - radius, d.x));
                     d.y = Math.max(radius, Math.min(height - radius, d.y));
                 });
