@@ -1286,6 +1286,18 @@
                     calculateRadialPositions(root);
                     console.log('径向布局完成，节点数:', allNodes.length);
                     
+                    // 验证节点数据结构
+                    if (allNodes.length > 0) {
+                        const sampleNode = allNodes[0];
+                        console.log('样本节点结构:', {
+                            hasContent: !!sampleNode.content,
+                            hasData: !!sampleNode.data,
+                            hasDepth: sampleNode.depth !== undefined,
+                            content: sampleNode.content || (sampleNode.data ? sampleNode.data.content : 'N/A'),
+                            depth: sampleNode.depth
+                        });
+                    }
+
                 } else {
                     // 传统树布局（仅基础级别）
                     console.log('执行树形布局');
@@ -1329,8 +1341,16 @@
                         }
                     })
                     .style('fill', 'none')
-                    .style('stroke', d => colorScheme[Math.min(d.source.depth || 0, colorScheme.length - 1)])
-                    .style('stroke-width', d => Math.max(1, 4 - (d.source.depth || 0)))
+                    .style('stroke', d => {
+                        // 兼容不同的数据结构
+                        const sourceDepth = d.source.depth !== undefined ? d.source.depth : (d.source.data ? d.source.data.depth : 0);
+                        return colorScheme[Math.min(sourceDepth, colorScheme.length - 1)];
+                    })
+                    .style('stroke-width', d => {
+                        // 兼容不同的数据结构
+                        const sourceDepth = d.source.depth !== undefined ? d.source.depth : (d.source.data ? d.source.data.depth : 0);
+                        return Math.max(1, 4 - sourceDepth);
+                    })
                     .style('opacity', 0.8);
                 
                 // 绘制节点
@@ -1403,7 +1423,13 @@
                     })
                     .style('fill', d => (d.depth || 0) === 0 ? '#fff' : '#333')
                     .text(d => {
-                        const content = d.data.content || '';
+                        // 兼容不同的数据结构
+                        const content = d.data ? d.data.content : d.content;
+                        if (!content) {
+                            console.warn('节点内容为空:', d);
+                            return '未知';
+                        }
+                        
                         const depth = d.depth || 0;
                         const maxLength = depth === 0 ? 
                             (isMobile ? 12 : 20) : 
@@ -1417,8 +1443,9 @@
                 nodes
                     .style('cursor', 'pointer')
                     .on('click', function(event, d) {
-                        const content = d.data.content || '';
-                        if (content.length > 20) {
+                        // 兼容不同的数据结构
+                        const content = d.data ? d.data.content : d.content;
+                        if (content && content.length > 20) {
                             // 创建tooltip显示完整内容
                             const tooltip = g.append('g')
                                 .attr('class', 'tooltip')
