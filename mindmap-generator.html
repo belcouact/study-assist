@@ -1057,7 +1057,7 @@
             throw new Error('备用方案也无法加载markmap');
         }
 
-        // 增强的Markdown解析为root对象
+        // 增强的Markdown解析为root对象 - 优化可读性版本
         function parseMarkdownToRoot(markdown) {
             const lines = markdown.split('\n').filter(line => line.trim());
             
@@ -1077,6 +1077,10 @@
             const root = { content: centralTopic, children: [], depth: 0 };
             const stack = [root];
             
+            // 限制主分支数量以提高可读性
+            const maxMainBranches = 8;
+            let mainBranchCount = 0;
+            
             // 处理剩余的行
             for (let i = startIndex; i < lines.length; i++) {
                 const line = lines[i];
@@ -1091,6 +1095,16 @@
                     
                     // 调整级别，使二级标题成为一级分支
                     const adjustedLevel = level - 1;
+                    
+                    // 限制主分支数量
+                    if (adjustedLevel === 1) {
+                        if (mainBranchCount >= maxMainBranches) {
+                            console.log(`限制主分支数量为${maxMainBranches}个，跳过多余分支`);
+                            continue;
+                        }
+                        mainBranchCount++;
+                    }
+                    
                     const node = { content, children: [], depth: adjustedLevel };
                     
                     // 找到正确的父节点
@@ -1100,20 +1114,33 @@
                     
                     if (stack.length > 0) {
                         const parent = stack[stack.length - 1];
-                        parent.children.push(node);
-                        stack.push(node);
+                        
+                        // 限制每个分支的子项数量
+                        const maxChildrenPerBranch = 6;
+                        if (parent.children.length < maxChildrenPerBranch) {
+                            parent.children.push(node);
+                            stack.push(node);
+                        } else {
+                            console.log(`分支"${parent.content}"子项已达上限(${maxChildrenPerBranch})，跳过`);
+                        }
                     }
                 } else if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
                     // 处理列表项
                     const content = line.trim().substring(1).trim();
                     if (content && stack.length > 0) {
                         const parent = stack[stack.length - 1];
-                        const node = { content, children: [], depth: parent.depth + 1 };
-                        parent.children.push(node);
+                        
+                        // 限制列表项数量
+                        const maxListItems = 4;
+                        if (parent.children.length < maxListItems) {
+                            const node = { content, children: [], depth: parent.depth + 1 };
+                            parent.children.push(node);
+                        }
                     }
                 }
             }
             
+            console.log(`解析完成: 中心主题"${centralTopic}", 主分支${mainBranchCount}个`);
             return root;
         }
 
@@ -1221,10 +1248,10 @@
                 console.log('布局类型:', layoutType, '根节点子项:', root.children?.length);
                 
                 if (layoutType === 'radial') {
-                    // 径向布局（中心辐射）- 强制执行
+                    // 径向布局（中心辐射）- 优化可读性版本
                     console.log('执行径向布局');
-                    const baseRadius = Math.min(width, height) * 0.15;
-                    const minRadius = isMobile ? 80 : 100;
+                    const baseRadius = Math.min(width, height) * 0.25; // 增大基础半径
+                    const minRadius = isMobile ? 120 : 150; // 大幅增加最小半径
                     
                     function calculateRadialPositions(node, depth = 0, angle = 0, parentX = centerX, parentY = centerY) {
                         if (depth === 0) {
@@ -1247,28 +1274,29 @@
                                 });
                             }
                         } else {
-                            // 其他层级节点
-                            const radius = Math.max(minRadius, baseRadius + (depth - 1) * nodeSpacing);
+                            // 其他层级节点 - 大幅增加间距
+                            const radiusMultiplier = isMobile ? 1.5 : 1.8; // 增加倍数
+                            const radius = Math.max(minRadius, baseRadius + (depth - 1) * nodeSpacing * radiusMultiplier);
                             node.x = parentX + Math.cos(angle) * radius;
                             node.y = parentY + Math.sin(angle) * radius;
                             node.depth = depth;
                             allNodes.push(node);
                             
-                            // 处理子节点
-                            if (node.children && node.children.length > 0 && depth < maxDepth) {
+                            // 处理子节点 - 限制深度，减少拥挤
+                            if (node.children && node.children.length > 0 && depth < Math.min(maxDepth, 3)) {
                                 const childCount = node.children.length;
                                 
-                                // 根据深度调整角度扩散范围
+                                // 根据深度大幅调整角度扩散范围
                                 let angleSpread;
                                 if (depth === 1) {
-                                    // 第二层：围绕父节点适度扩散
-                                    angleSpread = Math.PI / 1.5; // 120度
+                                    // 第二层：大范围扩散
+                                    angleSpread = Math.PI; // 180度
                                 } else if (depth === 2) {
                                     // 第三层：中等扩散
-                                    angleSpread = Math.PI / 2; // 90度
+                                    angleSpread = Math.PI * 0.8; // 144度
                                 } else {
-                                    // 更深层：小幅扩散
-                                    angleSpread = Math.PI / 3; // 60度
+                                    // 更深层：限制扩散
+                                    angleSpread = Math.PI * 0.6; // 108度
                                 }
                                 
                                 const startAngle = angle - angleSpread / 2;
@@ -1324,34 +1352,38 @@
                     console.log('树形布局完成，节点数:', allNodes.length);
                 }
                 
-                // 绘制连接线
+                // 绘制连接线 - 简化样式，提高清晰度
                 const links = g.selectAll('.link')
                     .data(allLinks)
                     .enter().append('path')
                     .attr('class', 'link')
                     .attr('d', d => {
                         if (layoutType === 'radial') {
-                            // 曲线连接
-                            const dx = d.target.x - d.source.x;
-                            const dy = d.target.y - d.source.y;
-                            const dr = Math.sqrt(dx * dx + dy * dy) * 0.5;
-                            return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+                            // 使用直线连接，减少视觉干扰
+                            return `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`;
                         } else {
                             return `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`;
                         }
                     })
                     .style('fill', 'none')
                     .style('stroke', d => {
-                        // 兼容不同的数据结构
+                        // 兼容不同的数据结构，使用更清晰的颜色
                         const sourceDepth = d.source.depth !== undefined ? d.source.depth : (d.source.data ? d.source.data.depth : 0);
-                        return colorScheme[Math.min(sourceDepth, colorScheme.length - 1)];
+                        const targetDepth = d.target.depth !== undefined ? d.target.depth : (d.target.data ? d.target.data.depth : 1);
+                        
+                        // 根据层级使用不同的连线颜色
+                        if (sourceDepth === 0) return '#666'; // 从中心出发的主线
+                        if (targetDepth <= 2) return '#888'; // 二级连线
+                        return '#aaa'; // 深层连线
                     })
                     .style('stroke-width', d => {
-                        // 兼容不同的数据结构
+                        // 兼容不同的数据结构，优化线条粗细
                         const sourceDepth = d.source.depth !== undefined ? d.source.depth : (d.source.data ? d.source.data.depth : 0);
-                        return Math.max(1, 4 - sourceDepth);
+                        if (sourceDepth === 0) return isMobile ? 3 : 4; // 主干线更粗
+                        if (sourceDepth === 1) return isMobile ? 2 : 3; // 主分支线
+                        return isMobile ? 1 : 2; // 细分支线
                     })
-                    .style('opacity', 0.8);
+                    .style('opacity', 0.7); // 降低透明度，减少干扰
                 
                 // 绘制节点
                 const nodes = g.selectAll('.node')
@@ -1364,64 +1396,103 @@
                 nodes.each(function(d) {
                     const node = d3.select(this);
                     const depth = d.depth || 0;
-                    const size = depth === 0 ? 
-                        (isMobile ? 25 : 35) : 
-                        Math.max(isMobile ? 8 : 12, (isMobile ? 20 : 25) - depth * 3);
+                    
+                    // 大幅增大节点尺寸
+                    let size;
+                    if (depth === 0) {
+                        // 中心节点：更大更突出
+                        size = isMobile ? 40 : 55;
+                    } else if (depth === 1) {
+                        // 主分支：较大
+                        size = isMobile ? 25 : 35;
+                    } else if (depth === 2) {
+                        // 二级分支：中等
+                        size = isMobile ? 18 : 25;
+                    } else {
+                        // 深层分支：较小但仍清晰
+                        size = isMobile ? 15 : 20;
+                    }
+                    
                     const color = colorScheme[Math.min(depth, colorScheme.length - 1)];
                     
                     switch(nodeStyle) {
                         case 'rect':
                             node.append('rect')
-                                .attr('x', -size)
-                                .attr('y', -size/2)
-                                .attr('width', size * 2)
-                                .attr('height', size)
+                                .attr('x', -size * 1.2)
+                                .attr('y', -size * 0.6)
+                                .attr('width', size * 2.4)
+                                .attr('height', size * 1.2)
                                 .style('fill', color)
                                 .style('stroke', '#fff')
-                                .style('stroke-width', 2)
-                                .style('rx', 5);
+                                .style('stroke-width', depth === 0 ? 4 : 2)
+                                .style('rx', 8);
                             break;
                         case 'diamond':
+                            const diamondSize = size * 1.2;
                             node.append('polygon')
-                                .attr('points', `0,${-size} ${size},0 0,${size} ${-size},0`)
+                                .attr('points', `0,${-diamondSize} ${diamondSize},0 0,${diamondSize} ${-diamondSize},0`)
                                 .style('fill', color)
                                 .style('stroke', '#fff')
-                                .style('stroke-width', 2);
+                                .style('stroke-width', depth === 0 ? 4 : 2);
                             break;
                         default: // circle
                             node.append('circle')
                                 .attr('r', size)
                                 .style('fill', color)
                                 .style('stroke', '#fff')
-                                .style('stroke-width', depth === 0 ? 4 : 2);
+                                .style('stroke-width', depth === 0 ? 5 : 3);
                             
-                            // 中心节点特殊效果
+                            // 中心节点特殊效果 - 更明显
                             if (depth === 0) {
                                 node.append('circle')
-                                    .attr('r', size + 8)
+                                    .attr('r', size + 12)
                                     .style('fill', 'none')
                                     .style('stroke', color)
+                                    .style('stroke-width', 3)
+                                    .style('opacity', 0.4)
+                                    .style('stroke-dasharray', '8,8');
+                                    
+                                // 添加内圈效果
+                                node.append('circle')
+                                    .attr('r', size - 8)
+                                    .style('fill', 'none')
+                                    .style('stroke', '#fff')
                                     .style('stroke-width', 2)
-                                    .style('opacity', 0.3)
-                                    .style('stroke-dasharray', '5,5');
+                                    .style('opacity', 0.6);
                             }
                     }
                 });
                 
-                // 添加文字标签
+                // 添加文字标签 - 大幅优化可读性
                 nodes.append('text')
-                    .attr('dy', d => (d.depth || 0) === 0 ? 5 : 4)
+                    .attr('dy', d => (d.depth || 0) === 0 ? 6 : 5)
                     .attr('text-anchor', 'middle')
                     .style('font-size', d => {
                         const depth = d.depth || 0;
-                        return depth === 0 ? (isMobile ? '12px' : '16px') : (isMobile ? '10px' : '12px');
+                        // 大幅增大字体
+                        if (depth === 0) return isMobile ? '16px' : '20px';      // 中心
+                        if (depth === 1) return isMobile ? '14px' : '16px';      // 主分支
+                        if (depth === 2) return isMobile ? '12px' : '14px';      // 二级
+                        return isMobile ? '11px' : '13px';                       // 深层
                     })
                     .style('font-family', fontFamily)
                     .style('font-weight', d => {
                         const depth = d.depth || 0;
                         return depth === 0 ? 'bold' : (depth === 1 ? '600' : 'normal');
                     })
-                    .style('fill', d => (d.depth || 0) === 0 ? '#fff' : '#333')
+                    .style('fill', d => {
+                        const depth = d.depth || 0;
+                        // 提高对比度
+                        if (depth === 0) return '#fff';
+                        return style === 'academic' ? '#333' : '#222';
+                    })
+                    .style('text-shadow', d => {
+                        // 添加文字阴影提高可读性
+                        const depth = d.depth || 0;
+                        return depth === 0 ? 
+                            '1px 1px 2px rgba(0,0,0,0.5)' : 
+                            '0.5px 0.5px 1px rgba(255,255,255,0.8)';
+                    })
                     .text(d => {
                         // 兼容不同的数据结构
                         const content = d.data ? d.data.content : d.content;
@@ -1431,9 +1502,16 @@
                         }
                         
                         const depth = d.depth || 0;
-                        const maxLength = depth === 0 ? 
-                            (isMobile ? 12 : 20) : 
-                            (isMobile ? 8 : 15);
+                        // 增大最大长度，提供更多信息
+                        let maxLength;
+                        if (depth === 0) {
+                            maxLength = isMobile ? 15 : 25;     // 中心节点
+                        } else if (depth === 1) {
+                            maxLength = isMobile ? 12 : 18;     // 主分支
+                        } else {
+                            maxLength = isMobile ? 10 : 15;     // 其他
+                        }
+                        
                         return content.length > maxLength ? 
                             content.substring(0, maxLength) + '...' : 
                             content;
