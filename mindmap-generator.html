@@ -589,13 +589,13 @@
                             复杂度级别
                         </label>
                         <select id="complexitySelect" class="select-field">
-                            <option value="basic">基础级别 - 2层树形结构，简洁明了</option>
-                            <option value="intermediate" selected>中级级别 - 3层径向结构，详细说明</option>
-                            <option value="advanced">高级级别 - 4层径向结构，深入分析</option>
-                            <option value="expert">专家级别 - 5层径向结构，专业深度</option>
+                            <option value="basic">基础级别 - 2层树形结构（左右布局），简洁明了</option>
+                            <option value="intermediate" selected>中级级别 - 3层径向结构（中心辐射），详细说明</option>
+                            <option value="advanced">高级级别 - 4层径向结构（中心辐射），深入分析</option>
+                            <option value="expert">专家级别 - 5层径向结构（中心辐射），专业深度</option>
                         </select>
                         <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">
-                            💡 不同级别会生成不同深度和复杂度的思维导图结构
+                            💡 径向结构会从中心向四周散开，树形结构从左到右展开
                         </small>
                     </div>
 
@@ -1218,44 +1218,79 @@
                 let allNodes = [];
                 let allLinks = [];
                 
-                if (layoutType === 'radial' && root.children) {
-                    // 径向布局（中心辐射）
-                    const baseRadius = Math.min(width, height) * 0.15;
+                console.log('布局类型:', layoutType, '根节点子项:', root.children?.length);
+                
+                if (layoutType === 'radial') {
+                    // 径向布局（中心辐射）- 强制执行
+                    console.log('执行径向布局');
+                    const baseRadius = Math.min(width, height) * 0.12;
+                    const minRadius = isMobile ? 60 : 80;
                     
                     function calculateRadialPositions(node, depth = 0, angle = 0, parentX = centerX, parentY = centerY) {
                         if (depth === 0) {
+                            // 中心节点
                             node.x = centerX;
                             node.y = centerY;
+                            node.depth = depth;
+                            allNodes.push(node);
+                            
+                            // 处理第一层子节点（主分支）
+                            if (node.children && node.children.length > 0) {
+                                const childCount = node.children.length;
+                                console.log('主分支数量:', childCount);
+                                
+                                node.children.forEach((child, i) => {
+                                    // 均匀分布在圆周上
+                                    const childAngle = (2 * Math.PI / childCount) * i;
+                                    allLinks.push({ source: node, target: child });
+                                    calculateRadialPositions(child, depth + 1, childAngle, node.x, node.y);
+                                });
+                            }
                         } else {
-                            const radius = baseRadius + (depth - 1) * nodeSpacing;
+                            // 其他层级节点
+                            const radius = Math.max(minRadius, baseRadius + (depth - 1) * nodeSpacing);
                             node.x = parentX + Math.cos(angle) * radius;
                             node.y = parentY + Math.sin(angle) * radius;
-                        }
-                        
-                        node.depth = depth;
-                        allNodes.push(node);
-                        
-                        if (node.children && depth < maxDepth) {
-                            const childCount = node.children.length;
-                            const angleSpread = depth === 1 ? (2 * Math.PI) : (Math.PI / 3);
-                            const startAngle = depth === 1 ? 0 : (angle - angleSpread / 2);
+                            node.depth = depth;
+                            allNodes.push(node);
                             
-                            node.children.forEach((child, i) => {
-                                const childAngle = depth === 1 ? 
-                                    (2 * Math.PI / childCount) * i : 
-                                    startAngle + (angleSpread / Math.max(1, childCount - 1)) * i;
+                            // 处理子节点
+                            if (node.children && node.children.length > 0 && depth < maxDepth) {
+                                const childCount = node.children.length;
                                 
-                                allLinks.push({ source: node, target: child });
-                                calculateRadialPositions(child, depth + 1, childAngle, node.x, node.y);
-                            });
+                                // 根据深度调整角度扩散范围
+                                let angleSpread;
+                                if (depth === 1) {
+                                    // 第二层：围绕父节点小幅扩散
+                                    angleSpread = Math.PI / 2; // 90度
+                                } else {
+                                    // 更深层：更小的扩散
+                                    angleSpread = Math.PI / 4; // 45度
+                                }
+                                
+                                const startAngle = angle - angleSpread / 2;
+                                const angleStep = childCount > 1 ? angleSpread / (childCount - 1) : 0;
+                                
+                                node.children.forEach((child, i) => {
+                                    const childAngle = startAngle + angleStep * i;
+                                    allLinks.push({ source: node, target: child });
+                                    calculateRadialPositions(child, depth + 1, childAngle, node.x, node.y);
+                                });
+                            }
                         }
                     }
                     
                     calculateRadialPositions(root);
+                    console.log('径向布局完成，节点数:', allNodes.length);
+                    
                 } else {
-                    // 传统树布局
-                    const margin = { top: 50, right: 50, bottom: 50, left: 50 };
-                    const tree = d3.tree().size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+                    // 传统树布局（仅基础级别）
+                    console.log('执行树形布局');
+                    const margin = { top: 60, right: 60, bottom: 60, left: 60 };
+                    const availableWidth = width - margin.left - margin.right;
+                    const availableHeight = height - margin.top - margin.bottom;
+                    
+                    const tree = d3.tree().size([availableHeight, availableWidth]);
                     
                     const hierarchy = d3.hierarchy(root);
                     const treeData = tree(hierarchy);
@@ -1263,12 +1298,15 @@
                     allNodes = treeData.descendants();
                     allLinks = treeData.links();
                     
-                    // 调整坐标为中心位置
+                    // 调整坐标：水平布局，从左到右
                     allNodes.forEach(node => {
                         const temp = node.x;
                         node.x = node.y + margin.left;
                         node.y = temp + margin.top;
+                        node.depth = node.depth || 0;
                     });
+                    
+                    console.log('树形布局完成，节点数:', allNodes.length);
                 }
                 
                 // 绘制连接线
