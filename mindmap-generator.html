@@ -164,7 +164,7 @@
 
         .settings-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
             margin-bottom: 24px;
         }
@@ -318,6 +318,13 @@
             }
         }
 
+        /* 大屏桌面优化 */
+        @media (min-width: 1200px) {
+            .settings-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
         /* 确保SVG容器有正确的尺寸 */
         .mindmap-container svg {
             max-width: 100%;
@@ -456,6 +463,39 @@
             color: #856404;
             background-color: #fff3cd;
             border-color: #ffeaa7;
+        }
+
+        /* 布局提示样式 */
+        .layout-hint {
+            margin-left: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .layout-hint:hover {
+            color: #667eea;
+        }
+
+        .layout-info {
+            margin-top: 8px;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.05);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-secondary);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .layout-tip {
+            margin: 0;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* 移动端响应式设计 */
@@ -610,6 +650,28 @@
                     </div>
 
                     <div class="input-group">
+                        <label class="input-label" for="layoutSelect">
+                            <i class="fas fa-sitemap"></i>
+                            布局类型
+                            <span class="layout-hint" title="点击查看布局说明">
+                                <i class="fas fa-info-circle"></i>
+                            </span>
+                        </label>
+                        <select id="layoutSelect" class="select-field">
+                            <option value="hierarchical" selected>层级布局 - 清晰分层</option>
+                            <option value="radial">辐射布局 - 中心发散</option>
+                            <option value="force">力导向布局 - 动态交互</option>
+                        </select>
+                        <div class="layout-info" id="layoutInfo" style="display: none;">
+                            <div class="layout-tip">
+                                <strong>层级布局</strong>：适合展示清晰的分层结构，如组织架构、学科分类<br>
+                                <strong>辐射布局</strong>：适合以中心主题向外发散的内容，如概念分析<br>
+                                <strong>力导向布局</strong>：适合展示复杂关系和交互，如网络关系图
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
                         <label class="input-label" for="languageSelect">
                             <i class="fas fa-language"></i>
                             语言
@@ -737,6 +799,7 @@
             complexitySelect: document.getElementById('complexitySelect'),
             styleSelect: document.getElementById('styleSelect'),
             languageSelect: document.getElementById('languageSelect'),
+            layoutSelect: document.getElementById('layoutSelect'),
             generateBtn: document.getElementById('generateBtn'),
             resultSection: document.getElementById('resultSection'),
             mindmapContainer: document.getElementById('mindmapContainer'),
@@ -980,6 +1043,20 @@
                 }
             });
 
+            // 布局类型改变事件
+            elements.layoutSelect.addEventListener('change', function() {
+                const layoutType = this.value;
+                console.log('布局类型改变为:', layoutType);
+                
+                // 如果已经有生成的思维导图，重新渲染
+                if (currentMarkdown && elements.resultSection.style.display !== 'none') {
+                    console.log('重新渲染思维导图以应用新布局');
+                    renderMindmap(currentMarkdown).catch(error => {
+                        console.error('重新渲染失败:', error);
+                    });
+                }
+            });
+
             // 标签页切换
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -987,6 +1064,19 @@
                     switchTab(tabId);
                 });
             });
+
+            // 布局提示信息切换
+            const layoutHint = document.querySelector('.layout-hint');
+            const layoutInfo = document.getElementById('layoutInfo');
+            if (layoutHint && layoutInfo) {
+                layoutHint.addEventListener('click', function() {
+                    if (layoutInfo.style.display === 'none' || !layoutInfo.style.display) {
+                        layoutInfo.style.display = 'block';
+                    } else {
+                        layoutInfo.style.display = 'none';
+                    }
+                });
+            }
 
             // 下载按钮事件
             document.getElementById('downloadSvgBtn').addEventListener('click', downloadSvg);
@@ -1425,6 +1515,7 @@
             const complexity = elements.complexitySelect.value;
             const style = elements.styleSelect.value;
             const language = elements.languageSelect.value;
+            const layout = elements.layoutSelect.value;
 
             let complexityDesc = {
                 'basic': '基础级别，适合初学者，内容简单易懂',
@@ -1446,6 +1537,12 @@
                 'mixed': '可以混合使用中英文'
             }[language];
 
+            let layoutDesc = {
+                'hierarchical': '层级布局（适合展示清晰的分层结构）',
+                'radial': '辐射布局（适合以中心主题向外发散的内容）',
+                'force': '力导向布局（适合展示复杂关系和交互连接）'
+            }[layout];
+
             let prompt = `请为以下主题生成一个详细的思维导图 Markdown 格式内容：
 
 主题：${topic}
@@ -1455,11 +1552,13 @@ ${details ? `详细描述：${details}` : ''}
 1. ${complexityDesc}
 2. ${styleDesc}
 3. ${languageDesc}
-4. 请严格按照 Markdown 格式输出，使用标题层级（#, ##, ###）来表示思维导图的层次结构
-5. 每个主要分支应该有 3-6 个子分支
-6. 内容要全面、准确、有条理
-7. 适当使用列表、粗体、斜体等 Markdown 语法
-8. 不要输出代码块标记（\`\`\`），直接输出 Markdown 内容
+4. 布局类型：${layoutDesc}
+5. 请严格按照 Markdown 格式输出，使用标题层级（#, ##, ###）来表示思维导图的层次结构
+6. 每个主要分支应该有 3-6 个子分支，适当控制层级深度（建议3-4层）
+7. 内容要全面、准确、有条理，考虑所选布局的展示特点
+8. 适当使用列表、粗体、斜体等 Markdown 语法
+9. 不要输出代码块标记（\`\`\`），直接输出 Markdown 内容
+10. 确保内容适合可视化展示，避免过长的文本
 
 请开始生成：`;
 
@@ -1492,119 +1591,27 @@ ${details ? `详细描述：${details}` : ''}
                 // 如果是纯文本模式，显示文本版思维导图
                 if (window.markdownOnlyMode) {
                     renderTextMindmap(markdown);
-                    
-                    // 自动切换到 Markdown 标签页
-                    setTimeout(() => {
-                        switchTab('markdown');
-                    }, 1000);
-                    
+                    setTimeout(() => switchTab('markdown'), 1000);
                     return;
                 }
 
-                // 验证库是否可用（正常模式）
-                const hasMarkmap = typeof markmap !== 'undefined' || 
-                                 typeof window.markmap !== 'undefined';
-                                 
-                if (typeof d3 === 'undefined' || !hasMarkmap) {
-                    throw new Error('思维导图库未正确加载');
+                // 验证D3库是否可用
+                if (typeof d3 === 'undefined') {
+                    throw new Error('D3.js库未正确加载');
                 }
-                
-                // 使用正确的markmap对象和API
-                const markmapModule = markmap || window.markmap;
-                
-                // 检查markmap的结构
-                console.log('Markmap模块结构:', markmapModule);
-                
-                // 尝试不同的API调用方式
-                let transformFn, MarkmapClass;
-                
-                // 检查markmap-lib的Transformer类
-                if (markmapModule.Transformer) {
-                    const transformer = new markmapModule.Transformer();
-                    transformFn = (markdown) => transformer.transform(markdown);
-                    console.log('使用 Transformer 类');
-                } else if (markmapModule.transform) {
-                    transformFn = markmapModule.transform;
-                    console.log('使用直接 transform 函数');
-                } else if (markmapModule.transformer && markmapModule.transformer.transform) {
-                    transformFn = markmapModule.transformer.transform;
-                    console.log('使用 transformer.transform');
-                } else if (window.markmap && window.markmap.transform) {
-                    transformFn = window.markmap.transform;
-                    console.log('使用 window.markmap.transform');
-                } else {
-                    // 尝试从全局对象中获取
-                    transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
-                    console.log('使用全局 transform');
-                }
-                
-                // 检查Markmap类（通常在markmap-view中）
-                if (markmapModule.Markmap) {
-                    MarkmapClass = markmapModule.Markmap;
-                } else if (window.markmap && window.markmap.Markmap) {
-                    MarkmapClass = window.markmap.Markmap;
-                } else if (window.Markmap) {
-                    MarkmapClass = window.Markmap;
-                } else if (window.markmapView && window.markmapView.Markmap) {
-                    MarkmapClass = window.markmapView.Markmap;
-                } else {
-                    // 检查其他可能的全局变量
-                    const globals = Object.keys(window).filter(key => key.toLowerCase().includes('markmap'));
-                    console.log('相关全局变量:', globals);
-                    
-                    // 尝试从这些全局变量中找到Markmap
-                    for (const globalName of globals) {
-                        const globalObj = window[globalName];
-                        if (globalObj && globalObj.Markmap) {
-                            MarkmapClass = globalObj.Markmap;
-                            console.log(`从 ${globalName} 找到Markmap类`);
-                            break;
-                        }
-                    }
-                }
-                
-                console.log('Transform函数:', typeof transformFn);
-                console.log('Markmap类:', typeof MarkmapClass);
-                
-                if (!transformFn) {
-                    throw new Error('无法找到markmap的transform函数');
-                }
-                
-                if (!MarkmapClass) {
-                    console.warn('未找到Markmap类，将使用备用渲染方案');
-                }
+
+                // 获取选中的布局类型
+                const layoutType = elements.layoutSelect.value;
+                console.log('使用布局类型:', layoutType);
 
                 // 清空容器
                 elements.mindmapContainer.innerHTML = '';
-                
-                // 等待容器重新布局后再获取尺寸
                 await new Promise(resolve => setTimeout(resolve, 100));
+
+                // 获取容器尺寸（响应式）
+                const { width, height } = getResponsiveSize();
                 
-                // 安全地获取容器尺寸
-                const containerRect = elements.mindmapContainer.getBoundingClientRect();
-                
-                // 移动端适配和尺寸验证
-                const isMobile = window.innerWidth < 768;
-                const minWidth = isMobile ? 320 : 800;
-                const minHeight = isMobile ? 400 : 600;
-                const maxWidth = isMobile ? window.innerWidth - 40 : 1200;
-                const maxHeight = isMobile ? window.innerHeight - 200 : 800;
-                
-                let width = containerRect.width || minWidth;
-                let height = containerRect.height || minHeight;
-                
-                // 确保尺寸在合理范围内
-                width = Math.max(minWidth, Math.min(maxWidth, width));
-                height = Math.max(minHeight, Math.min(maxHeight, height));
-                
-                // 最终验证，避免NaN
-                if (!width || !height || isNaN(width) || isNaN(height)) {
-                    width = minWidth;
-                    height = minHeight;
-                    console.warn('使用默认容器尺寸:', { width, height });
-                }
-                
-                // 创建 SVG 元素
+                // 创建SVG
                 const svg = d3.select('#mindmapContainer')
                     .append('svg')
                     .attr('width', width)
@@ -1615,52 +1622,369 @@ ${details ? `详细描述：${details}` : ''}
                     .style('display', 'block')
                     .style('margin', '0 auto');
 
-                // 使用 markmap 解析 Markdown 并创建思维导图
-                let root;
-                try {
-                    const result = transformFn(markdown);
-                    root = result.root || result;
-                } catch (transformError) {
-                    console.error('Transform错误:', transformError);
-                    // 如果transform失败，尝试简单的解析
-                    root = parseMarkdownToRoot(markdown);
+                // 解析Markdown为树结构
+                const root = parseMarkdownToHierarchy(markdown);
+                console.log('解析得到根节点:', root);
+
+                // 根据布局类型渲染
+                switch (layoutType) {
+                    case 'hierarchical':
+                        renderHierarchicalLayout(svg, root, width, height);
+                        break;
+                    case 'radial':
+                        renderRadialLayout(svg, root, width, height);
+                        break;
+                    case 'force':
+                        renderForceDirectedLayout(svg, root, width, height);
+                        break;
+                    default:
+                        renderHierarchicalLayout(svg, root, width, height);
                 }
-                
-                // 创建 markmap 实例
-                if (MarkmapClass) {
-                    try {
-                        markmapInstance = MarkmapClass.create(svg.node(), {
-                            color: (node) => {
-                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                                return colors[node.depth % colors.length];
-                            },
-                            duration: 800,
-                            maxWidth: 200,
-                            spacingVertical: 10,
-                            spacingHorizontal: 80,
-                            autoFit: true,
-                            pan: true,
-                            zoom: true
-                        });
-                        
-                        // 渲染思维导图
-                        markmapInstance.setData(root);
-                        markmapInstance.fit();
-                        console.log('Markmap实例创建成功');
-                    } catch (createError) {
-                        console.error('Markmap创建错误:', createError);
-                        // 如果创建失败，显示简单的可视化
-                        renderSimpleSVGMindmap(markdown, svg);
-                    }
-                } else {
-                    // 没有Markmap类，直接使用简单的可视化
-                    console.log('使用备用SVG渲染');
-                    renderSimpleSVGMindmap(markdown, svg);
-                }
+
+                console.log('思维导图渲染成功');
 
             } catch (error) {
                 console.error('渲染思维导图时出错:', error);
                 showError('思维导图渲染失败：' + error.message);
+                
+                // 降级到文本模式
+                if (!window.markdownOnlyMode) {
+                    renderTextMindmap(markdown);
+                }
+            }
+        }
+
+        // 获取响应式尺寸
+        function getResponsiveSize() {
+            const containerRect = elements.mindmapContainer.getBoundingClientRect();
+            const isMobile = window.innerWidth < 768;
+            const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
+            
+            let minWidth, minHeight, maxWidth, maxHeight;
+            
+            if (isMobile) {
+                minWidth = 320;
+                minHeight = 400;
+                maxWidth = window.innerWidth - 40;
+                maxHeight = window.innerHeight - 100;
+            } else if (isTablet) {
+                minWidth = 600;
+                minHeight = 450;
+                maxWidth = window.innerWidth - 60;
+                maxHeight = window.innerHeight - 150;
+            } else {
+                minWidth = 800;
+                minHeight = 600;
+                maxWidth = 1200;
+                maxHeight = 800;
+            }
+            
+            let width = containerRect.width || minWidth;
+            let height = containerRect.height || minHeight;
+            
+            width = Math.max(minWidth, Math.min(maxWidth, width));
+            height = Math.max(minHeight, Math.min(maxHeight, height));
+            
+            return { width, height };
+        }
+
+        // 解析Markdown为层次结构
+        function parseMarkdownToHierarchy(markdown) {
+            const lines = markdown.split('\n').filter(line => line.trim());
+            const root = { name: '根节点', children: [], level: 0 };
+            const stack = [root];
+            
+            lines.forEach(line => {
+                const match = line.match(/^(#+)\s*(.+)$/);
+                if (match) {
+                    const level = match[1].length;
+                    const name = match[2].trim();
+                    const node = { name, children: [], level };
+                    
+                    // 找到正确的父节点
+                    while (stack.length > level) {
+                        stack.pop();
+                    }
+                    
+                    const parent = stack[stack.length - 1];
+                    parent.children.push(node);
+                    stack.push(node);
+                }
+            });
+            
+            return root.children.length > 0 ? root : { name: '示例思维导图', children: [] };
+        }
+
+        // 层级布局渲染
+        function renderHierarchicalLayout(svg, data, width, height) {
+            const isMobile = window.innerWidth < 768;
+            const margin = isMobile ? 
+                { top: 40, right: 30, bottom: 40, left: 30 } :
+                { top: 60, right: 60, bottom: 60, left: 60 };
+            
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+            
+            const tree = d3.tree().size([innerHeight, innerWidth]);
+            const hierarchy = d3.hierarchy(data);
+            const treeData = tree(hierarchy);
+            
+            const nodes = treeData.descendants();
+            const links = treeData.links();
+            
+            // 绘制连接线
+            g.selectAll('.link')
+                .data(links)
+                .enter().append('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkHorizontal()
+                    .x(d => d.y)
+                    .y(d => d.x))
+                .style('fill', 'none')
+                .style('stroke', '#999')
+                .style('stroke-width', isMobile ? 1.5 : 2)
+                .style('opacity', 0.6);
+            
+            // 绘制节点
+            const node = g.selectAll('.node')
+                .data(nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `translate(${d.y},${d.x})`);
+            
+            // 节点圆圈
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+            const radius = isMobile ? 6 : 8;
+            
+            node.append('circle')
+                .attr('r', radius)
+                .style('fill', d => colors[d.depth % colors.length])
+                .style('stroke', '#fff')
+                .style('stroke-width', 2);
+            
+            // 节点文本
+            const fontSize = isMobile ? '10px' : '12px';
+            const textOffset = isMobile ? 10 : 15;
+            
+            node.append('text')
+                .attr('dy', 4)
+                .attr('x', d => d.children ? -textOffset : textOffset)
+                .style('text-anchor', d => d.children ? 'end' : 'start')
+                .style('font-size', fontSize)
+                .style('font-family', 'Arial, sans-serif')
+                .style('fill', '#333')
+                .text(d => {
+                    const maxLength = isMobile ? 12 : 20;
+                    return d.data.name.length > maxLength ? 
+                        d.data.name.substring(0, maxLength) + '...' : 
+                        d.data.name;
+                });
+            
+            addZoomAndPan(svg, g, margin);
+        }
+
+        // 辐射布局渲染
+        function renderRadialLayout(svg, data, width, height) {
+            const isMobile = window.innerWidth < 768;
+            const radius = Math.min(width, height) / 2 - (isMobile ? 60 : 100);
+            
+            const g = svg.append('g')
+                .attr('transform', `translate(${width/2},${height/2})`);
+            
+            const tree = d3.tree()
+                .size([2 * Math.PI, radius])
+                .separation((a, b) => (a.parent == b.parent ? 1 : 2) / a.depth);
+            
+            const hierarchy = d3.hierarchy(data);
+            const treeData = tree(hierarchy);
+            
+            const nodes = treeData.descendants();
+            const links = treeData.links();
+            
+            // 绘制连接线
+            g.selectAll('.link')
+                .data(links)
+                .enter().append('path')
+                .attr('class', 'link')
+                .attr('d', d3.linkRadial()
+                    .angle(d => d.x)
+                    .radius(d => d.y))
+                .style('fill', 'none')
+                .style('stroke', '#999')
+                .style('stroke-width', isMobile ? 1.5 : 2)
+                .style('opacity', 0.6);
+            
+            // 绘制节点
+            const node = g.selectAll('.node')
+                .data(nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .attr('transform', d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
+            
+            // 节点圆圈
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+            const nodeRadius = isMobile ? 5 : 7;
+            
+            node.append('circle')
+                .attr('r', nodeRadius)
+                .style('fill', d => colors[d.depth % colors.length])
+                .style('stroke', '#fff')
+                .style('stroke-width', 2);
+            
+            // 节点文本
+            const fontSize = isMobile ? '9px' : '11px';
+            
+            node.append('text')
+                .attr('dy', 4)
+                .attr('x', d => d.x < Math.PI === !d.children ? 6 : -6)
+                .style('text-anchor', d => d.x < Math.PI === !d.children ? 'start' : 'end')
+                .attr('transform', d => d.x >= Math.PI ? 'rotate(180)' : null)
+                .style('font-size', fontSize)
+                .style('font-family', 'Arial, sans-serif')
+                .style('fill', '#333')
+                .text(d => {
+                    const maxLength = isMobile ? 10 : 18;
+                    return d.data.name.length > maxLength ? 
+                        d.data.name.substring(0, maxLength) + '...' : 
+                        d.data.name;
+                });
+            
+            addZoomAndPan(svg, g, { top: 0, right: 0, bottom: 0, left: 0 });
+        }
+
+        // 力导向布局渲染
+        function renderForceDirectedLayout(svg, data, width, height) {
+            const isMobile = window.innerWidth < 768;
+            
+            // 将树结构转换为节点和链接数组
+            const nodes = [];
+            const links = [];
+            
+            function traverse(node, parent = null) {
+                const nodeObj = { 
+                    id: node.name, 
+                    name: node.name, 
+                    level: node.level || 0,
+                    fx: parent ? null : width / 2,  // 固定根节点位置
+                    fy: parent ? null : height / 2
+                };
+                nodes.push(nodeObj);
+                
+                if (parent) {
+                    links.push({ source: parent.name, target: node.name });
+                }
+                
+                if (node.children) {
+                    node.children.forEach(child => traverse(child, node));
+                }
+            }
+            
+            traverse(data);
+            
+            // 创建力仿真
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(isMobile ? 80 : 120))
+                .force('charge', d3.forceManyBody().strength(isMobile ? -200 : -300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(isMobile ? 25 : 35));
+            
+            const g = svg.append('g');
+            
+            // 绘制连接线
+            const link = g.selectAll('.link')
+                .data(links)
+                .enter().append('line')
+                .attr('class', 'link')
+                .style('stroke', '#999')
+                .style('stroke-width', isMobile ? 1.5 : 2)
+                .style('opacity', 0.6);
+            
+            // 绘制节点
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+            const nodeRadius = isMobile ? 8 : 12;
+            
+            const node = g.selectAll('.node')
+                .data(nodes)
+                .enter().append('g')
+                .attr('class', 'node')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // 节点圆圈
+            node.append('circle')
+                .attr('r', nodeRadius)
+                .style('fill', d => colors[d.level % colors.length])
+                .style('stroke', '#fff')
+                .style('stroke-width', 2);
+            
+            // 节点文本
+            const fontSize = isMobile ? '10px' : '12px';
+            
+            node.append('text')
+                .attr('dy', 4)
+                .attr('text-anchor', 'middle')
+                .style('font-size', fontSize)
+                .style('font-family', 'Arial, sans-serif')
+                .style('fill', '#333')
+                .style('pointer-events', 'none')
+                .text(d => {
+                    const maxLength = isMobile ? 8 : 15;
+                    return d.name.length > maxLength ? 
+                        d.name.substring(0, maxLength) + '...' : 
+                        d.name;
+                });
+            
+            // 更新位置
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // 拖拽函数
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+            
+            addZoomAndPan(svg, g, { top: 0, right: 0, bottom: 0, left: 0 });
+        }
+
+        // 添加缩放和平移功能
+        function addZoomAndPan(svg, g, margin) {
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 3])
+                .on('zoom', function(event) {
+                    g.attr('transform', 
+                        `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+                });
+            
+            svg.call(zoom);
+            
+            // 移动端触摸优化
+            if (window.innerWidth < 768) {
+                svg.style('touch-action', 'manipulation');
             }
         }
 
