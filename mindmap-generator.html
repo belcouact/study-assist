@@ -1784,60 +1784,10 @@ ${details ? `详细描述：${details}` : ''}
                 // 创建 markmap 实例
                 if (MarkmapClass) {
                     try {
-                        // 增强的配置选项，匹配附件中的样式
-                        const colorScheme = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
-                        
-                        const markmapOptions = {
-                            // 颜色配置 - 使用更丰富的颜色方案
-                            color: (d) => {
-                                const depth = d.depth || 0;
-                                return colorScheme[depth % colorScheme.length];
-                            },
-                            
-                            // 动画配置
-                            duration: 1000,
-                            
-                            // 布局配置
-                            maxWidth: 220,
-                            spacingVertical: 15,
-                            spacingHorizontal: 100,
-                            
-                            // 交互配置
-                            autoFit: true,
-                            pan: true,
-                            zoom: true
-                        };
-                        
-                        markmapInstance = MarkmapClass.create(svg.node(), markmapOptions);
-                        
-                        // 验证root数据
-                        if (!root || typeof root !== 'object') {
-                            throw new Error('Root数据无效');
-                        }
-                        
-                        console.log('准备设置数据到Markmap实例');
-                        
-                        // 渲染思维导图
-                        markmapInstance.setData(root);
-                        markmapInstance.fit();
-                        
-                        // 添加自定义样式并观察DOM变化
-                        addCustomMindmapStyles();
-                        
-                        // 等待DOM更新后再次应用样式
-                        setTimeout(() => {
-                            addCustomMindmapStyles();
-                            // 强制重新应用样式
-                            const nodes = svg.node().querySelectorAll('.markmap-node');
-                            nodes.forEach((node, index) => {
-                                const depth = node.getAttribute('data-depth') || 
-                                           (node.querySelector('[data-depth]') && node.querySelector('[data-depth]').getAttribute('data-depth')) ||
-                                           Math.min(index, 6);
-                                node.setAttribute('data-depth', depth);
-                            });
-                        }, 500);
-                        
-                        console.log('增强版Markmap实例创建成功');
+                        // 直接使用增强的备用渲染，确保放射状布局
+                        console.log('强制使用放射状布局渲染');
+                        renderEnhancedSVGMindmap(markdown, svg);
+                        return;
                     } catch (createError) {
                         console.error('Markmap创建错误:', createError);
                         // 如果创建失败，使用增强的备用渲染
@@ -2034,12 +1984,47 @@ ${details ? `详细描述：${details}` : ''}
                         .attr('stop-color', grad.colors[1]);
                 });
                 
+                // 添加背景圆圈装饰
+                const centerX = width / 2;
+                const centerY = height / 2;
+                
+                // 添加背景同心圆
+                const backgroundGroup = svg.append('g')
+                    .attr('class', 'background-circles');
+                
+                [0.8, 0.6, 0.4, 0.2].forEach((scale, index) => {
+                    const radius = Math.min(width, height) * scale * 0.4;
+                    backgroundGroup.append('circle')
+                        .attr('cx', centerX)
+                        .attr('cy', centerY)
+                        .attr('r', radius)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#e0e7ff')
+                        .attr('stroke-width', 1)
+                        .attr('opacity', 0.3 - index * 0.05);
+                });
+                
                 // 创建主容器组
                 const mainGroup = svg.append('g')
-                    .attr('transform', `translate(${width/2}, ${height/2})`);
+                    .attr('transform', `translate(${centerX}, ${centerY})`);
                 
                 // 递归渲染节点
-                renderEnhancedNode(mainGroup, root, 0, 0, 0, width, height);
+                renderEnhancedNode(mainGroup, root, 0, 0, 0, width * 0.8, height * 0.8);
+                
+                // 添加缩放和拖拽功能
+                const zoom = d3.zoom()
+                    .scaleExtent([0.2, 3])
+                    .on('zoom', function(event) {
+                        mainGroup.attr('transform', 
+                            `translate(${centerX + event.transform.x}, ${centerY + event.transform.y}) scale(${event.transform.k})`);
+                    });
+                
+                svg.call(zoom);
+                
+                // 移动端触摸优化
+                if (window.innerWidth < 768) {
+                    svg.style('touch-action', 'manipulation');
+                }
                 
                 console.log('增强版备用SVG渲染完成');
                 
@@ -2090,8 +2075,8 @@ ${details ? `详细描述：${details}` : ''}
             return root;
         }
 
-        // 递归渲染增强节点
-        function renderEnhancedNode(container, node, x, y, angle, maxWidth, maxHeight) {
+        // 递归渲染放射状节点
+        function renderEnhancedNode(container, node, x, y, angle, maxWidth, maxHeight, parentAngle = 0) {
             // 安全检查
             if (!node || !node.text) {
                 console.warn('节点数据无效:', node);
@@ -2108,10 +2093,10 @@ ${details ? `详细描述：${details}` : ''}
             
             // 节点样式配置
             const nodeConfig = {
-                0: { rx: 25, ry: 15, fontSize: 16, fontWeight: 'bold', padding: 20 },
-                1: { rx: 20, ry: 12, fontSize: 14, fontWeight: '600', padding: 16 },
-                2: { rx: 15, ry: 10, fontSize: 13, fontWeight: '500', padding: 14 },
-                default: { rx: 12, ry: 8, fontSize: 12, fontWeight: '400', padding: 12 }
+                0: { rx: 30, ry: 18, fontSize: 18, fontWeight: 'bold', padding: 24 },
+                1: { rx: 25, ry: 15, fontSize: 15, fontWeight: '600', padding: 20 },
+                2: { rx: 20, ry: 12, fontSize: 13, fontWeight: '500', padding: 16 },
+                default: { rx: 15, ry: 10, fontSize: 12, fontWeight: '400', padding: 14 }
             };
             
             const depth = node.depth || 0;
@@ -2127,8 +2112,10 @@ ${details ? `详细描述：${details}` : ''}
             // 计算文本尺寸
             const text = String(node.text || '');
             const textLength = text.length * config.fontSize * 0.6;
-            const rectWidth = Math.max(textLength + config.padding, 80);
+            const rectWidth = Math.max(textLength + config.padding, 100);
             const rectHeight = config.fontSize + config.padding;
+            
+            // 连接线将在渲染子节点时绘制
             
             // 绘制节点背景
             nodeGroup.append('rect')
@@ -2163,34 +2150,84 @@ ${details ? `详细描述：${details}` : ''}
                 .style('pointer-events', 'none')
                 .text(text);
             
-            // 渲染子节点
+            // 渲染子节点 - 放射状布局
             if (node.children && node.children.length > 0) {
                 const childCount = node.children.length;
-                const angleStep = childCount > 1 ? (2 * Math.PI) / childCount : 0;
-                const radius = Math.min(maxWidth, maxHeight) / Math.max(depth + 2, 2) * 0.6;
+                
+                // 根据层级调整半径和角度分布
+                let baseRadius, angleRange;
+                
+                                 if (depth === 0) {
+                     // 中心节点：360度全方位分布
+                     baseRadius = Math.min(maxWidth, maxHeight) * 0.3;
+                     angleRange = 2 * Math.PI;
+                 } else if (depth === 1) {
+                     // 第一层：较大半径，全方位或扇形分布
+                     baseRadius = Math.min(maxWidth, maxHeight) * 0.25;
+                     angleRange = childCount <= 4 ? 2 * Math.PI : Math.PI * 1.2; // 少量子节点时全圆分布
+                 } else if (depth === 2) {
+                     // 第二层：中等半径，扇形分布
+                     baseRadius = Math.min(maxWidth, maxHeight) * 0.18;
+                     angleRange = Math.PI * 0.8; // 144度扇形
+                 } else {
+                     // 更深层级：更小的扇形
+                     baseRadius = Math.min(maxWidth, maxHeight) * 0.12;
+                     angleRange = Math.PI * 0.6; // 108度扇形
+                 }
                 
                 node.children.forEach((child, index) => {
-                    const childAngle = angle + (index - (childCount - 1) / 2) * angleStep;
-                    const childX = x + Math.cos(childAngle) * radius;
-                    const childY = y + Math.sin(childAngle) * radius;
+                    let childAngle;
                     
-                    // 确保子节点坐标有效
-                    if (!isNaN(childX) && !isNaN(childY)) {
-                        // 绘制连接线
-                        container.append('line')
-                            .attr('x1', x)
-                            .attr('y1', y)
-                            .attr('x2', childX)
-                            .attr('y2', childY)
-                            .attr('stroke', color)
-                            .attr('stroke-width', Math.max(4 - depth, 1))
-                            .attr('opacity', 0.8)
-                            .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))');
-                        
-                        // 递归渲染子节点
-                        renderEnhancedNode(container, child, childX, childY, childAngle, 
-                            maxWidth * 0.8, maxHeight * 0.8);
-                    }
+                                         if (depth === 0) {
+                         // 中心节点：均匀分布在360度，稍作偏移避免重叠
+                         childAngle = (2 * Math.PI * index) / childCount + Math.PI / childCount;
+                     } else {
+                         // 其他节点：在父节点方向基础上扇形分布
+                         if (childCount === 1) {
+                             childAngle = angle; // 单个子节点沿父节点方向
+                         } else if (depth === 1 && childCount <= 4) {
+                             // 第一层少量节点时，使用更自然的分布
+                             const baseAngles = [0, Math.PI/2, Math.PI, 3*Math.PI/2];
+                             childAngle = baseAngles[index % 4];
+                         } else {
+                             // 扇形分布
+                             const startAngle = angle - angleRange / 2;
+                             childAngle = startAngle + (angleRange * index) / (childCount - 1);
+                         }
+                     }
+                    
+                                         // 根据层级调整半径
+                     const actualRadius = baseRadius;
+                    
+                    const childX = x + Math.cos(childAngle) * actualRadius;
+                    const childY = y + Math.sin(childAngle) * actualRadius;
+                    
+                                         // 确保子节点坐标有效
+                     if (!isNaN(childX) && !isNaN(childY)) {
+                         // 绘制连接线
+                         const lineColor = colors[(depth + 1) % colors.length];
+                         
+                         // 创建曲线路径
+                         const distance = Math.sqrt((childX - x) * (childX - x) + (childY - y) * (childY - y));
+                         const controlDistance = distance * 0.3;
+                         const controlX = x + (childX - x) * 0.3;
+                         const controlY = y + (childY - y) * 0.3;
+                         
+                         const pathData = `M ${x} ${y} Q ${controlX} ${controlY} ${childX} ${childY}`;
+                         
+                         container.append('path')
+                             .attr('d', pathData)
+                             .attr('stroke', lineColor)
+                             .attr('stroke-width', Math.max(5 - depth, 2))
+                             .attr('fill', 'none')
+                             .attr('opacity', 0.8)
+                             .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))')
+                             .style('stroke-linecap', 'round');
+                         
+                         // 递归渲染子节点
+                         renderEnhancedNode(container, child, childX, childY, childAngle, 
+                             maxWidth * 0.9, maxHeight * 0.9, angle);
+                     }
                 });
             }
         }
