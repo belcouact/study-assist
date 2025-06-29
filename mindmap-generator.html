@@ -1771,36 +1771,31 @@ ${details ? `详细描述：${details}` : ''}
                 try {
                     const result = transformFn(markdown);
                     root = result.root || result;
+                    console.log('Transform结果:', result);
+                    console.log('Root数据:', root);
                 } catch (transformError) {
                     console.error('Transform错误:', transformError);
-                    // 如果transform失败，尝试简单的解析
-                    root = parseMarkdownToRoot(markdown);
+                    // 如果transform失败，使用增强的备用渲染
+                    console.log('Transform失败，使用备用渲染');
+                    renderEnhancedSVGMindmap(markdown, svg);
+                    return;
                 }
                 
                 // 创建 markmap 实例
                 if (MarkmapClass) {
                     try {
                         // 增强的配置选项，匹配附件中的样式
+                        const colorScheme = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+                        
                         const markmapOptions = {
                             // 颜色配置 - 使用更丰富的颜色方案
-                            color: (node) => {
-                                const colorSchemes = [
-                                    ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'],
-                                    ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7'],
-                                    ['#FF9A8B', '#A8E6CF', '#FFD3A5', '#FD99A8', '#C7CEEA', '#B2DFDB', '#F8BBD9', '#E1BEE7']
-                                ];
-                                const scheme = colorSchemes[0]; // 使用第一个配色方案
-                                return scheme[node.depth % scheme.length];
+                            color: (d) => {
+                                const depth = d.depth || 0;
+                                return colorScheme[depth % colorScheme.length];
                             },
                             
                             // 动画配置
                             duration: 1000,
-                            
-                            // 节点样式配置
-                            nodeFont: {
-                                size: 14,
-                                family: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-                            },
                             
                             // 布局配置
                             maxWidth: 220,
@@ -1810,85 +1805,60 @@ ${details ? `详细描述：${details}` : ''}
                             // 交互配置
                             autoFit: true,
                             pan: true,
-                            zoom: true,
-                            
-                            // 样式增强
-                            style: (id, node) => {
-                                const styles = [];
-                                
-                                // 节点样式
-                                if (node.depth === 0) {
-                                    // 中心节点
-                                    styles.push(`
-                                        .markmap-node[data-depth="0"] > .markmap-foreign > div {
-                                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                            color: white;
-                                            padding: 12px 20px;
-                                            border-radius: 25px;
-                                            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-                                            font-weight: 600;
-                                            font-size: 16px;
-                                        }
-                                    `);
-                                } else if (node.depth === 1) {
-                                    // 主要分支
-                                    styles.push(`
-                                        .markmap-node[data-depth="1"] > .markmap-foreign > div {
-                                            background: ${node.color || '#FF6B6B'};
-                                            color: white;
-                                            padding: 10px 16px;
-                                            border-radius: 20px;
-                                            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-                                            font-weight: 500;
-                                            font-size: 14px;
-                                        }
-                                    `);
-                                } else {
-                                    // 子分支
-                                    styles.push(`
-                                        .markmap-node[data-depth="${node.depth}"] > .markmap-foreign > div {
-                                            background: ${node.color || '#4ECDC4'};
-                                            color: white;
-                                            padding: 8px 14px;
-                                            border-radius: 15px;
-                                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-                                            font-weight: 400;
-                                            font-size: 13px;
-                                        }
-                                    `);
-                                }
-                                
-                                // 连接线样式
-                                styles.push(`
-                                    .markmap-link[data-depth="${node.depth}"] {
-                                        stroke: ${node.color || '#667eea'};
-                                        stroke-width: ${Math.max(3 - node.depth * 0.5, 1)}px;
-                                    }
-                                `);
-                                
-                                return styles.join('\n');
-                            }
+                            zoom: true
                         };
                         
                         markmapInstance = MarkmapClass.create(svg.node(), markmapOptions);
+                        
+                        // 验证root数据
+                        if (!root || typeof root !== 'object') {
+                            throw new Error('Root数据无效');
+                        }
+                        
+                        console.log('准备设置数据到Markmap实例');
                         
                         // 渲染思维导图
                         markmapInstance.setData(root);
                         markmapInstance.fit();
                         
-                        // 添加自定义样式
+                        // 添加自定义样式并观察DOM变化
                         addCustomMindmapStyles();
+                        
+                        // 等待DOM更新后再次应用样式
+                        setTimeout(() => {
+                            addCustomMindmapStyles();
+                            // 强制重新应用样式
+                            const nodes = svg.node().querySelectorAll('.markmap-node');
+                            nodes.forEach((node, index) => {
+                                const depth = node.getAttribute('data-depth') || 
+                                           (node.querySelector('[data-depth]') && node.querySelector('[data-depth]').getAttribute('data-depth')) ||
+                                           Math.min(index, 6);
+                                node.setAttribute('data-depth', depth);
+                            });
+                        }, 500);
                         
                         console.log('增强版Markmap实例创建成功');
                     } catch (createError) {
                         console.error('Markmap创建错误:', createError);
                         // 如果创建失败，使用增强的备用渲染
-                        renderEnhancedSVGMindmap(markdown, svg);
+                        try {
+                            renderEnhancedSVGMindmap(markdown, svg);
+                        } catch (fallbackError) {
+                            console.error('备用渲染也失败:', fallbackError);
+                            // 最后的备用方案
+                            renderTextMindmap(markdown);
+                        }
                     }
                 } else {
                     // 没有Markmap类，使用增强的备用渲染
                     console.log('使用增强版备用SVG渲染');
-                    renderEnhancedSVGMindmap(markdown, svg);
+                    try {
+                        renderEnhancedSVGMindmap(markdown, svg);
+                    } catch (fallbackError) {
+                        console.error('备用渲染失败:', fallbackError);
+                        // 最后的备用方案
+                        renderTextMindmap(markdown);
+                    }
                 }
 
             } catch (error) {
@@ -1912,15 +1882,73 @@ ${details ? `详细描述：${details}` : ''}
                     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
                 }
 
-                /* 节点通用样式 */
+                /* 节点样式 - 根据深度定制 */
                 .markmap-node > .markmap-foreign > div {
                     transition: all 0.3s ease;
                     border: none !important;
-                    backdrop-filter: blur(10px);
+                    color: white !important;
+                    text-align: center;
+                    line-height: 1.4;
+                    word-wrap: break-word;
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                    font-weight: 500;
                 }
 
+                /* 中心节点 - 深度0 */
+                .markmap-node[data-depth="0"] > .markmap-foreign > div {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+                    padding: 12px 20px !important;
+                    border-radius: 25px !important;
+                    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3) !important;
+                    font-weight: 600 !important;
+                    font-size: 16px !important;
+                }
+
+                /* 主要分支 - 深度1 */
+                .markmap-node[data-depth="1"] > .markmap-foreign > div {
+                    background: #FF6B6B !important;
+                    padding: 10px 16px !important;
+                    border-radius: 20px !important;
+                    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+                    font-weight: 500 !important;
+                    font-size: 14px !important;
+                }
+
+                /* 二级分支 - 深度2 */
+                .markmap-node[data-depth="2"] > .markmap-foreign > div {
+                    background: #4ECDC4 !important;
+                    padding: 8px 14px !important;
+                    border-radius: 15px !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+                    font-weight: 400 !important;
+                    font-size: 13px !important;
+                }
+
+                /* 三级分支 - 深度3 */
+                .markmap-node[data-depth="3"] > .markmap-foreign > div {
+                    background: #45B7D1 !important;
+                    padding: 6px 12px !important;
+                    border-radius: 12px !important;
+                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+                    font-weight: 400 !important;
+                    font-size: 12px !important;
+                }
+
+                /* 更深层级 - 深度4+ */
+                .markmap-node[data-depth="4"] > .markmap-foreign > div,
+                .markmap-node[data-depth="5"] > .markmap-foreign > div,
+                .markmap-node[data-depth="6"] > .markmap-foreign > div {
+                    background: #96CEB4 !important;
+                    padding: 6px 10px !important;
+                    border-radius: 10px !important;
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+                    font-weight: 400 !important;
+                    font-size: 11px !important;
+                }
+
+                /* 悬停效果 */
                 .markmap-node:hover > .markmap-foreign > div {
-                    transform: scale(1.05);
+                    transform: scale(1.05) !important;
                     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25) !important;
                 }
 
@@ -1928,26 +1956,33 @@ ${details ? `详细描述：${details}` : ''}
                 .markmap-link {
                     transition: all 0.3s ease;
                     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+                    stroke-width: 2px;
                 }
 
                 .markmap-link:hover {
-                    stroke-width: 4px !important;
+                    stroke-width: 3px !important;
                     filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
-                }
-
-                /* 文本样式 */
-                .markmap-foreign div {
-                    text-align: center;
-                    line-height: 1.4;
-                    word-wrap: break-word;
-                    hyphens: auto;
                 }
 
                 /* 响应式调整 */
                 @media (max-width: 768px) {
-                    .markmap-node > .markmap-foreign > div {
+                    .markmap-node[data-depth="0"] > .markmap-foreign > div {
+                        font-size: 14px !important;
+                        padding: 10px 16px !important;
+                    }
+                    
+                    .markmap-node[data-depth="1"] > .markmap-foreign > div {
                         font-size: 12px !important;
-                        padding: 6px 12px !important;
+                        padding: 8px 12px !important;
+                    }
+                    
+                    .markmap-node[data-depth="2"] > .markmap-foreign > div,
+                    .markmap-node[data-depth="3"] > .markmap-foreign > div,
+                    .markmap-node[data-depth="4"] > .markmap-foreign > div,
+                    .markmap-node[data-depth="5"] > .markmap-foreign > div,
+                    .markmap-node[data-depth="6"] > .markmap-foreign > div {
+                        font-size: 11px !important;
+                        padding: 6px 10px !important;
                     }
                 }
             `;
@@ -2042,11 +2077,32 @@ ${details ? `详细描述：${details}` : ''}
                 }
             });
             
+            // 如果没有解析到任何内容，创建一个基本结构
+            if (root.children.length === 0) {
+                root.children.push({
+                    text: '内容',
+                    children: [],
+                    depth: 1
+                });
+            }
+            
+            console.log('解析的树结构:', root);
             return root;
         }
 
         // 递归渲染增强节点
         function renderEnhancedNode(container, node, x, y, angle, maxWidth, maxHeight) {
+            // 安全检查
+            if (!node || !node.text) {
+                console.warn('节点数据无效:', node);
+                return;
+            }
+            
+            // 确保坐标有效
+            x = isNaN(x) ? 0 : x;
+            y = isNaN(y) ? 0 : y;
+            angle = isNaN(angle) ? 0 : angle;
+            
             const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
             const gradientIds = ['grad1', 'grad2', 'grad3', 'grad4', 'grad5', 'grad6', 'grad7', 'grad8'];
             
@@ -2058,36 +2114,21 @@ ${details ? `详细描述：${details}` : ''}
                 default: { rx: 12, ry: 8, fontSize: 12, fontWeight: '400', padding: 12 }
             };
             
-            const config = nodeConfig[node.depth] || nodeConfig.default;
-            const color = colors[node.depth % colors.length];
-            const gradientId = gradientIds[node.depth % gradientIds.length];
+            const depth = node.depth || 0;
+            const config = nodeConfig[depth] || nodeConfig.default;
+            const color = colors[depth % colors.length];
+            const gradientId = gradientIds[depth % gradientIds.length];
             
             // 创建节点组
             const nodeGroup = container.append('g')
-                .attr('class', `node-depth-${node.depth}`)
+                .attr('class', `node-depth-${depth}`)
                 .attr('transform', `translate(${x}, ${y})`);
             
             // 计算文本尺寸
-            const textLength = node.text.length * config.fontSize * 0.6;
+            const text = String(node.text || '');
+            const textLength = text.length * config.fontSize * 0.6;
             const rectWidth = Math.max(textLength + config.padding, 80);
             const rectHeight = config.fontSize + config.padding;
-            
-            // 添加阴影滤镜（确保只添加一次）
-            const svgRoot = container.node().ownerSVGElement || container.node();
-            if (!svgRoot.querySelector('#drop-shadow')) {
-                const defs = d3.select(svgRoot).select('defs').empty() ? 
-                    d3.select(svgRoot).append('defs') : d3.select(svgRoot).select('defs');
-                
-                const dropShadow = defs.append('filter')
-                    .attr('id', 'drop-shadow')
-                    .attr('x', '-50%').attr('y', '-50%')
-                    .attr('width', '200%').attr('height', '200%');
-                
-                dropShadow.append('feDropShadow')
-                    .attr('dx', 2).attr('dy', 4)
-                    .attr('stdDeviation', 3)
-                    .attr('flood-opacity', 0.3);
-            }
             
             // 绘制节点背景
             nodeGroup.append('rect')
@@ -2120,33 +2161,36 @@ ${details ? `详细描述：${details}` : ''}
                 .attr('font-weight', config.fontWeight)
                 .attr('font-family', 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif')
                 .style('pointer-events', 'none')
-                .text(node.text);
+                .text(text);
             
             // 渲染子节点
             if (node.children && node.children.length > 0) {
                 const childCount = node.children.length;
-                const angleStep = (2 * Math.PI) / childCount;
-                const radius = Math.min(maxWidth, maxHeight) / (node.depth + 2) * 0.8;
+                const angleStep = childCount > 1 ? (2 * Math.PI) / childCount : 0;
+                const radius = Math.min(maxWidth, maxHeight) / Math.max(depth + 2, 2) * 0.6;
                 
                 node.children.forEach((child, index) => {
                     const childAngle = angle + (index - (childCount - 1) / 2) * angleStep;
                     const childX = x + Math.cos(childAngle) * radius;
                     const childY = y + Math.sin(childAngle) * radius;
                     
-                    // 绘制连接线
-                    container.append('line')
-                        .attr('x1', x)
-                        .attr('y1', y)
-                        .attr('x2', childX)
-                        .attr('y2', childY)
-                        .attr('stroke', color)
-                        .attr('stroke-width', Math.max(4 - node.depth, 1))
-                        .attr('opacity', 0.8)
-                        .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))');
-                    
-                    // 递归渲染子节点
-                    renderEnhancedNode(container, child, childX, childY, childAngle, 
-                        maxWidth * 0.8, maxHeight * 0.8);
+                    // 确保子节点坐标有效
+                    if (!isNaN(childX) && !isNaN(childY)) {
+                        // 绘制连接线
+                        container.append('line')
+                            .attr('x1', x)
+                            .attr('y1', y)
+                            .attr('x2', childX)
+                            .attr('y2', childY)
+                            .attr('stroke', color)
+                            .attr('stroke-width', Math.max(4 - depth, 1))
+                            .attr('opacity', 0.8)
+                            .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))');
+                        
+                        // 递归渲染子节点
+                        renderEnhancedNode(container, child, childX, childY, childAngle, 
+                            maxWidth * 0.8, maxHeight * 0.8);
+                    }
                 });
             }
         }
