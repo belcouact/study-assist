@@ -137,6 +137,12 @@
             flex-wrap: wrap;
         }
 
+        #grade-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+        }
+
         .difficulty-btn {
             padding: 0.75rem 1.5rem;
             border: 2px solid #e9ecef;
@@ -361,13 +367,7 @@
             margin-bottom: 1rem;
         }
 
-        #grade-selector .difficulty-btn {
-            display: none;
-        }
 
-        #grade-selector .difficulty-btn.show {
-            display: inline-flex;
-        }
 
         /* Results Display Styles - matching physics testing page */
         .question-result {
@@ -697,6 +697,11 @@
                 justify-content: center;
             }
 
+            #grade-selector {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+
             .quiz-navigation {
                 flex-direction: column;
                 align-items: stretch;
@@ -814,32 +819,28 @@
                             </div>
                         </div>
                         
-                        <!-- Learning Stage Selection -->
-                        <div class="form-group">
-                            <label><strong>学习阶段：</strong></label>
-                            <div class="difficulty-selector" id="learning-stage-selector">
-                                <button class="difficulty-btn" data-stage="middle">
-                                    <i class="fas fa-school"></i> 初中
-                                </button>
-                                <button class="difficulty-btn" data-stage="high">
-                                    <i class="fas fa-graduation-cap"></i> 高中
-                                </button>
-                            </div>
-                        </div>
-                        
                         <!-- Grade Selection -->
                         <div class="form-group">
                             <label><strong>年级：</strong></label>
                             <div class="difficulty-selector" id="grade-selector">
-                                <div class="grade-hint" id="grade-hint" style="color: #666; font-size: 14px; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 10px;">
-                                    <i class="fas fa-info-circle"></i> 请先选择学习阶段，然后选择对应的年级
-                                </div>
-                                <button class="difficulty-btn" data-grade="7">七年级</button>
-                                <button class="difficulty-btn" data-grade="8">八年级</button>
-                                <button class="difficulty-btn" data-grade="9">九年级</button>
-                                <button class="difficulty-btn" data-grade="10">高一</button>
-                                <button class="difficulty-btn" data-grade="11">高二</button>
-                                <button class="difficulty-btn" data-grade="12">高三</button>
+                                <button class="difficulty-btn" data-grade="7" data-stage="middle">
+                                    <i class="fas fa-school"></i> 七年级
+                                </button>
+                                <button class="difficulty-btn" data-grade="8" data-stage="middle">
+                                    <i class="fas fa-school"></i> 八年级
+                                </button>
+                                <button class="difficulty-btn" data-grade="9" data-stage="middle">
+                                    <i class="fas fa-school"></i> 九年级
+                                </button>
+                                <button class="difficulty-btn" data-grade="10" data-stage="high">
+                                    <i class="fas fa-graduation-cap"></i> 高一
+                                </button>
+                                <button class="difficulty-btn" data-grade="11" data-stage="high">
+                                    <i class="fas fa-graduation-cap"></i> 高二
+                                </button>
+                                <button class="difficulty-btn" data-grade="12" data-stage="high">
+                                    <i class="fas fa-graduation-cap"></i> 高三
+                                </button>
                             </div>
                         </div>
                         
@@ -989,20 +990,12 @@
         <div class="container">
             <div class="footer-content">
                 <p class="copyright-text">study-llm.me域名为Alex所有。保留所有权利。</p>
-                <div class="profile-section">
-                    <button id="profile-button" class="profile-button">
-                        <i class="fas fa-user-circle"></i>
-                        学习阶段
-                    </button>
-                    <div id="profile-display" class="profile-display"></div>
-                </div>
             </div>
         </div>
     </footer>
 
     <script src="../../js/common.js"></script>
     <script src="../../js/navigation.js"></script>
-    <script src="../../js/profile.js"></script>
     <script>
         // AI Quiz Global Variables
         let currentQuiz = null;
@@ -1048,19 +1041,6 @@
                 });
             });
 
-            // Learning stage selection
-            const stageBtns = document.querySelectorAll('#learning-stage-selector .difficulty-btn');
-            stageBtns.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    stageBtns.forEach(b => b.classList.remove('selected'));
-                    this.classList.add('selected');
-                    selectedStage = this.getAttribute('data-stage');
-                    
-                    // Update grade options based on stage
-                    updateGradeOptions(selectedStage);
-                });
-            });
-
             // Grade selection
             const gradeBtns = document.querySelectorAll('#grade-selector .difficulty-btn');
             gradeBtns.forEach(btn => {
@@ -1068,6 +1048,7 @@
                     gradeBtns.forEach(b => b.classList.remove('selected'));
                     this.classList.add('selected');
                     selectedGrade = this.getAttribute('data-grade');
+                    selectedStage = this.getAttribute('data-stage');
                 });
             });
 
@@ -1092,40 +1073,12 @@
             generateBtn.addEventListener('click', generateAIQuiz);
         }
 
-        function updateGradeOptions(stage) {
-            const gradeButtons = document.querySelectorAll('#grade-selector .difficulty-btn');
-            const gradeHint = document.getElementById('grade-hint');
-            
-            // Hide the hint message
-            if (gradeHint) {
-                gradeHint.style.display = 'none';
-            }
-            
-            gradeButtons.forEach(btn => {
-                btn.classList.remove('selected');
-                const grade = parseInt(btn.getAttribute('data-grade'));
-                
-                if (stage === 'middle') {
-                    // Show grades 7-9 for middle school
-                    btn.style.display = (grade >= 7 && grade <= 9) ? 'inline-flex' : 'none';
-                } else if (stage === 'high') {
-                    // Show grades 10-12 for high school
-                    btn.style.display = (grade >= 10 && grade <= 12) ? 'inline-flex' : 'none';
-                }
-            });
-            
-            // Reset selected grade
-            selectedGrade = '';
-        }
+
 
         async function generateAIQuiz() {
             // Validate selections
             if (!selectedTopic) {
                 alert('请选择一个测试话题');
-                return;
-            }
-            if (!selectedStage) {
-                alert('请选择学习阶段');
                 return;
             }
             if (!selectedGrade) {
