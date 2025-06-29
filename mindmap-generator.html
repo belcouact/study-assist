@@ -212,6 +212,62 @@
             transform: none;
         }
 
+        .textarea-container {
+            position: relative;
+        }
+
+        .convert-markdown-btn {
+            margin-top: 12px;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+        }
+
+        .convert-markdown-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        }
+
+        .convert-markdown-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .convert-markdown-btn i {
+            font-size: 14px;
+        }
+
+        .convert-tips {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #3b82f6;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .convert-tips i {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
         .loading-spinner {
             display: inline-block;
             width: 20px;
@@ -516,12 +572,28 @@
             .select-field,
             .generate-btn,
             .tab-btn,
-            .btn-secondary {
+            .btn-secondary,
+            .convert-markdown-btn {
                 min-height: 44px;
             }
             
             .example-card:hover {
                 transform: none;
+            }
+        }
+
+        /* 移动端适配 - 转换按钮 */
+        @media (max-width: 768px) {
+            .convert-markdown-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 12px 20px;
+                font-size: 15px;
+            }
+
+            .convert-tips {
+                font-size: 11px;
+                padding: 6px 10px;
             }
         }
     </style>
@@ -574,12 +646,22 @@
                         <i class="fas fa-edit"></i>
                         详细描述（可选）
                     </label>
-                    <textarea 
-                        id="detailsInput" 
-                        class="input-field textarea-field" 
-                        placeholder="请详细描述您希望生成的思维导图内容，包括重点关注的方面、深度要求等..."
-                        maxlength="1000"
-                    ></textarea>
+                    <div class="textarea-container">
+                        <textarea 
+                            id="detailsInput" 
+                            class="input-field textarea-field" 
+                            placeholder="请详细描述您希望生成的思维导图内容，包括重点关注的方面、深度要求等...&#10;&#10;提示：您也可以直接输入Markdown格式的内容，然后点击下方的"转换为思维导图"按钮"
+                            maxlength="5000"
+                        ></textarea>
+                        <button id="convertMarkdownBtn" class="convert-markdown-btn" title="将上方的Markdown内容直接转换为思维导图">
+                            <i class="fas fa-project-diagram"></i>
+                            转换为思维导图
+                        </button>
+                        <div class="convert-tips">
+                            <i class="fas fa-info-circle"></i>
+                            <span>提示：支持直接输入Markdown格式内容，需要包含标题结构（# ## ###）</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="settings-grid">
@@ -972,6 +1054,9 @@
         function initializeEventListeners() {
             // 生成按钮点击事件
             elements.generateBtn.addEventListener('click', generateMindmap);
+
+            // 转换Markdown按钮点击事件
+            document.getElementById('convertMarkdownBtn').addEventListener('click', convertMarkdownToMindmap);
 
             // 回车键快捷键
             elements.topicInput.addEventListener('keypress', function(e) {
@@ -1416,6 +1501,71 @@
                 showError(error.message || '生成失败，请稍后重试');
             } finally {
                 setLoading(false);
+            }
+        }
+
+        // 直接转换Markdown内容为思维导图
+        async function convertMarkdownToMindmap() {
+            const markdownContent = elements.detailsInput.value.trim();
+            
+            if (!markdownContent) {
+                showError('请在详细描述字段中输入Markdown内容');
+                return;
+            }
+
+            if (!librariesLoaded) {
+                showError('思维导图库尚未加载完成，请稍等');
+                return;
+            }
+
+            try {
+                // 设置转换按钮加载状态
+                const convertBtn = document.getElementById('convertMarkdownBtn');
+                const originalContent = convertBtn.innerHTML;
+                convertBtn.disabled = true;
+                convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 转换中...';
+                
+                hideMessages();
+
+                // 验证Markdown内容是否包含标题结构
+                const hasHeaders = /^#{1,6}\s+.+$/m.test(markdownContent);
+                if (!hasHeaders) {
+                    // 如果没有标题结构，提示用户或自动添加基本结构
+                    const shouldAddStructure = confirm('检测到内容中没有Markdown标题结构（# ## ###），是否自动添加基本结构？\n\n点击"确定"将自动添加结构，点击"取消"将直接使用原内容。');
+                    
+                    let processedContent = markdownContent;
+                    if (shouldAddStructure) {
+                        // 自动添加基本结构
+                        processedContent = `# 思维导图\n\n${markdownContent}`;
+                    }
+                    
+                    // 保存处理后的内容
+                    currentMarkdown = processedContent;
+                } else {
+                    // 清理和处理 Markdown 内容
+                    currentMarkdown = cleanMarkdown(markdownContent);
+                }
+
+                console.log('转换的 Markdown 内容:', currentMarkdown);
+
+                // 渲染思维导图
+                await renderMindmap(currentMarkdown);
+
+                // 显示结果区域
+                elements.resultSection.style.display = 'block';
+                elements.resultSection.scrollIntoView({ behavior: 'smooth' });
+
+                // 显示成功消息
+                showSuccess('Markdown内容转换成功！');
+
+            } catch (error) {
+                console.error('转换Markdown时出错:', error);
+                showError(error.message || '转换失败，请检查Markdown格式');
+            } finally {
+                // 恢复转换按钮状态
+                const convertBtn = document.getElementById('convertMarkdownBtn');
+                convertBtn.disabled = false;
+                convertBtn.innerHTML = '<i class="fas fa-project-diagram"></i> 转换为思维导图';
             }
         }
 
