@@ -56,34 +56,16 @@
       // Set the worker source
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
       
-      // Configure CMap URL for proper font rendering with CORS mode
-      window.pdfjsLib.GlobalWorkerOptions.CMapReaderFactory = function({ baseUrl, isCompressed }) {
-        return {
-          fetch: function(cmapName) {
-            return fetch(`${baseUrl}${cmapName}${isCompressed ? '.bcmap' : ''}`, { 
-              mode: 'cors',  // Try with CORS first
-              credentials: 'same-origin'
-            })
-            .then(response => {
-              if (!response.ok) {
-                // If CORS fails, fall back to no-cors (for CDN resources)
-                return fetch(`${baseUrl}${cmapName}${isCompressed ? '.bcmap' : ''}`, { 
-                  mode: 'no-cors' 
-                });
-              }
-              return response;
-            })
-            .then(response => {
-              if (isCompressed) {
-                return response.arrayBuffer();
-              }
-              return response.text();
-            });
-          }
-        };
-      };
+      // Disable CMap to avoid CORS issues
+      window.pdfjsLib.GlobalWorkerOptions.cMapUrl = null;
+      window.pdfjsLib.GlobalWorkerOptions.cMapPacked = false;
       
-      window.pdfjsLib.GlobalWorkerOptions.standardFontDataUrl = `${PDFJS_CDN}/standard_fonts/`;
+      // Disable standard fonts to avoid CORS issues
+      window.pdfjsLib.GlobalWorkerOptions.standardFontDataUrl = null;
+      
+      // Use system fonts and disable web fonts to avoid CORS
+      window.pdfjsLib.GlobalWorkerOptions.useSystemFonts = true;
+      window.pdfjsLib.GlobalWorkerOptions.disableFontFace = true;
       
       // Track successful loading
       isLibraryLoaded = true;
@@ -701,18 +683,23 @@
     pageCache = new Map();
     pagePriority = [];
     
-    // Configure PDF.js options with CMap URL for proper font rendering with CORS handling
+    // Configure PDF.js options with improved CORS handling
     const pdfOptions = {
-      cMapUrl: `${PDFJS_CDN}/cmaps/`,
-      cMapPacked: true,
-      standardFontDataUrl: `${PDFJS_CDN}/standard_fonts/`,
-      disableFontFace: false,
-      nativeImageDecoderSupport: 'display',
+      // Disable cmaps to avoid CORS issues
+      cMapUrl: null,
+      cMapPacked: false,
+      // Disable standard fonts to avoid CORS issues
+      standardFontDataUrl: null,
+      // Use built-in font handling
+      disableFontFace: true,
       useSystemFonts: true,
+      nativeImageDecoderSupport: 'display',
       // Enable range requests for better loading performance
       rangeChunkSize: 65536,
       disableStream: false,
-      disableAutoFetch: false
+      disableAutoFetch: false,
+      // Ignore font errors
+      ignoreErrors: true
     };
     
     // Load the PDF document
