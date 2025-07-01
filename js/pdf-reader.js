@@ -580,9 +580,13 @@
    * @returns {boolean} True if container is successfully initialized, false otherwise
    */
   function initializePDFContainer() {
+    console.log("=== Starting PDF container initialization ===");
+    
     // Check if container already exists and is valid (has inner structure)
     let container = document.getElementById('pdf-viewer-container');
     let viewer = document.getElementById('pdf-viewer');
+    
+    console.log("Initial check - Container:", !!container, "Viewer:", !!viewer);
     
     if (container && viewer) {
       pdfContainer = viewer;
@@ -590,39 +594,107 @@
       return true;
     }
     
+    let populationResult = null;
+    
     // If container exists but is empty, populate it
     if (container && !viewer) {
       console.log("PDF container exists but is empty, populating it");
-      populateExistingContainer(container);
+      console.log("Container element:", container);
+      console.log("Container innerHTML before:", container.innerHTML);
+      
+      try {
+        populationResult = populateExistingContainer(container);
+        console.log("Population result:", !!populationResult);
+        console.log("Container innerHTML after:", container.innerHTML.substring(0, 200) + "...");
+      } catch (error) {
+        console.error("Error populating existing container:", error);
+        return false;
+      }
     } else {
       // Try to find an existing PDF container element in the page
       const existingPdfContainer = document.querySelector('.pdf-container');
       
+      console.log("Looking for .pdf-container:", !!existingPdfContainer);
+      
       if (existingPdfContainer) {
         console.log("Found existing PDF container, populating it");
-        populateExistingContainer(existingPdfContainer);
+        try {
+          populationResult = populateExistingContainer(existingPdfContainer);
+          console.log("Population result:", !!populationResult);
+        } catch (error) {
+          console.error("Error populating found container:", error);
+          return false;
+        }
       } else {
         // Create a new container
         console.log("Creating new PDF viewer container");
-        createPDFViewerUI();
+        try {
+          createPDFViewerUI();
+        } catch (error) {
+          console.error("Error creating new PDF viewer UI:", error);
+          return false;
+        }
       }
     }
     
-    // Verify the container was created successfully
+    // Add a small delay to ensure DOM is updated
+    setTimeout(() => {
+      // Verify the container was created successfully
+      const finalContainer = document.getElementById('pdf-viewer-container');
+      const finalViewer = document.getElementById('pdf-viewer');
+      
+      console.log("Final verification - Container:", !!finalContainer, "Viewer:", !!finalViewer);
+      
+      if (finalViewer) {
+        pdfContainer = finalViewer;
+        console.log("PDF container set successfully");
+      }
+    }, 10);
+    
+    // Immediate verification (synchronous)
     container = document.getElementById('pdf-viewer-container');
     viewer = document.getElementById('pdf-viewer');
+    
+    console.log("Immediate verification - Container:", !!container, "Viewer:", !!viewer);
+    
+    // If we have a population result, use it
+    if (populationResult) {
+      console.log("Using population result for viewer");
+      viewer = populationResult;
+    }
     
     if (!container || !viewer) {
       console.error("Failed to create PDF viewer container or viewer element");
       console.log("Container exists:", !!container);
       console.log("Viewer exists:", !!viewer);
-      return false;
+      
+      // Try once more with direct DOM query
+      const allViewers = document.querySelectorAll('#pdf-viewer');
+      console.log("All pdf-viewer elements found:", allViewers.length);
+      
+      if (allViewers.length > 0) {
+        console.log("Found viewer via querySelectorAll, using first one");
+        pdfContainer = allViewers[0];
+        viewer = allViewers[0];
+      } else {
+        return false;
+      }
     }
     
     // Set the global reference
     pdfContainer = viewer;
     
+    // Now setup event listeners
+    try {
+      console.log("Setting up event listeners...");
+      setupEventListeners();
+    } catch (error) {
+      console.error("Error setting up event listeners:", error);
+      // Continue anyway, as the viewer might still work
+    }
+    
     console.log("PDF container initialized successfully");
+    console.log("=== PDF container initialization complete ===");
     return true;
   }
   
@@ -630,14 +702,17 @@
    * Populate an existing container with PDF viewer elements
    */
   function populateExistingContainer(container) {
+    console.log("Populating existing container:", container);
+    
     // Ensure the container has the correct ID and class
     if (container.id !== 'pdf-viewer-container') {
+      console.log("Setting container ID to pdf-viewer-container");
       container.id = 'pdf-viewer-container';
     }
     container.classList.add('pdf-viewer-container');
     
     // Build the viewer UI
-    container.innerHTML = `
+    const viewerHTML = `
       <div class="pdf-viewer-toolbar">
         <div class="pdf-controls">
           <button id="pdf-prev" title="Previous Page">◀</button>
@@ -661,16 +736,33 @@
       <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
     `;
     
+    console.log("Setting innerHTML...");
+    container.innerHTML = viewerHTML;
+    
+    // Force a reflow to ensure DOM is updated
+    container.offsetHeight;
+    
+    console.log("Checking if pdf-viewer element was created...");
+    const viewer = document.getElementById('pdf-viewer');
+    console.log("pdf-viewer element found:", !!viewer);
+    
     // Add styles if not already included
     if (!document.getElementById('pdf-viewer-style')) {
+      console.log("Adding PDF viewer styles...");
       addPDFViewerStyles();
     }
     
     // Set the pdfContainer reference
-    pdfContainer = document.getElementById('pdf-viewer');
+    if (viewer) {
+      pdfContainer = viewer;
+      console.log("pdfContainer reference set successfully");
+    } else {
+      console.error("Failed to find pdf-viewer element after innerHTML set");
+    }
     
-    // Setup event listeners for the newly created elements
-    setupEventListeners();
+    // Don't setup event listeners here - let the caller handle it
+    console.log("Container population complete");
+    return viewer; // Return the viewer element for verification
   }
   
   /**
