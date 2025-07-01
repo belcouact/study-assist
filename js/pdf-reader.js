@@ -536,6 +536,12 @@
     
     // Touch swipe for mobile devices
     setupTouchControls();
+    
+    // Fullscreen change event listeners
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
   }
   
   /**
@@ -1035,7 +1041,7 @@
   }
   
   /**
-   * Toggle fullscreen mode
+   * Toggle fullscreen mode using browser's fullscreen API
    */
   function toggleFullscreen() {
     const container = document.getElementById('pdf-viewer-container');
@@ -1043,18 +1049,63 @@
     
     if (!container) return;
     
-    isFullscreen = !isFullscreen;
+    // Check if we're currently in fullscreen
+    const isCurrentlyFullscreen = document.fullscreenElement || 
+                                  document.webkitFullscreenElement || 
+                                  document.mozFullScreenElement || 
+                                  document.msFullscreenElement;
+    
+    if (isCurrentlyFullscreen) {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    } else {
+      // Enter fullscreen
+      if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      } else if (container.mozRequestFullScreen) {
+        container.mozRequestFullScreen();
+      } else if (container.msRequestFullscreen) {
+        container.msRequestFullscreen();
+      }
+    }
+  }
+  
+  /**
+   * Handle fullscreen change events
+   */
+  function handleFullscreenChange() {
+    const container = document.getElementById('pdf-viewer-container');
+    const fullscreenButton = document.getElementById('pdf-fullscreen');
+    
+    const isCurrentlyFullscreen = document.fullscreenElement || 
+                                  document.webkitFullscreenElement || 
+                                  document.mozFullScreenElement || 
+                                  document.msFullscreenElement;
+    
+    isFullscreen = !!isCurrentlyFullscreen;
     
     if (isFullscreen) {
-      container.classList.add('fullscreen');
+      if (container) container.classList.add('fullscreen');
       if (fullscreenButton) fullscreenButton.textContent = '⤢';
     } else {
-      container.classList.remove('fullscreen');
+      if (container) container.classList.remove('fullscreen');
       if (fullscreenButton) fullscreenButton.textContent = '⛶';
     }
     
     // Re-render the page to fit the new container size
-    renderPage(currentPage);
+    setTimeout(() => {
+      renderPage(currentPage);
+    }, 100);
   }
   
   /**

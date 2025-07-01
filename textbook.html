@@ -481,7 +481,6 @@
                                 <option value="Biology">生物</option>
                                 <option value="Physics">物理</option>
                                 <option value="Chemistry">化学</option>
-                                <option value="Politics">政治</option>
                             </select>
                         </div>
                         
@@ -720,7 +719,7 @@
                 }
                 
                 // Build a list of directories to search
-                const subjectsToSearch = subject ? [subject] : ['Chinese', 'Maths', 'English', 'History', 'Geography', 'Biology', 'Chemistry', 'Physics', 'Politics'];
+                const subjectsToSearch = subject ? [subject] : ['Chinese', 'Maths', 'English', 'History', 'Geography', 'Biology', 'Chemistry', 'Physics'];
                 const schoolLevelsToSearch = schoolLevel ? [schoolLevel] : ['小学', '初中', '高中'];
                 
                 let allFiles = [];
@@ -803,6 +802,9 @@
             
             // Load a PDF file
             function loadPdf(filePath, title) {
+                // Show obvious loading indicator
+                showPdfLoadingIndicator(title);
+                
                 // Scroll to PDF viewer area
                 scrollToPdfArea();
                 
@@ -818,16 +820,183 @@
                             cacheSize: 10
                         });
                         
-                        logMessage(`PDF加载成功:`, title);
+                        // Hide loading indicator after a brief delay to ensure PDF is visible
+                        setTimeout(() => {
+                            hidePdfLoadingIndicator();
+                            logMessage(`PDF加载成功:`, title);
+                        }, 1500);
                     } catch (error) {
+                        hidePdfLoadingIndicator();
                         console.error('Error loading PDF:', error);
                         logMessage(`PDF加载失败:`, error.message);
                         alert('无法加载PDF文件。请检查文件路径是否正确或刷新页面重试。');
                     }
                 } else {
+                    hidePdfLoadingIndicator();
                     console.error('PDF Reader not initialized');
                     logMessage(`PDF阅读器未初始化`);
                     alert('PDF阅读器未正确初始化。请刷新页面重试。');
+                }
+            }
+            
+            // Show obvious PDF loading indicator
+            function showPdfLoadingIndicator(title) {
+                // Remove any existing indicator
+                hidePdfLoadingIndicator();
+                
+                // Create a prominent loading overlay
+                const loadingOverlay = document.createElement('div');
+                loadingOverlay.id = 'pdf-loading-overlay';
+                loadingOverlay.innerHTML = `
+                    <div class="pdf-loading-content">
+                        <div class="pdf-loading-spinner"></div>
+                        <div class="pdf-loading-text">
+                            <div class="pdf-loading-title">正在加载课本</div>
+                            <div class="pdf-loading-subtitle">${title}</div>
+                            <div class="pdf-loading-progress">
+                                <div class="pdf-loading-bar"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Add styles if not already added
+                if (!document.getElementById('pdf-loading-styles')) {
+                    const loadingStyles = document.createElement('style');
+                    loadingStyles.id = 'pdf-loading-styles';
+                    loadingStyles.innerHTML = `
+                        #pdf-loading-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: linear-gradient(135deg, rgba(67, 97, 238, 0.95), rgba(156, 39, 176, 0.95));
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 10000;
+                            backdrop-filter: blur(10px);
+                            animation: fadeIn 0.3s ease-out;
+                        }
+                        
+                        .pdf-loading-content {
+                            text-align: center;
+                            color: white;
+                            max-width: 400px;
+                            padding: 40px;
+                            background: rgba(255, 255, 255, 0.1);
+                            border-radius: 20px;
+                            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                        }
+                        
+                        .pdf-loading-spinner {
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 30px;
+                            border: 4px solid rgba(255, 255, 255, 0.3);
+                            border-top: 4px solid #ffffff;
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                        }
+                        
+                        .pdf-loading-title {
+                            font-size: 24px;
+                            font-weight: 600;
+                            margin-bottom: 10px;
+                            font-family: 'Poppins', sans-serif;
+                        }
+                        
+                        .pdf-loading-subtitle {
+                            font-size: 16px;
+                            opacity: 0.9;
+                            margin-bottom: 30px;
+                            line-height: 1.4;
+                        }
+                        
+                        .pdf-loading-progress {
+                            width: 100%;
+                            height: 6px;
+                            background: rgba(255, 255, 255, 0.2);
+                            border-radius: 3px;
+                            overflow: hidden;
+                            position: relative;
+                        }
+                        
+                        .pdf-loading-bar {
+                            height: 100%;
+                            background: linear-gradient(90deg, #ffffff, rgba(255, 255, 255, 0.8));
+                            border-radius: 3px;
+                            animation: loadingBar 2s ease-in-out infinite;
+                        }
+                        
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                        
+                        @keyframes fadeIn {
+                            from { opacity: 0; transform: scale(0.9); }
+                            to { opacity: 1; transform: scale(1); }
+                        }
+                        
+                        @keyframes loadingBar {
+                            0%, 100% { width: 0%; transform: translateX(-100%); }
+                            50% { width: 100%; transform: translateX(0%); }
+                        }
+                        
+                        /* Mobile responsiveness */
+                        @media (max-width: 768px) {
+                            .pdf-loading-content {
+                                max-width: 300px;
+                                padding: 30px 20px;
+                            }
+                            
+                            .pdf-loading-title {
+                                font-size: 20px;
+                            }
+                            
+                            .pdf-loading-subtitle {
+                                font-size: 14px;
+                            }
+                            
+                            .pdf-loading-spinner {
+                                width: 60px;
+                                height: 60px;
+                                margin-bottom: 20px;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(loadingStyles);
+                }
+                
+                document.body.appendChild(loadingOverlay);
+            }
+            
+            // Hide PDF loading indicator
+            function hidePdfLoadingIndicator() {
+                const loadingOverlay = document.getElementById('pdf-loading-overlay');
+                if (loadingOverlay) {
+                    loadingOverlay.style.animation = 'fadeOut 0.3s ease-out';
+                    setTimeout(() => {
+                        if (loadingOverlay.parentNode) {
+                            loadingOverlay.parentNode.removeChild(loadingOverlay);
+                        }
+                    }, 300);
+                }
+                
+                // Add fadeOut animation if not already defined
+                if (!document.getElementById('fadeout-animation')) {
+                    const fadeOutStyle = document.createElement('style');
+                    fadeOutStyle.id = 'fadeout-animation';
+                    fadeOutStyle.innerHTML = `
+                        @keyframes fadeOut {
+                            from { opacity: 1; transform: scale(1); }
+                            to { opacity: 0; transform: scale(0.9); }
+                        }
+                    `;
+                    document.head.appendChild(fadeOutStyle);
                 }
             }
             
