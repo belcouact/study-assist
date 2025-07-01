@@ -273,7 +273,7 @@
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader"></div>
       <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
     `;
     
