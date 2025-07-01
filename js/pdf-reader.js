@@ -284,7 +284,6 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
-          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
@@ -642,12 +641,14 @@
     let container = document.getElementById('pdf-viewer-container');
     if (!container) {
       console.log("PDF viewer container not found, creating one");
-      const pdfContainer = document.querySelector('.pdf-container');
-      if (pdfContainer) {
-        createPDFViewerInContainer(pdfContainer);
+      const existingPdfContainer = document.querySelector('.pdf-container');
+      if (existingPdfContainer) {
+        createPDFViewerInContainer(existingPdfContainer);
       } else {
         createPDFViewerUI();
       }
+      // Set the pdfContainer reference after creation
+      pdfContainer = document.getElementById('pdf-viewer');
     }
     
     // Make sure pdfContainer exists
