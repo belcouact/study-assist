@@ -238,7 +238,6 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
-          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
@@ -390,25 +389,7 @@
         background-color: #45a049;
       }
       
-      #pdf-toggle-quality {
-        background-color: #9c27b0;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 4px 8px;
-        cursor: pointer;
-        transition: all 0.3s;
-        opacity: 0.7;
-      }
-      
-      #pdf-toggle-quality.active {
-        opacity: 1;
-        font-weight: bold;
-      }
-      
-      #pdf-toggle-quality:hover {
-        opacity: 1;
-      }
+
       
       .pdf-viewer {
         flex: 1;
@@ -521,7 +502,6 @@
     const pageInput = document.getElementById('pdf-page-input');
     const goToPageButton = document.getElementById('pdf-go-to-page');
     const downloadButton = document.getElementById('pdf-download');
-    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
     const viewer = document.getElementById('pdf-viewer');
     
     if (prevButton) prevButton.addEventListener('click', previousPage);
@@ -536,11 +516,6 @@
     
     // Download button
     if (downloadButton) downloadButton.addEventListener('click', downloadPDF);
-    
-    // Quality toggle button
-    if (qualityToggleButton) {
-      qualityToggleButton.addEventListener('click', toggleRenderingQuality);
-    }
     
     // Page search
     if (pageInput && goToPageButton) {
@@ -1184,27 +1159,7 @@
     }
   }
   
-  /**
-   * Toggle rendering quality
-   */
-  function toggleRenderingQuality() {
-    isHighQualityMode = !isHighQualityMode;
-    
-    // Update the button appearance
-    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
-    if (qualityToggleButton) {
-      if (isHighQualityMode) {
-        qualityToggleButton.classList.add('active');
-        qualityToggleButton.textContent = 'HD';
-      } else {
-        qualityToggleButton.classList.remove('active');
-        qualityToggleButton.textContent = 'SD';
-      }
-    }
-    
-    // Re-render the current page with new quality settings
-    renderPage(currentPage);
-  }
+
   
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
@@ -1216,7 +1171,7 @@
     toggleFullscreen,
     goToPage,
     downloadPDF,
-    toggleRenderingQuality,
+
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
       return isLibraryLoaded && !!pdfContainer;
