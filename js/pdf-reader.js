@@ -145,8 +145,8 @@
     }
   }
   
-  // PDF Viewer Configuration  
-  const DEFAULT_SCALE = 1.0; // Base scale - let auto-fit determine optimal size
+  // PDF Viewer Configuration
+  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.2 : 1.0; // Higher default scale for high-DPI displays
   const ZOOM_STEP = 0.1;
   const MAX_SCALE = 3.0;
   const MIN_SCALE = 0.5;
@@ -160,7 +160,6 @@
   let isFullscreen = false;
   let currentPdfUrl = null; // Track the current PDF URL
   let isHighQualityMode = true; // Default to high quality rendering
-  let eventListenersSetup = false; // Track if event listeners are already set up
   
   // Cache for lazy loading
   let pageCache = new Map();
@@ -174,18 +173,31 @@
    */
   function initPDFViewer() {
     try {
-      console.log("Initializing PDF Viewer...");
+      // Create or update PDF viewer container
+      createPDFViewerUI();
       
-      // Initialize the PDF container
-      if (!initializePDFContainer()) {
-        console.error("Failed to initialize PDF container during viewer initialization");
-        return false;
+      // Ensure the pdfContainer reference is set
+      if (!pdfContainer) {
+        pdfContainer = document.getElementById('pdf-viewer');
+        if (!pdfContainer) {
+          console.error("Could not find or create pdf-viewer element");
+          // Get the pdf-container from the document
+          const existingContainer = document.querySelector('.pdf-container');
+          if (existingContainer) {
+            // Create the PDF viewer container within the existing container
+            createPDFViewerInContainer(existingContainer);
+            pdfContainer = document.getElementById('pdf-viewer');
+          } else {
+            // Create the container in the body if no existing container is found
+            createPDFViewerUI();
+            pdfContainer = document.getElementById('pdf-viewer');
+          }
+        }
       }
       
       // Setup event listeners
       setupEventListeners();
       
-      console.log("PDF Viewer initialized successfully");
       return true; // Indicate successful initialization
     } catch (error) {
       console.error("Error initializing PDF viewer:", error);
@@ -226,6 +238,7 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
@@ -272,6 +285,7 @@
           <button id="pdf-zoom-out" title="Zoom Out">−</button>
           <span id="pdf-zoom-level">100%</span>
           <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-toggle-quality" title="Toggle Rendering Quality" class="active">HD</button>
           <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
           <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
         </div>
@@ -304,14 +318,12 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 90vh;
-        min-height: 800px;
+        height: 600px;
         max-width: 100%;
         margin: 0 auto;
         border: 1px solid #ccc;
         background-color: #f5f5f5;
         position: relative;
-        overflow: hidden;
       }
       
       .pdf-viewer-container.fullscreen {
@@ -378,7 +390,25 @@
         background-color: #45a049;
       }
       
-
+      #pdf-toggle-quality {
+        background-color: #9c27b0;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+        opacity: 0.7;
+      }
+      
+      #pdf-toggle-quality.active {
+        opacity: 1;
+        font-weight: bold;
+      }
+      
+      #pdf-toggle-quality:hover {
+        opacity: 1;
+      }
       
       .pdf-viewer {
         flex: 1;
@@ -386,39 +416,26 @@
         background-color: #525659;
         position: relative;
         text-align: center;
-        padding: 0;
-        margin: 0;
-        box-sizing: border-box;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        padding: 20px 0;
       }
       
       .pdf-page {
-        margin: 0 auto;
+        margin: 10px auto;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
-        display: block;
+        display: inline-block;
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
-        width: auto;
-        height: auto;
-        text-align: center;
       }
       
       .pdf-page canvas {
         display: block;
-        margin: 0 auto;
         image-rendering: -webkit-optimize-contrast; /* For Webkit browsers */
         image-rendering: crisp-edges; /* For Firefox */
         -ms-interpolation-mode: nearest-neighbor; /* For IE */
         will-change: transform; /* Optimization for performance */
-        max-width: 100%;
-        height: auto;
       }
       
       .pdf-page-textlayer {
@@ -495,12 +512,6 @@
    * Setup event listeners for PDF viewer controls
    */
   function setupEventListeners() {
-    // Check if event listeners are already set up to prevent duplicates
-    if (eventListenersSetup) {
-      console.log("Event listeners already set up, skipping");
-      return;
-    }
-    
     // Page navigation
     const prevButton = document.getElementById('pdf-prev');
     const nextButton = document.getElementById('pdf-next');
@@ -510,16 +521,11 @@
     const pageInput = document.getElementById('pdf-page-input');
     const goToPageButton = document.getElementById('pdf-go-to-page');
     const downloadButton = document.getElementById('pdf-download');
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
     const viewer = document.getElementById('pdf-viewer');
     
-    if (prevButton) {
-      prevButton.addEventListener('click', previousPage);
-      console.log("Previous button event listener added");
-    }
-    if (nextButton) {
-      nextButton.addEventListener('click', nextPage);
-      console.log("Next button event listener added");
-    }
+    if (prevButton) prevButton.addEventListener('click', previousPage);
+    if (nextButton) nextButton.addEventListener('click', nextPage);
     
     // Zoom controls
     if (zoomInButton) zoomInButton.addEventListener('click', zoomIn);
@@ -530,6 +536,11 @@
     
     // Download button
     if (downloadButton) downloadButton.addEventListener('click', downloadPDF);
+    
+    // Quality toggle button
+    if (qualityToggleButton) {
+      qualityToggleButton.addEventListener('click', toggleRenderingQuality);
+    }
     
     // Page search
     if (pageInput && goToPageButton) {
@@ -544,17 +555,11 @@
       });
     }
     
-    // Keyboard shortcuts (only add once)
-    if (!eventListenersSetup) {
-      document.addEventListener('keydown', handleKeyboardShortcuts);
-    }
+    // Keyboard shortcuts
+    document.addEventListener('keydown', handleKeyboardShortcuts);
     
     // Touch swipe for mobile devices
     setupTouchControls();
-    
-    // Mark event listeners as set up
-    eventListenersSetup = true;
-    console.log("PDF viewer event listeners set up successfully");
   }
   
   /**
@@ -585,196 +590,6 @@
         }
       }
     }, { passive: true });
-  }
-  
-  /**
-   * Initialize the PDF container and ensure it exists
-   * @returns {boolean} True if container is successfully initialized, false otherwise
-   */
-  function initializePDFContainer() {
-    console.log("=== Starting PDF container initialization ===");
-    
-    // Check if container already exists and is valid (has inner structure)
-    let container = document.getElementById('pdf-viewer-container');
-    let viewer = document.getElementById('pdf-viewer');
-    
-    console.log("Initial check - Container:", !!container, "Viewer:", !!viewer);
-    
-    if (container && viewer) {
-      pdfContainer = viewer;
-      console.log("PDF container already exists and is valid");
-      return true;
-    }
-    
-    let populationResult = null;
-    
-    // If container exists but is empty, populate it
-    if (container && !viewer) {
-      console.log("PDF container exists but is empty, populating it");
-      console.log("Container element:", container);
-      console.log("Container innerHTML before:", container.innerHTML);
-      
-      try {
-        populationResult = populateExistingContainer(container);
-        console.log("Population result:", !!populationResult);
-        console.log("Container innerHTML after:", container.innerHTML.substring(0, 200) + "...");
-      } catch (error) {
-        console.error("Error populating existing container:", error);
-        return false;
-      }
-    } else {
-      // Try to find an existing PDF container element in the page
-      const existingPdfContainer = document.querySelector('.pdf-container');
-      
-      console.log("Looking for .pdf-container:", !!existingPdfContainer);
-      
-      if (existingPdfContainer) {
-        console.log("Found existing PDF container, populating it");
-        try {
-          populationResult = populateExistingContainer(existingPdfContainer);
-          console.log("Population result:", !!populationResult);
-        } catch (error) {
-          console.error("Error populating found container:", error);
-          return false;
-        }
-      } else {
-        // Create a new container
-        console.log("Creating new PDF viewer container");
-        try {
-          createPDFViewerUI();
-        } catch (error) {
-          console.error("Error creating new PDF viewer UI:", error);
-          return false;
-        }
-      }
-    }
-    
-    // Add a small delay to ensure DOM is updated
-    setTimeout(() => {
-      // Verify the container was created successfully
-      const finalContainer = document.getElementById('pdf-viewer-container');
-      const finalViewer = document.getElementById('pdf-viewer');
-      
-      console.log("Final verification - Container:", !!finalContainer, "Viewer:", !!finalViewer);
-      
-      if (finalViewer) {
-        pdfContainer = finalViewer;
-        console.log("PDF container set successfully");
-      }
-    }, 10);
-    
-    // Immediate verification (synchronous)
-    container = document.getElementById('pdf-viewer-container');
-    viewer = document.getElementById('pdf-viewer');
-    
-    console.log("Immediate verification - Container:", !!container, "Viewer:", !!viewer);
-    
-    // If we have a population result, use it
-    if (populationResult) {
-      console.log("Using population result for viewer");
-      viewer = populationResult;
-    }
-    
-    if (!container || !viewer) {
-      console.error("Failed to create PDF viewer container or viewer element");
-      console.log("Container exists:", !!container);
-      console.log("Viewer exists:", !!viewer);
-      
-      // Try once more with direct DOM query
-      const allViewers = document.querySelectorAll('#pdf-viewer');
-      console.log("All pdf-viewer elements found:", allViewers.length);
-      
-      if (allViewers.length > 0) {
-        console.log("Found viewer via querySelectorAll, using first one");
-        pdfContainer = allViewers[0];
-        viewer = allViewers[0];
-      } else {
-        return false;
-      }
-    }
-    
-    // Set the global reference
-    pdfContainer = viewer;
-    
-    // Now setup event listeners
-    try {
-      console.log("Setting up event listeners...");
-      setupEventListeners();
-    } catch (error) {
-      console.error("Error setting up event listeners:", error);
-      // Continue anyway, as the viewer might still work
-    }
-    
-    console.log("PDF container initialized successfully");
-    console.log("=== PDF container initialization complete ===");
-    return true;
-  }
-  
-  /**
-   * Populate an existing container with PDF viewer elements
-   */
-  function populateExistingContainer(container) {
-    console.log("Populating existing container:", container);
-    
-    // Ensure the container has the correct ID and class
-    if (container.id !== 'pdf-viewer-container') {
-      console.log("Setting container ID to pdf-viewer-container");
-      container.id = 'pdf-viewer-container';
-    }
-    container.classList.add('pdf-viewer-container');
-    
-    // Build the viewer UI
-    const viewerHTML = `
-      <div class="pdf-viewer-toolbar">
-        <div class="pdf-controls">
-          <button id="pdf-prev" title="Previous Page">◀</button>
-          <span id="pdf-page-info">Page <span id="pdf-current-page">0</span> of <span id="pdf-total-pages">0</span></span>
-          <button id="pdf-next" title="Next Page">▶</button>
-          <div class="pdf-page-search">
-            <input type="number" id="pdf-page-input" min="1" placeholder="Go to page" title="Go to page">
-            <button id="pdf-go-to-page" title="Go to Page">Go</button>
-          </div>
-        </div>
-        <div class="pdf-zoom-controls">
-          <button id="pdf-zoom-out" title="Zoom Out">−</button>
-          <span id="pdf-zoom-level">100%</span>
-          <button id="pdf-zoom-in" title="Zoom In">+</button>
-          <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
-          <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
-        </div>
-      </div>
-      <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
-      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
-    `;
-    
-    console.log("Setting innerHTML...");
-    container.innerHTML = viewerHTML;
-    
-    // Force a reflow to ensure DOM is updated
-    container.offsetHeight;
-    
-    console.log("Checking if pdf-viewer element was created...");
-    const viewer = document.getElementById('pdf-viewer');
-    console.log("pdf-viewer element found:", !!viewer);
-    
-    // Add styles if not already included
-    if (!document.getElementById('pdf-viewer-style')) {
-      console.log("Adding PDF viewer styles...");
-      addPDFViewerStyles();
-    }
-    
-    // Set the pdfContainer reference
-    if (viewer) {
-      pdfContainer = viewer;
-      console.log("pdfContainer reference set successfully");
-    } else {
-      console.error("Failed to find pdf-viewer element after innerHTML set");
-    }
-    
-    // Don't setup event listeners here - let the caller handle it
-    console.log("Container population complete");
-    return viewer; // Return the viewer element for verification
   }
   
   /**
@@ -826,6 +641,8 @@
    * @param {Object} options - Additional options
    */
   function loadPDF(url, options = {}) {
+    showLoader();
+    
     // Store the PDF URL
     currentPdfUrl = url;
     
@@ -846,13 +663,28 @@
     preloadPageCount = settings.preloadPages;
     maxCacheSize = settings.cacheSize;
     
-    // Ensure the PDF reader is properly initialized
-    if (!initializePDFContainer()) {
-      console.error("Failed to initialize PDF viewer container.");
-      return;
+    // Ensure the viewer container exists before loading
+    let container = document.getElementById('pdf-viewer-container');
+    if (!container) {
+      console.log("PDF viewer container not found, creating one");
+      const pdfContainer = document.querySelector('.pdf-container');
+      if (pdfContainer) {
+        createPDFViewerInContainer(pdfContainer);
+      } else {
+        createPDFViewerUI();
+      }
     }
     
-    showLoader();
+    // Make sure pdfContainer exists
+    if (!pdfContainer) {
+      console.warn("PDF container reference not set, trying to get it again");
+      pdfContainer = document.getElementById('pdf-viewer');
+      if (!pdfContainer) {
+        console.error("Failed to initialize PDF viewer. Container element not found.");
+        showError();
+        return;
+      }
+    }
     
     // Clear the previous document if any
     if (currentPdfDocument) {
@@ -875,19 +707,18 @@
     pageCache = new Map();
     pagePriority = [];
     
-    // Configure PDF.js options - disable external resources to avoid CORS issues
+    // Configure PDF.js options with CMap URL for proper font rendering with CORS handling
     const pdfOptions = {
-      // Completely disable font loading to avoid errors
-      disableFontFace: true,
-      useSystemFonts: true,
+      cMapUrl: `${PDFJS_CDN}/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${PDFJS_CDN}/standard_fonts/`,
+      disableFontFace: false,
       nativeImageDecoderSupport: 'display',
+      useSystemFonts: true,
       // Enable range requests for better loading performance
       rangeChunkSize: 65536,
       disableStream: false,
-      disableAutoFetch: false,
-      // Ignore errors for missing fonts and cmaps
-      stopAtErrors: false,
-      verbosity: 0 // Reduce console warnings
+      disableAutoFetch: false
     };
     
     // Load the PDF document
@@ -1030,28 +861,13 @@
     // Create a container for this page
     const pageContainer = document.createElement('div');
     pageContainer.className = 'pdf-page';
-    
-    // Log container and page dimensions for debugging
-    console.log("PDF Container dimensions:", pdfContainer.clientWidth, "x", pdfContainer.clientHeight);
-    
-    // Make the page container use the full available space
-    pageContainer.style.width = '100%';
-    pageContainer.style.height = 'auto';
-    pageContainer.style.display = 'block';
-    pageContainer.style.textAlign = 'center';
-    pageContainer.style.margin = '0';
-    pageContainer.style.padding = '0';
-    
     pdfContainer.appendChild(pageContainer);
     
     // Create a canvas for the page
     const canvas = document.createElement('canvas');
     // Add will-read-frequently attribute for better performance when using getImageData
     canvas.setAttribute('willReadFrequently', 'true');
-    const context = canvas.getContext('2d', { 
-      willReadFrequently: true,
-      alpha: false // Better performance for opaque content
-    });
+    const context = canvas.getContext('2d', { willReadFrequently: true });
     pageContainer.appendChild(canvas);
     
     // Get device pixel ratio for high-DPI displays (like Retina)
@@ -1060,65 +876,24 @@
     // Determine quality factor based on mode
     const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
     
-    // Get container dimensions for optimal scaling
-    const containerWidth = pdfContainer.clientWidth - 20; // Reduced padding
-    const containerHeight = pdfContainer.clientHeight - 20;
-    
-    console.log("Container dimensions:", containerWidth, "x", containerHeight);
-    
-    // Calculate viewport with initial scale
-    let initialViewport = page.getViewport({ scale: 1.0 });
-    console.log("Page dimensions:", initialViewport.width, "x", initialViewport.height);
-    
-    // Calculate scale to fit width primarily
-    const widthScale = (containerWidth / initialViewport.width) * 0.98;
-    
-    // Calculate scale to fit height
-    const heightScale = (containerHeight / initialViewport.height) * 0.98;
-    
-    // Use the smaller scale to ensure the entire page fits
-    let optimalScale = Math.min(widthScale, heightScale);
-    
-    // But don't make it too small - prioritize readability
-    if (optimalScale < 0.6) {
-      optimalScale = widthScale; // Prefer width fitting if height constraint makes it too small
-    }
-    
-    // Ensure we don't go below a minimum readable scale
-    optimalScale = Math.max(optimalScale, 0.4);
-    
-    console.log("Width scale:", widthScale, "Height scale:", heightScale, "Chosen scale:", optimalScale);
-    
-    // Apply user's zoom level on top of the optimal scale
-    optimalScale = optimalScale * (currentScale / DEFAULT_SCALE);
-    
-    console.log("Calculated optimal scale:", optimalScale);
-    
-    // Calculate viewport based on optimal scale
+    // Calculate viewport based on scale
     const viewport = page.getViewport({ 
-      scale: optimalScale * qualityFactor
+      scale: currentScale * qualityFactor
     });
     
-    // Set display size (css pixels) - don't divide by devicePixelRatio for display size
-    const displayWidth = viewport.width;
-    const displayHeight = viewport.height;
+    // Set display size (css pixels)
+    const displayWidth = viewport.width / devicePixelRatio;
+    const displayHeight = viewport.height / devicePixelRatio;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
     
-    console.log("Canvas display size:", displayWidth, "x", displayHeight);
-    console.log("Viewport size:", viewport.width, "x", viewport.height);
-    console.log("Device pixel ratio:", devicePixelRatio);
-    
     // Set actual size in memory (scaled to account for extra pixel density)
-    const scaleFactor = isHighQualityMode ? devicePixelRatio : 1;
+    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.5) : devicePixelRatio;
     canvas.width = Math.floor(viewport.width * scaleFactor);
     canvas.height = Math.floor(viewport.height * scaleFactor);
     
     // Scale context to ensure correct drawing operations
     context.scale(scaleFactor, scaleFactor);
-    
-    console.log("Canvas memory size:", canvas.width, "x", canvas.height);
-    console.log("Scale factor:", scaleFactor);
     
     // Improve image rendering quality
     context.imageSmoothingEnabled = true;
@@ -1317,9 +1092,7 @@
   function updateZoomLevel() {
     const zoomLevelEl = document.getElementById('pdf-zoom-level');
     if (zoomLevelEl) {
-      // Show the effective zoom level based on current scale relative to DEFAULT_SCALE
-      const effectiveZoom = (currentScale / DEFAULT_SCALE) * 100;
-      const zoomPercent = Math.round(effectiveZoom);
+      const zoomPercent = Math.round(currentScale * 100);
       zoomLevelEl.textContent = `${zoomPercent}%`;
     }
   }
@@ -1411,52 +1184,26 @@
     }
   }
   
-
-  
   /**
-   * Prevent browser native PDF viewer and ensure our custom viewer is used
+   * Toggle rendering quality
    */
-  function interceptPDFLinks() {
-    // Intercept clicks on PDF links to use our custom viewer
-    document.addEventListener('click', function(e) {
-      const target = e.target.closest('a, [data-path]');
-      if (target) {
-        const url = target.href || target.dataset.path;
-        if (url && url.toLowerCase().endsWith('.pdf')) {
-          e.preventDefault();
-          
-          // Load with our custom viewer
-          const title = target.dataset.name || target.textContent || 'PDF Document';
-          console.log(`Intercepting PDF link: ${url}`);
-          
-          // Ensure container is initialized before loading
-          if (initializePDFContainer()) {
-            loadPDF(url, {
-              initialPage: 1,
-              scale: DEFAULT_SCALE,
-              lazyLoad: true
-            });
-          } else {
-            console.error("Failed to initialize PDF container for intercepted link");
-          }
-        }
-      }
-    });
+  function toggleRenderingQuality() {
+    isHighQualityMode = !isHighQualityMode;
     
-    // Also intercept direct PDF navigation
-    if (window.location.pathname.toLowerCase().endsWith('.pdf')) {
-      console.log("PDF detected in URL, using custom viewer");
-      if (initializePDFContainer()) {
-        loadPDF(window.location.href);
+    // Update the button appearance
+    const qualityToggleButton = document.getElementById('pdf-toggle-quality');
+    if (qualityToggleButton) {
+      if (isHighQualityMode) {
+        qualityToggleButton.classList.add('active');
+        qualityToggleButton.textContent = 'HD';
+      } else {
+        qualityToggleButton.classList.remove('active');
+        qualityToggleButton.textContent = 'SD';
       }
     }
-  }
-  
-  // Initialize PDF link interception when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', interceptPDFLinks);
-  } else {
-    interceptPDFLinks();
+    
+    // Re-render the current page with new quality settings
+    renderPage(currentPage);
   }
   
   // Expose the PDF reader functions to the global scope
@@ -1469,17 +1216,10 @@
     toggleFullscreen,
     goToPage,
     downloadPDF,
-    initializePDFContainer,
-    populateExistingContainer,
-    
+    toggleRenderingQuality,
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
       return isLibraryLoaded && !!pdfContainer;
-    },
-    
-    // Method to manually initialize the viewer
-    init: function() {
-      return initPDFViewer();
     }
   };
 })(); 
