@@ -88,18 +88,29 @@
       // Track successful loading
       isLibraryLoaded = true;
       
-      // Initialize the PDF viewer component only after text layer is loaded
-      textLayerScript.onload = function() {
-        initPDFViewer();
-      };
+      // Initialize the PDF viewer component immediately
+      console.log('PDF.js library loaded successfully, initializing viewer...');
+      const initResult = initPDFViewer();
       
-      // If text layer script is taking too long, go ahead with viewer initialization
-      setTimeout(function() {
-        if (!window.pdfjsLib.renderTextLayer) {
-          console.warn('PDF.js text layer not loaded in time, proceeding with basic viewer');
+      // Also try to initialize after text layer loads
+      textLayerScript.onload = function() {
+        if (!initResult) {
+          console.log('Retrying PDF viewer initialization after text layer loaded...');
           initPDFViewer();
         }
-      }, 3000); // 3 second timeout
+      };
+      
+      // If text layer script is taking too long, ensure viewer is initialized
+      setTimeout(function() {
+        if (!window.pdfjsLib.renderTextLayer) {
+          console.warn('PDF.js text layer not loaded in time, ensuring basic viewer is initialized');
+        }
+        // Make sure PDF viewer is available globally
+        if (!window.PDFReader || !window.PDFReader.isInitialized()) {
+          console.log('Ensuring PDF viewer is properly initialized...');
+          initPDFViewer();
+        }
+      }, 1000); // 1 second timeout
     } catch (error) {
       console.error('Error initializing PDF.js:', error);
       libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
@@ -641,22 +652,46 @@
     let container = document.getElementById('pdf-viewer-container');
     if (!container) {
       console.log("PDF viewer container not found, creating one");
-      const existingPdfContainer = document.querySelector('.pdf-container');
-      if (existingPdfContainer) {
+      
+      // Try to find a designated PDF container in the page
+      const existingPdfContainer = document.querySelector('.pdf-container, #pdf-viewer-container');
+      if (existingPdfContainer && existingPdfContainer.id !== 'pdf-viewer-container') {
         createPDFViewerInContainer(existingPdfContainer);
       } else {
+        // Create the container and append to body or a suitable parent
+        const targetParent = document.querySelector('.textbook-section .container') || document.body;
         createPDFViewerUI();
+        
+        // Move the container to the appropriate location if needed
+        const createdContainer = document.getElementById('pdf-viewer-container');
+        if (createdContainer && targetParent !== document.body) {
+          targetParent.appendChild(createdContainer);
+        }
       }
+      
       // Set the pdfContainer reference after creation
       pdfContainer = document.getElementById('pdf-viewer');
+    } else {
+      // Container exists, but make sure pdfContainer reference is set
+      if (!pdfContainer) {
+        pdfContainer = document.getElementById('pdf-viewer');
+      }
     }
     
-    // Make sure pdfContainer exists
+    // Final check to ensure pdfContainer exists
     if (!pdfContainer) {
-      console.warn("PDF container reference not set, trying to get it again");
-      pdfContainer = document.getElementById('pdf-viewer');
-      if (!pdfContainer) {
-        console.error("Failed to initialize PDF viewer. Container element not found.");
+      console.error("Failed to initialize PDF viewer. Container element not found.");
+      // Try one more time to create the viewer
+      try {
+        createPDFViewerUI();
+        pdfContainer = document.getElementById('pdf-viewer');
+        
+        if (!pdfContainer) {
+          showError();
+          return;
+        }
+      } catch (error) {
+        console.error("Error creating PDF viewer:", error);
         showError();
         return;
       }
@@ -1304,7 +1339,9 @@
 
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
-      return isLibraryLoaded && !!pdfContainer;
+      return isLibraryLoaded && 
+             !!window.pdfjsLib && 
+             (!!pdfContainer || !!document.getElementById('pdf-viewer'));
     }
   };
 })(); 
