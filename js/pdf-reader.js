@@ -88,29 +88,18 @@
       // Track successful loading
       isLibraryLoaded = true;
       
-      // Initialize the PDF viewer component immediately
-      console.log('PDF.js library loaded successfully, initializing viewer...');
-      const initResult = initPDFViewer();
-      
-      // Also try to initialize after text layer loads
+      // Initialize the PDF viewer component only after text layer is loaded
       textLayerScript.onload = function() {
-        if (!initResult) {
-          console.log('Retrying PDF viewer initialization after text layer loaded...');
-          initPDFViewer();
-        }
+        initPDFViewer();
       };
       
-      // If text layer script is taking too long, ensure viewer is initialized
+      // If text layer script is taking too long, go ahead with viewer initialization
       setTimeout(function() {
         if (!window.pdfjsLib.renderTextLayer) {
-          console.warn('PDF.js text layer not loaded in time, ensuring basic viewer is initialized');
-        }
-        // Make sure PDF viewer is available globally
-        if (!window.PDFReader || !window.PDFReader.isInitialized()) {
-          console.log('Ensuring PDF viewer is properly initialized...');
+          console.warn('PDF.js text layer not loaded in time, proceeding with basic viewer');
           initPDFViewer();
         }
-      }, 1000); // 1 second timeout
+      }, 3000); // 3 second timeout
     } catch (error) {
       console.error('Error initializing PDF.js:', error);
       libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
@@ -254,8 +243,8 @@
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">正在加载PDF文件...</div>
-      <div id="pdf-viewer-error" class="pdf-viewer-error">PDF加载失败，请重试</div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
     `;
     
     // Add styles if not already included
@@ -300,8 +289,8 @@
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">正在加载PDF文件...</div>
-      <div id="pdf-viewer-error" class="pdf-viewer-error">PDF加载失败，请重试</div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
     `;
     
     // Add the container to the document
@@ -411,25 +400,14 @@
       }
       
       .pdf-page {
-        margin: 20px auto;
-        padding: 10px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        margin: 10px auto;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
-        display: block;
+        display: inline-block;
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
-        border-radius: 4px;
-        max-width: 100%;
-      }
-      
-      .pdf-all-pages {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 20px 0;
-        gap: 20px;
       }
       
       .pdf-page canvas {
@@ -472,45 +450,15 @@
       }
       
       .pdf-viewer-loader, .pdf-viewer-error {
-        position: fixed;
+        position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        padding: 30px 40px;
-        background-color: rgba(255,255,255,0.95);
-        border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        padding: 20px;
+        background-color: rgba(255,255,255,0.9);
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         display: none;
-        z-index: 10000;
-        font-size: 16px;
-        font-weight: 500;
-        color: #333;
-        min-width: 200px;
-        text-align: center;
-        border: 2px solid #4361ee;
-      }
-      
-      .pdf-viewer-loader {
-        background-color: rgba(67, 97, 238, 0.95);
-        color: white;
-        border-color: #4361ee;
-      }
-      
-      .pdf-viewer-loader::before {
-        content: "";
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 2px solid #ffffff;
-        border-radius: 50%;
-        border-top-color: transparent;
-        animation: spin 1s ease-in-out infinite;
-        margin-right: 10px;
-        vertical-align: middle;
-      }
-      
-      @keyframes spin {
-        to { transform: rotate(360deg); }
       }
       
       .pdf-viewer-error {
@@ -693,46 +641,22 @@
     let container = document.getElementById('pdf-viewer-container');
     if (!container) {
       console.log("PDF viewer container not found, creating one");
-      
-      // Try to find a designated PDF container in the page
-      const existingPdfContainer = document.querySelector('.pdf-container, #pdf-viewer-container');
-      if (existingPdfContainer && existingPdfContainer.id !== 'pdf-viewer-container') {
+      const existingPdfContainer = document.querySelector('.pdf-container');
+      if (existingPdfContainer) {
         createPDFViewerInContainer(existingPdfContainer);
       } else {
-        // Create the container and append to body or a suitable parent
-        const targetParent = document.querySelector('.textbook-section .container') || document.body;
         createPDFViewerUI();
-        
-        // Move the container to the appropriate location if needed
-        const createdContainer = document.getElementById('pdf-viewer-container');
-        if (createdContainer && targetParent !== document.body) {
-          targetParent.appendChild(createdContainer);
-        }
       }
-      
       // Set the pdfContainer reference after creation
       pdfContainer = document.getElementById('pdf-viewer');
-    } else {
-      // Container exists, but make sure pdfContainer reference is set
-      if (!pdfContainer) {
-        pdfContainer = document.getElementById('pdf-viewer');
-      }
     }
     
-    // Final check to ensure pdfContainer exists
+    // Make sure pdfContainer exists
     if (!pdfContainer) {
-      console.error("Failed to initialize PDF viewer. Container element not found.");
-      // Try one more time to create the viewer
-      try {
-        createPDFViewerUI();
-        pdfContainer = document.getElementById('pdf-viewer');
-        
-        if (!pdfContainer) {
-          showError();
-          return;
-        }
-      } catch (error) {
-        console.error("Error creating PDF viewer:", error);
+      console.warn("PDF container reference not set, trying to get it again");
+      pdfContainer = document.getElementById('pdf-viewer');
+      if (!pdfContainer) {
+        console.error("Failed to initialize PDF viewer. Container element not found.");
         showError();
         return;
       }
@@ -785,8 +709,23 @@
         updatePageInfo();
         updateZoomLevel();
         
-        // Render all pages continuously for scroll mode
-        renderAllPagesContinuously();
+        // Setup lazy loading if enabled
+        if (lazyLoadEnabled && pdfContainer) {
+          try {
+            // Add scroll event listener to load pages as they become visible
+            pdfContainer.addEventListener('scroll', handleScroll);
+            
+            // Load initial page and preload adjacent pages
+            preloadVisiblePages();
+          } catch (error) {
+            console.error("Error setting up lazy loading:", error);
+            // Fallback to regular rendering
+            renderPage(currentPage);
+          }
+        } else {
+          // Render the initial page without lazy loading
+          renderPage(currentPage);
+        }
         
         hideLoader();
       })
@@ -1004,181 +943,6 @@
   }
   
   /**
-   * Render all pages continuously for scroll mode
-   */
-  function renderAllPagesContinuously() {
-    if (!currentPdfDocument || !pdfContainer) return;
-    
-    // Update loader text for continuous rendering
-    const loader = document.getElementById('pdf-viewer-loader');
-    if (loader) {
-      loader.innerHTML = '正在渲染所有页面，请稍候...';
-    }
-    showLoader();
-    
-    // Clear the container
-    pdfContainer.innerHTML = '';
-    
-    // Create a container for all pages
-    const allPagesContainer = document.createElement('div');
-    allPagesContainer.className = 'pdf-all-pages';
-    pdfContainer.appendChild(allPagesContainer);
-    
-    // Show progress indicator
-    let renderCount = 0;
-    const updateProgress = () => {
-      renderCount++;
-      if (loader) {
-        loader.innerHTML = `正在渲染页面 ${renderCount}/${totalPages}...`;
-      }
-    };
-    
-    // Render all pages sequentially for better performance
-    async function renderPages() {
-      try {
-        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-          const page = await currentPdfDocument.getPage(pageNum);
-          await renderSinglePageContent(page, pageNum, allPagesContainer);
-          updateProgress();
-        }
-        
-        hideLoader();
-        
-        // Add scroll listener to update current page indicator
-        pdfContainer.removeEventListener('scroll', updateCurrentPageFromScroll); // Remove existing listener
-        pdfContainer.addEventListener('scroll', updateCurrentPageFromScroll);
-        
-        // Update page info
-        updatePageInfo();
-      } catch (error) {
-        console.error('Error rendering pages:', error);
-        showError();
-      }
-    }
-    
-    renderPages();
-  }
-  
-  /**
-   * Render a single page content in continuous mode
-   * @param {Object} page - PDF.js page object
-   * @param {number} pageNum - Page number
-   * @param {Element} container - Container to append the page to
-   */
-  function renderSinglePageContent(page, pageNum, container) {
-    return new Promise((resolve, reject) => {
-      // Create a container for this page
-      const pageContainer = document.createElement('div');
-      pageContainer.className = 'pdf-page';
-      pageContainer.setAttribute('data-page-number', pageNum);
-      
-      // Add page number label
-      const pageLabel = document.createElement('div');
-      pageLabel.className = 'pdf-page-label';
-      pageLabel.textContent = `Page ${pageNum}`;
-      pageLabel.style.cssText = `
-        text-align: center;
-        color: #666;
-        font-size: 12px;
-        margin-bottom: 10px;
-        padding: 5px;
-        background: rgba(0,0,0,0.05);
-        border-radius: 4px;
-      `;
-      pageContainer.appendChild(pageLabel);
-      
-      // Create a canvas for the page
-      const canvas = document.createElement('canvas');
-      canvas.setAttribute('willReadFrequently', 'true');
-      const context = canvas.getContext('2d', { willReadFrequently: true });
-      pageContainer.appendChild(canvas);
-      
-      // Add the page container to the main container
-      container.appendChild(pageContainer);
-      
-      // Get device pixel ratio for high-DPI displays
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      
-      // Calculate viewport based on scale
-      const viewport = page.getViewport({ 
-        scale: currentScale
-      });
-      
-      // Set display size (css pixels) with consistent width
-      const maxWidth = Math.min(viewport.width / devicePixelRatio, 800); // Limit max width
-      const aspectRatio = viewport.height / viewport.width;
-      const displayWidth = maxWidth;
-      const displayHeight = maxWidth * aspectRatio;
-      
-      canvas.style.width = `${displayWidth}px`;
-      canvas.style.height = `${displayHeight}px`;
-      canvas.style.display = 'block';
-      canvas.style.margin = '0 auto';
-      
-      // Set actual size in memory (higher resolution for quality)
-      const scaleFactor = Math.min(2, devicePixelRatio * 1.5);
-      canvas.width = Math.floor(displayWidth * scaleFactor);
-      canvas.height = Math.floor(displayHeight * scaleFactor);
-      
-      // Scale context to ensure correct drawing operations
-      context.scale(scaleFactor, scaleFactor);
-      
-      // Improve image rendering quality
-      context.imageSmoothingEnabled = true;
-      context.imageSmoothingQuality = 'high';
-      
-      // Create a scaled viewport for rendering
-      const scaledViewport = page.getViewport({ 
-        scale: currentScale * (displayWidth / (viewport.width / devicePixelRatio))
-      });
-      
-      // Render the page
-      const renderContext = {
-        canvasContext: context,
-        viewport: scaledViewport,
-        renderInteractiveForms: true
-      };
-      
-      page.render(renderContext).promise.then(() => {
-        resolve();
-      }).catch(error => {
-        reject(error);
-      });
-    });
-  }
-  
-  /**
-   * Update current page indicator based on scroll position
-   */
-  function updateCurrentPageFromScroll() {
-    if (!pdfContainer) return;
-    
-    const scrollTop = pdfContainer.scrollTop;
-    const containerHeight = pdfContainer.clientHeight;
-    const scrollCenter = scrollTop + containerHeight / 2;
-    
-    // Find which page is currently in the center of the view
-    const pageElements = pdfContainer.querySelectorAll('.pdf-page[data-page-number]');
-    let newCurrentPage = 1;
-    
-    for (let i = 0; i < pageElements.length; i++) {
-      const pageElement = pageElements[i];
-      const pageTop = pageElement.offsetTop;
-      const pageBottom = pageTop + pageElement.offsetHeight;
-      
-      if (scrollCenter >= pageTop && scrollCenter <= pageBottom) {
-        newCurrentPage = parseInt(pageElement.getAttribute('data-page-number'));
-        break;
-      }
-    }
-    
-    if (newCurrentPage !== currentPage) {
-      currentPage = newCurrentPage;
-      updatePageInfo();
-    }
-  }
-
-  /**
    * Render a specific page
    * @param {number} pageNumber - Page number to render
    */
@@ -1229,8 +993,7 @@
   function previousPage() {
     if (currentPage > 1) {
       currentPage--;
-      scrollToPage(currentPage);
-      updatePageInfo();
+      renderPage(currentPage);
     }
   }
   
@@ -1240,20 +1003,7 @@
   function nextPage() {
     if (currentPage < totalPages) {
       currentPage++;
-      scrollToPage(currentPage);
-      updatePageInfo();
-    }
-  }
-  
-  /**
-   * Scroll to a specific page in continuous mode
-   */
-  function scrollToPage(pageNumber) {
-    if (!pdfContainer) return;
-    
-    const pageElement = pdfContainer.querySelector(`[data-page-number="${pageNumber}"]`);
-    if (pageElement) {
-      pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      renderPage(currentPage);
     }
   }
   
@@ -1263,7 +1013,7 @@
   function zoomIn() {
     if (currentScale < MAX_SCALE) {
       currentScale += ZOOM_STEP;
-      renderAllPagesContinuously();
+      renderPage(currentPage);
       updateZoomLevel();
     }
   }
@@ -1274,7 +1024,7 @@
   function zoomOut() {
     if (currentScale > MIN_SCALE) {
       currentScale -= ZOOM_STEP;
-      renderAllPagesContinuously();
+      renderPage(currentPage);
       updateZoomLevel();
     }
   }
@@ -1298,8 +1048,8 @@
       if (fullscreenButton) fullscreenButton.textContent = '⛶';
     }
     
-    // Re-render all pages to fit the new container size
-    renderAllPagesContinuously();
+    // Re-render the page to fit the new container size
+    renderPage(currentPage);
   }
   
   /**
@@ -1370,8 +1120,7 @@
     // Go to the specified page if it's different from current page
     if (targetPage !== currentPage) {
       currentPage = targetPage;
-      scrollToPage(currentPage);
-      updatePageInfo();
+      renderPage(currentPage);
       
       // Clear the input field
       const pageInput = document.getElementById('pdf-page-input');
@@ -1426,9 +1175,7 @@
 
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
-      return isLibraryLoaded && 
-             !!window.pdfjsLib && 
-             (!!pdfContainer || !!document.getElementById('pdf-viewer'));
+      return isLibraryLoaded && !!pdfContainer;
     }
   };
 })(); 
