@@ -709,23 +709,8 @@
         updatePageInfo();
         updateZoomLevel();
         
-        // Setup lazy loading if enabled
-        if (lazyLoadEnabled && pdfContainer) {
-          try {
-            // Add scroll event listener to load pages as they become visible
-            pdfContainer.addEventListener('scroll', handleScroll);
-            
-            // Load initial page and preload adjacent pages
-            preloadVisiblePages();
-          } catch (error) {
-            console.error("Error setting up lazy loading:", error);
-            // Fallback to regular rendering
-            renderPage(currentPage);
-          }
-        } else {
-          // Render the initial page without lazy loading
-          renderPage(currentPage);
-        }
+        // Render all pages continuously for scroll mode
+        renderAllPagesContinuously();
         
         hideLoader();
       })
@@ -943,6 +928,135 @@
   }
   
   /**
+   * Render all pages continuously for scroll mode
+   */
+  function renderAllPagesContinuously() {
+    if (!currentPdfDocument || !pdfContainer) return;
+    
+    showLoader();
+    
+    // Clear the container
+    pdfContainer.innerHTML = '';
+    
+    // Create a container for all pages
+    const allPagesContainer = document.createElement('div');
+    allPagesContainer.className = 'pdf-all-pages';
+    pdfContainer.appendChild(allPagesContainer);
+    
+    // Render all pages sequentially
+    const renderPromises = [];
+    
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      const promise = currentPdfDocument.getPage(pageNum).then(page => {
+        return renderSinglePageContent(page, pageNum, allPagesContainer);
+      });
+      renderPromises.push(promise);
+    }
+    
+    // Wait for all pages to be rendered
+    Promise.all(renderPromises).then(() => {
+      hideLoader();
+      
+      // Add scroll listener to update current page indicator
+      pdfContainer.addEventListener('scroll', updateCurrentPageFromScroll);
+    }).catch(error => {
+      console.error('Error rendering pages:', error);
+      showError();
+    });
+  }
+  
+  /**
+   * Render a single page content in continuous mode
+   * @param {Object} page - PDF.js page object
+   * @param {number} pageNum - Page number
+   * @param {Element} container - Container to append the page to
+   */
+  function renderSinglePageContent(page, pageNum, container) {
+    return new Promise((resolve, reject) => {
+      // Create a container for this page
+      const pageContainer = document.createElement('div');
+      pageContainer.className = 'pdf-page';
+      pageContainer.setAttribute('data-page-number', pageNum);
+      container.appendChild(pageContainer);
+      
+      // Create a canvas for the page
+      const canvas = document.createElement('canvas');
+      canvas.setAttribute('willReadFrequently', 'true');
+      const context = canvas.getContext('2d', { willReadFrequently: true });
+      pageContainer.appendChild(canvas);
+      
+      // Get device pixel ratio for high-DPI displays
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      
+      // Calculate viewport based on scale
+      const viewport = page.getViewport({ 
+        scale: currentScale
+      });
+      
+      // Set display size (css pixels)
+      const displayWidth = viewport.width / devicePixelRatio;
+      const displayHeight = viewport.height / devicePixelRatio;
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+      
+      // Set actual size in memory
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      
+      // Scale context to ensure correct drawing operations
+      context.scale(devicePixelRatio, devicePixelRatio);
+      
+      // Improve image rendering quality
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      
+      // Render the page
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+        renderInteractiveForms: true
+      };
+      
+      page.render(renderContext).promise.then(() => {
+        resolve();
+      }).catch(error => {
+        reject(error);
+      });
+    });
+  }
+  
+  /**
+   * Update current page indicator based on scroll position
+   */
+  function updateCurrentPageFromScroll() {
+    if (!pdfContainer) return;
+    
+    const scrollTop = pdfContainer.scrollTop;
+    const containerHeight = pdfContainer.clientHeight;
+    const scrollCenter = scrollTop + containerHeight / 2;
+    
+    // Find which page is currently in the center of the view
+    const pageElements = pdfContainer.querySelectorAll('.pdf-page[data-page-number]');
+    let newCurrentPage = 1;
+    
+    for (let i = 0; i < pageElements.length; i++) {
+      const pageElement = pageElements[i];
+      const pageTop = pageElement.offsetTop;
+      const pageBottom = pageTop + pageElement.offsetHeight;
+      
+      if (scrollCenter >= pageTop && scrollCenter <= pageBottom) {
+        newCurrentPage = parseInt(pageElement.getAttribute('data-page-number'));
+        break;
+      }
+    }
+    
+    if (newCurrentPage !== currentPage) {
+      currentPage = newCurrentPage;
+      updatePageInfo();
+    }
+  }
+
+  /**
    * Render a specific page
    * @param {number} pageNumber - Page number to render
    */
@@ -993,7 +1107,8 @@
   function previousPage() {
     if (currentPage > 1) {
       currentPage--;
-      renderPage(currentPage);
+      scrollToPage(currentPage);
+      updatePageInfo();
     }
   }
   
@@ -1003,7 +1118,20 @@
   function nextPage() {
     if (currentPage < totalPages) {
       currentPage++;
-      renderPage(currentPage);
+      scrollToPage(currentPage);
+      updatePageInfo();
+    }
+  }
+  
+  /**
+   * Scroll to a specific page in continuous mode
+   */
+  function scrollToPage(pageNumber) {
+    if (!pdfContainer) return;
+    
+    const pageElement = pdfContainer.querySelector(`[data-page-number="${pageNumber}"]`);
+    if (pageElement) {
+      pageElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
   
@@ -1013,7 +1141,7 @@
   function zoomIn() {
     if (currentScale < MAX_SCALE) {
       currentScale += ZOOM_STEP;
-      renderPage(currentPage);
+      renderAllPagesContinuously();
       updateZoomLevel();
     }
   }
@@ -1024,7 +1152,7 @@
   function zoomOut() {
     if (currentScale > MIN_SCALE) {
       currentScale -= ZOOM_STEP;
-      renderPage(currentPage);
+      renderAllPagesContinuously();
       updateZoomLevel();
     }
   }
@@ -1048,8 +1176,8 @@
       if (fullscreenButton) fullscreenButton.textContent = '⛶';
     }
     
-    // Re-render the page to fit the new container size
-    renderPage(currentPage);
+    // Re-render all pages to fit the new container size
+    renderAllPagesContinuously();
   }
   
   /**
@@ -1120,7 +1248,8 @@
     // Go to the specified page if it's different from current page
     if (targetPage !== currentPage) {
       currentPage = targetPage;
-      renderPage(currentPage);
+      scrollToPage(currentPage);
+      updatePageInfo();
       
       // Clear the input field
       const pageInput = document.getElementById('pdf-page-input');
