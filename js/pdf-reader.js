@@ -160,6 +160,7 @@
   let isFullscreen = false;
   let currentPdfUrl = null; // Track the current PDF URL
   let isHighQualityMode = true; // Default to high quality rendering
+  let eventListenersSetup = false; // Track if event listeners are already set up
   
   // Cache for lazy loading
   let pageCache = new Map();
@@ -482,6 +483,12 @@
    * Setup event listeners for PDF viewer controls
    */
   function setupEventListeners() {
+    // Check if event listeners are already set up to prevent duplicates
+    if (eventListenersSetup) {
+      console.log("Event listeners already set up, skipping");
+      return;
+    }
+    
     // Page navigation
     const prevButton = document.getElementById('pdf-prev');
     const nextButton = document.getElementById('pdf-next');
@@ -493,8 +500,14 @@
     const downloadButton = document.getElementById('pdf-download');
     const viewer = document.getElementById('pdf-viewer');
     
-    if (prevButton) prevButton.addEventListener('click', previousPage);
-    if (nextButton) nextButton.addEventListener('click', nextPage);
+    if (prevButton) {
+      prevButton.addEventListener('click', previousPage);
+      console.log("Previous button event listener added");
+    }
+    if (nextButton) {
+      nextButton.addEventListener('click', nextPage);
+      console.log("Next button event listener added");
+    }
     
     // Zoom controls
     if (zoomInButton) zoomInButton.addEventListener('click', zoomIn);
@@ -519,11 +532,17 @@
       });
     }
     
-    // Keyboard shortcuts
-    document.addEventListener('keydown', handleKeyboardShortcuts);
+    // Keyboard shortcuts (only add once)
+    if (!eventListenersSetup) {
+      document.addEventListener('keydown', handleKeyboardShortcuts);
+    }
     
     // Touch swipe for mobile devices
     setupTouchControls();
+    
+    // Mark event listeners as set up
+    eventListenersSetup = true;
+    console.log("PDF viewer event listeners set up successfully");
   }
   
   /**
@@ -561,24 +580,32 @@
    * @returns {boolean} True if container is successfully initialized, false otherwise
    */
   function initializePDFContainer() {
-    // Check if container already exists and is valid
+    // Check if container already exists and is valid (has inner structure)
     let container = document.getElementById('pdf-viewer-container');
     let viewer = document.getElementById('pdf-viewer');
     
     if (container && viewer) {
       pdfContainer = viewer;
+      console.log("PDF container already exists and is valid");
       return true;
     }
     
-    // Try to find an existing PDF container element in the page
-    const existingPdfContainer = document.querySelector('.pdf-container, #pdf-viewer-container');
-    
-    if (existingPdfContainer && existingPdfContainer.id !== 'pdf-viewer-container') {
-      // Use the existing container
-      createPDFViewerInContainer(existingPdfContainer);
-    } else if (!container) {
-      // Create a new container
-      createPDFViewerUI();
+    // If container exists but is empty, populate it
+    if (container && !viewer) {
+      console.log("PDF container exists but is empty, populating it");
+      populateExistingContainer(container);
+    } else {
+      // Try to find an existing PDF container element in the page
+      const existingPdfContainer = document.querySelector('.pdf-container');
+      
+      if (existingPdfContainer) {
+        console.log("Found existing PDF container, populating it");
+        populateExistingContainer(existingPdfContainer);
+      } else {
+        // Create a new container
+        console.log("Creating new PDF viewer container");
+        createPDFViewerUI();
+      }
     }
     
     // Verify the container was created successfully
@@ -587,6 +614,8 @@
     
     if (!container || !viewer) {
       console.error("Failed to create PDF viewer container or viewer element");
+      console.log("Container exists:", !!container);
+      console.log("Viewer exists:", !!viewer);
       return false;
     }
     
@@ -595,6 +624,53 @@
     
     console.log("PDF container initialized successfully");
     return true;
+  }
+  
+  /**
+   * Populate an existing container with PDF viewer elements
+   */
+  function populateExistingContainer(container) {
+    // Ensure the container has the correct ID and class
+    if (container.id !== 'pdf-viewer-container') {
+      container.id = 'pdf-viewer-container';
+    }
+    container.classList.add('pdf-viewer-container');
+    
+    // Build the viewer UI
+    container.innerHTML = `
+      <div class="pdf-viewer-toolbar">
+        <div class="pdf-controls">
+          <button id="pdf-prev" title="Previous Page">◀</button>
+          <span id="pdf-page-info">Page <span id="pdf-current-page">0</span> of <span id="pdf-total-pages">0</span></span>
+          <button id="pdf-next" title="Next Page">▶</button>
+          <div class="pdf-page-search">
+            <input type="number" id="pdf-page-input" min="1" placeholder="Go to page" title="Go to page">
+            <button id="pdf-go-to-page" title="Go to Page">Go</button>
+          </div>
+        </div>
+        <div class="pdf-zoom-controls">
+          <button id="pdf-zoom-out" title="Zoom Out">−</button>
+          <span id="pdf-zoom-level">100%</span>
+          <button id="pdf-zoom-in" title="Zoom In">+</button>
+          <button id="pdf-fullscreen" title="Fullscreen">⛶</button>
+          <button id="pdf-download" title="Download PDF"><i class="fas fa-download"></i></button>
+        </div>
+      </div>
+      <div id="pdf-viewer" class="pdf-viewer"></div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
+    `;
+    
+    // Add styles if not already included
+    if (!document.getElementById('pdf-viewer-style')) {
+      addPDFViewerStyles();
+    }
+    
+    // Set the pdfContainer reference
+    pdfContainer = document.getElementById('pdf-viewer');
+    
+    // Setup event listeners for the newly created elements
+    setupEventListeners();
   }
   
   /**
@@ -1243,6 +1319,7 @@
     goToPage,
     downloadPDF,
     initializePDFContainer,
+    populateExistingContainer,
     
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
