@@ -145,8 +145,8 @@
     }
   }
   
-  // PDF Viewer Configuration
-  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.5 : 1.3; // Higher default scale for better readability
+  // PDF Viewer Configuration  
+  const DEFAULT_SCALE = 1.0; // Base scale - let auto-fit determine optimal size
   const ZOOM_STEP = 0.1;
   const MAX_SCALE = 3.0;
   const MIN_SCALE = 0.5;
@@ -385,7 +385,8 @@
         background-color: #525659;
         position: relative;
         text-align: center;
-        padding: 20px 0;
+        padding: 10px;
+        box-sizing: border-box;
       }
       
       .pdf-page {
@@ -393,12 +394,13 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
-        display: inline-block;
+        display: block;
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
-        max-width: 95%;
+        max-width: 98%;
         width: auto;
+        min-width: 300px;
       }
       
       .pdf-page canvas {
@@ -1034,15 +1036,23 @@
     
     // Get container width to calculate optimal scale
     const containerWidth = pdfContainer.clientWidth - 40; // Account for padding
+    const containerHeight = pdfContainer.clientHeight - 40;
     
     // Calculate viewport with initial scale
     let initialViewport = page.getViewport({ scale: 1.0 });
     
-    // Calculate scale to fit width if needed
-    let optimalScale = currentScale;
-    if (initialViewport.width > containerWidth) {
-      optimalScale = Math.min(currentScale, (containerWidth / initialViewport.width) * 0.95);
-    }
+    // Calculate scale to fit both width and height
+    const widthScale = containerWidth / initialViewport.width;
+    const heightScale = containerHeight / initialViewport.height;
+    
+    // Use the smaller scale to ensure the page fits completely, but apply minimum scale
+    let optimalScale = Math.min(widthScale, heightScale) * 0.95; // 95% to leave some margin
+    
+    // Ensure we don't go below a minimum readable scale
+    optimalScale = Math.max(optimalScale, 0.8);
+    
+    // Apply user's zoom level on top of the optimal scale
+    optimalScale = optimalScale * (currentScale / DEFAULT_SCALE);
     
     // Calculate viewport based on optimal scale
     const viewport = page.getViewport({ 
@@ -1056,7 +1066,7 @@
     canvas.style.height = `${displayHeight}px`;
     
     // Set actual size in memory (scaled to account for extra pixel density)
-    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.5) : devicePixelRatio;
+    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.2) : devicePixelRatio;
     canvas.width = Math.floor(viewport.width * scaleFactor);
     canvas.height = Math.floor(viewport.height * scaleFactor);
     
@@ -1260,7 +1270,9 @@
   function updateZoomLevel() {
     const zoomLevelEl = document.getElementById('pdf-zoom-level');
     if (zoomLevelEl) {
-      const zoomPercent = Math.round(currentScale * 100);
+      // Show the effective zoom level based on current scale relative to DEFAULT_SCALE
+      const effectiveZoom = (currentScale / DEFAULT_SCALE) * 100;
+      const zoomPercent = Math.round(effectiveZoom);
       zoomLevelEl.textContent = `${zoomPercent}%`;
     }
   }
