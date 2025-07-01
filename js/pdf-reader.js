@@ -146,7 +146,7 @@
   }
   
   // PDF Viewer Configuration
-  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.2 : 1.0; // Higher default scale for high-DPI displays
+  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.5 : 1.3; // Higher default scale for better readability
   const ZOOM_STEP = 0.1;
   const MAX_SCALE = 3.0;
   const MIN_SCALE = 0.5;
@@ -303,7 +303,8 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 600px;
+        height: 80vh;
+        min-height: 700px;
         max-width: 100%;
         margin: 0 auto;
         border: 1px solid #ccc;
@@ -395,6 +396,8 @@
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
+        max-width: 95%;
+        width: auto;
       }
       
       .pdf-page canvas {
@@ -861,9 +864,21 @@
     // Determine quality factor based on mode
     const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
     
-    // Calculate viewport based on scale
+    // Get container width to calculate optimal scale
+    const containerWidth = pdfContainer.clientWidth - 40; // Account for padding
+    
+    // Calculate viewport with initial scale
+    let initialViewport = page.getViewport({ scale: 1.0 });
+    
+    // Calculate scale to fit width if needed
+    let optimalScale = currentScale;
+    if (initialViewport.width > containerWidth) {
+      optimalScale = Math.min(currentScale, (containerWidth / initialViewport.width) * 0.95);
+    }
+    
+    // Calculate viewport based on optimal scale
     const viewport = page.getViewport({ 
-      scale: currentScale * qualityFactor
+      scale: optimalScale * qualityFactor
     });
     
     // Set display size (css pixels)

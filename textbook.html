@@ -352,6 +352,22 @@
             word-break: break-all;
         }
         
+        /* PDF viewer specific styles for textbook page */
+        .pdf-container {
+            margin-top: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+            background-color: #f8f9fa;
+        }
+        
+        #pdf-viewer-container {
+            width: 100%;
+            max-width: 100%;
+            height: 85vh;
+            min-height: 800px;
+            margin: 0;
+        }
+        
         /* Mobile responsiveness */
         @media (max-width: 768px) {
             .filter-row {
@@ -364,7 +380,13 @@
             }
             
             .pdf-container {
-                height: 600px;
+                height: 70vh;
+                min-height: 500px;
+            }
+            
+            #pdf-viewer-container {
+                height: 70vh;
+                min-height: 500px;
             }
         }
     </style>
@@ -466,7 +488,9 @@
                     <!-- File items will be populated here by JavaScript -->
                 </div>
                 
-                <div id="pdf-viewer-container"></div>
+                <div id="pdf-viewer-container" class="pdf-container">
+                    <!-- PDF viewer will be initialized here -->
+                </div>
             </div>
         </section>
     </main>
@@ -745,19 +769,31 @@
             
             // Load a PDF file
             function loadPdf(filePath, title) {
-                // Check if PDFReader is initialized
+                // Ensure PDF Reader is initialized
                 if (window.PDFReader) {
                     try {
+                        // Initialize the PDF container if not already done
+                        if (!window.PDFReader.isInitialized()) {
+                            console.log('Initializing PDF Reader...');
+                            window.PDFReader.init();
+                        }
+                        
                         // Load PDF with options
                         window.PDFReader.loadPDF(filePath, {
                             initialPage: 1,
-                            scale: 1.0,
+                            scale: 1.2,  // Slightly larger default scale
                             lazyLoad: true,
                             preloadPages: 2,
                             cacheSize: 10
                         });
                         
                         logMessage(`PDF加载成功:`, title);
+                        
+                        // Scroll to PDF viewer
+                        const pdfContainer = document.getElementById('pdf-viewer-container');
+                        if (pdfContainer) {
+                            pdfContainer.scrollIntoView({ behavior: 'smooth' });
+                        }
                     } catch (error) {
                         console.error('Error loading PDF:', error);
                         logMessage(`PDF加载失败:`, error.message);
@@ -766,7 +802,15 @@
                 } else {
                     console.error('PDF Reader not initialized');
                     logMessage(`PDF阅读器未初始化`);
-                    alert('PDF阅读器未正确初始化。请刷新页面重试。');
+                    
+                    // Try to wait for PDF reader to load
+                    setTimeout(() => {
+                        if (window.PDFReader) {
+                            loadPdf(filePath, title);
+                        } else {
+                            alert('PDF阅读器未正确初始化。请刷新页面重试。');
+                        }
+                    }, 1000);
                 }
             }
             
@@ -786,6 +830,16 @@
             
             // Initialize with welcome message
             logMessage(`欢迎使用电子课本检索系统，请选择科目和学段进行筛选`);
+            
+            // Initialize PDF Reader after a short delay to ensure scripts are loaded
+            setTimeout(() => {
+                if (window.PDFReader) {
+                    console.log('Initializing PDF Reader for textbook page...');
+                    window.PDFReader.init();
+                } else {
+                    console.log('PDF Reader not available yet, will initialize when needed');
+                }
+            }, 500);
         });
     </script>
 </body>
