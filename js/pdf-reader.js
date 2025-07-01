@@ -304,13 +304,14 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: 80vh;
-        min-height: 700px;
+        height: 90vh;
+        min-height: 800px;
         max-width: 100%;
         margin: 0 auto;
         border: 1px solid #ccc;
         background-color: #f5f5f5;
         position: relative;
+        overflow: hidden;
       }
       
       .pdf-viewer-container.fullscreen {
@@ -385,12 +386,14 @@
         background-color: #525659;
         position: relative;
         text-align: center;
-        padding: 10px;
+        padding: 5px;
         box-sizing: border-box;
+        width: 100%;
+        height: 100%;
       }
       
       .pdf-page {
-        margin: 10px auto;
+        margin: 5px auto;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
@@ -398,9 +401,10 @@
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
-        max-width: 98%;
+        max-width: 100%;
         width: auto;
-        min-width: 300px;
+        height: auto;
+        min-width: 200px;
       }
       
       .pdf-page canvas {
@@ -865,18 +869,21 @@
     pageCache = new Map();
     pagePriority = [];
     
-    // Configure PDF.js options with CMap URL for proper font rendering with CORS handling
+    // Configure PDF.js options - disable external resources to avoid CORS issues
     const pdfOptions = {
-      cMapUrl: `${PDFJS_CDN}/cmaps/`,
-      cMapPacked: true,
-      standardFontDataUrl: `${PDFJS_CDN}/standard_fonts/`,
-      disableFontFace: false,
+      // Disable external font and cmap loading to avoid CORS issues
+      cMapUrl: null,
+      cMapPacked: false,
+      standardFontDataUrl: null,
+      disableFontFace: true, // Use system fonts instead
       nativeImageDecoderSupport: 'display',
       useSystemFonts: true,
       // Enable range requests for better loading performance
       rangeChunkSize: 65536,
       disableStream: false,
-      disableAutoFetch: false
+      disableAutoFetch: false,
+      // Ignore errors for missing fonts
+      stopAtErrors: false
     };
     
     // Load the PDF document
@@ -1019,13 +1026,26 @@
     // Create a container for this page
     const pageContainer = document.createElement('div');
     pageContainer.className = 'pdf-page';
+    
+    // Log container and page dimensions for debugging
+    console.log("PDF Container dimensions:", pdfContainer.clientWidth, "x", pdfContainer.clientHeight);
+    
+    // Make the page container use available height
+    pageContainer.style.minHeight = `${pdfContainer.clientHeight - 20}px`;
+    pageContainer.style.display = 'flex';
+    pageContainer.style.alignItems = 'center';
+    pageContainer.style.justifyContent = 'center';
+    
     pdfContainer.appendChild(pageContainer);
     
     // Create a canvas for the page
     const canvas = document.createElement('canvas');
     // Add will-read-frequently attribute for better performance when using getImageData
     canvas.setAttribute('willReadFrequently', 'true');
-    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const context = canvas.getContext('2d', { 
+      willReadFrequently: true,
+      alpha: false // Better performance for opaque content
+    });
     pageContainer.appendChild(canvas);
     
     // Get device pixel ratio for high-DPI displays (like Retina)
@@ -1034,25 +1054,39 @@
     // Determine quality factor based on mode
     const qualityFactor = isHighQualityMode ? (devicePixelRatio > 1 ? 1.2 : 1) : 1;
     
-    // Get container width to calculate optimal scale
-    const containerWidth = pdfContainer.clientWidth - 40; // Account for padding
-    const containerHeight = pdfContainer.clientHeight - 40;
+    // Get container dimensions for optimal scaling
+    const containerWidth = pdfContainer.clientWidth - 20; // Reduced padding
+    const containerHeight = pdfContainer.clientHeight - 20;
+    
+    console.log("Container dimensions:", containerWidth, "x", containerHeight);
     
     // Calculate viewport with initial scale
     let initialViewport = page.getViewport({ scale: 1.0 });
+    console.log("Page dimensions:", initialViewport.width, "x", initialViewport.height);
     
-    // Calculate scale to fit both width and height
-    const widthScale = containerWidth / initialViewport.width;
-    const heightScale = containerHeight / initialViewport.height;
+    // Calculate scale to fit width primarily
+    const widthScale = (containerWidth / initialViewport.width) * 0.98;
     
-    // Use the smaller scale to ensure the page fits completely, but apply minimum scale
-    let optimalScale = Math.min(widthScale, heightScale) * 0.95; // 95% to leave some margin
+    // Calculate scale to fit height
+    const heightScale = (containerHeight / initialViewport.height) * 0.98;
+    
+    // Use the smaller scale to ensure the entire page fits
+    let optimalScale = Math.min(widthScale, heightScale);
+    
+    // But don't make it too small - prioritize readability
+    if (optimalScale < 0.6) {
+      optimalScale = widthScale; // Prefer width fitting if height constraint makes it too small
+    }
     
     // Ensure we don't go below a minimum readable scale
-    optimalScale = Math.max(optimalScale, 0.8);
+    optimalScale = Math.max(optimalScale, 0.4);
+    
+    console.log("Width scale:", widthScale, "Height scale:", heightScale, "Chosen scale:", optimalScale);
     
     // Apply user's zoom level on top of the optimal scale
     optimalScale = optimalScale * (currentScale / DEFAULT_SCALE);
+    
+    console.log("Calculated optimal scale:", optimalScale);
     
     // Calculate viewport based on optimal scale
     const viewport = page.getViewport({ 
@@ -1064,6 +1098,9 @@
     const displayHeight = viewport.height / devicePixelRatio;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
+    
+    console.log("Canvas display size:", displayWidth, "x", displayHeight);
+    console.log("Viewport size:", viewport.width, "x", viewport.height);
     
     // Set actual size in memory (scaled to account for extra pixel density)
     const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.2) : devicePixelRatio;
