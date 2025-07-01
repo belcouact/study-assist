@@ -146,7 +146,7 @@
   }
   
   // PDF Viewer Configuration
-  const DEFAULT_SCALE = window.devicePixelRatio > 1 ? 1.2 : 1.0; // Higher default scale for high-DPI displays
+  const DEFAULT_SCALE = 2.0; // Set to 200% zoom by default
   const ZOOM_STEP = 0.1;
   const MAX_SCALE = 3.0;
   const MIN_SCALE = 0.5;

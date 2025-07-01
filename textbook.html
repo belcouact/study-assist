@@ -745,28 +745,134 @@
             
             // Load a PDF file
             function loadPdf(filePath, title) {
+                // Show more obvious loading indicator
+                showGlobalLoader(title);
+                
+                // Scroll to PDF viewer area
+                scrollToPdfArea();
+                
                 // Check if PDFReader is initialized
                 if (window.PDFReader) {
                     try {
-                        // Load PDF with options
+                        // Load PDF with 200% zoom
                         window.PDFReader.loadPDF(filePath, {
                             initialPage: 1,
-                            scale: 1.0,
+                            scale: 2.0,
                             lazyLoad: true,
                             preloadPages: 2,
                             cacheSize: 10
                         });
                         
-                        logMessage(`PDF加载成功:`, title);
+                        // Hide global loader after successful load
+                        setTimeout(() => {
+                            hideGlobalLoader();
+                            logMessage(`PDF加载成功:`, title);
+                        }, 1000);
                     } catch (error) {
+                        hideGlobalLoader();
                         console.error('Error loading PDF:', error);
                         logMessage(`PDF加载失败:`, error.message);
                         alert('无法加载PDF文件。请检查文件路径是否正确或刷新页面重试。');
                     }
                 } else {
+                    hideGlobalLoader();
                     console.error('PDF Reader not initialized');
                     logMessage(`PDF阅读器未初始化`);
                     alert('PDF阅读器未正确初始化。请刷新页面重试。');
+                }
+            }
+            
+            // Show global loading indicator
+            function showGlobalLoader(title) {
+                // Remove existing loader if any
+                hideGlobalLoader();
+                
+                // Create overlay loader
+                const loaderOverlay = document.createElement('div');
+                loaderOverlay.id = 'global-pdf-loader';
+                loaderOverlay.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.7);
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 10000;
+                    color: white;
+                    font-size: 18px;
+                    font-family: 'Poppins', sans-serif;
+                `;
+                
+                loaderOverlay.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="
+                            width: 60px; 
+                            height: 60px; 
+                            border: 4px solid #f3f3f3; 
+                            border-top: 4px solid #4361ee; 
+                            border-radius: 50%; 
+                            animation: spin 1s linear infinite;
+                            margin: 0 auto 20px auto;
+                        "></div>
+                        <div style="margin-bottom: 10px; font-weight: 600;">正在加载课本</div>
+                        <div style="font-size: 16px; opacity: 0.9;">${title}</div>
+                        <div style="font-size: 14px; opacity: 0.7; margin-top: 10px;">请稍候...</div>
+                    </div>
+                `;
+                
+                // Add spinner animation if not already added
+                if (!document.getElementById('spinner-style')) {
+                    const spinnerStyle = document.createElement('style');
+                    spinnerStyle.id = 'spinner-style';
+                    spinnerStyle.innerHTML = `
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `;
+                    document.head.appendChild(spinnerStyle);
+                }
+                
+                document.body.appendChild(loaderOverlay);
+            }
+            
+            // Hide global loading indicator
+            function hideGlobalLoader() {
+                const loader = document.getElementById('global-pdf-loader');
+                if (loader) {
+                    loader.remove();
+                }
+            }
+            
+            // Scroll to PDF viewer area
+            function scrollToPdfArea() {
+                // Try to find the PDF viewer container
+                let targetElement = document.getElementById('pdf-viewer-container');
+                
+                // If PDF viewer doesn't exist yet, scroll to the general PDF area
+                if (!targetElement) {
+                    targetElement = document.querySelector('.textbook-section');
+                }
+                
+                if (targetElement) {
+                    // Smooth scroll to the element
+                    targetElement.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start',
+                        inline: 'nearest'
+                    });
+                    
+                    // Additional offset for better positioning (optional)
+                    setTimeout(() => {
+                        window.scrollBy({
+                            top: -80, // Offset for fixed headers if any
+                            behavior: 'smooth'
+                        });
+                    }, 500);
                 }
             }
             
