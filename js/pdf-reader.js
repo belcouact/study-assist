@@ -254,8 +254,8 @@
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
-      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">正在加载PDF文件...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">PDF加载失败，请重试</div>
     `;
     
     // Add styles if not already included
@@ -300,8 +300,8 @@
         </div>
       </div>
       <div id="pdf-viewer" class="pdf-viewer"></div>
-      <div id="pdf-viewer-loader" class="pdf-viewer-loader">Loading PDF...</div>
-      <div id="pdf-viewer-error" class="pdf-viewer-error">Failed to load PDF. Please try again.</div>
+      <div id="pdf-viewer-loader" class="pdf-viewer-loader">正在加载PDF文件...</div>
+      <div id="pdf-viewer-error" class="pdf-viewer-error">PDF加载失败，请重试</div>
     `;
     
     // Add the container to the document
@@ -411,14 +411,25 @@
       }
       
       .pdf-page {
-        margin: 10px auto;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        margin: 20px auto;
+        padding: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         background-color: white;
         position: relative;
-        display: inline-block;
+        display: block;
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
+        border-radius: 4px;
+        max-width: 100%;
+      }
+      
+      .pdf-all-pages {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px 0;
+        gap: 20px;
       }
       
       .pdf-page canvas {
@@ -461,15 +472,45 @@
       }
       
       .pdf-viewer-loader, .pdf-viewer-error {
-        position: absolute;
+        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        padding: 20px;
-        background-color: rgba(255,255,255,0.9);
-        border-radius: 5px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        padding: 30px 40px;
+        background-color: rgba(255,255,255,0.95);
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         display: none;
+        z-index: 10000;
+        font-size: 16px;
+        font-weight: 500;
+        color: #333;
+        min-width: 200px;
+        text-align: center;
+        border: 2px solid #4361ee;
+      }
+      
+      .pdf-viewer-loader {
+        background-color: rgba(67, 97, 238, 0.95);
+        color: white;
+        border-color: #4361ee;
+      }
+      
+      .pdf-viewer-loader::before {
+        content: "";
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spin 1s ease-in-out infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
       }
       
       .pdf-viewer-error {
@@ -968,6 +1009,11 @@
   function renderAllPagesContinuously() {
     if (!currentPdfDocument || !pdfContainer) return;
     
+    // Update loader text for continuous rendering
+    const loader = document.getElementById('pdf-viewer-loader');
+    if (loader) {
+      loader.innerHTML = '正在渲染所有页面，请稍候...';
+    }
     showLoader();
     
     // Clear the container
@@ -978,26 +1024,39 @@
     allPagesContainer.className = 'pdf-all-pages';
     pdfContainer.appendChild(allPagesContainer);
     
-    // Render all pages sequentially
-    const renderPromises = [];
+    // Show progress indicator
+    let renderCount = 0;
+    const updateProgress = () => {
+      renderCount++;
+      if (loader) {
+        loader.innerHTML = `正在渲染页面 ${renderCount}/${totalPages}...`;
+      }
+    };
     
-    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-      const promise = currentPdfDocument.getPage(pageNum).then(page => {
-        return renderSinglePageContent(page, pageNum, allPagesContainer);
-      });
-      renderPromises.push(promise);
+    // Render all pages sequentially for better performance
+    async function renderPages() {
+      try {
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          const page = await currentPdfDocument.getPage(pageNum);
+          await renderSinglePageContent(page, pageNum, allPagesContainer);
+          updateProgress();
+        }
+        
+        hideLoader();
+        
+        // Add scroll listener to update current page indicator
+        pdfContainer.removeEventListener('scroll', updateCurrentPageFromScroll); // Remove existing listener
+        pdfContainer.addEventListener('scroll', updateCurrentPageFromScroll);
+        
+        // Update page info
+        updatePageInfo();
+      } catch (error) {
+        console.error('Error rendering pages:', error);
+        showError();
+      }
     }
     
-    // Wait for all pages to be rendered
-    Promise.all(renderPromises).then(() => {
-      hideLoader();
-      
-      // Add scroll listener to update current page indicator
-      pdfContainer.addEventListener('scroll', updateCurrentPageFromScroll);
-    }).catch(error => {
-      console.error('Error rendering pages:', error);
-      showError();
-    });
+    renderPages();
   }
   
   /**
@@ -1012,13 +1071,30 @@
       const pageContainer = document.createElement('div');
       pageContainer.className = 'pdf-page';
       pageContainer.setAttribute('data-page-number', pageNum);
-      container.appendChild(pageContainer);
+      
+      // Add page number label
+      const pageLabel = document.createElement('div');
+      pageLabel.className = 'pdf-page-label';
+      pageLabel.textContent = `Page ${pageNum}`;
+      pageLabel.style.cssText = `
+        text-align: center;
+        color: #666;
+        font-size: 12px;
+        margin-bottom: 10px;
+        padding: 5px;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
+      `;
+      pageContainer.appendChild(pageLabel);
       
       // Create a canvas for the page
       const canvas = document.createElement('canvas');
       canvas.setAttribute('willReadFrequently', 'true');
       const context = canvas.getContext('2d', { willReadFrequently: true });
       pageContainer.appendChild(canvas);
+      
+      // Add the page container to the main container
+      container.appendChild(pageContainer);
       
       // Get device pixel ratio for high-DPI displays
       const devicePixelRatio = window.devicePixelRatio || 1;
@@ -1028,27 +1104,38 @@
         scale: currentScale
       });
       
-      // Set display size (css pixels)
-      const displayWidth = viewport.width / devicePixelRatio;
-      const displayHeight = viewport.height / devicePixelRatio;
+      // Set display size (css pixels) with consistent width
+      const maxWidth = Math.min(viewport.width / devicePixelRatio, 800); // Limit max width
+      const aspectRatio = viewport.height / viewport.width;
+      const displayWidth = maxWidth;
+      const displayHeight = maxWidth * aspectRatio;
+      
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
+      canvas.style.display = 'block';
+      canvas.style.margin = '0 auto';
       
-      // Set actual size in memory
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
+      // Set actual size in memory (higher resolution for quality)
+      const scaleFactor = Math.min(2, devicePixelRatio * 1.5);
+      canvas.width = Math.floor(displayWidth * scaleFactor);
+      canvas.height = Math.floor(displayHeight * scaleFactor);
       
       // Scale context to ensure correct drawing operations
-      context.scale(devicePixelRatio, devicePixelRatio);
+      context.scale(scaleFactor, scaleFactor);
       
       // Improve image rendering quality
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = 'high';
       
+      // Create a scaled viewport for rendering
+      const scaledViewport = page.getViewport({ 
+        scale: currentScale * (displayWidth / (viewport.width / devicePixelRatio))
+      });
+      
       // Render the page
       const renderContext = {
         canvasContext: context,
-        viewport: viewport,
+        viewport: scaledViewport,
         renderInteractiveForms: true
       };
       
