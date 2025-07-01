@@ -386,14 +386,18 @@
         background-color: #525659;
         position: relative;
         text-align: center;
-        padding: 5px;
+        padding: 0;
+        margin: 0;
         box-sizing: border-box;
         width: 100%;
         height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       
       .pdf-page {
-        margin: 5px auto;
+        margin: 0 auto;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background-color: white;
         position: relative;
@@ -401,18 +405,20 @@
         box-sizing: border-box;
         image-rendering: -webkit-optimize-contrast;
         image-rendering: crisp-edges;
-        max-width: 100%;
         width: auto;
         height: auto;
-        min-width: 200px;
+        text-align: center;
       }
       
       .pdf-page canvas {
         display: block;
+        margin: 0 auto;
         image-rendering: -webkit-optimize-contrast; /* For Webkit browsers */
         image-rendering: crisp-edges; /* For Firefox */
         -ms-interpolation-mode: nearest-neighbor; /* For IE */
         will-change: transform; /* Optimization for performance */
+        max-width: 100%;
+        height: auto;
       }
       
       .pdf-page-textlayer {
@@ -871,19 +877,17 @@
     
     // Configure PDF.js options - disable external resources to avoid CORS issues
     const pdfOptions = {
-      // Disable external font and cmap loading to avoid CORS issues
-      cMapUrl: null,
-      cMapPacked: false,
-      standardFontDataUrl: null,
-      disableFontFace: true, // Use system fonts instead
-      nativeImageDecoderSupport: 'display',
+      // Completely disable font loading to avoid errors
+      disableFontFace: true,
       useSystemFonts: true,
+      nativeImageDecoderSupport: 'display',
       // Enable range requests for better loading performance
       rangeChunkSize: 65536,
       disableStream: false,
       disableAutoFetch: false,
-      // Ignore errors for missing fonts
-      stopAtErrors: false
+      // Ignore errors for missing fonts and cmaps
+      stopAtErrors: false,
+      verbosity: 0 // Reduce console warnings
     };
     
     // Load the PDF document
@@ -1030,11 +1034,13 @@
     // Log container and page dimensions for debugging
     console.log("PDF Container dimensions:", pdfContainer.clientWidth, "x", pdfContainer.clientHeight);
     
-    // Make the page container use available height
-    pageContainer.style.minHeight = `${pdfContainer.clientHeight - 20}px`;
-    pageContainer.style.display = 'flex';
-    pageContainer.style.alignItems = 'center';
-    pageContainer.style.justifyContent = 'center';
+    // Make the page container use the full available space
+    pageContainer.style.width = '100%';
+    pageContainer.style.height = 'auto';
+    pageContainer.style.display = 'block';
+    pageContainer.style.textAlign = 'center';
+    pageContainer.style.margin = '0';
+    pageContainer.style.padding = '0';
     
     pdfContainer.appendChild(pageContainer);
     
@@ -1093,22 +1099,26 @@
       scale: optimalScale * qualityFactor
     });
     
-    // Set display size (css pixels)
-    const displayWidth = viewport.width / devicePixelRatio;
-    const displayHeight = viewport.height / devicePixelRatio;
+    // Set display size (css pixels) - don't divide by devicePixelRatio for display size
+    const displayWidth = viewport.width;
+    const displayHeight = viewport.height;
     canvas.style.width = `${displayWidth}px`;
     canvas.style.height = `${displayHeight}px`;
     
     console.log("Canvas display size:", displayWidth, "x", displayHeight);
     console.log("Viewport size:", viewport.width, "x", viewport.height);
+    console.log("Device pixel ratio:", devicePixelRatio);
     
     // Set actual size in memory (scaled to account for extra pixel density)
-    const scaleFactor = isHighQualityMode ? (devicePixelRatio * 1.2) : devicePixelRatio;
+    const scaleFactor = isHighQualityMode ? devicePixelRatio : 1;
     canvas.width = Math.floor(viewport.width * scaleFactor);
     canvas.height = Math.floor(viewport.height * scaleFactor);
     
     // Scale context to ensure correct drawing operations
     context.scale(scaleFactor, scaleFactor);
+    
+    console.log("Canvas memory size:", canvas.width, "x", canvas.height);
+    console.log("Scale factor:", scaleFactor);
     
     // Improve image rendering quality
     context.imageSmoothingEnabled = true;
