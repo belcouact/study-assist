@@ -29,7 +29,7 @@
   textLayerScript.src = `${PDFJS_CDN}/pdf_viewer.min.js`;
   
   // Function to attempt initialization once both scripts are ready
-  function attemptInitialization() {
+  async function attemptInitialization() {
     if (initializationAttempted) return;
     
     // Check if main library is available
@@ -92,7 +92,9 @@
     }
     
     // Try initialization immediately
-    attemptInitialization();
+    attemptInitialization().catch(error => {
+      console.error('Initialization failed:', error);
+    });
   };
   
   scriptElement.onerror = function(error) {
@@ -109,7 +111,9 @@
     
     // Try initialization if main script is also ready
     if (scriptsLoaded.main && window.pdfjsLib && !initializationAttempted) {
-      attemptInitialization();
+      attemptInitialization().catch(error => {
+        console.error('Initialization failed:', error);
+      });
     }
   };
   
@@ -117,7 +121,9 @@
     console.warn('Failed to load PDF.js text layer script:', error);
     // We can still use basic functionality without the text layer
     if (scriptsLoaded.main && window.pdfjsLib && !initializationAttempted) {
-      attemptInitialization();
+      attemptInitialization().catch(error => {
+        console.error('Initialization failed:', error);
+      });
     }
   };
   
@@ -129,7 +135,9 @@
   setTimeout(function() {
     if (!initializationAttempted && window.pdfjsLib) {
       console.warn('Using fallback initialization after timeout');
-      attemptInitialization();
+      attemptInitialization().catch(error => {
+        console.error('Fallback initialization failed:', error);
+      });
     } else if (!initializationAttempted) {
       console.error('PDF.js library still not available after timeout');
       showErrorStatus('PDF库加载超时，请刷新页面');
