@@ -989,9 +989,9 @@
       
       if (!initSuccess) {
         console.error("Failed to initialize PDF viewer");
-        // showErrorStatus("PDF阅读器初始化失败，请刷新页面重试");
-        showError("PDF阅读器初始化失败。请刷新页面重试。");
-        return;
+                  // showErrorStatus("PDF阅读器初始化失败，请刷新页面重试");
+          // showError("PDF阅读器初始化失败。请刷新页面重试."); // Disabled - textbook.html handles errors
+          return;
       }
       
       // Double-check that pdfContainer exists after initialization
@@ -1000,7 +1000,7 @@
       if (!pdfContainer) {
           console.error("PDF container still not found after initialization");
           // showErrorStatus("PDF容器未找到，请刷新页面重试");
-          showError("PDF容器未找到。请刷新页面重试。");
+          // showError("PDF容器未找到。请刷新页面重试。"); // Disabled - textbook.html handles errors
         return;
       }
       }
@@ -1008,7 +1008,7 @@
     } catch (error) {
       console.error("Error during PDF viewer initialization:", error);
       // showErrorStatus("PDF阅读器初始化出现错误");
-      showError("PDF阅读器初始化出现错误。请刷新页面重试。");
+      // showError("PDF阅读器初始化出现错误。请刷新页面重试."); // Disabled - textbook.html handles errors
       return;
     }
     
@@ -1118,7 +1118,7 @@
         
         // Don't show status indicator banner - textbook.html handles error display
         // showErrorStatus(statusMessage);
-        showError(errorMessage);
+        // showError(errorMessage); // Disabled - textbook.html handles errors with modal
         
         // Reject the Promise on error
         if (window.PDFReader._currentLoadReject) {
@@ -1222,7 +1222,7 @@
     // Check if pdfContainer exists
     if (!pdfContainer) {
       console.error("PDF container not found. Cannot render content.");
-      showError();
+      // showError(); // Disabled - textbook.html handles errors
       return;
     }
     
