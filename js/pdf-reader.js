@@ -32,6 +32,7 @@
   scriptElement.onerror = function(error) {
     console.error('Failed to load PDF.js library:', error);
     libraryLoadingError = 'Failed to load PDF.js library. Please check your internet connection and try again.';
+    showErrorStatus('PDF阅读器加载失败，请检查网络连接');
     displayLibraryError();
   };
   
@@ -48,6 +49,7 @@
     if (!window.pdfjsLib) {
       console.error('PDF.js library loaded but pdfjsLib not defined.');
       libraryLoadingError = 'PDF.js library failed to initialize. Please try refreshing the page.';
+      showErrorStatus('PDF阅读器初始化失败，请刷新页面');
       displayLibraryError();
       return;
     }
@@ -69,6 +71,7 @@
       
       // Track successful loading
       isLibraryLoaded = true;
+      updatePDFViewerStatus('initializing', '正在加载PDF组件...');
       
       // Initialize the PDF viewer component only after text layer is loaded
       textLayerScript.onload = function() {
@@ -85,6 +88,7 @@
     } catch (error) {
       console.error('Error initializing PDF.js:', error);
       libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
+      showErrorStatus('PDF阅读器初始化错误，请刷新页面');
       displayLibraryError();
     }
   };
@@ -157,6 +161,105 @@
   let isInitialLoad = false; // Track if this is the initial PDF load
   let suppressBuiltinLoader = false; // Flag to suppress built-in loader when custom one is used
   
+  // PDF Viewer Status Indicator Management
+  let statusIndicator = null;
+  let statusVisible = false;
+  
+  /**
+   * Initialize PDF viewer status indicator
+   */
+  function initStatusIndicator() {
+    statusIndicator = document.getElementById('pdf-viewer-status');
+    if (statusIndicator) {
+      updatePDFViewerStatus('initializing', '正在初始化PDF阅读器...');
+      showStatusIndicator();
+    }
+  }
+  
+  /**
+   * Update PDF viewer status
+   * @param {string} status - Status type: 'initializing', 'loading', 'ready', 'error'
+   * @param {string} message - Status message to display
+   */
+  function updatePDFViewerStatus(status, message) {
+    if (!statusIndicator) {
+      statusIndicator = document.getElementById('pdf-viewer-status');
+    }
+    
+    if (!statusIndicator) return;
+    
+    // Remove all status classes
+    statusIndicator.className = 'pdf-viewer-status';
+    
+    // Add the current status class
+    if (status !== 'hidden') {
+      statusIndicator.classList.add(status);
+    }
+    
+    // Update icon based on status
+    const iconContainer = statusIndicator.querySelector('.status-icon');
+    const textContainer = statusIndicator.querySelector('.status-text');
+    
+    if (iconContainer && textContainer) {
+      let iconHTML = '';
+      
+      switch (status) {
+        case 'initializing':
+        case 'loading':
+          iconHTML = '<div class="status-spinner"></div>';
+          break;
+        case 'ready':
+          iconHTML = '<i class="fas fa-check-circle" style="color: white; font-size: 16px;"></i>';
+          break;
+        case 'error':
+          iconHTML = '<i class="fas fa-exclamation-triangle" style="color: white; font-size: 16px;"></i>';
+          break;
+        default:
+          iconHTML = '<div class="status-spinner"></div>';
+      }
+      
+      iconContainer.innerHTML = iconHTML;
+      textContainer.textContent = message;
+    }
+  }
+  
+  /**
+   * Show PDF viewer status indicator
+   */
+  function showStatusIndicator() {
+    if (statusIndicator && !statusVisible) {
+      statusIndicator.classList.add('show');
+      document.body.classList.add('pdf-viewer-status-visible');
+      statusVisible = true;
+    }
+  }
+  
+  /**
+   * Hide PDF viewer status indicator with delay
+   * @param {number} delay - Delay in milliseconds before hiding
+   */
+  function hideStatusIndicator(delay = 2000) {
+    if (statusIndicator && statusVisible) {
+      setTimeout(() => {
+        if (statusIndicator) {
+          statusIndicator.classList.remove('show');
+          document.body.classList.remove('pdf-viewer-status-visible');
+          statusVisible = false;
+        }
+      }, delay);
+    }
+  }
+  
+  /**
+   * Show error status and keep it visible
+   * @param {string} message - Error message to display
+   */
+  function showErrorStatus(message) {
+    updatePDFViewerStatus('error', message);
+    showStatusIndicator();
+    // Don't auto-hide error status
+  }
+  
   /**
    * Ensure DOM is ready before proceeding
    */
@@ -203,14 +306,19 @@
   async function ensurePDFViewerInitialized() {
     // If already initialized, return immediately
     if (pdfViewerInitialized && pdfContainer && document.getElementById('pdf-viewer')) {
+      updatePDFViewerStatus('ready', 'PDF阅读器已就绪');
+      hideStatusIndicator();
       return true;
     }
     
     // If initialization is in progress, wait for it
     if (initializationInProgress) {
+      updatePDFViewerStatus('initializing', '正在初始化PDF阅读器...');
       return new Promise((resolve) => {
         const checkInit = () => {
           if (pdfViewerInitialized) {
+            updatePDFViewerStatus('ready', 'PDF阅读器已就绪');
+            hideStatusIndicator();
             resolve(true);
           } else if (!initializationInProgress) {
             resolve(false);
@@ -268,6 +376,8 @@
           success = true;
           
           console.log('PDF viewer initialized successfully');
+          updatePDFViewerStatus('ready', 'PDF阅读器初始化完成');
+          hideStatusIndicator();
           
         } catch (error) {
           console.warn(`PDF viewer initialization attempt ${attempts} failed:`, error);
@@ -285,6 +395,7 @@
       
     } catch (error) {
       console.error('Failed to initialize PDF viewer after all attempts:', error);
+      showErrorStatus('PDF阅读器初始化失败');
       return false;
     } finally {
       initializationInProgress = false;
@@ -835,6 +946,9 @@
    */
   async function loadPDF(url, options = {}) {
     return new Promise(async (resolve, reject) => {
+      // Update status to loading
+      updatePDFViewerStatus('loading', '正在加载PDF文件...');
+      
       showLoader();
       
       // Store the PDF URL
@@ -867,6 +981,7 @@
       
       if (!initSuccess) {
         console.error("Failed to initialize PDF viewer");
+        showErrorStatus("PDF阅读器初始化失败，请刷新页面重试");
         showError("PDF阅读器初始化失败。请刷新页面重试。");
         return;
       }
@@ -876,6 +991,7 @@
         pdfContainer = document.getElementById('pdf-viewer');
         if (!pdfContainer) {
           console.error("PDF container still not found after initialization");
+          showErrorStatus("PDF容器未找到，请刷新页面重试");
           showError("PDF容器未找到。请刷新页面重试。");
           return;
         }
@@ -883,6 +999,7 @@
       
     } catch (error) {
       console.error("Error during PDF viewer initialization:", error);
+      showErrorStatus("PDF阅读器初始化出现错误");
       showError("PDF阅读器初始化出现错误。请刷新页面重试。");
       return;
     }
@@ -941,6 +1058,9 @@
         updatePageInfo();
         updateZoomLevel();
         
+        // Update status to indicate rendering
+        updatePDFViewerStatus('loading', '正在渲染页面...');
+        
         // Setup lazy loading if enabled
         if (lazyLoadEnabled && pdfContainer) {
           try {
@@ -967,21 +1087,29 @@
         
         // Provide more specific error messages based on error type
         let errorMessage = '加载PDF文件时出现错误：';
+        let statusMessage = 'PDF文件加载失败';
         
         if (error.name === 'InvalidPDFException') {
           if (error.message.includes('Invalid PDF structure')) {
             errorMessage = '该PDF文件损坏或为空文件，无法正常加载。请联系管理员更新正确的教材文件。';
+            statusMessage = '文件损坏或为空文件';
           } else {
             errorMessage = '该PDF文件格式无效或损坏，无法正常打开。';
+            statusMessage = '文件格式无效';
           }
         } else if (error.name === 'MissingPDFException') {
           errorMessage = '未找到指定的PDF文件，文件可能已被移动或删除。';
+          statusMessage = '文件未找到';
         } else if (error.name === 'UnexpectedResponseException') {
           errorMessage = '网络错误或服务器响应异常，请检查网络连接后重试。';
+          statusMessage = '网络错误';
         } else {
           errorMessage += error.message || '未知错误';
+          statusMessage = '加载失败';
         }
         
+        // Update status indicator with error
+        showErrorStatus(statusMessage);
         showError(errorMessage);
         
         // Reject the Promise on error
@@ -1198,6 +1326,10 @@
         hideLoader();
         isInitialLoad = false; // Reset flag after initial load is complete
         console.log("Initial PDF page fully loaded and rendered");
+        
+        // Update status to ready
+        updatePDFViewerStatus('ready', 'PDF文件加载完成');
+        hideStatusIndicator();
         
         // Resolve the Promise to indicate loading is complete
         if (window.PDFReader._currentLoadResolve) {
@@ -1511,10 +1643,15 @@
   document.addEventListener('DOMContentLoaded', async function() {
     try {
       console.log('DOM ready, attempting PDF viewer auto-initialization...');
+      
+      // Initialize status indicator first
+      initStatusIndicator();
+      
       await ensurePDFViewerInitialized();
       console.log('PDF viewer auto-initialization complete');
     } catch (error) {
       console.warn('PDF viewer auto-initialization failed, will retry on first use:', error);
+      showErrorStatus('PDF阅读器初始化失败');
       // Don't throw error here, just log it - viewer will initialize on first use
     }
   });
