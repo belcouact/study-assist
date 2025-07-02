@@ -74,15 +74,23 @@
       updatePDFViewerStatus('initializing', '正在加载PDF组件...');
       
       // Initialize the PDF viewer component only after text layer is loaded
-      textLayerScript.onload = function() {
-        initPDFViewer();
+      textLayerScript.onload = async function() {
+        try {
+          await initPDFViewer();
+        } catch (error) {
+          console.error('Error in text layer script onload:', error);
+        }
       };
       
       // If text layer script is taking too long, go ahead with viewer initialization
-      setTimeout(function() {
+      setTimeout(async function() {
         if (!window.pdfjsLib.renderTextLayer) {
           console.warn('PDF.js text layer not loaded in time, proceeding with basic viewer');
-          initPDFViewer();
+          try {
+            await initPDFViewer();
+          } catch (error) {
+            console.error('Error in timeout initialization:', error);
+          }
         }
       }, 3000); // 3 second timeout
     } catch (error) {
