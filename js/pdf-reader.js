@@ -155,6 +155,7 @@
   let initializationInProgress = false;
   let pendingLoadRequests = [];
   let isInitialLoad = false; // Track if this is the initial PDF load
+  let suppressBuiltinLoader = false; // Flag to suppress built-in loader when custom one is used
   
   /**
    * Ensure DOM is ready before proceeding
@@ -562,7 +563,7 @@
         background: rgba(67, 97, 238, 0.3);
       }
       
-      .pdf-viewer-loader, .pdf-viewer-error {
+      .pdf-viewer-loader {
         position: absolute;
         top: 50%;
         left: 50%;
@@ -572,6 +573,50 @@
         border-radius: 5px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         display: none;
+        font-family: 'Poppins', Arial, sans-serif;
+        font-size: 16px;
+        color: #333;
+        text-align: center;
+        min-width: 120px;
+      }
+      
+      .pdf-viewer-loader::before {
+        content: "加载中...";
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 500;
+      }
+      
+      .pdf-viewer-loader::after {
+        content: "";
+        display: block;
+        width: 30px;
+        height: 30px;
+        margin: 0 auto;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #4361ee;
+        border-radius: 50%;
+        animation: pdf-loader-spin 1s linear infinite;
+      }
+      
+      @keyframes pdf-loader-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .pdf-viewer-error {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        background-color: rgba(255,255,255,0.9);
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        display: none;
+        color: #721c24;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
       }
       
       .pdf-viewer-error {
@@ -863,6 +908,7 @@
     pageCache = new Map();
     pagePriority = [];
     isInitialLoad = true; // Mark this as initial load
+    suppressBuiltinLoader = false; // Reset loader suppression for each new load
     
     // Configure PDF.js options with improved CORS handling
     const pdfOptions = {
@@ -1358,6 +1404,20 @@
    * Show the loader
    */
   function showLoader() {
+    // Check if there's already a custom loading overlay (like from textbook.html)
+    const customLoader = document.getElementById('pdf-loading-overlay');
+    
+    // If custom loader exists, don't show the built-in loader to avoid duplication
+    if (customLoader) {
+      suppressBuiltinLoader = true;
+      return;
+    }
+    
+    // If suppression flag is set, don't show built-in loader
+    if (suppressBuiltinLoader) {
+      return;
+    }
+    
     const loader = document.getElementById('pdf-viewer-loader');
     const error = document.getElementById('pdf-viewer-error');
     
@@ -1371,6 +1431,9 @@
   function hideLoader() {
     const loader = document.getElementById('pdf-viewer-loader');
     if (loader) loader.style.display = 'none';
+    
+    // Reset suppression flag when hiding loader
+    suppressBuiltinLoader = false;
   }
   
   /**
@@ -1469,6 +1532,10 @@
     // Expose initialization functions
     initPDFViewer,
     ensureInitialized: ensurePDFViewerInitialized,
+    // Expose loader control functions
+    suppressBuiltinLoader: function(suppress = true) {
+      suppressBuiltinLoader = suppress;
+    },
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
       return isLibraryLoaded && !!pdfContainer && pdfViewerInitialized;
