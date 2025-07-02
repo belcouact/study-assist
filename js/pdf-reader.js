@@ -32,7 +32,7 @@
   scriptElement.onerror = function(error) {
     console.error('Failed to load PDF.js library:', error);
     libraryLoadingError = 'Failed to load PDF.js library. Please check your internet connection and try again.';
-    showErrorStatus('PDF阅读器加载失败，请检查网络连接');
+    // showErrorStatus('PDF阅读器加载失败，请检查网络连接');
     displayLibraryError();
   };
   
@@ -96,7 +96,7 @@
     } catch (error) {
       console.error('Error initializing PDF.js:', error);
       libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
-      showErrorStatus('PDF阅读器初始化错误，请刷新页面');
+      // showErrorStatus('PDF阅读器初始化错误，请刷新页面');
       displayLibraryError();
     }
   };
@@ -403,7 +403,7 @@
       
     } catch (error) {
       console.error('Failed to initialize PDF viewer after all attempts:', error);
-      showErrorStatus('PDF阅读器初始化失败');
+      // showErrorStatus('PDF阅读器初始化失败');
       return false;
     } finally {
       initializationInProgress = false;
@@ -989,7 +989,7 @@
       
       if (!initSuccess) {
         console.error("Failed to initialize PDF viewer");
-        showErrorStatus("PDF阅读器初始化失败，请刷新页面重试");
+        // showErrorStatus("PDF阅读器初始化失败，请刷新页面重试");
         showError("PDF阅读器初始化失败。请刷新页面重试。");
         return;
       }
@@ -999,7 +999,7 @@
       pdfContainer = document.getElementById('pdf-viewer');
       if (!pdfContainer) {
           console.error("PDF container still not found after initialization");
-          showErrorStatus("PDF容器未找到，请刷新页面重试");
+          // showErrorStatus("PDF容器未找到，请刷新页面重试");
           showError("PDF容器未找到。请刷新页面重试。");
         return;
       }
@@ -1007,7 +1007,7 @@
       
     } catch (error) {
       console.error("Error during PDF viewer initialization:", error);
-      showErrorStatus("PDF阅读器初始化出现错误");
+      // showErrorStatus("PDF阅读器初始化出现错误");
       showError("PDF阅读器初始化出现错误。请刷新页面重试。");
       return;
     }
@@ -1116,8 +1116,8 @@
           statusMessage = '加载失败';
         }
         
-        // Update status indicator with error
-        showErrorStatus(statusMessage);
+        // Don't show status indicator banner - textbook.html handles error display
+        // showErrorStatus(statusMessage);
         showError(errorMessage);
         
         // Reject the Promise on error
@@ -1672,7 +1672,7 @@
       
     } catch (error) {
       console.warn('PDF viewer auto-initialization failed, will retry on first use:', error);
-      showErrorStatus('PDF阅读器初始化失败，请刷新页面');
+      // showErrorStatus('PDF阅读器初始化失败，请刷新页面');
       // Don't throw error here, just log it - viewer will initialize on first use
     }
   });
