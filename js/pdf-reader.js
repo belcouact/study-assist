@@ -154,6 +154,7 @@
   let pdfViewerInitialized = false;
   let initializationInProgress = false;
   let pendingLoadRequests = [];
+  let isInitialLoad = false; // Track if this is the initial PDF load
   
   /**
    * Ensure DOM is ready before proceeding
@@ -788,27 +789,32 @@
    * @param {Object} options - Additional options
    */
   async function loadPDF(url, options = {}) {
-    showLoader();
-    
-    // Store the PDF URL
-    currentPdfUrl = url;
-    
-    // Default options
-    const defaultOptions = {
-      initialPage: 1,
-      scale: DEFAULT_SCALE,
-      lazyLoad: true,          // Enable lazy loading by default
-      preloadPages: 2,         // Number of pages to preload ahead/behind
-      cacheSize: 10            // Maximum number of pages to keep in memory cache
-    };
-    
-    // Merge default options with provided options
-    const settings = { ...defaultOptions, ...options };
-    
-    // Update global settings
-    lazyLoadEnabled = settings.lazyLoad;
-    preloadPageCount = settings.preloadPages;
-    maxCacheSize = settings.cacheSize;
+    return new Promise(async (resolve, reject) => {
+      showLoader();
+      
+      // Store the PDF URL
+      currentPdfUrl = url;
+      
+      // Default options
+      const defaultOptions = {
+        initialPage: 1,
+        scale: DEFAULT_SCALE,
+        lazyLoad: true,          // Enable lazy loading by default
+        preloadPages: 2,         // Number of pages to preload ahead/behind
+        cacheSize: 10            // Maximum number of pages to keep in memory cache
+      };
+      
+      // Merge default options with provided options
+      const settings = { ...defaultOptions, ...options };
+      
+      // Update global settings
+      lazyLoadEnabled = settings.lazyLoad;
+      preloadPageCount = settings.preloadPages;
+      maxCacheSize = settings.cacheSize;
+      
+      // Store resolve/reject functions for later use
+      window.PDFReader._currentLoadResolve = resolve;
+      window.PDFReader._currentLoadReject = reject;
     
     try {
       // Ensure PDF viewer is properly initialized
@@ -856,6 +862,7 @@
     currentScale = settings.scale;
     pageCache = new Map();
     pagePriority = [];
+    isInitialLoad = true; // Mark this as initial load
     
     // Configure PDF.js options with improved CORS handling
     const pdfOptions = {
@@ -906,7 +913,7 @@
           renderPage(currentPage);
         }
         
-        hideLoader();
+        // Don't hide loader here - wait for first page to fully render
       })
       .catch(function(error) {
         console.error('Error loading PDF:', error);
@@ -930,7 +937,15 @@
         }
         
         showError(errorMessage);
+        
+        // Reject the Promise on error
+        if (window.PDFReader._currentLoadReject) {
+          window.PDFReader._currentLoadReject(new Error(errorMessage));
+          window.PDFReader._currentLoadReject = null;
+          window.PDFReader._currentLoadResolve = null;
+        }
       });
+    }); // End of Promise wrapper
   }
   
   /**
@@ -1132,11 +1147,34 @@
         }
       }
       
-      hideLoader();
+      // Only hide loader after initial page is fully rendered
+      if (isInitialLoad) {
+        hideLoader();
+        isInitialLoad = false; // Reset flag after initial load is complete
+        console.log("Initial PDF page fully loaded and rendered");
+        
+        // Resolve the Promise to indicate loading is complete
+        if (window.PDFReader._currentLoadResolve) {
+          window.PDFReader._currentLoadResolve();
+          window.PDFReader._currentLoadResolve = null;
+          window.PDFReader._currentLoadReject = null;
+        }
+      }
       updatePageInfo();
     }).catch(function(error) {
       console.error("Error rendering page content:", error);
+      // Always hide loader on error, regardless of initial load status
       hideLoader();
+      if (isInitialLoad) {
+        isInitialLoad = false; // Reset flag on error too
+        
+        // Reject the Promise on rendering error
+        if (window.PDFReader._currentLoadReject) {
+          window.PDFReader._currentLoadReject(error);
+          window.PDFReader._currentLoadReject = null;
+          window.PDFReader._currentLoadResolve = null;
+        }
+      }
     });
   }
   
