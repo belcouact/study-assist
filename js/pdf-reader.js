@@ -742,7 +742,26 @@
       })
       .catch(function(error) {
         console.error('Error loading PDF:', error);
-        showError();
+        hideLoader();
+        
+        // Provide more specific error messages based on error type
+        let errorMessage = '加载PDF文件时出现错误：';
+        
+        if (error.name === 'InvalidPDFException') {
+          if (error.message.includes('Invalid PDF structure')) {
+            errorMessage = '该PDF文件损坏或为空文件，无法正常加载。请联系管理员更新正确的教材文件。';
+          } else {
+            errorMessage = '该PDF文件格式无效或损坏，无法正常打开。';
+          }
+        } else if (error.name === 'MissingPDFException') {
+          errorMessage = '未找到指定的PDF文件，文件可能已被移动或删除。';
+        } else if (error.name === 'UnexpectedResponseException') {
+          errorMessage = '网络错误或服务器响应异常，请检查网络连接后重试。';
+        } else {
+          errorMessage += error.message || '未知错误';
+        }
+        
+        showError(errorMessage);
       });
   }
   
@@ -1151,12 +1170,13 @@
   /**
    * Show error message
    */
-  function showError() {
+  function showError(message) {
     const loader = document.getElementById('pdf-viewer-loader');
     const error = document.getElementById('pdf-viewer-error');
     
     if (loader) loader.style.display = 'none';
     if (error) error.style.display = 'block';
+    if (error) error.textContent = message;
   }
   
   /**
