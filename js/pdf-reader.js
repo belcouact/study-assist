@@ -18,32 +18,43 @@
   linkElement.href = `${PDFJS_CDN}/pdf_viewer.min.css`;
   document.head.appendChild(linkElement);
   
-  // Load PDF.js scripts with improved timing and error handling
-  let scriptsLoaded = { main: false, textLayer: false };
-  let initializationAttempted = false;
-  
+  // Load PDF.js scripts
   const scriptElement = document.createElement('script');
   scriptElement.src = `${PDFJS_CDN}/pdf.min.js`;
+  document.head.appendChild(scriptElement);
   
+  // Load the text layer builder
   const textLayerScript = document.createElement('script');
   textLayerScript.src = `${PDFJS_CDN}/pdf_viewer.min.js`;
+  document.head.appendChild(textLayerScript);
   
-  // Function to attempt initialization once both scripts are ready
-  async function attemptInitialization() {
-    if (initializationAttempted) return;
-    
-    // Check if main library is available
+  // Handle script loading error
+  scriptElement.onerror = function(error) {
+    console.error('Failed to load PDF.js library:', error);
+    libraryLoadingError = 'Failed to load PDF.js library. Please check your internet connection and try again.';
+    showErrorStatus('PDF阅读器加载失败，请检查网络连接');
+    displayLibraryError();
+  };
+  
+  textLayerScript.onerror = function(error) {
+    console.error('Failed to load PDF.js viewer script:', error);
+    // We can still use basic functionality without the text layer
+    if (window.pdfjsLib) {
+      initPDFViewer();
+    }
+  };
+  
+  // Initialize PDF.js after script is loaded
+  scriptElement.onload = function() {
     if (!window.pdfjsLib) {
-      console.warn('PDF.js main library not yet available, will retry...');
+      console.error('PDF.js library loaded but pdfjsLib not defined.');
+      libraryLoadingError = 'PDF.js library failed to initialize. Please try refreshing the page.';
+      showErrorStatus('PDF阅读器初始化失败，请刷新页面');
+      displayLibraryError();
       return;
     }
     
-    initializationAttempted = true;
-    
     try {
-      console.log('Starting PDF.js configuration...');
-      updatePDFViewerStatus('initializing', '正在配置PDF.js...');
-      
       // Set the worker source
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.js`;
       
@@ -60,89 +71,27 @@
       
       // Track successful loading
       isLibraryLoaded = true;
-      console.log('PDF.js library configured successfully');
+      updatePDFViewerStatus('initializing', '正在加载PDF组件...');
       
-      // Proceed with viewer initialization
-      const viewerInitResult = await initPDFViewer();
+      // Initialize the PDF viewer component only after text layer is loaded
+      textLayerScript.onload = function() {
+        initPDFViewer();
+      };
       
-      if (viewerInitResult) {
-        console.log('PDF.js configuration and viewer initialization completed');
-        // Status will be updated by the DOM ready handler
-      }
-      
+      // If text layer script is taking too long, go ahead with viewer initialization
+      setTimeout(function() {
+        if (!window.pdfjsLib.renderTextLayer) {
+          console.warn('PDF.js text layer not loaded in time, proceeding with basic viewer');
+          initPDFViewer();
+        }
+      }, 3000); // 3 second timeout
     } catch (error) {
-      console.error('Error configuring PDF.js:', error);
-      libraryLoadingError = 'Error configuring PDF.js library. Please try refreshing the page.';
-      showErrorStatus('PDF阅读器配置错误，请刷新页面');
+      console.error('Error initializing PDF.js:', error);
+      libraryLoadingError = 'Error initializing PDF.js library. Please try refreshing the page.';
+      showErrorStatus('PDF阅读器初始化错误，请刷新页面');
       displayLibraryError();
     }
-  }
-  
-  // Handle main script loading
-  scriptElement.onload = function() {
-    scriptsLoaded.main = true;
-    console.log('PDF.js main script loaded');
-    
-    if (!window.pdfjsLib) {
-      console.error('PDF.js library loaded but pdfjsLib not defined.');
-      libraryLoadingError = 'PDF.js library failed to initialize. Please try refreshing the page.';
-      showErrorStatus('PDF阅读器初始化失败，请刷新页面');
-      displayLibraryError();
-      return;
-    }
-    
-    // Try initialization immediately
-    attemptInitialization().catch(error => {
-      console.error('Initialization failed:', error);
-    });
   };
-  
-  scriptElement.onerror = function(error) {
-    console.error('Failed to load PDF.js main library:', error);
-    libraryLoadingError = 'Failed to load PDF.js library. Please check your internet connection and try again.';
-    showErrorStatus('PDF阅读器加载失败，请检查网络连接');
-    displayLibraryError();
-  };
-  
-  // Handle text layer script loading
-  textLayerScript.onload = function() {
-    scriptsLoaded.textLayer = true;
-    console.log('PDF.js text layer script loaded');
-    
-    // Try initialization if main script is also ready
-    if (scriptsLoaded.main && window.pdfjsLib && !initializationAttempted) {
-      attemptInitialization().catch(error => {
-        console.error('Initialization failed:', error);
-      });
-    }
-  };
-  
-  textLayerScript.onerror = function(error) {
-    console.warn('Failed to load PDF.js text layer script:', error);
-    // We can still use basic functionality without the text layer
-    if (scriptsLoaded.main && window.pdfjsLib && !initializationAttempted) {
-      attemptInitialization().catch(error => {
-        console.error('Initialization failed:', error);
-      });
-    }
-  };
-  
-  // Add scripts to DOM
-  document.head.appendChild(scriptElement);
-  document.head.appendChild(textLayerScript);
-  
-  // Fallback timeout - ensure initialization happens even if there are timing issues
-  setTimeout(function() {
-    if (!initializationAttempted && window.pdfjsLib) {
-      console.warn('Using fallback initialization after timeout');
-      attemptInitialization().catch(error => {
-        console.error('Fallback initialization failed:', error);
-      });
-    } else if (!initializationAttempted) {
-      console.error('PDF.js library still not available after timeout');
-      showErrorStatus('PDF库加载超时，请刷新页面');
-    }
-  }, 5000);
   
   /**
    * Display library error message to the user
@@ -222,18 +171,8 @@
   function initStatusIndicator() {
     statusIndicator = document.getElementById('pdf-viewer-status');
     if (statusIndicator) {
-      // Check current state to show appropriate status
-      if (pdfViewerInitialized) {
-        updatePDFViewerStatus('ready', 'PDF阅读器就绪');
-        showStatusIndicator();
-        hideStatusIndicator(2000);
-      } else if (isLibraryLoaded) {
-        updatePDFViewerStatus('initializing', '正在配置PDF阅读器...');
-        showStatusIndicator();
-      } else {
-        updatePDFViewerStatus('initializing', '正在加载PDF组件...');
-        showStatusIndicator();
-      }
+      updatePDFViewerStatus('initializing', '正在初始化PDF阅读器...');
+      showStatusIndicator();
     }
   }
   
@@ -416,16 +355,16 @@
           if (targetContainer.classList.contains('pdf-container')) {
             createPDFViewerInContainer(targetContainer);
           } else {
-            createPDFViewerUI();
+      createPDFViewerUI();
           }
           
           // Wait for the PDF viewer element to be available
           await waitForElement('#pdf-viewer', 5, 100);
           
           // Set pdfContainer reference
-          pdfContainer = document.getElementById('pdf-viewer');
+        pdfContainer = document.getElementById('pdf-viewer');
           
-          if (!pdfContainer) {
+        if (!pdfContainer) {
             throw new Error('PDF viewer element not found after creation');
           }
           
@@ -437,7 +376,8 @@
           success = true;
           
           console.log('PDF viewer initialized successfully');
-          // Don't update status here - let the calling function handle it
+          updatePDFViewerStatus('ready', 'PDF阅读器初始化完成');
+          hideStatusIndicator();
           
         } catch (error) {
           console.warn(`PDF viewer initialization attempt ${attempts} failed:`, error);
@@ -467,12 +407,7 @@
    */
   async function initPDFViewer() {
     console.log("Legacy initPDFViewer called, using new robust initialization");
-    updatePDFViewerStatus('initializing', '正在配置PDF阅读器...');
-    const result = await ensurePDFViewerInitialized();
-    if (result) {
-      console.log("PDF viewer initialization completed successfully");
-    }
-    return result;
+    return await ensurePDFViewerInitialized();
   }
   
   /**
@@ -1014,28 +949,28 @@
       // Update status to loading
       updatePDFViewerStatus('loading', '正在加载PDF文件...');
       
-      showLoader();
-      
-      // Store the PDF URL
-      currentPdfUrl = url;
-      
-      // Default options
-      const defaultOptions = {
-        initialPage: 1,
-        scale: DEFAULT_SCALE,
-        lazyLoad: true,          // Enable lazy loading by default
-        preloadPages: 2,         // Number of pages to preload ahead/behind
-        cacheSize: 10            // Maximum number of pages to keep in memory cache
-      };
-      
-      // Merge default options with provided options
-      const settings = { ...defaultOptions, ...options };
-      
-      // Update global settings
-      lazyLoadEnabled = settings.lazyLoad;
-      preloadPageCount = settings.preloadPages;
-      maxCacheSize = settings.cacheSize;
-      
+    showLoader();
+    
+    // Store the PDF URL
+    currentPdfUrl = url;
+    
+    // Default options
+    const defaultOptions = {
+      initialPage: 1,
+      scale: DEFAULT_SCALE,
+      lazyLoad: true,          // Enable lazy loading by default
+      preloadPages: 2,         // Number of pages to preload ahead/behind
+      cacheSize: 10            // Maximum number of pages to keep in memory cache
+    };
+    
+    // Merge default options with provided options
+    const settings = { ...defaultOptions, ...options };
+    
+    // Update global settings
+    lazyLoadEnabled = settings.lazyLoad;
+    preloadPageCount = settings.preloadPages;
+    maxCacheSize = settings.cacheSize;
+    
       // Store resolve/reject functions for later use
       window.PDFReader._currentLoadResolve = resolve;
       window.PDFReader._currentLoadReject = reject;
@@ -1052,14 +987,14 @@
       }
       
       // Double-check that pdfContainer exists after initialization
+    if (!pdfContainer) {
+      pdfContainer = document.getElementById('pdf-viewer');
       if (!pdfContainer) {
-        pdfContainer = document.getElementById('pdf-viewer');
-        if (!pdfContainer) {
           console.error("PDF container still not found after initialization");
           showErrorStatus("PDF容器未找到，请刷新页面重试");
           showError("PDF容器未找到。请刷新页面重试。");
-          return;
-        }
+        return;
+      }
       }
       
     } catch (error) {
@@ -1388,7 +1323,7 @@
       
       // Only hide loader after initial page is fully rendered
       if (isInitialLoad) {
-        hideLoader();
+      hideLoader();
         isInitialLoad = false; // Reset flag after initial load is complete
         console.log("Initial PDF page fully loaded and rendered");
         
@@ -1712,41 +1647,28 @@
       // Initialize status indicator first
       initStatusIndicator();
       
-      // Wait for PDF.js library to be loaded before initializing viewer
-      let attempts = 0;
-      const maxAttempts = 10;
+      // Update status to show initialization progress
+      updatePDFViewerStatus('initializing', '正在加载PDF组件...');
       
-      while (!isLibraryLoaded && attempts < maxAttempts) {
-        console.log(`Waiting for PDF.js library to load... attempt ${attempts + 1}/${maxAttempts}`);
-        await new Promise(resolve => setTimeout(resolve, 500));
-        attempts++;
-      }
+      await ensurePDFViewerInitialized();
       
-      if (!isLibraryLoaded) {
-        console.warn('PDF.js library not loaded after waiting, will initialize on first use');
-        updatePDFViewerStatus('ready', 'PDF阅读器待命中（库未加载）');
-        hideStatusIndicator(3000);
-        return;
-      }
+      // Update status to show ready state
+      updatePDFViewerStatus('ready', 'PDF阅读器就绪');
       
-      const initResult = await ensurePDFViewerInitialized();
-      if (initResult) {
-        console.log('PDF viewer auto-initialization complete');
-        updatePDFViewerStatus('ready', 'PDF阅读器就绪');
-        hideStatusIndicator(2000);
-      } else {
-        console.warn('PDF viewer initialization failed');
-        updatePDFViewerStatus('ready', 'PDF阅读器待命中');
-        hideStatusIndicator(3000);
-      }
+      console.log('PDF viewer auto-initialization complete');
+      
+      // Hide status indicator after a short delay
+      setTimeout(() => {
+        hideStatusIndicator(1000);
+      }, 2000);
+      
     } catch (error) {
       console.warn('PDF viewer auto-initialization failed, will retry on first use:', error);
-      updatePDFViewerStatus('ready', 'PDF阅读器待命中');
-      hideStatusIndicator(3000);
+      showErrorStatus('PDF阅读器初始化失败，请刷新页面');
       // Don't throw error here, just log it - viewer will initialize on first use
     }
   });
-
+  
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -1767,6 +1689,12 @@
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
       return isLibraryLoaded && !!pdfContainer && pdfViewerInitialized;
-    }
+    },
+    // Expose status indicator functions for external use
+    updateStatus: updatePDFViewerStatus,
+    showStatusIndicator: showStatusIndicator,
+    hideStatusIndicator: hideStatusIndicator,
+    showErrorStatus: showErrorStatus,
+    initStatusIndicator: initStatusIndicator
   };
 })(); 

@@ -100,7 +100,7 @@
                 align-items: center;
             }
         }
-        
+
         /* Enhanced no-files message styles */
         .no-files-message {
             text-align: center;
@@ -556,8 +556,8 @@
             }
         }
     </style>
-  </head>
-  <body>
+</head>
+<body>
       <!-- PDF Viewer Status Indicator -->
       <div id="pdf-viewer-status" class="pdf-viewer-status">
           <div class="status-icon">
@@ -566,7 +566,7 @@
           <div class="status-text">正在初始化PDF阅读器...</div>
       </div>
       
-      <header class="main-header">
+    <header class="main-header">
         <div class="container">
             <div class="header-content">
                 <div class="logo">
@@ -677,8 +677,49 @@
     
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // PDF viewer status will be handled by pdf-reader.js automatically
-            // No need to manually show it here
+            // Initialize PDF viewer status indicator
+            const statusIndicator = document.getElementById('pdf-viewer-status');
+            if (statusIndicator) {
+                statusIndicator.classList.add('show');
+                document.body.classList.add('pdf-viewer-status-visible');
+            }
+            
+            // Set up periodic check for PDF reader initialization
+            let checkCount = 0;
+            const maxChecks = 30; // 3 seconds with 100ms intervals
+            
+            const checkPDFReaderInit = setInterval(() => {
+                checkCount++;
+                
+                if (window.PDFReader && window.PDFReader.isInitialized()) {
+                    // PDF reader is initialized
+                    if (window.PDFReader.updateStatus) {
+                        window.PDFReader.updateStatus('ready', 'PDF阅读器就绪');
+                        setTimeout(() => {
+                            if (window.PDFReader.hideStatusIndicator) {
+                                window.PDFReader.hideStatusIndicator(1000);
+                            }
+                        }, 1500);
+                    }
+                    clearInterval(checkPDFReaderInit);
+                } else if (checkCount >= maxChecks) {
+                    // Timeout - show error
+                    if (window.PDFReader && window.PDFReader.showErrorStatus) {
+                        window.PDFReader.showErrorStatus('PDF阅读器初始化超时，请刷新页面');
+                    } else {
+                        // Fallback error display
+                        const statusText = statusIndicator.querySelector('.status-text');
+                        if (statusText) {
+                            statusText.textContent = 'PDF阅读器初始化失败，请刷新页面';
+                        }
+                        statusIndicator.className = 'pdf-viewer-status error show';
+                    }
+                    clearInterval(checkPDFReaderInit);
+                } else if (window.PDFReader && window.PDFReader.updateStatus) {
+                    // Still initializing
+                    window.PDFReader.updateStatus('initializing', '正在初始化PDF阅读器...');
+                }
+            }, 100);
             
             // Elements
             const subjectFilter = document.getElementById('subject-filter');
@@ -1012,6 +1053,11 @@
                             return;
                         }
                         
+                        // Update status indicator to show loading
+                        if (window.PDFReader && window.PDFReader.updateStatus) {
+                            window.PDFReader.updateStatus('loading', `正在加载 ${title}...`);
+                        }
+                        
                         // Show obvious loading indicator
                         showPdfLoadingIndicator(title);
                         
@@ -1019,10 +1065,10 @@
                         if (window.PDFReader && window.PDFReader.suppressBuiltinLoader) {
                             window.PDFReader.suppressBuiltinLoader(true);
                         }
-                        
+                
                         // Scroll to PDF viewer area
                         scrollToPdfArea();
-                        
+                
                         // Check if PDFReader is initialized
                         if (window.PDFReader) {
                             try {
@@ -1034,15 +1080,31 @@
                                     preloadPages: 2,
                                     cacheSize: 10
                                 });
-                                
+                        
                                 // Hide loading indicator only after PDF is fully loaded and rendered
                                 hidePdfLoadingIndicator();
+                                
+                                // Update status indicator to show success and hide after delay
+                                if (window.PDFReader && window.PDFReader.updateStatus) {
+                                    window.PDFReader.updateStatus('ready', `${title} 加载完成`);
+                                    setTimeout(() => {
+                                        if (window.PDFReader.hideStatusIndicator) {
+                                            window.PDFReader.hideStatusIndicator(1000);
+                                        }
+                                    }, 2000);
+                                }
+                                
                                 logMessage(`PDF完全加载成功:`, title);
                                 
                             } catch (error) {
                                 hidePdfLoadingIndicator();
                                 console.error('Error loading PDF:', error);
                                 logMessage(`PDF加载失败:`, error.message);
+                                
+                                // Update status indicator to show error
+                                if (window.PDFReader && window.PDFReader.showErrorStatus) {
+                                    window.PDFReader.showErrorStatus(`加载失败: ${title}`);
+                                }
                                 
                                 // Show enhanced error message
                                 let userMessage = '无法加载PDF文件：\n\n';
@@ -1063,12 +1125,23 @@
                             hidePdfLoadingIndicator();
                             console.error('PDF Reader not initialized');
                             logMessage(`PDF阅读器未初始化`);
+                            
+                            // Update status indicator to show error
+                            if (window.PDFReader && window.PDFReader.showErrorStatus) {
+                                window.PDFReader.showErrorStatus('PDF阅读器未初始化');
+                            }
+                            
                             alert('PDF阅读器未正确初始化。请刷新页面重试。');
                         }
                     })
                     .catch(error => {
                         console.error('Error checking file existence:', error);
                         showMissingFileMessage(title, filePath);
+                        
+                        // Update status indicator to show error
+                        if (window.PDFReader && window.PDFReader.showErrorStatus) {
+                            window.PDFReader.showErrorStatus('文件检查失败');
+                        }
                     });
             }
             
