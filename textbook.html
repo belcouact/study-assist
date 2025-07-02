@@ -1108,18 +1108,24 @@
                                 
                                 // Show enhanced error message
                                 let userMessage = '无法加载PDF文件：\n\n';
+                                let errorTitle = 'PDF加载错误';
+                                
                                 if (error.name === 'InvalidPDFException') {
                                     userMessage += '该PDF文件损坏或格式不正确。请联系管理员更新教材文件。';
+                                    errorTitle = 'PDF文件损坏';
                                 } else if (error.message && error.message.includes('404')) {
                                     userMessage += '文件未找到。该教材可能暂时不可用。';
+                                    errorTitle = '文件未找到';
                                 } else if (error.message && error.message.includes('初始化')) {
                                     userMessage += 'PDF阅读器初始化失败。请刷新页面重试。';
+                                    errorTitle = '初始化失败';
                                 } else {
                                     userMessage += error.message || '未知错误';
                                     userMessage += '\n\n请刷新页面重试，或联系技术支持。';
+                                    errorTitle = '加载失败';
                                 }
                                 
-                                alert(userMessage);
+                                showErrorModal(errorTitle, userMessage);
                             }
                         } else {
                             hidePdfLoadingIndicator();
@@ -1131,7 +1137,7 @@
                                 window.PDFReader.showErrorStatus('PDF阅读器未初始化');
                             }
                             
-                            alert('PDF阅读器未正确初始化。请刷新页面重试。');
+                            showErrorModal('PDF阅读器错误', 'PDF阅读器未正确初始化。请刷新页面重试。');
                         }
                     })
                     .catch(error => {
@@ -1155,6 +1161,223 @@
                 }
             }
             
+            // Show custom error modal
+            function showErrorModal(title, message) {
+                // Remove any existing modal
+                const existingModal = document.getElementById('error-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Create modal HTML
+                const modal = document.createElement('div');
+                modal.id = 'error-modal';
+                modal.className = 'error-modal-overlay';
+                modal.innerHTML = `
+                    <div class="error-modal-content">
+                        <div class="error-modal-header">
+                            <h3>${title}</h3>
+                            <button class="error-modal-close" onclick="closeErrorModal()">&times;</button>
+                        </div>
+                        <div class="error-modal-body">
+                            <div class="error-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="error-message">${message.replace(/\n/g, '<br>')}</div>
+                        </div>
+                        <div class="error-modal-footer">
+                            <button class="error-modal-button" onclick="closeErrorModal()">确定</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add modal styles if not already added
+                if (!document.getElementById('error-modal-styles')) {
+                    const modalStyles = document.createElement('style');
+                    modalStyles.id = 'error-modal-styles';
+                    modalStyles.innerHTML = `
+                        .error-modal-overlay {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: rgba(0, 0, 0, 0.5);
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            z-index: 10001;
+                            animation: fadeIn 0.3s ease-out;
+                        }
+                        
+                        .error-modal-content {
+                            background: white;
+                            border-radius: 10px;
+                            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+                            max-width: 500px;
+                            width: 90%;
+                            max-height: 80vh;
+                            overflow-y: auto;
+                            animation: slideIn 0.3s ease-out;
+                        }
+                        
+                        .error-modal-header {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            padding: 20px;
+                            border-bottom: 1px solid #eee;
+                            background: #f8f9fa;
+                            border-radius: 10px 10px 0 0;
+                        }
+                        
+                        .error-modal-header h3 {
+                            margin: 0;
+                            color: #dc3545;
+                            font-size: 1.3rem;
+                        }
+                        
+                        .error-modal-close {
+                            background: none;
+                            border: none;
+                            font-size: 24px;
+                            cursor: pointer;
+                            color: #666;
+                            padding: 0;
+                            width: 30px;
+                            height: 30px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            transition: all 0.2s;
+                        }
+                        
+                        .error-modal-close:hover {
+                            background: #f5f5f5;
+                            color: #333;
+                        }
+                        
+                        .error-modal-body {
+                            padding: 20px;
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 15px;
+                        }
+                        
+                        .error-icon {
+                            color: #dc3545;
+                            font-size: 2rem;
+                            margin-top: 5px;
+                        }
+                        
+                        .error-message {
+                            flex: 1;
+                            line-height: 1.6;
+                            color: #333;
+                        }
+                        
+                        .error-modal-footer {
+                            padding: 15px 20px;
+                            border-top: 1px solid #eee;
+                            text-align: right;
+                        }
+                        
+                        .error-modal-button {
+                            background: #dc3545;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 1rem;
+                            transition: background-color 0.2s;
+                        }
+                        
+                        .error-modal-button:hover {
+                            background: #c82333;
+                        }
+                        
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        
+                                                 @keyframes slideIn {
+                             from { 
+                                 opacity: 0;
+                                 transform: translateY(-50px) scale(0.9);
+                             }
+                             to { 
+                                 opacity: 1;
+                                 transform: translateY(0) scale(1);
+                             }
+                         }
+                         
+                         @keyframes fadeOut {
+                             from { opacity: 1; }
+                             to { opacity: 0; }
+                         }
+                        
+                        /* Mobile responsiveness */
+                        @media (max-width: 768px) {
+                            .error-modal-content {
+                                width: 95%;
+                                margin: 20px;
+                            }
+                            
+                            .error-modal-header,
+                            .error-modal-body,
+                            .error-modal-footer {
+                                padding: 15px;
+                            }
+                            
+                            .error-modal-header h3 {
+                                font-size: 1.1rem;
+                            }
+                            
+                            .error-icon {
+                                font-size: 1.5rem;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(modalStyles);
+                }
+                
+                // Add modal to document
+                document.body.appendChild(modal);
+                
+                // Close modal when clicking outside
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        closeErrorModal();
+                    }
+                });
+                
+                // Close modal with Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape') {
+                        closeErrorModal();
+                    }
+                });
+            }
+            
+            // Close error modal
+            function closeErrorModal() {
+                const modal = document.getElementById('error-modal');
+                if (modal) {
+                    modal.style.animation = 'fadeOut 0.3s ease-out';
+                    setTimeout(() => {
+                        if (modal.parentNode) {
+                            modal.parentNode.removeChild(modal);
+                        }
+                    }, 300);
+                }
+            }
+            
+            // Make closeErrorModal available globally
+            window.closeErrorModal = closeErrorModal;
+            
             // Show message for missing files
             function showMissingFileMessage(title, filePath) {
                 const subjectName = getSubjectFromPath(filePath);
@@ -1171,7 +1394,7 @@
                     message += '请联系管理员检查教材文件。';
                 }
                 
-                alert(message);
+                showErrorModal('文件不可用', message);
                 logMessage(`文件不存在:`, filePath);
             }
             
