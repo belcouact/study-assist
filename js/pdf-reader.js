@@ -150,41 +150,151 @@
   let preloadPageCount = 2;
   let maxCacheSize = 10;
   
+  // State management for PDF viewer
+  let pdfViewerInitialized = false;
+  let initializationInProgress = false;
+  let pendingLoadRequests = [];
+  
   /**
-   * Initialize the PDF Viewer component
+   * Ensure DOM is ready before proceeding
    */
-  function initPDFViewer() {
-    try {
-      // Create or update PDF viewer container
-      createPDFViewerUI();
+  function waitForDOM() {
+    return new Promise((resolve) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', resolve);
+      } else {
+        resolve();
+      }
+    });
+  }
+  
+  /**
+   * Wait for an element to exist in the DOM with retry mechanism
+   */
+  function waitForElement(selector, maxAttempts = 10, delay = 100) {
+    return new Promise((resolve, reject) => {
+      let attempts = 0;
       
-      // Ensure the pdfContainer reference is set
-      if (!pdfContainer) {
-        pdfContainer = document.getElementById('pdf-viewer');
-        if (!pdfContainer) {
-          console.error("Could not find or create pdf-viewer element");
-          // Get the pdf-container from the document
-          const existingContainer = document.querySelector('.pdf-container');
-          if (existingContainer) {
-            // Create the PDF viewer container within the existing container
-            createPDFViewerInContainer(existingContainer);
-            pdfContainer = document.getElementById('pdf-viewer');
+      function checkElement() {
+        const element = document.querySelector(selector);
+        if (element) {
+          resolve(element);
+          return;
+        }
+        
+        attempts++;
+        if (attempts >= maxAttempts) {
+          reject(new Error(`Element ${selector} not found after ${maxAttempts} attempts`));
+          return;
+        }
+        
+        setTimeout(checkElement, delay * Math.pow(1.5, attempts)); // Exponential backoff
+      }
+      
+      checkElement();
+    });
+  }
+  
+  /**
+   * Robust PDF viewer initialization with retry mechanism
+   */
+  async function ensurePDFViewerInitialized() {
+    // If already initialized, return immediately
+    if (pdfViewerInitialized && pdfContainer && document.getElementById('pdf-viewer')) {
+      return true;
+    }
+    
+    // If initialization is in progress, wait for it
+    if (initializationInProgress) {
+      return new Promise((resolve) => {
+        const checkInit = () => {
+          if (pdfViewerInitialized) {
+            resolve(true);
+          } else if (!initializationInProgress) {
+            resolve(false);
           } else {
-            // Create the container in the body if no existing container is found
+            setTimeout(checkInit, 50);
+          }
+        };
+        checkInit();
+      });
+    }
+    
+    initializationInProgress = true;
+    
+    try {
+      // Wait for DOM to be ready
+      await waitForDOM();
+      
+      // Try to initialize the PDF viewer
+      let success = false;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!success && attempts < maxAttempts) {
+        attempts++;
+        console.log(`PDF viewer initialization attempt ${attempts}/${maxAttempts}`);
+        
+        try {
+          // Check if we have a container to work with
+          let targetContainer = document.querySelector('.pdf-container') || 
+                               document.querySelector('#pdf-viewer-container') ||
+                               document.body;
+          
+          // Create PDF viewer UI
+          if (targetContainer.classList.contains('pdf-container')) {
+            createPDFViewerInContainer(targetContainer);
+          } else {
             createPDFViewerUI();
-            pdfContainer = document.getElementById('pdf-viewer');
+          }
+          
+          // Wait for the PDF viewer element to be available
+          await waitForElement('#pdf-viewer', 5, 100);
+          
+          // Set pdfContainer reference
+          pdfContainer = document.getElementById('pdf-viewer');
+          
+          if (!pdfContainer) {
+            throw new Error('PDF viewer element not found after creation');
+          }
+          
+          // Setup event listeners
+          setupEventListeners();
+          
+          // Mark as initialized
+          pdfViewerInitialized = true;
+          success = true;
+          
+          console.log('PDF viewer initialized successfully');
+          
+        } catch (error) {
+          console.warn(`PDF viewer initialization attempt ${attempts} failed:`, error);
+          
+          if (attempts < maxAttempts) {
+            // Wait before retrying
+            await new Promise(resolve => setTimeout(resolve, 500 * attempts));
+          } else {
+            throw error;
           }
         }
       }
       
-      // Setup event listeners
-      setupEventListeners();
+      return success;
       
-      return true; // Indicate successful initialization
     } catch (error) {
-      console.error("Error initializing PDF viewer:", error);
-      return false; // Indicate failed initialization
+      console.error('Failed to initialize PDF viewer after all attempts:', error);
+      return false;
+    } finally {
+      initializationInProgress = false;
     }
+  }
+  
+  /**
+   * Initialize the PDF Viewer component
+   */
+  async function initPDFViewer() {
+    console.log("Legacy initPDFViewer called, using new robust initialization");
+    return await ensurePDFViewerInitialized();
   }
   
   /**
@@ -474,16 +584,71 @@
         .pdf-viewer-toolbar {
           flex-direction: column;
           gap: 10px;
+          padding: 8px;
         }
         
         .pdf-controls, .pdf-zoom-controls {
           width: 100%;
           justify-content: center;
+          flex-wrap: wrap;
+          gap: 8px;
         }
         
         .pdf-page-search {
           margin-left: 0;
-          margin-top: 10px;
+          margin-top: 5px;
+        }
+        
+        .pdf-page-search input {
+          width: 60px;
+          font-size: 14px;
+        }
+        
+        .pdf-viewer-container {
+          height: 500px; /* Smaller height on mobile */
+        }
+        
+        /* Mobile-friendly button sizes */
+        .pdf-viewer-toolbar button {
+          min-height: 44px; /* Touch-friendly size */
+          min-width: 44px;
+          padding: 8px 12px;
+          font-size: 14px;
+        }
+        
+        /* Better error message styling for mobile */
+        .pdf-viewer-error {
+          padding: 20px 15px;
+          font-size: 14px;
+          line-height: 1.4;
+        }
+        
+        /* Better loader styling for mobile */
+        .pdf-viewer-loader {
+          font-size: 14px;
+        }
+      }
+      
+      /* Responsive improvements for very small screens */
+      @media (max-width: 480px) {
+        .pdf-viewer-container {
+          height: 400px;
+        }
+        
+        .pdf-controls span, .pdf-zoom-controls span {
+          font-size: 12px;
+        }
+        
+        #pdf-quality-indicator {
+          font-size: 10px !important;
+          padding: 2px 6px !important;
+        }
+        
+        .pdf-viewer-toolbar button {
+          min-height: 40px;
+          min-width: 40px;
+          padding: 6px 10px;
+          font-size: 12px;
         }
       }
     `;
@@ -622,7 +787,7 @@
    * @param {string} url - URL of the PDF file
    * @param {Object} options - Additional options
    */
-  function loadPDF(url, options = {}) {
+  async function loadPDF(url, options = {}) {
     showLoader();
     
     // Store the PDF URL
@@ -645,27 +810,30 @@
     preloadPageCount = settings.preloadPages;
     maxCacheSize = settings.cacheSize;
     
-    // Ensure the viewer container exists before loading
-    let container = document.getElementById('pdf-viewer-container');
-    if (!container) {
-      console.log("PDF viewer container not found, creating one");
-      const pdfContainer = document.querySelector('.pdf-container');
-      if (pdfContainer) {
-        createPDFViewerInContainer(pdfContainer);
-      } else {
-        createPDFViewerUI();
-      }
-    }
-    
-    // Make sure pdfContainer exists
-    if (!pdfContainer) {
-      console.warn("PDF container reference not set, trying to get it again");
-      pdfContainer = document.getElementById('pdf-viewer');
-      if (!pdfContainer) {
-        console.error("Failed to initialize PDF viewer. Container element not found.");
-        showError();
+    try {
+      // Ensure PDF viewer is properly initialized
+      const initSuccess = await ensurePDFViewerInitialized();
+      
+      if (!initSuccess) {
+        console.error("Failed to initialize PDF viewer");
+        showError("PDF阅读器初始化失败。请刷新页面重试。");
         return;
       }
+      
+      // Double-check that pdfContainer exists after initialization
+      if (!pdfContainer) {
+        pdfContainer = document.getElementById('pdf-viewer');
+        if (!pdfContainer) {
+          console.error("PDF container still not found after initialization");
+          showError("PDF容器未找到。请刷新页面重试。");
+          return;
+        }
+      }
+      
+    } catch (error) {
+      console.error("Error during PDF viewer initialization:", error);
+      showError("PDF阅读器初始化出现错误。请刷新页面重试。");
+      return;
     }
     
     // Clear the previous document if any
@@ -1238,6 +1406,18 @@
   
 
   
+  // Auto-initialize on DOM ready with error handling
+  document.addEventListener('DOMContentLoaded', async function() {
+    try {
+      console.log('DOM ready, attempting PDF viewer auto-initialization...');
+      await ensurePDFViewerInitialized();
+      console.log('PDF viewer auto-initialization complete');
+    } catch (error) {
+      console.warn('PDF viewer auto-initialization failed, will retry on first use:', error);
+      // Don't throw error here, just log it - viewer will initialize on first use
+    }
+  });
+
   // Expose the PDF reader functions to the global scope
   window.PDFReader = {
     loadPDF,
@@ -1248,9 +1428,12 @@
     toggleFullscreen,
     goToPage,
     downloadPDF,
+    // Expose initialization functions
+    initPDFViewer,
+    ensureInitialized: ensurePDFViewerInitialized,
     // Expose a method to check if the viewer is initialized
     isInitialized: function() {
-      return isLibraryLoaded && !!pdfContainer;
+      return isLibraryLoaded && !!pdfContainer && pdfViewerInitialized;
     }
   };
 })(); 

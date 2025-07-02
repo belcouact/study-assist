@@ -899,10 +899,10 @@
             }
             
             // Load a PDF file
-            function loadPdf(filePath, title) {
+            async function loadPdf(filePath, title) {
                 // First check if file exists before showing loading indicator
                 checkFileExists(filePath)
-                    .then(exists => {
+                    .then(async (exists) => {
                         if (!exists) {
                             // Show user-friendly message for missing files
                             showMissingFileMessage(title, filePath);
@@ -918,8 +918,8 @@
                         // Check if PDFReader is initialized
                         if (window.PDFReader) {
                             try {
-                                // Load PDF with 200% zoom
-                                window.PDFReader.loadPDF(filePath, {
+                                // Load PDF with 200% zoom (now async)
+                                await window.PDFReader.loadPDF(filePath, {
                                     initialPage: 1,
                                     scale: 2.0,
                                     lazyLoad: true,
@@ -927,11 +927,10 @@
                                     cacheSize: 10
                                 });
                                 
-                                // Hide loading indicator after a brief delay to ensure PDF is visible
-                                setTimeout(() => {
-                                    hidePdfLoadingIndicator();
-                                    logMessage(`PDF加载成功:`, title);
-                                }, 1500);
+                                // Hide loading indicator after successful load
+                                hidePdfLoadingIndicator();
+                                logMessage(`PDF加载成功:`, title);
+                                
                             } catch (error) {
                                 hidePdfLoadingIndicator();
                                 console.error('Error loading PDF:', error);
@@ -943,6 +942,8 @@
                                     userMessage += '该PDF文件损坏或格式不正确。请联系管理员更新教材文件。';
                                 } else if (error.message && error.message.includes('404')) {
                                     userMessage += '文件未找到。该教材可能暂时不可用。';
+                                } else if (error.message && error.message.includes('初始化')) {
+                                    userMessage += 'PDF阅读器初始化失败。请刷新页面重试。';
                                 } else {
                                     userMessage += error.message || '未知错误';
                                     userMessage += '\n\n请刷新页面重试，或联系技术支持。';
