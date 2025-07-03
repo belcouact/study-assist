@@ -1523,6 +1523,36 @@
                     </div>
 
                     <div class="control-group">
+                        <h4>绘制多边形</h4>
+                        <p style="font-size: 13px; color: #666; margin-bottom: 12px;">🔷 通过输入各顶点坐标绘制自定义多边形</p>
+                        <div class="input-row">
+                            <label for="polygonSides">边数:</label>
+                            <select id="polygonSides" class="input-field" onchange="generatePolygonInputs()">
+                                <option value="3">三角形 (3边)</option>
+                                <option value="4">四边形 (4边)</option>
+                                <option value="5">五边形 (5边)</option>
+                                <option value="6">六边形 (6边)</option>
+                                <option value="7">七边形 (7边)</option>
+                                <option value="8">八边形 (8边)</option>
+                                <option value="9">九边形 (9边)</option>
+                                <option value="10">十边形 (10边)</option>
+                                <option value="11">十一边形 (11边)</option>
+                                <option value="12">十二边形 (12边)</option>
+                            </select>
+                            <small style="color: #888; font-size: 11px;">选择多边形的边数</small>
+                        </div>
+                        <div id="polygonVertexInputs">
+                            <!-- Vertex inputs will be generated here -->
+                        </div>
+                        <button class="btn btn-primary" onclick="addPolygon()" style="width: 100%; margin-top: 10px;">
+                            🔷 绘制多边形
+                        </button>
+                        <button class="btn btn-secondary" onclick="generateRegularPolygon()" style="width: 100%; margin-top: 5px;">
+                            ⭕ 生成正多边形
+                        </button>
+                    </div>
+
+                    <div class="control-group">
                         <h4>绘制矩形</h4>
                         <p style="font-size: 13px; color: #666; margin-bottom: 12px;">⬜ 通过左上角坐标和尺寸绘制矩形</p>
                         <div class="input-row">
@@ -1789,6 +1819,7 @@
             updatePointsList();
             updatePointSelectors();
             updateShapeLists();
+            generatePolygonInputs(); // Initialize polygon inputs with default triangle
         });
 
         function setupCanvas() {
@@ -3981,6 +4012,79 @@
             shapes.push(star);
             updateShapeLists();
             redraw();
+        }
+
+        // Custom polygon drawing functions
+        function generatePolygonInputs() {
+            const sides = parseInt(document.getElementById('polygonSides').value);
+            const container = document.getElementById('polygonVertexInputs');
+            
+            let inputsHTML = '';
+            for (let i = 0; i < sides; i++) {
+                inputsHTML += `
+                    <div class="input-row" style="margin-bottom: 8px;">
+                        <label style="color: #45b7d1; font-weight: 600;">顶点 ${i + 1}:</label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <input type="number" id="polygonX${i}" class="input-field" placeholder="X坐标" value="${i === 0 ? '0' : ''}" step="0.5" min="-15" max="15" style="font-size: 14px;">
+                            <input type="number" id="polygonY${i}" class="input-field" placeholder="Y坐标" value="${i === 0 ? '3' : ''}" step="0.5" min="-15" max="15" style="font-size: 14px;">
+                        </div>
+                        <small style="color: #888; font-size: 11px;">顶点 ${i + 1} 的坐标 (x, y)</small>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = inputsHTML;
+        }
+
+        function addPolygon() {
+            const sides = parseInt(document.getElementById('polygonSides').value);
+            const points = [];
+            
+            // Collect all vertex coordinates
+            for (let i = 0; i < sides; i++) {
+                const x = parseFloat(document.getElementById(`polygonX${i}`).value);
+                const y = parseFloat(document.getElementById(`polygonY${i}`).value);
+                
+                if (isNaN(x) || isNaN(y)) {
+                    alert(`请为顶点 ${i + 1} 输入有效的坐标值`);
+                    return;
+                }
+                
+                points.push({ x: x, y: y });
+            }
+            
+            // Check if we have valid points
+            if (points.length < 3) {
+                alert('多边形至少需要3个顶点');
+                return;
+            }
+            
+            const polygon = {
+                id: Date.now(),
+                type: 'polygon',
+                points: points
+            };
+            
+            shapes.push(polygon);
+            updateShapeLists();
+            redraw();
+        }
+
+        function generateRegularPolygon() {
+            const sides = parseInt(document.getElementById('polygonSides').value);
+            const radius = 4; // Default radius
+            const centerX = 0; // Default center
+            const centerY = 0;
+            
+            // Generate regular polygon points
+            for (let i = 0; i < sides; i++) {
+                const angle = (i * 2 * Math.PI / sides) - Math.PI / 2; // Start from top
+                const x = parseFloat((centerX + radius * Math.cos(angle)).toFixed(2));
+                const y = parseFloat((centerY + radius * Math.sin(angle)).toFixed(2));
+                
+                document.getElementById(`polygonX${i}`).value = x;
+                document.getElementById(`polygonY${i}`).value = y;
+            }
         }
 
         function updateShapesTabList() {
