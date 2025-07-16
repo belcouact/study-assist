@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .download-container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 40px auto;
             padding: 20px;
         }
@@ -18,7 +18,7 @@
             border-radius: 12px;
             padding: 24px;
             margin-bottom: 30px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         .section-title {
             margin-top: 0;
@@ -89,63 +89,50 @@
             transform: none !important;
             box-shadow: none !important;
         }
-        .data-preview {
-            margin-top: 30px;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        }
-        .preview-header {
-            background: #f5f7fa;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #eaeaea;
-        }
-        .preview-header h3 {
-            margin: 0;
-            color: #333;
-        }
-        .preview-info {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .preview-info span {
-            background: #e6f7ff;
-            color: #0070f3;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-        .preview-table-container {
+        .preview-container {
             max-height: 400px;
             overflow-y: auto;
-            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
         }
         .preview-table {
             width: 100%;
             border-collapse: collapse;
         }
+        .preview-table th, .preview-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
         .preview-table th {
+            background-color: #f8f9fa;
             position: sticky;
             top: 0;
-            background: #f0f2f5;
-            padding: 12px 15px;
-            text-align: left;
             font-weight: 600;
             color: #333;
-            border-bottom: 2px solid #ddd;
             z-index: 1;
         }
-        .preview-table td {
-            padding: 10px 15px;
-            border-bottom: 1px solid #eee;
-            color: #444;
-        }
         .preview-table tr:hover {
-            background-color: #f9f9f9;
+            background-color: #f5f5f5;
+        }
+        .preview-header {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+        }
+        .preview-header h3 {
+            margin: 0;
+            color: #333;
+            font-size: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .preview-info {
+            color: #666;
+            font-size: 0.9rem;
+            font-weight: normal;
         }
         .status {
             margin-top: 20px;
@@ -324,17 +311,19 @@
         <h1>数据库数据下载</h1>
         
         <div class="download-section">
-            <h2 class="section-title">数据下载</h2>
+            <h2 class="section-title">选择数据库和表</h2>
             <div class="select-container">
                 <div class="select-group">
+                    <label for="database-select">选择数据库</label>
+                    <select id="database-select" class="form-control">
+                        <option value="">-- 请选择数据库 --</option>
+                        <option value="default">默认数据库</option>
+                    </select>
+                </div>
+                <div class="select-group">
                     <label for="table-select">选择数据表</label>
-                    <select id="table-select" class="form-control">
-                        <option value="">-- 请选择数据表 --</option>
-                        <option value="chinese_dynasty">中国朝代历史</option>
-                        <option value="chinese_poem">中国古诗词</option>
-                        <option value="quote">名言名句</option>
-                        <option value="world_history">世界历史</option>
-                        <option value="english_dialog">英语对话</option>
+                    <select id="table-select" class="form-control" disabled>
+                        <option value="">-- 请先选择数据库 --</option>
                     </select>
                 </div>
                 <div class="select-group">
@@ -408,6 +397,7 @@
         let originalData = [];
         
         // DOM elements
+        const databaseSelect = document.getElementById('database-select');
         const tableSelect = document.getElementById('table-select');
         const limitSelect = document.getElementById('limit-select');
         const previewButton = document.getElementById('preview-data');
@@ -428,40 +418,68 @@
         
         // Initialize the page
         document.addEventListener('DOMContentLoaded', async () => {
-            
-            // Handle table selection
-            tableSelect.addEventListener('change', async () => {
-                const selectedTable = tableSelect.value;
-                if (!selectedTable) {
-                    resetUI();
+            // Fetch available tables when a database is selected
+            databaseSelect.addEventListener('change', async () => {
+                const selectedDatabase = databaseSelect.value;
+                if (!selectedDatabase) {
+                    resetTableSelect();
                     return;
                 }
                 
-                previewButton.disabled = false;
+                try {
+                    showLoading('正在获取数据表列表...');
+                    
+                    // In a real app, you would fetch tables from the selected database
+                    // Here we're simulating some available tables based on previous files
+                    await simulateFetchingTables(selectedDatabase);
+                    
+                    hideLoading();
+                    previewButton.disabled = tableSelect.value === '';
+                } catch (error) {
+                    showError('获取数据表失败: ' + error.message);
+                    resetTableSelect();
+                }
+            });
+            
+            // Enable preview button when a table is selected
+            tableSelect.addEventListener('change', async () => {
+                const selectedTable = tableSelect.value;
+                previewButton.disabled = selectedTable === '';
                 downloadButton.disabled = true;
                 hideDataPreview();
                 
-                // Fetch a sample to get column names for query conditions
-                try {
-                    showLoading('正在获取表结构...');
-                    const sampleData = await fetchTableData(selectedTable, 1);
-                    
-                    if (sampleData && sampleData.length > 0) {
-                        // Extract column names from first row
-                        availableColumns = Object.keys(sampleData[0]);
+                if (selectedTable) {
+                    // Fetch a small sample to get column names
+                    try {
+                        showLoading('正在获取表结构...');
+                        const sampleData = await fetchTableData(selectedTable, 1);
                         
-                        // Show query conditions section
-                        queryConditions.style.display = 'block';
-                        
-                        // Add initial condition if container is empty
-                        if (conditionsContainer.children.length === 0) {
-                            addConditionRow();
+                        if (sampleData && sampleData.length > 0) {
+                            // Extract column names from first row
+                            availableColumns = Object.keys(sampleData[0]);
+                            
+                            // Show query conditions section
+                            queryConditions.style.display = 'block';
+                            
+                            // Add initial condition if container is empty
+                            if (conditionsContainer.children.length === 0) {
+                                addConditionRow();
+                            }
+                        } else {
+                            // Hide query conditions for empty tables
+                            queryConditions.style.display = 'none';
+                            availableColumns = [];
                         }
+                        hideLoading();
+                    } catch (error) {
+                        showError('获取表结构失败: ' + error.message);
+                        queryConditions.style.display = 'none';
+                        availableColumns = [];
                     }
-                    hideLoading();
-                } catch (error) {
-                    showError('获取表结构失败: ' + error.message);
-                    resetUI();
+                } else {
+                    // Hide query conditions when no table is selected
+                    queryConditions.style.display = 'none';
+                    availableColumns = [];
                 }
             });
             
@@ -539,21 +557,43 @@
             });
         });
         
-        // Helper function to reset the UI state
-        function resetUI() {
-            previewButton.disabled = true;
-            downloadButton.disabled = true;
-            hideDataPreview();
-            
-            // Clear any existing data
-            currentData = [];
-            originalData = [];
-            currentPage = 1;
-            totalRecords = 0;
-            
-            // Hide conditions if no table is selected
-            queryConditions.style.display = 'none';
-            availableColumns = [];
+        // Simulated function to fetch tables based on selected database
+        async function simulateFetchingTables(database) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resetTableSelect();
+                    
+                    // Add available tables based on the selected database
+                    // In a real application, this would be fetched from the server
+                    const tables = [];
+                    
+                    if (database === 'default') {
+                        tables.push(
+                            { value: 'chinese_dynasty', text: '中国朝代历史' },
+                            { value: 'chinese_poem', text: '中国古诗词' },
+                            { value: 'quote', text: '名言名句' },
+                            { value: 'world_history', text: '世界历史' },
+                            { value: 'english_dialog', text: '英语对话' }
+                        );
+                    }
+                    
+                    // Enable table select if we have tables
+                    tableSelect.disabled = tables.length === 0;
+                    
+                    if (tables.length > 0) {
+                        tableSelect.innerHTML = '<option value="">-- 请选择数据表 --</option>';
+                        
+                        tables.forEach(table => {
+                            const option = document.createElement('option');
+                            option.value = table.value;
+                            option.textContent = table.text;
+                            tableSelect.appendChild(option);
+                        });
+                    }
+                    
+                    resolve(tables);
+                }, 500); // Simulate network delay
+            });
         }
         
         // Fetch data from a table with optional limit
@@ -728,17 +768,22 @@
                 throw error;
             }
         }
-          // Helper functions
+        
+        // Helper functions
+        function resetTableSelect() {
+            tableSelect.innerHTML = '<option value="">-- 请先选择数据库 --</option>';
+            tableSelect.disabled = true;
+            previewButton.disabled = true;
+            downloadButton.disabled = true;
+            hideDataPreview();
+        }
+        
         function showDataPreview() {
             dataPreview.style.display = 'block';
         }
-
+        
         function hideDataPreview() {
             dataPreview.style.display = 'none';
-            emptyMessage.style.display = 'none';
-            tableHeader.innerHTML = '';
-            tableBody.innerHTML = '';
-            paginationDiv.innerHTML = '';
         }
         
         function showEmptyMessage() {
