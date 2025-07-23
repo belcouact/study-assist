@@ -31,7 +31,8 @@
             overflow: hidden;
         }
         .image-container {
-            width: 50%;
+            width: 100%;
+            max-width: 800px;  /* Match container max-width */
             height: auto;
             min-height: 400px;
             background-color: #f0f0f0;
@@ -185,10 +186,24 @@
     </div>
 
     <script>
+        // 获取今天的日期字符串 (YYYY-MM-DD)
+        function getTodayString() {
+            return new Date().toISOString().split('T')[0];
+        }
+
         // 导航到前一天或后一天
         function navigateDate(offset) {
             const currentDate = new Date(datePicker.value);
             currentDate.setDate(currentDate.getDate() + offset);
+            
+            // 检查是否超过今天
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            if (currentDate > today) {
+                return; // 如果超过今天，不执行任何操作
+            }
+            
             datePicker.value = currentDate.toISOString().split('T')[0];
             fetchData();
         }
@@ -202,6 +217,9 @@
             // API地址
             const apiUrl = 'https://daily-quote.study-llm.me';
             const datePicker = document.getElementById('datePicker');
+            
+            // 设置日期选择器的最大值为今天
+            datePicker.max = getTodayString();
             
             // 设置默认日期为今天
             const today = new Date().toISOString().split('T')[0];
@@ -245,8 +263,12 @@
                 })
                 .then(data => {
                     if (data.code === 200 && data.data) {
-                        // 显示图片
-                        imageContainer.innerHTML = `<img src="${data.data.img}" alt="每日一句图片">`;
+                        // 显示图片和导航按钮
+                        imageContainer.innerHTML = `
+                            <button class="nav-button nav-prev" onclick="navigateDate(-1)">❮</button>
+                            <img src="${data.data.img}" alt="每日一句图片">
+                            <button class="nav-button nav-next" onclick="navigateDate(1)">❯</button>
+                        `;
                         
                         // 显示中文引用
                         chineseQuote.textContent = data.data.chinese;
