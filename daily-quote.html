@@ -93,12 +93,12 @@
             background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 12px 16px;
             cursor: pointer;
             font-size: 16px;
             border-radius: 8px;
             transition: all 0.3s ease;
-            min-width: 100px;
+            min-width: 0;
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -151,8 +151,6 @@
             align-items: center;
             justify-content: center;
             gap: 1rem;
-            margin: 1.5rem auto;
-            max-width: 800px;
             padding: 0 1rem;
         }
         .date {
@@ -162,12 +160,14 @@
             color: #666;
             font-size: 1.1rem;
             font-weight: 500;
-            padding: 0.8rem 1.5rem;
+            padding: 0.8rem 1rem;
             border-radius: 50px;
             background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(248,250,252,0.6));
             border: 1px solid rgba(224,195,252,0.5);
             box-shadow: 0 4px 12px rgba(76,201,240,0.05);
             transition: all 0.3s ease;
+            width: 100%;
+            justify-content: center;
         }
         .date:hover {
             transform: translateY(-2px);
@@ -185,6 +185,26 @@
             .date i {
                 font-size: 1.1rem;
             }
+        }
+        .navigation-calendar-container {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding: 0 1rem;
+            box-sizing: border-box;
+        }
+        .navigation-calendar-container .nav-button {
+            flex: 1 1 calc((100% - 2rem) / 6);
+            min-width: 0;
+        }
+        .navigation-calendar-container .date-container {
+            flex: 4 1 calc((100% - 2rem) / 6 * 4);
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            max-width: none;
         }
         .loading {
             display: flex;
@@ -398,13 +418,12 @@
 </head>
 <body>
     <div class="container">
-        <div class="date-picker-container">
-            <button class="nav-button" onclick="window.app.navigateDate(-1)">❮ 前一天</button>
-            <div class="date-control">
-                <label for="datePicker">选择日期:</label>
-                <input type="date" id="datePicker" class="date-picker">
+        <div class="navigation-calendar-container">
+            <button class="nav-button" onclick="window.app.navigateDate(-1)">❮ </button>
+            <div class="date-container">
+                <div class="date" id="date"><i class="fas fa-calendar-alt"></i><span id="current-date"></span></div>
             </div>
-            <button class="nav-button" onclick="window.app.navigateDate(1)">后一天 ❯</button>
+            <button class="nav-button" onclick="window.app.navigateDate(1)"> ❯</button>
         </div>
     </div>
     <div class="image-container" id="imageContainer">
@@ -417,37 +436,34 @@
         <div class="quote-container">
             <div class="chinese-quote" id="chineseQuote"></div>
             <div class="english-quote" id="englishQuote"></div>
-            <div class="date-container">
-    <div class="date" id="date"><i class="fas fa-calendar-alt"></i><span id="current-date"></span></div>
-</div>
+
         </div>
     </div>
 
     <script>
-        // Create a global app object to store our functions and state
-        window.app = {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Create a global app object to store our functions and state
+            window.app = {
             // Initialize app components
             init() {
                 this.imageContainer = document.getElementById('imageContainer');
                 this.chineseQuote = document.getElementById('chineseQuote');
                 this.englishQuote = document.getElementById('englishQuote');
                 this.dateElement = document.getElementById('date');
-                this.datePicker = document.getElementById('datePicker');
+                this.currentDateElement = document.getElementById('current-date');
+                
+                // 设置初始日期
+                const today = new Date();
+                const formattedDate = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+                
+                if (this.currentDateElement) {
+                    this.currentDateElement.textContent = formattedDate;
+                } else {
+                    console.error('current-date element not found');
+                }
                 
                 // API地址
                 this.apiUrl = 'https://daily-quote.study-llm.me';
-                
-                // 设置日期选择器的最小值为2019年12月1日
-                this.datePicker.min = '2019-12-01';
-                
-                // 设置日期选择器的最大值为今天
-                this.datePicker.max = this.getTodayString();
-                
-                // 设置默认日期为今天
-                this.datePicker.value = this.getTodayString();
-                
-                // 日期选择事件监听
-                this.datePicker.addEventListener('change', () => this.fetchData());
                 
                 // 初始加载数据
                 this.fetchData();
@@ -460,7 +476,12 @@
 
             // 导航到前一天或后一天
             navigateDate(offset) {
-                const currentDate = new Date(this.datePicker.value);
+                if (!this.currentDateElement) {
+                  console.error('currentDateElement is null');
+                  return;
+                }
+                const currentDateText = this.currentDateElement.textContent.replace(/年|月/g, '-').replace('日', '');
+                const currentDate = new Date(currentDateText);
                 currentDate.setDate(currentDate.getDate() + offset);
                 
                 // 检查是否超过今天
@@ -471,13 +492,13 @@
                     return; // 如果超过今天，不执行任何操作
                 }
                 
-                this.datePicker.value = currentDate.toISOString().split('T')[0];
+                document.getElementById('current-date').textContent = `${currentDate.getFullYear()}年${currentDate.getMonth() + 1}月${currentDate.getDate()}日`;
                 this.fetchData();
             },
 
             // 获取数据函数
             fetchData() {
-                const selectedDate = this.datePicker.value;
+                const selectedDate = document.getElementById('current-date').textContent.replace(/年|月/g, '-').replace('日', '');
                 const url = selectedDate ? `${this.apiUrl}?time=${selectedDate}` : this.apiUrl;
                 
                 // 显示加载状态
@@ -532,8 +553,9 @@
             }
         };
 
-        // Initialize the app when the DOM is loaded
-        document.addEventListener('DOMContentLoaded', () => window.app.init());
+        // Initialize the app
+        window.app.init();
+    });
     </script>
 </body>
 </html>
