@@ -132,7 +132,106 @@
                 <button class="btn btn-primary" id="collapse-all">全部折叠</button>
             </div>
         </div>
-        <div class="directory-tree">
+        <div class="dashboard-container">
+  <h2>Website File Analysis Dashboard</h2>
+  <div class="dashboard-grid">
+    <div class="chart-card">
+      <h3>File Type Distribution</h3>
+      <div id="file-type-chart" class="chart"></div>
+    </div>
+    <div class="chart-card">
+      <h3>Files by Directory</h3>
+      <div id="directory-chart" class="chart"></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .dashboard-container {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .chart-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 15px;
+  }
+  .chart {
+    width: 100%;
+    height: 300px;
+  }
+  @media (min-width: 768px) {
+    .dashboard-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>
+
+<script src="libs/plotly/plotly.min.js"></script>
+<script>
+  // Extract file data from the tree structure
+  document.addEventListener('DOMContentLoaded', function() {
+    // Get all file elements
+    const fileElements = document.querySelectorAll('.tree-file');
+    const files = Array.from(fileElements).map(el => el.textContent);
+
+    // Analyze file types
+    const fileTypes = {};
+    files.forEach(file => {
+      const ext = file.split('.').pop().toLowerCase();
+      const type = ext in fileTypes ? fileTypes[ext] : 0;
+      fileTypes[ext] = type + 1;
+    });
+
+    // Analyze directories
+    const directories = {};
+    fileElements.forEach(el => {
+      let dirElement = el.closest('.tree-children');
+      if (dirElement && dirElement.id) {
+        const dirName = dirElement.id.replace('-children', '');
+        directories[dirName] = (directories[dirName] || 0) + 1;
+      }
+    });
+
+    // Create file type chart
+    const typeLabels = Object.keys(fileTypes);
+    const typeValues = Object.values(fileTypes);
+
+    Plotly.newPlot('file-type-chart', [{
+      values: typeValues,
+      labels: typeLabels,
+      type: 'pie'
+    }], {
+      responsive: true,
+      maintainAspectRatio: false
+    });
+
+    // Create directory chart
+    const dirLabels = Object.keys(directories);
+    const dirValues = Object.values(directories);
+
+    Plotly.newPlot('directory-chart', [{
+      x: dirLabels,
+      y: dirValues,
+      type: 'bar'
+    }], {
+      responsive: true,
+      maintainAspectRatio: false,
+      xaxis: { title: 'Directory' },
+      yaxis: { title: 'File Count' }
+    });
+  });
+</script>
+
+<div class="directory-tree">
             <div class="tree-item">
                 <div class="tree-folder" data-id="root">
                     <span class="toggle-icon">+</span> study-assist
