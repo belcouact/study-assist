@@ -11,8 +11,8 @@ export async function onRequest(context) {
     }
 
     try {
-        // Check if DB binding exists
-        // Basic validation for database bindings - specific checks will be done per table
+        // Get the action and table from the URL parameters
+        const { action, table } = context.params;
 
         // Determine which database to use based on the table
         let db;
@@ -27,9 +27,6 @@ export async function onRequest(context) {
             }
             db = context.env.DB;
         }
-
-        // Get the action and table from the URL parameters
-        const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
         const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_samples"]; // Add more tables as needed
