@@ -38,17 +38,34 @@ export async function onRequest(context) {
         switch (action) {
             case 'test':
                 // Test connection for specific table
-                const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
-                return new Response(JSON.stringify({
-                    success: true,
-                    message: `Successfully connected to ${table} table!`,
-                    table: table
-                }), {
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Access-Control-Allow-Origin": "*",
-                    },
-                });
+                try {
+                    const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
+                    return new Response(JSON.stringify({
+                        success: true,
+                        message: `Successfully connected to ${table} table!`,
+                        table: table
+                    }), {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    });
+                } catch (error) {
+                    if (error.message.includes('no such table')) {
+                        return new Response(JSON.stringify({
+                            success: false,
+                            error: `Table '${table}' does not exist. Please create the table first.`,
+                            table: table,
+                            suggestion: table === 'lab_samples' ? 'Run the SQL script in sql/create_lab_samples.sql to create the table' : 'Contact administrator to create the table'
+                        }), {
+                            headers: {
+                                "Content-Type": "application/json",
+                                "Access-Control-Allow-Origin": "*",
+                            },
+                        });
+                    }
+                    throw error;
+                }
 
             case 'query':
                 // Query table data
