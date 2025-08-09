@@ -12,12 +12,21 @@ export async function onRequest(context) {
 
     try {
         // Check if DB binding exists
-        if (!context.env.DB) {
-            throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
-        }
+        // Basic validation for database bindings - specific checks will be done per table
 
-        // Access the D1 database using the environment binding
-        const db = context.env.DB;
+        // Determine which database to use based on the table
+        let db;
+        if (table === 'lab_samples') {
+            if (!context.env.DB_GORE) {
+                throw new Error('Database binding "DB_GORE" not found. Please check your Cloudflare Pages D1 database bindings.');
+            }
+            db = context.env.DB_GORE;
+        } else {
+            if (!context.env.DB) {
+                throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
+            }
+            db = context.env.DB;
+        }
 
         // Get the action and table from the URL parameters
         const { action, table } = context.params;
