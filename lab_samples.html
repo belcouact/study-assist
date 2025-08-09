@@ -429,30 +429,33 @@
                 try {
                     connectionResult.style.display = 'block';
                     connectionResult.className = 'status info';
-                    connectionResult.innerHTML = '<p>正在测试连接...</p>';
+                    connectionResult.innerHTML = '<p>正在调试数据库...</p>';
 
-                    // Use lab_samples as the default test table since it's the only available option
-                    const selectedTable = 'lab_samples';
-                    const response = await fetch(`/api/db/test/${selectedTable}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        connectionResult.className = 'status success';
+                    // First, debug the database to see what tables exist
+                    const debugResponse = await fetch('/api/db/debug/gore');
+                    const debugData = await debugResponse.json();
+
+                    if (!debugData.success) {
+                        connectionResult.className = 'status error';
                         connectionResult.innerHTML = `
-                            <h3>连接成功！</h3>
-                            <p>${data.message}</p>
-                            <p>已连接到表: ${data.table}</p>
+                            <h3>数据库调试失败</h3>
+                            <p><strong>错误：</strong> ${debugData.error}</p>
+                            <p>可用绑定：${debugData.availableBindings?.join(', ') || 'N/A'}</p>
                         `;
-                    } else {
-                        throw new Error(data.error || '连接测试失败');
+                        return;
                     }
-                } catch (error) {
-                    connectionResult.className = 'status error';
-                    let errorHTML = `<h3>连接失败</h3><p>${error.message}</p>`;
-                    
-                    // Check if the error contains table creation suggestion
-                    if (error.message.includes('does not exist')) {
-                        errorHTML += `
+
+                    const tableExists = debugData.lab_samples_exists;
+                    const tables = debugData.tables || [];
+
+                    if (!tableExists) {
+                        connectionResult.className = 'status error';
+                        connectionResult.innerHTML = `
+                            <h3>表不存在</h3>
+                            <p>数据库：${debugData.database}</p>
+                            <p>可用表：${tables.join(', ')}</p>
+                            <p>lab_samples 表不存在于数据库中。</p>
+                            
                             <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
                                 <h4>解决方案：</h4>
                                 <p>请在 Cloudflare D1 控制台中运行以下 SQL 来创建表：</p>
@@ -465,12 +468,46 @@ CREATE TABLE IF NOT EXISTS lab_samples (
     其他1 TEXT, 其他2 TEXT, 其他3 TEXT, 其他4 TEXT,
     其他5 TEXT, 其他6 TEXT, 其他7 TEXT, 其他8 TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_lab_samples_barcode ON lab_samples(条码);
+CREATE INDEX IF NOT EXISTS idx_lab_samples_scan ON lab_samples(扫描单);
                                 </pre>
                             </div>
                         `;
+                        return;
                     }
+
+                    // Now test the actual connection
+                    connectionResult.className = 'status info';
+                    connectionResult.innerHTML = '<p>正在测试连接...</p>';
+
+                    const selectedTable = 'lab_samples';
+                    const response = await fetch(`/api/db/test/${selectedTable}`);
+                    const data = await response.json();
                     
-                    connectionResult.innerHTML = errorHTML;
+                    if (data.success) {
+                        connectionResult.className = 'status success';
+                        connectionResult.innerHTML = `
+                            <h3>连接成功！</h3>
+                            <p>${data.message}</p>
+                            <p>已连接到表：${data.table}</p>
+                            <p>可用表：${tables.join(', ')}</p>
+                        `;
+                    } else {
+                        connectionResult.className = 'status error';
+                        connectionResult.innerHTML = `
+                            <h3>连接失败</h3>
+                            <p><strong>错误：</strong> ${data.error}</p>
+                            <p>可用表：${tables.join(', ')}</p>
+                        `;
+                    }
+                } catch (error) {
+                    connectionResult.className = 'status error';
+                    connectionResult.innerHTML = `
+                        <h3>连接错误</h3>
+                        <p><strong>错误：</strong> ${error.message}</p>
+                        <p>请检查网络连接后重试。</p>
+                    `;
                     console.error('API Error:', error);
                 }
             });
