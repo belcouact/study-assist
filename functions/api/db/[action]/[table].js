@@ -98,8 +98,8 @@ export async function onRequest(context) {
                     
                     if (table === 'lab_warehouse') {
                         // lab_warehouse has 20 columns, SQLite limit is 999 variables
-                        // 20 columns * 40 rows = 800 variables (safe under 999 limit)
-                        batchSize = 40;
+                        // Ultra-conservative: 20 columns * 25 rows = 500 variables (very safe under 999 limit)
+                        batchSize = 25;
                         
                         // Optimized batch insert for lab_warehouse with 20 columns
                         for (let i = 0; i < data.length; i += batchSize) {
@@ -115,7 +115,7 @@ export async function onRequest(context) {
                                 时间, 作业者, 其他1, 其他2, 其他3, 其他4, 其他5, 其他6, 其他7, 其他8
                             ) VALUES ${placeholders}`;
                             
-                            // Flatten parameters - max 40 rows * 20 columns = 800 variables
+                            // Flatten parameters - max 25 rows * 20 columns = 500 variables
                             const params = batch.flatMap(row => [
                                 row.扫描单 || null,
                                 row.货位 || null,

@@ -544,7 +544,19 @@
                         throw new Error(result.error || '上传失败');
                     }
                 } catch (error) {
-                    showStatus('error', '上传失败：' + error.message);
+                    let errorMessage = '上传失败：' + error.message;
+                    
+                    // 处理特定的SQLite错误
+                    if (error.message.includes('SQLITE_ERROR') || error.message.includes('too many SQL variables')) {
+                        errorMessage = '数据量过大，系统正在使用更安全的方式处理。请稍后重试。';
+                        alert('数据量较大，系统将分批处理。请重新上传，这次应该可以成功。');
+                    } else if (error.message.includes('timeout')) {
+                        errorMessage = '网络超时，请检查网络连接后重试。';
+                    } else if (error.message.includes('D1_ERROR')) {
+                        errorMessage = '数据库处理错误，请联系技术支持。';
+                    }
+                    
+                    showStatus('error', errorMessage);
                     console.error('Upload Error:', error);
                 } finally {
                     uploadBtn.classList.remove('loading');
