@@ -128,6 +128,36 @@ export async function onRequest(context) {
         });
     }
     
+    // Database Upload/Test API
+    if (pathname.startsWith('/api/db/')) {
+      const pathParts = pathname.split('/');
+      if (pathParts.length >= 5 && (pathParts[3] === 'upload' || pathParts[3] === 'test')) {
+        const action = pathParts[3];
+        const table = pathParts[4];
+        
+        // Forward the request to the database action handler
+        return await import('./api/db/[action]/[table].js')
+          .then(module => {
+            // Set params for the handler
+            context.params = { action, table };
+            return module.onRequest(context);
+          })
+          .catch(error => {
+            console.error('Error loading database action module:', error);
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: 'Internal server error loading database action module: ' + error.message 
+            }), {
+              status: 500,
+              headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+              }
+            });
+          });
+      }
+    }
+    
     // Handle unknown API endpoints
     return new Response(JSON.stringify({ 
       success: false, 
@@ -143,4 +173,4 @@ export async function onRequest(context) {
   
   // For non-API routes, pass through to next handler
   return context.next();
-} 
+}
