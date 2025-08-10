@@ -16,7 +16,7 @@ export async function onRequest(context) {
         const databaseParam = url.searchParams.get('database') || 'default';
         
         let db;
-        if (databaseParam === 'db-gore') {
+        if (databaseParam === 'db_gore') {
             if (!context.env.DB_GORE) {
                 throw new Error('Database binding "DB_GORE" not found. Please check your Cloudflare Pages D1 database bindings.');
             }
