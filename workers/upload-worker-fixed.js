@@ -72,18 +72,13 @@ async function parseMultipartFormData(request) {
   }
 }
 
-// 解析JSON数据
+// 解析JSON数据 - 简化版本
 async function parseJsonData(request) {
   try {
-    const contentType = request.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      return null;
-    }
-
     const body = await request.json();
     
-    // 兼容前端不同的数据格式
-    const data = body.data || body.rows || body;
+    // 直接获取数据，简化逻辑
+    const data = body.data || body;
     const database = body.database || 'DB';
     const batchSize = body.batchSize || 1000;
     const filename = body.filename || 'uploaded_data.json';
@@ -102,6 +97,13 @@ async function parseJsonData(request) {
 
 // 模拟数据库存储
 async function storeInDatabase(data, database, batchSize) {
+  console.log('Storing data:', {
+    dataLength: Array.isArray(data) ? data.length : 'Not array',
+    database,
+    batchSize,
+    dataType: typeof data
+  });
+
   if (!Array.isArray(data)) {
     throw new Error('Data must be an array');
   }
@@ -112,13 +114,13 @@ async function storeInDatabase(data, database, batchSize) {
   // 模拟处理延迟
   await new Promise(resolve => setTimeout(resolve, 100));
   
-  // 验证数据格式
+  // 验证数据格式 - 更宽松的验证
   const invalidRecords = data.filter(record => 
-    !record || typeof record !== 'object'
+    record === null || record === undefined
   );
   
   if (invalidRecords.length > 0) {
-    throw new Error(`Invalid data format in ${invalidRecords.length} records`);
+    console.warn(`Found ${invalidRecords.length} invalid records`);
   }
 
   // 模拟存储到不同数据库
@@ -127,7 +129,8 @@ async function storeInDatabase(data, database, batchSize) {
     recordsStored: totalRecords,
     batchesProcessed: totalBatches,
     storageLocation: `cloudflare-kv-${database.toLowerCase()}`,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    invalidRecords: invalidRecords.length
   };
 
   return dbInfo;
@@ -136,11 +139,31 @@ async function storeInDatabase(data, database, batchSize) {
 // 主处理函数
 async function handleUpload(request) {
   try {
+    console.log('Worker received request:', {
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(request.headers.entries())
+    });
+
     if (request.method === 'OPTIONS') {
+      console.log('Handling OPTIONS preflight');
       return handleOptions();
     }
 
+    // 支持GET方法用于健康检查
+    if (request.method === 'GET') {
+      console.log('Handling GET request');
+      return createCorsResponse(JSON.stringify({
+        success: true,
+        message: 'Upload endpoint is ready',
+        method: 'GET',
+        supported_methods: ['POST', 'OPTIONS'],
+        timestamp: new Date().toISOString()
+      }));
+    }
+
     if (request.method !== 'POST') {
+      console.log(`Method ${request.method} not allowed`);
       return createErrorResponse('Method not allowed', 405);
     }
 
@@ -197,9 +220,12 @@ async function handleUpload(request) {
 addEventListener('fetch', event => {
   const url = new URL(event.request.url);
   
-  if (url.pathname === '/upload' || url.pathname === '/upload/') {
+  // 支持带查询参数的路径
+  const pathname = url.pathname;
+  
+  if (pathname === '/upload' || pathname.startsWith('/upload')) {
     event.respondWith(handleUpload(event.request));
-  } else if (url.pathname === '/') {
+  } else if (pathname === '/' || pathname === '') {
     // 根路径健康检查
     event.respondWith(createCorsResponse(JSON.stringify({
       success: true,

@@ -62,24 +62,39 @@ const uploader = new LargeDatasetUploader({
 ## 使用说明
 
 ### 修复完成
-CORS和连接问题已通过以下方式修复：
-- Worker端：完整的CORS响应头配置
-- 前端端：优化的数据格式和错误处理
-- 兼容性：支持JSON数据格式直接上传
+CORS和连接问题已通过以下方式解决：
+- Worker端完整CORS配置（支持OPTIONS预检请求）
+- 支持GET方法用于健康检查
+- 前端数据格式优化（JSON格式上传）
+- 增强数据解析兼容性
+- 修复400错误：简化数据发送逻辑
 
 ### 快速测试
-部署Worker后，使用现有页面测试：
-- `test-large-upload.html` - 测试大文件上传
-- `lab_warehouse.html` - 测试仓库数据上传
+1. 直接访问：https://lab-upload.study-llm.me/upload?database=test
+   - 应该返回：{"success":true,"message":"Upload endpoint is ready"}
+
+2. 使用 `test-large-upload.html` 测试上传功能
+   - 如果400错误，检查浏览器控制台日志
+   - 确保数据是有效的JSON数组
+
+3. 使用 `lab_warehouse.html` 测试完整流程
 
 ### Worker部署
-1. 复制 `workers/upload-worker-fixed.js` 内容
-2. 登录Cloudflare Dashboard创建Worker
-3. 设置自定义域名 `lab-upload.study-llm.me`
+1. 登录Cloudflare控制台 → Workers
+2. 创建新的Worker，名称：`upload-worker`
+3. 复制 `workers/upload-worker-fixed.js` 全部内容
 4. 保存并部署
+5. 添加自定义域名：`lab-upload.study-llm.me`
+6. 确保域名DNS解析正确
 
 ### 验证方法
-打开浏览器控制台，检查网络请求：
-- 请求URL应为 `https://lab-upload.study-llm.me/upload`
-- 响应状态码应为200
-- 响应头应包含 `Access-Control-Allow-Origin: *`
+部署完成后：
+1. 浏览器访问：https://lab-upload.study-llm.me/
+   - 应该看到Worker运行状态
+2. 浏览器访问：https://lab-upload.study-llm.me/upload?database=test
+   - 应该返回健康检查信息
+3. 打开浏览器开发者工具 → Network面板
+4. 测试上传，检查：
+   - 请求URL包含正确的database参数
+   - HTTP状态码为200
+   - CORS响应头包含Access-Control-Allow-Origin

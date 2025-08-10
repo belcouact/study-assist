@@ -42,19 +42,8 @@ class LargeDatasetUploader {
                 this.updateProgress(0, totalRows, '准备上传...');
             }
 
-            // Prepare upload payload
-            const payload = {
-                rows: data,
-                batchSize: batchSize,
-                skipClear: skipClear
-            };
-
-            // Create FormData for file-like upload
-            const formData = new FormData();
-            formData.append('data', JSON.stringify(payload));
-
-            // Perform upload with retry logic
-            const result = await this.uploadWithRetry(formData, database, showProgress);
+            // Perform upload with retry logic - 直接传递数据数组
+            const result = await this.uploadWithRetry(data, database, showProgress);
             
             if (result.success) {
                 uploadedRows = result.details.insertedCount || 0;
@@ -98,12 +87,12 @@ class LargeDatasetUploader {
 
     /**
      * Upload with retry mechanism
-     * @param {FormData} formData - Form data to upload
+     * @param {Array} data - Array data to upload directly
      * @param {string} database - Database name
      * @param {boolean} showProgress - Show progress updates
      * @returns {Promise<Object>} Upload result
      */
-    async uploadWithRetry(formData, database, showProgress) {
+    async uploadWithRetry(data, database, showProgress) {
         let lastError;
         
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -112,23 +101,24 @@ class LargeDatasetUploader {
                     this.updateProgress(0, 0, `重试第 ${attempt} 次...`);
                 }
 
-                // Extract data from FormData for direct JSON upload
-                const dataText = formData.get('data');
-                let payload;
-                try {
-                    payload = JSON.parse(dataText);
-                } catch (e) {
-                    throw new Error('Invalid JSON data format');
-                }
-
+                // 直接使用数据数组，不再经过FormData
+                const batchSize = parseInt(document.getElementById('batch-size')?.value || this.chunkSize);
+                
                 const uploadData = {
-                    data: payload.rows || payload.data || payload,
+                    data: data,
                     database: database,
-                    batchSize: payload.batchSize || this.chunkSize,
+                    batchSize: batchSize,
                     filename: 'uploaded_data.json'
                 };
 
-                const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${uploadData.batchSize}`, {
+                console.log('Sending upload data:', {
+                    dataLength: data.length,
+                    database,
+                    batchSize,
+                    endpoint: this.endpoint
+                });
+
+                const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -141,17 +131,21 @@ class LargeDatasetUploader {
 
                 if (!response.ok) {
                     const errorText = await response.text();
+                    console.error('Server response:', errorText);
                     throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
                 }
 
-                return await response.json();
+                const result = await response.json();
+                console.log('Upload success:', result);
+                return result;
 
             } catch (error) {
                 lastError = error;
+                console.error(`Upload attempt ${attempt} failed:`, error);
                 
                 if (attempt < this.maxRetries) {
                     const delayMs = this.retryDelay * attempt * 2;
-                    console.warn(`Upload attempt ${attempt} failed, retrying in ${delayMs}ms...`, error);
+                    console.warn(`Retrying in ${delayMs}ms...`);
                     await this.delay(delayMs);
                 } else {
                     console.error(`All ${this.maxRetries} upload attempts failed`, error);
