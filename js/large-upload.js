@@ -133,13 +133,22 @@ class LargeDatasetUploader {
                     filename: 'uploaded_data.json'
                 };
 
+                // 增强日志记录，显示更多数据详情
                 console.log('Sending upload data:', {
                     dataLength: data.length,
                     database,
                     batchSize,
                     endpoint: this.endpoint,
-                    sampleData: data.length > 0 ? JSON.stringify(data[0]) : 'No data'
+                    sampleData: data.length > 0 ? JSON.stringify(data[0]) : 'No data',
+                    fullDataPreview: data.length > 0 ? JSON.stringify(data.slice(0, 3)) : 'No data',
+                    dataType: Array.isArray(data) ? 'Array' : typeof data,
+                    uploadDataSize: new Blob([JSON.stringify(uploadData)]).size + ' bytes'
                 });
+                
+                // 验证数据是否存在
+                if (!data || data.length === 0) {
+                    console.error('Attempting to upload empty data!');
+                }
 
                 const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
                     method: 'POST',
