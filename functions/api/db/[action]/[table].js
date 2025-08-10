@@ -98,8 +98,8 @@ export async function onRequest(context) {
                     
                     if (table === 'lab_warehouse') {
                         // lab_warehouse has 20 columns, SQLite limit is 999 variables
-                        // 20 columns * 49 rows = 980 variables (safe under 999 limit)
-                        batchSize = 2000;
+                        // 20 columns * 40 rows = 800 variables (safe under 999 limit)
+                        batchSize = 40;
                         
                         // Optimized batch insert for lab_warehouse with 20 columns
                         for (let i = 0; i < data.length; i += batchSize) {
