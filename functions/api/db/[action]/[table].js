@@ -86,9 +86,15 @@ export async function onRequest(context) {
                 }
 
                 let insertedCount = 0;
+                let deletedCount = 0;
 
                 // Use D1's JavaScript transaction API
                 try {
+                    // First, clear existing data from the table
+                    const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                    deletedCount = deleteResult.meta.changes || 0;
+
+                    // Then insert new data
                     if (table === 'chinese_dynasty') {
                         await db.batch(data.map(row => {
                             return db.prepare(`
@@ -215,8 +221,10 @@ export async function onRequest(context) {
 
                     return new Response(JSON.stringify({
                         success: true,
-                        message: 'Data uploaded successfully',
-                        insertedCount
+                        message: `Data uploaded successfully. Cleared ${deletedCount} existing records and inserted ${insertedCount} new records.`,
+                        insertedCount,
+                        deletedCount,
+                        totalRows: insertedCount
                     }), {
                         headers: {
                             "Content-Type": "application/json",
