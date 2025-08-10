@@ -59,11 +59,27 @@ const uploader = new LargeDatasetUploader({
 }
 ```
 
-## 测试
+## 使用说明
 
-可以通过以下方式测试新域名：
+### 修复完成
+CORS和连接问题已通过以下方式修复：
+- Worker端：完整的CORS响应头配置
+- 前端端：优化的数据格式和错误处理
+- 兼容性：支持JSON数据格式直接上传
 
-1. 打开 `test-large-upload.html`
-2. 生成测试数据或上传文件
-3. 查看上传进度和结果
-4. 检查浏览器网络面板确认请求发送到新域名
+### 快速测试
+部署Worker后，使用现有页面测试：
+- `test-large-upload.html` - 测试大文件上传
+- `lab_warehouse.html` - 测试仓库数据上传
+
+### Worker部署
+1. 复制 `workers/upload-worker-fixed.js` 内容
+2. 登录Cloudflare Dashboard创建Worker
+3. 设置自定义域名 `lab-upload.study-llm.me`
+4. 保存并部署
+
+### 验证方法
+打开浏览器控制台，检查网络请求：
+- 请求URL应为 `https://lab-upload.study-llm.me/upload`
+- 响应状态码应为200
+- 响应头应包含 `Access-Control-Allow-Origin: *`
