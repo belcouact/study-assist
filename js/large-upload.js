@@ -115,7 +115,10 @@ class LargeDatasetUploader {
                     dataLength: data.length,
                     database,
                     batchSize,
-                    endpoint: this.endpoint
+                    endpoint: this.endpoint,
+                    dataType: typeof data,
+                    isArray: Array.isArray(data),
+                    sampleData: data.length > 0 ? data[0] : 'No data'
                 });
 
                 const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
