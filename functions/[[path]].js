@@ -135,11 +135,12 @@ export async function onRequest(context) {
         const action = pathParts[3];
         const table = pathParts[4];
         
-        // Forward the request to the database action handler
-        return await import('./api/db/[action]/[table].js')
+        // Forward the request to the specific action handler
+        const handlerPath = `./api/db/${action}/[table].js`;
+        return await import(handlerPath)
           .then(module => {
             // Set params for the handler
-            context.params = { action, table };
+            context.params = { table };
             return module.onRequest(context);
           })
           .catch(error => {
