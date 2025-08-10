@@ -69,15 +69,34 @@ CORS和连接问题已通过以下方式解决：
 - 增强数据解析兼容性
 - 修复400错误：简化数据发送逻辑
 
-### 快速测试
-1. 直接访问：https://lab-upload.study-llm.me/upload?database=test
-   - 应该返回：{"success":true,"message":"Upload endpoint is ready"}
+### 使用调试工具
+1. **打开debug-upload.html**:
+   - 访问 `debug-upload.html`
+   - 选择测试数据类型（简单、仓库格式或自定义JSON）
+   - 输入数据库名称（如：db-gore）
+   - 点击"测试健康检查"验证Worker状态
+   - 点击"测试上传"进行完整测试
+   - 查看详细的调试输出
 
-2. 使用 `test-large-upload.html` 测试上传功能
-   - 如果400错误，检查浏览器控制台日志
-   - 确保数据是有效的JSON数组
+### 测试原有页面
+1. **测试test-large-upload.html**:
+   - 打开 `test-large-upload.html`
+   - 点击"生成测试数据"按钮
+   - 输入数据库名称（如：test-db）
+   - 点击"开始上传"
+   - 观察进度条和完成提示
 
-3. 使用 `lab_warehouse.html` 测试完整流程
+2. **测试lab_warehouse.html**:
+   - 打开 `lab_warehouse.html`
+   - 选择表格类型
+   - 上传Excel文件
+   - 预览数据后点击"上传数据"
+
+### 400错误排查
+- 使用debug-upload.html查看具体错误信息
+- 检查浏览器控制台日志（F12 → Console）
+- 验证数据是否为有效的JSON数组
+- 确认Worker已正确部署到域名
 
 ### Worker部署
 1. 登录Cloudflare控制台 → Workers
