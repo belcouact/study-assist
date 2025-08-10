@@ -247,6 +247,32 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* 进度条样式 */
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4361ee, #4cc9f0);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
         .loading-text {
             margin-left: 10px;
         }
@@ -524,7 +550,23 @@
                 try {
                     uploadBtn.classList.add('loading');
                     uploadBtn.disabled = true;
-                    showStatus('info', '正在上传数据...');
+                    
+                    // 显示进度条
+                    const progressContainer = document.createElement('div');
+                    progressContainer.className = 'progress-container';
+                    progressContainer.innerHTML = `
+                        <div class="progress-info">
+                            <span>正在上传 ${currentData.length} 条数据...</span>
+                            <span id="progress-text">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                    `;
+                    
+                    const uploadStatus = document.getElementById('upload-status');
+                    uploadStatus.innerHTML = '';
+                    uploadStatus.appendChild(progressContainer);
 
                     const response = await fetch(`/api/db/upload/${selectedTable}?database=${selectedDatabase}`, {
                         method: 'POST',
@@ -548,8 +590,7 @@
                     
                     // 处理特定的SQLite错误
                     if (error.message.includes('SQLITE_ERROR') || error.message.includes('too many SQL variables')) {
-                        errorMessage = '数据量过大，系统正在使用更安全的方式处理。请稍后重试。';
-                        alert('数据量较大，系统将分批处理。请重新上传，这次应该可以成功。');
+                        errorMessage = '数据量过大，系统已优化处理方式，请重试。';
                     } else if (error.message.includes('timeout')) {
                         errorMessage = '网络超时，请检查网络连接后重试。';
                     } else if (error.message.includes('D1_ERROR')) {

@@ -97,26 +97,16 @@ export async function onRequest(context) {
                     let batchSize = 1000; // Default batch size
                     
                     if (table === 'lab_warehouse') {
-                        // lab_warehouse has 20 columns, SQLite limit is 999 variables
-                        // Ultra-conservative: 20 columns * 25 rows = 500 variables (very safe under 999 limit)
-                        batchSize = 25;
-                        
-                        // Optimized batch insert for lab_warehouse with 20 columns
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
-                            
-                            // Create parameterized query string
-                            const placeholders = batch.map(() => 
-                                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                            ).join(", ");
-                            
+                        // lab_warehouse has 20 columns - using individual inserts to avoid SQL variable limits
+                        // This is the safest approach for large datasets
+                        for (let i = 0; i < data.length; i++) {
+                            const row = data[i];
                             const query = `INSERT INTO lab_warehouse (
                                 扫描单, 货位, 条码, 数量, 品名, 状态, 单位, 价格, 品牌, 产地, 
                                 时间, 作业者, 其他1, 其他2, 其他3, 其他4, 其他5, 其他6, 其他7, 其他8
-                            ) VALUES ${placeholders}`;
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
                             
-                            // Flatten parameters - max 25 rows * 20 columns = 500 variables
-                            const params = batch.flatMap(row => [
+                            const result = await db.prepare(query).bind(
                                 row.扫描单 || null,
                                 row.货位 || null,
                                 row.条码 || null,
@@ -137,9 +127,7 @@ export async function onRequest(context) {
                                 row.其他6 || null,
                                 row.其他7 || null,
                                 row.其他8 || null
-                            ]);
-                            
-                            const result = await db.prepare(query).bind(...params).run();
+                            ).run();
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'chinese_dynasty') {
