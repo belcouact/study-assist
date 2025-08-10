@@ -94,9 +94,13 @@ export async function onRequest(context) {
                     deletedCount = deleteResult.meta.changes || 0;
 
                     // Use parameterized batch insert for better performance and to avoid timeout
-                    const batchSize = 1000; // Process 1000 rows per batch
+                    let batchSize = 1000; // Default batch size
                     
                     if (table === 'lab_warehouse') {
+                        // lab_warehouse has 20 columns, SQLite limit is 999 variables
+                        // 20 columns * 49 rows = 980 variables (safe under 999 limit)
+                        batchSize = 2000;
+                        
                         // Optimized batch insert for lab_warehouse with 20 columns
                         for (let i = 0; i < data.length; i += batchSize) {
                             const batch = data.slice(i, i + batchSize);
@@ -111,7 +115,7 @@ export async function onRequest(context) {
                                 时间, 作业者, 其他1, 其他2, 其他3, 其他4, 其他5, 其他6, 其他7, 其他8
                             ) VALUES ${placeholders}`;
                             
-                            // Flatten parameters
+                            // Flatten parameters - max 40 rows * 20 columns = 800 variables
                             const params = batch.flatMap(row => [
                                 row.扫描单 || null,
                                 row.货位 || null,
@@ -139,8 +143,10 @@ export async function onRequest(context) {
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'chinese_dynasty') {
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
+                        // 5 columns, safe batch size: 999/5 = 199 rows
+                        const safeBatchSize = 190;
+                        for (let i = 0; i < data.length; i += safeBatchSize) {
+                            const batch = data.slice(i, i + safeBatchSize);
                             const placeholders = batch.map(() => "(?, ?, ?, ?, ?)").join(", ");
                             const query = `INSERT INTO chinese_dynasty (Number, Dynasty, Period, Title, Event) VALUES ${placeholders}`;
                             const params = batch.flatMap(row => [
@@ -154,8 +160,10 @@ export async function onRequest(context) {
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'quote') {
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
+                        // 6 columns, safe batch size: 999/6 = 166 rows
+                        const safeBatchSize = 160;
+                        for (let i = 0; i < data.length; i += safeBatchSize) {
+                            const batch = data.slice(i, i + safeBatchSize);
                             const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?)").join(", ");
                             const query = `INSERT INTO quote (Number, Type, Chinese, English, Remark_1, Remark_2) VALUES ${placeholders}`;
                             const params = batch.flatMap(row => [
@@ -170,8 +178,10 @@ export async function onRequest(context) {
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'world_history') {
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
+                        // 12 columns, safe batch size: 999/12 = 83 rows
+                        const safeBatchSize = 80;
+                        for (let i = 0; i < data.length; i += safeBatchSize) {
+                            const batch = data.slice(i, i + safeBatchSize);
                             const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
                             const query = `INSERT INTO world_history (CATEGORY, REGION, PERIOD, SUB_CATEGORY_1, SUB_CATEGORY_2, TITLE, BACKGROUND, EVENT, IMPACT, REMARK_1, REMARK_2, REMARK_3) VALUES ${placeholders}`;
                             const params = batch.flatMap(row => [
@@ -192,8 +202,10 @@ export async function onRequest(context) {
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'chinese_poem') {
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
+                        // 8 columns, safe batch size: 999/8 = 124 rows
+                        const safeBatchSize = 120;
+                        for (let i = 0; i < data.length; i += safeBatchSize) {
+                            const batch = data.slice(i, i + safeBatchSize);
                             const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
                             const query = `INSERT INTO chinese_poem (Title, Number, Poem, Remark_1, Remark_2, Remark_3, Author, Dynasty) VALUES ${placeholders}`;
                             const params = batch.flatMap(row => [
@@ -210,8 +222,10 @@ export async function onRequest(context) {
                             insertedCount += result.meta.changes || 0;
                         }
                     } else if (table === 'vocabulary') {
-                        for (let i = 0; i < data.length; i += batchSize) {
-                            const batch = data.slice(i, i + batchSize);
+                        // 15 columns, safe batch size: 999/15 = 66 rows
+                        const safeBatchSize = 60;
+                        for (let i = 0; i < data.length; i += safeBatchSize) {
+                            const batch = data.slice(i, i + safeBatchSize);
                             const placeholders = batch.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
                             const query = `INSERT INTO vocabulary (Word_Rank, Word, Word_ID, US_Pronunciation, UK_Pronunciation, US_Speech, UK_Speech, Translations, Synonyms, Example_Sentences, Remark_1, Remark_2, Remark_3, Remark_4, Remark_5) VALUES ${placeholders}`;
                             const params = batch.flatMap(row => [
