@@ -68,10 +68,7 @@ async function handleRequest(request) {
       database,
       batchSize,
       bodyKeys: Object.keys(body),
-      bodyType: typeof body,
-      hasDataProperty: 'data' in body,
-      dataType: typeof body.data,
-      isDataArray: Array.isArray(body.data)
+      bodyType: typeof body
     })
 
     // Extract data - handle different formats

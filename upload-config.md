@@ -93,32 +93,10 @@ CORS和连接问题已通过以下方式解决：
    - 预览数据后点击"上传数据"
 
 ### 400错误排查
-1. **检查浏览器控制台日志**（F12 → Console）：
-   - 查看上传前的`Sending upload data`日志，确认数据是数组类型
-   - 检查Worker返回的具体错误信息
-   - 注意查看网络标签中的请求和响应详情
-
-2. **验证数据格式**：
-   - 确保上传的数据是有效的JSON数组
-   - 确认数据包含必要的字段（扫描单、货位、条码、数量、品名）
-
-3. **确认Worker部署**：
-   - 访问 https://lab-upload.study-llm.me/upload 验证健康状态
-   - 确认Worker代码已更新到最新版本
-
-4. **使用测试数据**：
-   ```javascript
-   // 可在浏览器控制台执行此代码测试
-   fetch('https://lab-upload.study-llm.me/upload?database=db-gore&batchSize=50', {
-       method: 'POST',
-       headers: {'Content-Type': 'application/json'},
-       body: JSON.stringify({
-           data: [
-               { 扫描单: 'SC001', 货位: 'A1-01', 条码: '1234567890', 数量: 10, 品名: '测试商品1' }
-           ]
-       })
-   }).then(r => r.json()).then(console.log).catch(console.error);
-   ```
+- 使用debug-upload.html查看具体错误信息
+- 检查浏览器控制台日志（F12 → Console）
+- 验证数据是否为有效的JSON数组
+- 确认Worker已正确部署到域名
 
 ### Worker部署
 1. 登录Cloudflare控制台 → Workers
