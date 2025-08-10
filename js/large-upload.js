@@ -61,6 +61,12 @@ class LargeDatasetUploader {
                     this.updateProgress(100, totalRows, '上传完成');
                 }
 
+                console.log('Calling onComplete with success data:', {
+                    success: true,
+                    totalRows,
+                    uploadedRows,
+                    details: result.details
+                });
                 this.onComplete({
                     success: true,
                     totalRows,
@@ -68,9 +74,11 @@ class LargeDatasetUploader {
                     details: result.details
                 });
 
+                const returnMessage = `成功上传 ${uploadedRows} 条数据`;
+                console.log('Upload return message:', returnMessage);
                 return {
                     success: true,
-                    message: `成功上传 ${uploadedRows} 条数据`,
+                    message: returnMessage,
                     details: result.details
                 };
             } else {
@@ -84,6 +92,11 @@ class LargeDatasetUploader {
                 this.updateProgress(0, 0, errorMessage);
             }
 
+            console.log('Calling onError with error data:', {
+                success: false,
+                error: errorMessage,
+                details: error
+            });
             this.onError({
                 success: false,
                 error: errorMessage,
