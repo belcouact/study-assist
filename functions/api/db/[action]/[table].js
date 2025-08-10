@@ -182,7 +182,7 @@ export async function onRequest(context) {
                     } else if (table === 'lab_warehouse') {
                         await db.batch(data.map(row => {
                             return db.prepare(`
-                                INSERT INTO lab_samples (
+                                INSERT INTO lab_warehouse (
                                     扫描单, 货位, 条码, 数量, 品名, 状态, 单位, 价格, 品牌, 产地, 时间, 作业者, 其他1, 其他2, 其他3, 其他4, 其他5, 其他6, 其他7, 其他8
                                 )
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
