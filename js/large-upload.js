@@ -33,6 +33,15 @@ class LargeDatasetUploader {
                 throw new Error('Invalid data: expected non-empty array');
             }
 
+            // Validate data format
+            const validation = this.validateData(data);
+            if (!validation.valid) {
+                throw new Error(`Data validation failed: ${validation.errors.join(', ')}`);
+            }
+            if (validation.warnings.length > 0) {
+                console.warn('Data validation warnings:', validation.warnings);
+            }
+
             const totalRows = data.length;
             let uploadedRows = 0;
             let errors = [];
@@ -115,7 +124,8 @@ class LargeDatasetUploader {
                     dataLength: data.length,
                     database,
                     batchSize,
-                    endpoint: this.endpoint
+                    endpoint: this.endpoint,
+                    sampleData: data.length > 0 ? JSON.stringify(data[0]) : 'No data'
                 });
 
                 const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
@@ -124,7 +134,7 @@ class LargeDatasetUploader {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(uploadData),
-                    signal: AbortSignal.timeout(30000),
+                    signal: AbortSignal.timeout(60000),
                     mode: 'cors',
                     credentials: 'omit'
                 });
@@ -137,6 +147,16 @@ class LargeDatasetUploader {
 
                 const result = await response.json();
                 console.log('Upload success:', result);
+                
+                // Verify upload result
+                if (!result.details || typeof result.details.recordsProcessed !== 'number') {
+                    throw new Error('Invalid upload result: missing recordsProcessed information');
+                }
+                
+                if (result.details.recordsProcessed !== data.length) {
+                    console.warn(`Upload mismatch: sent ${data.length} records, but server processed ${result.details.recordsProcessed}`);
+                }
+                
                 return result;
 
             } catch (error) {
