@@ -1,242 +1,269 @@
-/**
- * 修复版Cloudflare Worker - 解决CORS和连接问题
- * 部署地址：https://lab-upload.study-llm.me/upload
- */
+// Cloudflare Worker for Large Dataset Upload to db_gore
+// Optimized for 50k+ rows with timeout prevention and async processing
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Cache-Control, Origin',
-  'Access-Control-Max-Age': '86400',
-  'Access-Control-Allow-Credentials': 'true'
-};
+addEventListener('fetch', event => {
+  event.respondWith(handleRequest(event.request))
+})
 
-function createCorsResponse(body, status = 200, additionalHeaders = {}) {
-  return new Response(body, {
-    status,
-    headers: {
-      ...CORS_HEADERS,
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      ...additionalHeaders
-    }
-  });
-}
+// Configuration
+const MAX_BATCH_SIZE = 1000; // Adjust based on database performance
+const MAX_CONCURRENT_BATCHES = 5; // Prevent overwhelming database
+const RETRY_ATTEMPTS = 3; // Retry failed batches
+const RETRY_DELAY_MS = 1000; // Initial retry delay
 
-function createErrorResponse(message, status = 400) {
-  return createCorsResponse(
-    JSON.stringify({ success: false, error: message }),
-    status
-  );
-}
-
-// 处理OPTIONS预检请求
-function handleOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS
-  });
-}
-
-// 解析multipart/form-data
-async function parseMultipartFormData(request) {
-  try {
-    const contentType = request.headers.get('content-type');
-    if (!contentType || !contentType.includes('multipart/form-data')) {
-      return null;
-    }
-
-    const formData = await request.formData();
-    const file = formData.get('file');
-    const database = formData.get('database');
-    const batchSize = parseInt(formData.get('batchSize') || '1000', 10);
-
-    if (!file) {
-      throw new Error('No file provided');
-    }
-
-    const text = await file.text();
-    const data = JSON.parse(text);
-
-    return {
-      data,
-      database: database || 'DB',
-      batchSize,
-      filename: file.name
-    };
-  } catch (error) {
-    console.error('Error parsing multipart form data:', error);
-    return null;
-  }
-}
-
-// 解析JSON数据 - 简化版本
-async function parseJsonData(request) {
-  try {
-    const body = await request.json();
-    
-    // 直接获取数据，简化逻辑
-    const data = body.data || body;
-    const database = body.database || 'DB';
-    const batchSize = body.batchSize || 1000;
-    const filename = body.filename || 'uploaded_data.json';
-    
-    return {
-      data: Array.isArray(data) ? data : [data],
-      database: database,
-      batchSize: batchSize,
-      filename: filename
-    };
-  } catch (error) {
-    console.error('Error parsing JSON:', error);
-    return null;
-  }
-}
-
-// 模拟数据库存储
-async function storeInDatabase(data, database, batchSize) {
-  console.log('Storing data:', {
-    dataLength: Array.isArray(data) ? data.length : 'Not array',
-    database,
-    batchSize,
-    dataType: typeof data
-  });
-
-  if (!Array.isArray(data)) {
-    throw new Error('Data must be an array');
-  }
-
-  const totalRecords = data.length;
-  const totalBatches = Math.ceil(totalRecords / batchSize);
-  
-  // 模拟处理延迟
-  await new Promise(resolve => setTimeout(resolve, 100));
-  
-  // 验证数据格式 - 更宽松的验证
-  const invalidRecords = data.filter(record => 
-    record === null || record === undefined
-  );
-  
-  if (invalidRecords.length > 0) {
-    console.warn(`Found ${invalidRecords.length} invalid records`);
-  }
-
-  // 模拟存储到不同数据库
-  const dbInfo = {
-    database,
-    recordsStored: totalRecords,
-    batchesProcessed: totalBatches,
-    storageLocation: `cloudflare-kv-${database.toLowerCase()}`,
-    timestamp: new Date().toISOString(),
-    invalidRecords: invalidRecords.length
+async function handleRequest(request) {
+  // CORS configuration
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
   };
 
-  return dbInfo;
-}
-
-// 主处理函数
-async function handleUpload(request) {
-  try {
-    console.log('Worker received request:', {
-      method: request.method,
-      url: request.url,
-      headers: Object.fromEntries(request.headers.entries())
+  // Handle CORS preflight
+  if (request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders
     });
+  }
 
-    if (request.method === 'OPTIONS') {
-      console.log('Handling OPTIONS preflight');
-      return handleOptions();
-    }
+  // Health check endpoint
+  if (request.method === 'GET') {
+    return new Response(JSON.stringify({
+      success: true,
+      message: 'Worker is healthy',
+      timestamp: new Date().toISOString()
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  }
 
-    // 支持GET方法用于健康检查
-    if (request.method === 'GET') {
-      console.log('Handling GET request');
-      return createCorsResponse(JSON.stringify({
-        success: true,
-        message: 'Upload endpoint is ready',
-        method: 'GET',
-        supported_methods: ['POST', 'OPTIONS'],
-        timestamp: new Date().toISOString()
-      }));
-    }
+  // Only accept POST requests
+  if (request.method !== 'POST') {
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Method not allowed',
+      allowedMethods: ['POST', 'GET', 'OPTIONS']
+    }), {
+      status: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  }
 
-    if (request.method !== 'POST') {
-      console.log(`Method ${request.method} not allowed`);
-      return createErrorResponse('Method not allowed', 405);
-    }
+  try {
+    // Parse request parameters
+    const url = new URL(request.url);
+    const database = url.searchParams.get('database') || 'db_gore';
+    const table = url.searchParams.get('table') || 'lab_warehouse';
+    let batchSize = parseInt(url.searchParams.get('batchSize')) || 500;
 
-    let uploadData;
-    
-    // 尝试解析不同格式的数据
-    uploadData = await parseMultipartFormData(request);
-    if (!uploadData) {
-      uploadData = await parseJsonData(request);
-    }
-    
-    if (!uploadData) {
-      return createErrorResponse('Invalid request format. Expected multipart/form-data or application/json');
-    }
+    // Ensure batch size is within limits
+    batchSize = Math.min(Math.max(batchSize, 100), MAX_BATCH_SIZE);
 
-    const { data, database, batchSize, filename } = uploadData;
+    // Parse JSON data from request body
+    const body = await request.json();
+    let data = body.data || body.rows || body;
 
-    // 验证必需字段
-    if (!data) {
-      return createErrorResponse('No data provided');
-    }
-
+    // Validate data format
     if (!Array.isArray(data)) {
-      return createErrorResponse('Data must be an array');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid data format: expected array',
+        receivedType: typeof data
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
     }
 
     if (data.length === 0) {
-      return createErrorResponse('Empty data array provided');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Data array cannot be empty'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
     }
 
-    // 存储数据
-    const dbInfo = await storeInDatabase(data, database, batchSize);
+    // Log upload start
+    console.log(`Starting upload to ${database}.${table}: ${data.length} records`);
 
-    // 返回成功响应
-    return createCorsResponse(JSON.stringify({
-      success: true,
-      message: `Successfully uploaded ${data.length} records to ${database}`,
-      details: {
-        filename,
-        recordsProcessed: data.length,
-        batches: Math.ceil(data.length / batchSize),
-        database: dbInfo,
-        processingTime: Date.now()
+    // Process data in batches
+    const batches = [];
+    for (let i = 0; i < data.length; i += batchSize) {
+      batches.push(data.slice(i, i + batchSize));
+    }
+
+    // Process batches with concurrency control
+    const results = [];
+    const semaphore = new Semaphore(MAX_CONCURRENT_BATCHES);
+
+    const batchPromises = batches.map(async (batch, index) => {
+      await semaphore.acquire();
+      try {
+        const result = await processBatch(batch, table, index);
+        results.push(result);
+        return result;
+      } finally {
+        semaphore.release();
       }
-    }));
+    });
+
+    // Wait for all batches to complete
+    await Promise.all(batchPromises);
+
+    // Calculate total inserted records
+    const totalInserted = results.reduce((sum, result) => sum + result.inserted, 0);
+    const failedBatches = results.filter(result => result.failed).length;
+
+    // Log upload completion
+    console.log(`Upload completed: ${totalInserted}/${data.length} records inserted`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Upload completed successfully`,
+      details: {
+        totalRecords: data.length,
+        insertedCount: totalInserted,
+        batchCount: batches.length,
+        failedBatches: failedBatches,
+        batchSize: batchSize
+      }
+    }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
 
   } catch (error) {
-    console.error('Upload error:', error);
-    return createErrorResponse(error.message || 'Internal server error', 500);
+    console.error('Worker error:', error);
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Internal server error',
+      stack: error.stack
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
   }
 }
 
-// Worker入口点
-addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
-  
-  // 支持带查询参数的路径
-  const pathname = url.pathname;
-  
-  if (pathname === '/upload' || pathname.startsWith('/upload')) {
-    event.respondWith(handleUpload(event.request));
-  } else if (pathname === '/' || pathname === '') {
-    // 根路径健康检查
-    event.respondWith(createCorsResponse(JSON.stringify({
-      success: true,
-      message: 'Cloudflare Worker is running',
-      endpoints: {
-        upload: 'POST /upload',
-        cors: 'OPTIONS /upload'
-      },
-      timestamp: new Date().toISOString()
-    })));
-  } else {
-    event.respondWith(createErrorResponse('Not found', 404));
+// Semaphore class for concurrency control
+class Semaphore {
+  constructor(limit) {
+    this.limit = limit;
+    this.count = 0;
+    this.queue = [];
   }
-});
+
+  async acquire() {
+    if (this.count < this.limit) {
+      this.count++;
+      return;
+    }
+
+    return new Promise(resolve => {
+      this.queue.push(resolve);
+    });
+  }
+
+  release() {
+    if (this.queue.length > 0) {
+      const resolve = this.queue.shift();
+      resolve();
+    } else {
+      this.count--;
+    }
+  }
+}
+
+// Process a single batch with retry logic
+async function processBatch(batch, table, batchNumber) {
+  let attempts = 0;
+  let lastError;
+
+  while (attempts < RETRY_ATTEMPTS) {
+    try {
+      attempts++;
+      const inserted = await insertIntoDbGore(batch, table);
+      console.log(`Batch ${batchNumber} (attempt ${attempts}): Inserted ${inserted} records`);
+      return {
+        batchNumber,
+        inserted,
+        failed: false
+      };
+    } catch (error) {
+      lastError = error;
+      console.error(`Batch ${batchNumber} (attempt ${attempts}) failed:`, error);
+
+      if (attempts < RETRY_ATTEMPTS) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempts - 1); // Exponential backoff
+        console.log(`Retrying batch ${batchNumber} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  console.error(`Batch ${batchNumber} failed after ${RETRY_ATTEMPTS} attempts`);
+  return {
+    batchNumber,
+    inserted: 0,
+    failed: true,
+    error: lastError.message
+  };
+}
+
+// Insert batch into db_gore database
+async function insertIntoDbGore(batch, table) {
+  // Check if D1 database binding exists
+  if (!env.DB_GORE) {
+    throw new Error('DB_GORE database binding not found');
+  }
+
+  if (batch.length === 0) {
+    return 0;
+  }
+
+  // Prepare insert query with parameterized values
+  const columns = Object.keys(batch[0]).join(', ');
+  const placeholders = batch.map((_, i) => 
+    `(${Object.keys(batch[0]).map((_, j) => `$${i * Object.keys(batch[0]).length + j + 1}`).join(', ')})`
+  ).join(', ');
+
+  // Flatten the batch values for parameterized query
+  const values = batch.flatMap(row => Object.values(row));
+
+  const query = `INSERT INTO ${table} (${columns}) VALUES ${placeholders}`;
+
+  try {
+    // Execute the query using D1 database
+    const result = await env.DB_GORE.prepare(query)
+      .bind(...values)
+      .run();
+
+    return result.meta.changes || 0;
+  } catch (error) {
+    console.error('Error inserting into db_gore:', error);
+    throw error;
+  }
+}
