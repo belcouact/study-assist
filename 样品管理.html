@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sample Query System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+        .submit-button {
+            margin-top: 10px;  /* Add margin to separate from checkbox */
+            width: 100%;       /* Make button full width */
+            padding: 10px 20px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .submit-button:hover {
+            background-color: #007399;
+        }
+        .file-section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+        }
+        .file-status {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .file-input {
+            margin-bottom: 10px;
+        }
+        .search-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        .clear-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            padding: 5px;
+        }
+        .loading {
+            display: none;
+            margin-left: 10px;
+            color: #666;
+        }
+        .shortcut-hint {
+            color: #666;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff3f3;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+            margin-top: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        .missing-barcodes {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fff3f3;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+            border-radius: 4px;
+        }
+        .missing-barcodes-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .missing-barcode-list {
+            margin: 0;
+            padding-left: 20px;
+            color: #e53935;
+        }
+        .tab-button {
+            margin-right: 10px;
+            padding: 10px 20px;
+            background-color: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-button.active {
+            border-bottom: 2px solid #008CBA;
+            background-color: #f2f2f2;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .filter-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+        }
+        #loadingIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000; /* Ensure it appears above other content */
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>戈尔深圳QA实验室 --- 样品查询</h1>
+
+    <div class="file-section">
+        <div style="margin-bottom: 5px;">请选择样品库Excel文件</div>
+        <input type="file" id="excelFile" accept=".xls,.xlsx" class="file-input" onchange="loadExcelFile()">
+        <div id="fileStatus" class="file-status"></div>
+    </div>
+
+    <div>
+        <button class="tab-button" onclick="showTab('queryTab')">查询</button>
+        <button class="tab-button" onclick="showTab('summaryTab')">统计</button>
+    </div>
+
+    <div id="loadingIndicator" style="display: none;">Loading...</div>
+
+    <div id="queryTab" class="tab-content">
+        <div id="query">
+            <div class="search-container">
+                <input type="text" id="queryBarcodes" placeholder="请输入样品条码（多个条码用逗号或空格分隔）" style="margin-top: 20px;">
+                <span class="clear-button" onclick="clearSearch()">✕</span>
+                <span class="shortcut-hint">Enter 键快速查询</span>
+            </div>
+            <div style="margin: 10px 0;">
+                <label style="display: inline-flex; align-items: center;">
+                    <input type="checkbox" id="showAllRecords" style="margin-right: 5px;">
+                    保留所有记录
+                </label>
+                <span class="loading" id="loadingIndicator">查询中...</span>
+            </div>
+            <button class="submit-button" onclick="queryItems()">查询</button>
+        </div>
+        
+        <div id="queryResults">
+            <div id="missingBarcodes" style="display: none;" class="missing-barcodes">
+                <div class="missing-barcodes-title">以下样品未找到：</div>
+                <ul id="missingBarcodesList" class="missing-barcode-list"></ul>
+            </div>
+            <div id="noResults" class="no-results">
+                未找到任何匹配的样品记录，请检查输入的条码是否正确。
+            </div>
+            <table id="resultsTable" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>条码</th>
+                        <th>货位</th>
+                        <th>状态</th>
+                        <th>时间</th>
+                        <th>作业者</th>
+                        <th>货位记录</th>
+                        <th>入库顺序</th>
+                    </tr>
+                </thead>
+                <tbody id="resultsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="summaryTab" class="tab-content" style="display: none;">
+        <div class="filter-section">
+            <label for="filterLocation">货位:</label>
+            <input type="text" id="filterLocation" placeholder="输入货位">
+            
+            <label for="filterCountMin">货位样品数量最小:</label>
+            <input type="number" id="filterCountMin" placeholder="最小数量">
+            
+            <label for="filterCountMax">货位样品数量最大:</label>
+            <input type="number" id="filterCountMax" placeholder="最大数量">
+            
+            <label for="filterTimeMin">最早入库时间:</label>
+            <input type="datetime-local" id="filterTimeMin">
+            
+            <label for="filterTimeMax">最晚入库时间:</label>
+            <input type="datetime-local" id="filterTimeMax">
+            
+            <button class="submit-button" onclick="executeStatistics()">统计</button>
+        </div>
+        
+        <div id="summaryContainer"></div> <!-- Container for summary table -->
+    </div>
+
+    <script>
+        let workbookData = null;
+
+        // Initialize on page load
+        window.onload = function() {
+            // Focus on search input
+            document.getElementById('queryBarcodes').focus();
+            
+            // Add keyboard shortcut
+            document.getElementById('queryBarcodes').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    queryItems();
+                }
+            });
+        };
+
+        function loadExcelFile() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+            const status = document.getElementById('fileStatus');
+            
+            if (!file) {
+                status.textContent = '未选择文件';
+                status.style.color = 'red';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    workbookData = XLSX.utils.sheet_to_json(sheet);
+                    status.textContent = '文件加载成功';
+                    status.style.color = 'green';
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                    status.textContent = '文件读取失败';
+                    status.style.color = 'red';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function getLatestRecords(data, barcodeList) {
+            const groupedRecords = {};
+            data.filter(item => barcodeList.includes(item['条码'])).forEach(item => {
+                const barcode = item['条码'];
+                if (!groupedRecords[barcode] || 
+                    new Date(item['时间']) > new Date(groupedRecords[barcode]['时间'])) {
+                    groupedRecords[barcode] = item;
+                }
+            });
+            return Object.values(groupedRecords);
+        }
+
+        function clearSearch() {
+            document.getElementById('queryBarcodes').value = '';
+            document.getElementById('queryBarcodes').focus();
+        }
+
+        function findMissingBarcodes(searchedBarcodes, foundResults) {
+            const foundBarcodes = foundResults.map(result => result['条码']);
+            return searchedBarcodes.filter(barcode => !foundBarcodes.includes(barcode));
+        }
+
+        function calculateTotalRecords(data) {
+            const totals = {};
+
+            data.forEach(item => {
+                const location = item['货位'];
+                if (!totals[location]) {
+                    totals[location] = { total: 0, out: 0 };
+                }
+                totals[location].total += 1;
+                if (item['状态'] === '出') {
+                    totals[location].out += 1;
+                }
+            });
+
+            return totals;
+        }
+
+        function calculateBarcodePosition(data) {
+            const positions = {};
+
+            data.forEach(item => {
+                const location = item['货位'];
+                const barcode = item['条码'];
+
+                if (!positions[location]) {
+                    positions[location] = {};
+                }
+
+                // Store the position of each barcode in the corresponding location
+                if (!positions[location][barcode]) {
+                    positions[location][barcode] = Object.keys(positions[location]).length + 1; // 1-based index
+                }
+            });
+
+            return positions;
+        }
+
+        async function queryItems() {
+            const barcodes = document.getElementById('queryBarcodes').value.trim();
+            if (!barcodes) {
+                alert('请输入样品条码');
+                return;
+            }
+            if (!workbookData) {
+                alert('请先选择并加载Excel文件');
+                return;
+            }
+
+            document.getElementById('loadingIndicator').style.display = 'inline';
+            
+            try {
+                let barcodeList = barcodes.split(/[\s,]+/).filter(code => code.length > 0);
+                let showAll = document.getElementById('showAllRecords').checked;
+
+                // Calculate total records for each 货位
+                const totalRecords = calculateTotalRecords(workbookData);
+                // Calculate positions of each 条码 in their corresponding 货位
+                const barcodePositions = calculateBarcodePosition(workbookData);
+
+                let results = showAll ? 
+                    workbookData.filter(item => barcodeList.includes(item['条码']))
+                        .sort((a, b) => new Date(b['时间']) - new Date(a['时间'])) :
+                    getLatestRecords(workbookData, barcodeList);
+                
+                const missingBarcodes = findMissingBarcodes(barcodeList, results);
+                displayResults(results, missingBarcodes, totalRecords, barcodePositions); // Pass barcodePositions to displayResults
+            } catch (error) {
+                console.error('Query error:', error);
+                alert('查询出错，请重试');
+            } finally {
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }
+        }
+
+        function displayResults(results, missingBarcodes, totalRecords, barcodePositions) {
+            let table = document.getElementById('resultsTable');
+            let tbody = document.getElementById('resultsBody');
+            let noResults = document.getElementById('noResults');
+            let missingBarcodesDiv = document.getElementById('missingBarcodes');
+            let missingBarcodesList = document.getElementById('missingBarcodesList');
+            
+            tbody.innerHTML = '';
+            missingBarcodesList.innerHTML = '';
+
+            if (results.length === 0) {
+                table.style.display = 'none';
+                noResults.style.display = 'block';
+                missingBarcodesDiv.style.display = 'none';
+                return;
+            }
+
+            // Show missing barcodes if any
+            if (missingBarcodes.length > 0) {
+                missingBarcodes.forEach(barcode => {
+                    const li = document.createElement('li');
+                    li.textContent = barcode;
+                    missingBarcodesList.appendChild(li);
+                });
+                missingBarcodesDiv.style.display = 'block';
+            } else {
+                missingBarcodesDiv.style.display = 'none';
+            }
+
+            noResults.style.display = 'none';
+            results.forEach(result => {
+                let row = tbody.insertRow();
+                ['条码', '货位', '状态', '时间', '作业者'].forEach(key => {
+                    let cell = row.insertCell();
+                    cell.textContent = result[key] || '';
+                });
+
+                // Add total records for the 货位
+                const location = result['货位'];
+                const total = totalRecords[location] ? totalRecords[location].total : 0;
+                const out = totalRecords[location] ? totalRecords[location].out : 0;
+                const inCount = total - out; // Calculate 入
+                const remaining = inCount - out; // Calculate 剩下
+
+                let totalCell = row.insertCell();
+                totalCell.textContent = `入: ${inCount}, 出: ${out}, 剩下: ${remaining}`; // Updated format
+               
+                // Add position of the 条码 in the corresponding 货位 only if 状态 is not '出'
+                const barcode = result['条码'];
+                const status = result['状态'];
+                let positionCell = row.insertCell();
+                if (status !== '出') {
+                    const position = barcodePositions[location] && barcodePositions[location][barcode] ? barcodePositions[location][barcode] : 'N/A';
+                    positionCell.textContent = position; // Display the position
+                } else {
+                    positionCell.textContent = ''; // Leave empty if 状态 is '出'
+                }
+            });
+
+            table.style.display = 'table';
+        }
+
+        function summarizeData() {
+            if (!workbookData) {
+                alert('请先选择并加载Excel文件');
+                return;
+            }
+
+            // Get filter values
+            const filterLocation = document.getElementById('filterLocation').value.trim();
+            const filterCountMin = parseInt(document.getElementById('filterCountMin').value) || 0;
+            const filterCountMax = parseInt(document.getElementById('filterCountMax').value) || Infinity;
+            const filterTimeMin = new Date(document.getElementById('filterTimeMin').value);
+            const filterTimeMax = new Date(document.getElementById('filterTimeMax').value);
+
+            // Calculate the summary data
+            const summary = {};
+            
+            workbookData.forEach(item => {
+                const location = item['货位'];
+                const status = item['状态'];
+                const time = new Date(item['时间']);
+
+                // Apply filters
+                if ((filterLocation && location !== filterLocation) ||
+                    (time < filterTimeMin || time > filterTimeMax)) {
+                    return; // Skip this item if it doesn't match the filters
+                }
+
+                if (!summary[location]) {
+                    summary[location] = { count: 0, minTime: time, maxTime: time };
+                }
+
+                // Count total records minus 2 * records with 状态='出'
+                summary[location].count += 1;
+                if (status === '出') {
+                    summary[location].count -= 2; // Adjust count for 状态='出'
+                }
+            });
+
+            // Filter based on count range
+            for (const location in summary) {
+                const { count, minTime, maxTime } = summary[location];
+                if (count < filterCountMin || count > filterCountMax) {
+                    delete summary[location]; // Remove from summary if it doesn't match count filters
+                } else {
+                    summary[location].minTime = minTime;
+                    summary[location].maxTime = maxTime;
+                }
+            }
+
+            // Display the summary results
+            displaySummary(summary);
+        }
+
+        function displaySummary(summary) {
+            let summaryTable = document.getElementById('summaryTable');
+
+            // If the table doesn't exist, create it
+            if (!summaryTable) {
+                summaryTable = document.createElement('table');
+                summaryTable.id = 'summaryTable'; // Set an ID for future reference
+                summaryTable.style.width = '100%';
+                summaryTable.style.borderCollapse = 'collapse';
+                summaryTable.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>货位 <button onclick="sortSummary('location', 'asc')">↑</button><button onclick="sortSummary('location', 'desc')">↓</button></th>
+                            <th>条码数量 <button onclick="sortSummary('count', 'asc')">↑</button><button onclick="sortSummary('count', 'desc')">↓</button></th>
+                            <th>最早时间 <button onclick="sortSummary('minTime', 'asc')">↑</button><button onclick="sortSummary('minTime', 'desc')">↓</button></th>
+                            <th>最晚时间 <button onclick="sortSummary('maxTime', 'asc')">↑</button><button onclick="sortSummary('maxTime', 'desc')">↓</button></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                document.getElementById('summaryContainer').appendChild(summaryTable);
+            } else {
+                // Clear existing rows in the tbody
+                summaryTable.querySelector('tbody').innerHTML = '';
+            }
+
+            // Populate the summary table
+            for (const location in summary) {
+                const { count, minTime, maxTime } = summary[location];
+                summaryTable.querySelector('tbody').innerHTML += `
+                    <tr>
+                        <td>${location}</td>
+                        <td>${count}</td>
+                        <td>${minTime.toLocaleString()}</td>
+                        <td>${maxTime.toLocaleString()}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        let currentSortColumn = null;
+        let currentSortOrder = 'asc';
+
+        function sortSummary(column, order) {
+            const summaryTable = document.getElementById('summaryTable');
+            const tbody = summaryTable.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+
+            // Sort rows based on the selected column and order
+            rows.sort((a, b) => {
+                let aValue, bValue;
+
+                if (column === 'location') {
+                    aValue = a.cells[0].textContent; // 货位
+                    bValue = b.cells[0].textContent;
+                    return order === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+                } else if (column === 'count') {
+                    aValue = parseInt(a.cells[1].textContent); // 条码数量
+                    bValue = parseInt(b.cells[1].textContent);
+                    return order === 'asc' ? aValue - bValue : bValue - aValue;
+                } else if (column === 'minTime' || column === 'maxTime') {
+                    aValue = new Date(a.cells[column === 'minTime' ? 2 : 3].textContent); // 最早时间 or 最晚时间
+                    bValue = new Date(b.cells[column === 'minTime' ? 2 : 3].textContent);
+                    return order === 'asc' ? aValue - bValue : bValue - aValue;
+                }
+            });
+
+            // Clear the existing tbody and append sorted rows
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.style.display = 'none'; // Hide all tabs
+            });
+            document.getElementById(tabName).style.display = 'block'; // Show the selected tab
+
+            // Clear the summary container only when switching to the query tab
+            if (tabName === 'queryTab') {
+                document.getElementById('summaryContainer').innerHTML = ''; // Clear summary when switching to query
+            }
+        }
+
+        function executeStatistics() {
+            // Show loading indicator
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            // Simulate statistics execution with a timeout (replace this with your actual function)
+            setTimeout(() => {
+                // Your statistics logic here
+                summarizeData(); // Call the existing summarizeData function
+
+                // Hide loading indicator after execution
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }, 2000); // Simulating a 2-second loading time
+        }
+    </script>
+</body>
+</html>
