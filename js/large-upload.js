@@ -22,7 +22,7 @@ class LargeDatasetUploader {
      */
     async upload(data, options = {}) {
         const {
-            database = 'default',
+            database = 'db_gore',
             batchSize = this.chunkSize,
             skipClear = false,
             showProgress = true
