@@ -340,7 +340,8 @@
                     <label for="database-select">选择数据库</label>
                     <select id="database-select" class="form-control">
                         <option value="">-- 请选择数据库 --</option>
-                        <option value="default">默认数据库</option>
+                        
+                        <option value="db-gore">db_gore</option>
                     </select>
                 </div>
             </div>
@@ -359,11 +360,7 @@
                     <label for="table-select">选择数据表</label>
                     <select id="table-select" class="form-control">
                         <option value="">请选择数据表...</option>
-                        <option value="chinese_dynasty">朝代数据</option>
-                        <option value="quote">名言数据</option>
-                        <option value="chinese_poem">古诗词数据</option>
-                        <option value="world_history">世界历史数据</option>
-                        <option value="vocabulary">词汇数据</option>
+                        <option value="lab_samples">lab_samples</option>
                     </select>
                 </div>
             </div>
@@ -390,25 +387,9 @@
     <script>
         // Table column configurations
         const tableConfigs = {
-            chinese_dynasty: {
-                name: '朝代数据',
-                columns: ['Number', 'Dynasty', 'Period', 'Title', 'Event', 'Significance']
-            },
-            quote: {
-                name: '名言数据',
-                columns: ['Number', 'Type', 'Chinese', 'English', 'Remark_1', 'Remark_2']
-            },
-            chinese_poem: {
-                name: '古诗词数据',
-                columns: ['Title', 'Number', 'Poem', 'Remark_1', 'Remark_2', 'Remark_3', 'Author', 'Dynasty']
-            },
-            world_history: {
-                name: '世界历史数据',
-                columns: ['CATEGORY', 'REGION', 'PERIOD', 'SUB_CATEGORY_1', 'SUB_CATEGORY_2', 'TITLE', 'BACKGROUND', 'EVENT', 'IMPACT', 'REMARK_1', 'REMARK_2', 'REMARK_3']
-            },
-            vocabulary: {
-                name: '词汇数据',
-                columns: ['Word_Rank', 'Word', 'Word_ID', 'US_Pronunciation', 'UK_Pronunciation', 'US_Speech', 'UK_Speech', 'Translations', 'Synonyms', 'Example_Sentences', 'Remark_1', 'Remark_2', 'Remark_3', 'Remark_4', 'Remark_5']
+            lab_samples: {
+                name: 'lab_samples',
+                columns: ['扫描单', '货位', '条码', '数量', '品名', '状态', '单位', '价格', '品牌', '产地', '时间', '作业者', '其他1', '其他2', '其他3', '其他4', '其他5', '其他6', '其他7', '其他8']
             }
         };
 
@@ -451,8 +432,9 @@
                     connectionResult.className = 'status info';
                     connectionResult.innerHTML = '<p>正在测试连接...</p>';
 
-                    const selectedTable = tableSelect.value || 'chinese_dynasty';
-                    const response = await fetch(`/api/db/test/${selectedTable}`);
+                    const selectedDatabase = databaseSelect.value || 'default';
+                    const selectedTable = tableSelect.value || 'lab_samples';
+                    const response = await fetch(`/api/db/test/${selectedTable}?database=${selectedDatabase}`);
                     const data = await response.json();
                     
                     if (data.success) {
@@ -460,6 +442,7 @@
                         connectionResult.innerHTML = `
                             <h3>连接成功！</h3>
                             <p>${data.message}</p>
+                            <p>已连接到数据库: ${data.database}</p>
                             <p>已连接到表: ${data.table}</p>
                         `;
                     } else {
@@ -530,6 +513,7 @@
 
             // Upload data handler
             uploadBtn.addEventListener('click', async () => {
+                const selectedDatabase = databaseSelect.value || 'default';
                 const selectedTable = tableSelect.value;
                 
                 if (!currentData || !selectedTable) {
@@ -542,18 +526,18 @@
                     uploadBtn.disabled = true;
                     showStatus('info', '正在上传数据...');
 
-                    const response = await fetch(`/api/db/upload/${selectedTable}`, {
+                    const response = await fetch(`/api/db/upload/${selectedTable}?database=${selectedDatabase}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ data: currentData })
+                        body: JSON.stringify({ data: currentData, database: selectedDatabase })
                     });
 
                     const result = await response.json();
                     
                     if (result.success) {
-                        showStatus('success', `成功上传 ${result.insertedCount || currentData.length} 条记录`);
+                        showStatus('success', `成功上传 ${result.insertedCount || currentData.length} 条记录到 ${selectedDatabase}.${selectedTable}`);
                     } else {
                         throw new Error(result.error || '上传失败');
                     }
