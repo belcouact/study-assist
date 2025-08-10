@@ -247,32 +247,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* 进度条样式 */
-        .progress-container {
-            margin: 20px 0;
-        }
-        .progress-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 8px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #4361ee, #4cc9f0);
-            transition: width 0.3s ease;
-            width: 0%;
-        }
-
         .loading-text {
             margin-left: 10px;
         }
@@ -550,40 +524,14 @@
                 try {
                     uploadBtn.classList.add('loading');
                     uploadBtn.disabled = true;
-                    
-                    // 显示进度条
-                    const progressContainer = document.createElement('div');
-                    progressContainer.className = 'progress-container';
-                    
-                    // 计算批次信息（基于45条/批的优化设置）
-                    const batchSize = 45;
-                    const totalBatches = Math.ceil(currentData.length / batchSize);
-                    
-                    progressContainer.innerHTML = `
-                        <div class="progress-info">
-                            <span>正在上传 ${currentData.length} 条数据 (${totalBatches} 批次)</span>
-                            <span id="progress-text">0%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="progress-fill"></div>
-                        </div>
-                        <div class="batch-info" style="font-size: 12px; color: #666; margin-top: 5px;">
-                            批次 <span id="current-batch">0</span> / ${totalBatches}
-                        </div>
-                    `;
-                    
-                    const uploadStatus = document.getElementById('upload-status');
-                    uploadStatus.innerHTML = '';
-                    uploadStatus.appendChild(progressContainer);
+                    showStatus('info', '正在上传数据...');
 
                     const response = await fetch(`/api/db/upload/${selectedTable}?database=${selectedDatabase}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify({ data: currentData, database: selectedDatabase }),
-                        // 增加超时时间以适应Cloudflare Workers
-                        signal: AbortSignal.timeout(120000) // 2分钟超时
+                        body: JSON.stringify({ data: currentData, database: selectedDatabase })
                     });
 
                     const result = await response.json();
@@ -596,25 +544,7 @@
                         throw new Error(result.error || '上传失败');
                     }
                 } catch (error) {
-                    let errorMessage = '上传失败：' + error.message;
-                    let retrySuggestion = '';
-                    
-                    // 处理特定的错误类型
-                    if (error.name === 'TimeoutError' || error.message.includes('timeout')) {
-                        errorMessage = '上传超时，数据量较大，请耐心等待或分批上传。';
-                        retrySuggestion = '建议：可以尝试将数据分成更小的文件上传。';
-                    } else if (error.message.includes('SQLITE_ERROR') || error.message.includes('too many SQL variables')) {
-                        errorMessage = '数据格式正确，系统已优化批处理大小。';
-                        retrySuggestion = '请重试，这次应该可以成功上传。';
-                    } else if (error.message.includes('D1_ERROR')) {
-                        errorMessage = '数据库处理错误，可能是网络问题。';
-                        retrySuggestion = '请检查网络连接后重试。';
-                    } else if (error.message.includes('network')) {
-                        errorMessage = '网络连接问题，请检查网络状态。';
-                        retrySuggestion = '建议在网络稳定时重试。';
-                    }
-                    
-                    showStatus('error', errorMessage + (retrySuggestion ? '<br><small>' + retrySuggestion + '</small>' : ''));
+                    showStatus('error', '上传失败：' + error.message);
                     console.error('Upload Error:', error);
                 } finally {
                     uploadBtn.classList.remove('loading');
