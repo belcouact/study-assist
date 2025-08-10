@@ -340,7 +340,7 @@
                     <label for="database-select">选择数据库</label>
                     <select id="database-select" class="form-control">
                         <option value="">-- 请选择数据库 --</option>
-                        <option value="gore-db">gore-db</option>
+                        <option value="default">默认数据库</option>
                     </select>
                 </div>
             </div>
@@ -359,7 +359,11 @@
                     <label for="table-select">选择数据表</label>
                     <select id="table-select" class="form-control">
                         <option value="">请选择数据表...</option>
-                        <option value="lab_samples">lab_samples</option>
+                        <option value="chinese_dynasty">朝代数据</option>
+                        <option value="quote">名言数据</option>
+                        <option value="chinese_poem">古诗词数据</option>
+                        <option value="world_history">世界历史数据</option>
+                        <option value="vocabulary">词汇数据</option>
                     </select>
                 </div>
             </div>
@@ -386,9 +390,25 @@
     <script>
         // Table column configurations
         const tableConfigs = {
-            lab_samples: {
-                name: 'lab_samples',
-                columns: ['扫描单', '货位', '条码', '数量', '品名', '状态', '单位', '价格', '品牌', '产地', '时间', '作业者', '其他1', '其他2', '其他3', '其他4', '其他5', '其他6', '其他7', '其他8']
+            chinese_dynasty: {
+                name: '朝代数据',
+                columns: ['Number', 'Dynasty', 'Period', 'Title', 'Event', 'Significance']
+            },
+            quote: {
+                name: '名言数据',
+                columns: ['Number', 'Type', 'Chinese', 'English', 'Remark_1', 'Remark_2']
+            },
+            chinese_poem: {
+                name: '古诗词数据',
+                columns: ['Title', 'Number', 'Poem', 'Remark_1', 'Remark_2', 'Remark_3', 'Author', 'Dynasty']
+            },
+            world_history: {
+                name: '世界历史数据',
+                columns: ['CATEGORY', 'REGION', 'PERIOD', 'SUB_CATEGORY_1', 'SUB_CATEGORY_2', 'TITLE', 'BACKGROUND', 'EVENT', 'IMPACT', 'REMARK_1', 'REMARK_2', 'REMARK_3']
+            },
+            vocabulary: {
+                name: '词汇数据',
+                columns: ['Word_Rank', 'Word', 'Word_ID', 'US_Pronunciation', 'UK_Pronunciation', 'US_Speech', 'UK_Speech', 'Translations', 'Synonyms', 'Example_Sentences', 'Remark_1', 'Remark_2', 'Remark_3', 'Remark_4', 'Remark_5']
             }
         };
 
@@ -429,59 +449,9 @@
                 try {
                     connectionResult.style.display = 'block';
                     connectionResult.className = 'status info';
-                    connectionResult.innerHTML = '<p>正在调试数据库...</p>';
-
-                    // First, debug the database to see what tables exist
-                    const debugResponse = await fetch('/api/db/debug/gore');
-                    const debugData = await debugResponse.json();
-
-                    if (!debugData.success) {
-                        connectionResult.className = 'status error';
-                        connectionResult.innerHTML = `
-                            <h3>数据库调试失败</h3>
-                            <p><strong>错误：</strong> ${debugData.error}</p>
-                            <p>可用绑定：${debugData.availableBindings?.join(', ') || 'N/A'}</p>
-                        `;
-                        return;
-                    }
-
-                    const tableExists = debugData.lab_samples_exists;
-                    const tables = debugData.tables || [];
-
-                    if (!tableExists) {
-                        connectionResult.className = 'status error';
-                        connectionResult.innerHTML = `
-                            <h3>表不存在</h3>
-                            <p>数据库：${debugData.database}</p>
-                            <p>可用表：${tables.join(', ')}</p>
-                            <p>lab_samples 表不存在于数据库中。</p>
-                            
-                            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                                <h4>解决方案：</h4>
-                                <p>请在 Cloudflare D1 控制台中运行以下 SQL 来创建表：</p>
-                                <pre style="background: #f1f3f4; padding: 10px; border-radius: 4px; font-size: 12px; overflow-x: auto;">
-CREATE TABLE IF NOT EXISTS lab_samples (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    扫描单 TEXT, 货位 TEXT, 条码 TEXT, 数量 INTEGER,
-    品名 TEXT, 状态 TEXT, 单位 TEXT, 价格 REAL,
-    品牌 TEXT, 产地 TEXT, 时间 TEXT, 作业者 TEXT,
-    其他1 TEXT, 其他2 TEXT, 其他3 TEXT, 其他4 TEXT,
-    其他5 TEXT, 其他6 TEXT, 其他7 TEXT, 其他8 TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_lab_samples_barcode ON lab_samples(条码);
-CREATE INDEX IF NOT EXISTS idx_lab_samples_scan ON lab_samples(扫描单);
-                                </pre>
-                            </div>
-                        `;
-                        return;
-                    }
-
-                    // Now test the actual connection
-                    connectionResult.className = 'status info';
                     connectionResult.innerHTML = '<p>正在测试连接...</p>';
 
-                    const selectedTable = 'lab_samples';
+                    const selectedTable = tableSelect.value || 'chinese_dynasty';
                     const response = await fetch(`/api/db/test/${selectedTable}`);
                     const data = await response.json();
                     
@@ -490,23 +460,16 @@ CREATE INDEX IF NOT EXISTS idx_lab_samples_scan ON lab_samples(扫描单);
                         connectionResult.innerHTML = `
                             <h3>连接成功！</h3>
                             <p>${data.message}</p>
-                            <p>已连接到表：${data.table}</p>
-                            <p>可用表：${tables.join(', ')}</p>
+                            <p>已连接到表: ${data.table}</p>
                         `;
                     } else {
-                        connectionResult.className = 'status error';
-                        connectionResult.innerHTML = `
-                            <h3>连接失败</h3>
-                            <p><strong>错误：</strong> ${data.error}</p>
-                            <p>可用表：${tables.join(', ')}</p>
-                        `;
+                        throw new Error(data.error || '连接测试失败');
                     }
                 } catch (error) {
                     connectionResult.className = 'status error';
                     connectionResult.innerHTML = `
-                        <h3>连接错误</h3>
-                        <p><strong>错误：</strong> ${error.message}</p>
-                        <p>请检查网络连接后重试。</p>
+                        <h3>连接失败</h3>
+                        <p>${error.message}</p>
                     `;
                     console.error('API Error:', error);
                 }

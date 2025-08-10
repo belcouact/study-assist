@@ -11,25 +11,19 @@ export async function onRequest(context) {
     }
 
     try {
+        // Check if DB binding exists
+        if (!context.env.DB) {
+            throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
+        }
+
+        // Access the D1 database using the environment binding
+        const db = context.env.DB;
+
         // Get the action and table from the URL parameters
         const { action, table } = context.params;
 
-        // Determine which database to use based on the table
-        let db;
-        if (table === 'lab_samples') {
-            if (!context.env.DB_GORE) {
-                throw new Error('Database binding "DB_GORE" not found. Please check your Cloudflare Pages D1 database bindings.');
-            }
-            db = context.env.DB_GORE;
-        } else {
-            if (!context.env.DB) {
-                throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
-            }
-            db = context.env.DB;
-        }
-
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_samples"]; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -38,34 +32,17 @@ export async function onRequest(context) {
         switch (action) {
             case 'test':
                 // Test connection for specific table
-                try {
-                    const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
-                    return new Response(JSON.stringify({
-                        success: true,
-                        message: `Successfully connected to ${table} table!`,
-                        table: table
-                    }), {
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Access-Control-Allow-Origin": "*",
-                        },
-                    });
-                } catch (error) {
-                    if (error.message.includes('no such table')) {
-                        return new Response(JSON.stringify({
-                            success: false,
-                            error: `Table '${table}' does not exist. Please create the table first.`,
-                            table: table,
-                            suggestion: table === 'lab_samples' ? 'Run the SQL script in sql/create_lab_samples.sql to create the table' : 'Contact administrator to create the table'
-                        }), {
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Access-Control-Allow-Origin": "*",
-                            },
-                        });
-                    }
-                    throw error;
-                }
+                const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
+                return new Response(JSON.stringify({
+                    success: true,
+                    message: `Successfully connected to ${table} table!`,
+                    table: table
+                }), {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Access-Control-Allow-Origin": "*",
+                    },
+                });
 
             case 'query':
                 // Query table data
@@ -190,36 +167,6 @@ export async function onRequest(context) {
                                 row.Remark_5 || null
                             );
                         }));
-                    } else if (table === 'lab_samples') {
-                        await db.batch(data.map(row => {
-                            return db.prepare(`
-                                INSERT INTO lab_samples (
-                                    扫描单, 货位, 条码, 数量, 品名, 状态, 单位, 价格, 品牌, 产地, 时间, 作业者, 其他1, 其他2, 其他3, 其他4, 其他5, 其他6, 其他7, 其他8
-                                )
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            `).bind(
-                                row.扫描单 || null,
-                                row.货位 || null,
-                                row.条码 || null,
-                                row.数量 || null,
-                                row.品名 || null,
-                                row.状态 || null,
-                                row.单位 || null,
-                                row.价格 || null,
-                                row.品牌 || null,
-                                row.产地 || null,
-                                row.时间 || null,
-                                row.作业者 || null,
-                                row.其他1 || null,
-                                row.其他2 || null,
-                                row.其他3 || null,
-                                row.其他4 || null,
-                                row.其他5 || null,
-                                row.其他6 || null,
-                                row.其他7 || null,
-                                row.其他8 || null
-                            );
-                        }));
                     }
 
                     insertedCount = data.length;
@@ -259,4 +206,4 @@ export async function onRequest(context) {
             }
         );
     }
-}
+} 
