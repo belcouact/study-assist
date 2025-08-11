@@ -35,6 +35,7 @@ class LargeDatasetUploader {
 
             // Validate data format
             const validation = this.validateData(data);
+            console.log('Data validation result:', validation);
             if (!validation.valid) {
                 throw new Error(`Data validation failed: ${validation.errors.join(', ')}`);
             }
@@ -52,7 +53,7 @@ class LargeDatasetUploader {
             }
 
             // Perform upload with retry logic - 直接传递数据数组
-            const result = await this.uploadWithRetry(data, database, showProgress);
+            const result = await this.uploadWithRetry(data, database, options.table, showProgress);
             
             if (result.success) {
                 uploadedRows = result.details.recordsProcessed || 0;
@@ -114,7 +115,7 @@ class LargeDatasetUploader {
      * @param {boolean} showProgress - Show progress updates
      * @returns {Promise<Object>} Upload result
      */
-    async uploadWithRetry(data, database, showProgress) {
+    async uploadWithRetry(data, database, table, showProgress) {
         let lastError;
         
         for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
@@ -134,7 +135,7 @@ class LargeDatasetUploader {
                 };
 
                 // 增强日志记录，显示更多数据详情
-                console.log('Table name:', options.table || 'default_table');
+                console.log('Table name:', table || 'default_table');
                 console.log('Sending upload data:', {
                     dataLength: data.length,
                     database,
