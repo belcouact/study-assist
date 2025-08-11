@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实验室样品管理系统</title>
+    <style>
+        /* 基础样式和移动优先设计 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.8rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .submit-button {
+            margin-top: 15px;
+            width: 100%;
+            padding: 12px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            min-height: 48px;
+        }
+        .submit-button:hover {
+            background-color: #007399;
+        }
+        .submit-button:active {
+            background-color: #005f7a;
+        }
+        .file-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .search-container {
+            position: relative;
+            margin: 20px 0;
+        }
+        .clear-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            padding: 5px;
+            font-size: 1.2rem;
+        }
+        .loading {
+            display: none;
+            margin-left: 10px;
+            color: #666;
+        }
+        .shortcut-hint {
+            color: #666;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .no-results {
+            text-align: center;
+            padding: 20px;
+            background-color: #fff3f3;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+            margin-top: 20px;
+            border-radius: 4px;
+            display: none;
+        }
+        .missing-barcodes {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #fff3f3;
+            border: 1px solid #ffcdd2;
+            color: #c62828;
+            border-radius: 4px;
+        }
+        .missing-barcodes-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .missing-barcode-list {
+            margin: 0;
+            padding-left: 20px;
+            color: #e53935;
+        }
+        .tab-buttons {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab-button {
+            flex: 0 0 auto;
+            padding: 12px 20px;
+            background-color: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 1rem;
+            min-height: 48px;
+        }
+        .tab-button.active {
+            border-bottom: 2px solid #008CBA;
+            background-color: #f2f2f2;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .filter-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        #loadingIndicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 1.2rem;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+
+        /* 平板和桌面设备增强 */
+        @media (min-width: 768px) {
+            body {
+                padding: 30px;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            h1 {
+                font-size: 2.2rem;
+            }
+            .filter-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+            table {
+                font-size: 1rem;
+            }
+            th, td {
+                padding: 12px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .filter-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>戈尔深圳QA实验室 --- 样品查询</h1>
+
+    <div id="loadingIndicator" style="display: none;">加载中...</div>
+
+    <div class="tab-buttons">
+        <button class="tab-button active" onclick="showTab('queryTab')">查询</button>
+        <button class="tab-button" onclick="showTab('summaryTab')">统计</button>
+    </div>
+
+    <div id="queryTab" class="tab-content active">
+        <div id="query">
+            <div class="search-container">
+                <input type="text" id="queryBarcodes" placeholder="请输入样品条码（多个条码用逗号或空格分隔）" style="margin-top: 20px;">
+                <span class="clear-button" onclick="clearSearch()">✕</span>
+                <span class="shortcut-hint">Enter 键快速查询</span>
+            </div>
+            <div style="margin: 10px 0;">
+                <label style="display: inline-flex; align-items: center;">
+                    <input type="checkbox" id="showAllRecords" style="margin-right: 5px; width: auto;">
+                    保留所有记录
+                </label>
+                <span class="loading" id="queryLoading">查询中...</span>
+            </div>
+            <button class="submit-button" onclick="queryItems()">查询</button>
+        </div>
+        
+        <div id="queryResults">
+            <div id="missingBarcodes" style="display: none;" class="missing-barcodes">
+                <div class="missing-barcodes-title">以下样品未找到：</div>
+                <ul id="missingBarcodesList" class="missing-barcode-list"></ul>
+            </div>
+            <div id="noResults" class="no-results">
+                未找到任何匹配的样品记录，请检查输入的条码是否正确。
+            </div>
+            <div class="table-container">
+                <table id="resultsTable" style="display: none;">
+                    <thead>
+                        <tr>
+                            <th>条码</th>
+                            <th>货位</th>
+                            <th>状态</th>
+                            <th>时间</th>
+                            <th>作业者</th>
+                            <th>货位记录</th>
+                            <th>入库顺序</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="summaryTab" class="tab-content">
+        <div class="filter-section">
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="filterLocation">货位:</label>
+                    <input type="text" id="filterLocation" placeholder="输入货位">
+                </div>
+                <div class="filter-group">
+                    <label for="filterCountMin">货位样品数量最小:</label>
+                    <input type="number" id="filterCountMin" placeholder="最小数量">
+                </div>
+                <div class="filter-group">
+                    <label for="filterCountMax">货位样品数量最大:</label>
+                    <input type="number" id="filterCountMax" placeholder="最大数量">
+                </div>
+                <div class="filter-group">
+                    <label for="filterTimeMin">最早入库时间:</label>
+                    <input type="datetime-local" id="filterTimeMin">
+                </div>
+                <div class="filter-group">
+                    <label for="filterTimeMax">最晚入库时间:</label>
+                    <input type="datetime-local" id="filterTimeMax">
+                </div>
+            </div>
+            <button class="submit-button" onclick="executeStatistics()">统计</button>
+        </div>
+        
+        <div id="summaryContainer"></div> <!-- 统计表格容器 -->
+    </div>
+
+    <script>
+        let databaseData = null;
+        const DATABASE_NAME = 'db_gore';
+        const TABLE_NAME = 'lab_warehouse';
+
+        // 页面加载时初始化
+        window.onload = async function() {
+            // 聚焦到搜索框
+            document.getElementById('queryBarcodes').focus();
+            
+            // 添加键盘快捷键
+            document.getElementById('queryBarcodes').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    queryItems();
+                }
+            });
+
+            // 从数据库加载数据
+            await loadDataFromDatabase();
+        };
+
+        // 从数据库加载数据
+        async function loadDataFromDatabase() {
+            showLoadingIndicator();
+            try {
+                const response = await fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    databaseData = result.data;
+                    console.log('数据加载成功，共', databaseData.length, '条记录');
+                } else {
+                    console.error('数据加载失败:', result.error);
+                    alert('数据加载失败: ' + result.error);
+                }
+            } catch (error) {
+                console.error('数据库连接错误:', error);
+                alert('无法连接到数据库，请稍后重试');
+            } finally {
+                hideLoadingIndicator();
+            }
+        }
+
+        // 显示加载指示器
+        function showLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
+
+        // 隐藏加载指示器
+        function hideLoadingIndicator() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        // 清除搜索框
+        function clearSearch() {
+            document.getElementById('queryBarcodes').value = '';
+            document.getElementById('queryBarcodes').focus();
+        }
+
+        // 获取最新记录
+        function getLatestRecords(data, barcodeList) {
+            const groupedRecords = {};
+            data.filter(item => barcodeList.includes(item['条码'])).forEach(item => {
+                const barcode = item['条码'];
+                if (!groupedRecords[barcode] || 
+                    new Date(item['时间']) > new Date(groupedRecords[barcode]['时间'])) {
+                    groupedRecords[barcode] = item;
+                }
+            });
+            return Object.values(groupedRecords);
+        }
+
+        // 查找未找到的条码
+        function findMissingBarcodes(searchedBarcodes, foundResults) {
+            const foundBarcodes = foundResults.map(result => result['条码']);
+            return searchedBarcodes.filter(barcode => !foundBarcodes.includes(barcode));
+        }
+
+        // 计算每个货位的总记录数
+        function calculateTotalRecords(data) {
+            const totals = {};
+
+            data.forEach(item => {
+                const location = item['货位'];
+                if (!totals[location]) {
+                    totals[location] = { total: 0, out: 0 };
+                }
+                totals[location].total += 1;
+                if (item['状态'] === '出') {
+                    totals[location].out += 1;
+                }
+            });
+
+            return totals;
+        }
+
+        // 计算每个条码在货位中的位置
+        function calculateBarcodePosition(data) {
+            const positions = {};
+
+            data.forEach(item => {
+                const location = item['货位'];
+                const barcode = item['条码'];
+                const status = item['状态'];
+
+                if (!positions[location]) {
+                    positions[location] = {};
+                }
+
+                // 只记录状态不是'出'的条码位置
+                if (status !== '出' && !positions[location][barcode]) {
+                    positions[location][barcode] = Object.keys(positions[location]).length + 1; // 1-based index
+                }
+            });
+
+            return positions;
+        }
+
+        // 查询样品
+        async function queryItems() {
+            const barcodes = document.getElementById('queryBarcodes').value.trim();
+            if (!barcodes) {
+                alert('请输入样品条码');
+                return;
+            }
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
+
+            document.getElementById('queryLoading').style.display = 'inline';
+            
+            try {
+                let barcodeList = barcodes.split(/[\s,]+/).filter(code => code.length > 0);
+                let showAll = document.getElementById('showAllRecords').checked;
+
+                // 计算每个货位的总记录数
+                const totalRecords = calculateTotalRecords(databaseData);
+                // 计算每个条码在货位中的位置
+                const barcodePositions = calculateBarcodePosition(databaseData);
+
+                let results = showAll ? 
+                    databaseData.filter(item => barcodeList.includes(item['条码']))
+                        .sort((a, b) => new Date(b['时间']) - new Date(a['时间'])) :
+                    getLatestRecords(databaseData, barcodeList);
+                
+                const missingBarcodes = findMissingBarcodes(barcodeList, results);
+                displayResults(results, missingBarcodes, totalRecords, barcodePositions);
+            } catch (error) {
+                console.error('查询错误:', error);
+                alert('查询出错，请重试');
+            } finally {
+                document.getElementById('queryLoading').style.display = 'none';
+            }
+        }
+
+        // 显示查询结果
+        function displayResults(results, missingBarcodes, totalRecords, barcodePositions) {
+            let table = document.getElementById('resultsTable');
+            let tbody = document.getElementById('resultsBody');
+            let noResults = document.getElementById('noResults');
+            let missingBarcodesDiv = document.getElementById('missingBarcodes');
+            let missingBarcodesList = document.getElementById('missingBarcodesList');
+            
+            tbody.innerHTML = '';
+            missingBarcodesList.innerHTML = '';
+
+            if (results.length === 0) {
+                table.style.display = 'none';
+                noResults.style.display = 'block';
+                missingBarcodesDiv.style.display = 'none';
+                return;
+            }
+
+            // 如果有未找到的条码，显示它们
+            if (missingBarcodes.length > 0) {
+                missingBarcodes.forEach(barcode => {
+                    const li = document.createElement('li');
+                    li.textContent = barcode;
+                    missingBarcodesList.appendChild(li);
+                });
+                missingBarcodesDiv.style.display = 'block';
+            } else {
+                missingBarcodesDiv.style.display = 'none';
+            }
+
+            noResults.style.display = 'none';
+            results.forEach(result => {
+                let row = tbody.insertRow();
+                ['条码', '货位', '状态', '时间', '作业者'].forEach(key => {
+                    let cell = row.insertCell();
+                    cell.textContent = result[key] || '';
+                });
+
+                // 添加货位的总记录数
+                const location = result['货位'];
+                const total = totalRecords[location] ? totalRecords[location].total : 0;
+                const out = totalRecords[location] ? totalRecords[location].out : 0;
+                const inCount = total - out; // 计算入库数量
+                const remaining = inCount - out; // 计算剩余数量
+
+                let totalCell = row.insertCell();
+                totalCell.textContent = `入: ${inCount}, 出: ${out}, 剩下: ${remaining}`;
+                
+                // 添加入库顺序（仅当状态不是'出'时）
+                const barcode = result['条码'];
+                const status = result['状态'];
+                let positionCell = row.insertCell();
+                if (status !== '出') {
+                    const position = barcodePositions[location] && barcodePositions[location][barcode] ? barcodePositions[location][barcode] : 'N/A';
+                    positionCell.textContent = position;
+                } else {
+                    positionCell.textContent = '';
+                }
+            });
+
+            table.style.display = 'table';
+        }
+
+        // 统计数据
+        function summarizeData() {
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
+
+            // 获取过滤值
+            const filterLocation = document.getElementById('filterLocation').value.trim();
+            const filterCountMin = parseInt(document.getElementById('filterCountMin').value) || 0;
+            const filterCountMax = parseInt(document.getElementById('filterCountMax').value) || Infinity;
+            const filterTimeMin = document.getElementById('filterTimeMin').value ? new Date(document.getElementById('filterTimeMin').value) : new Date(0);
+            const filterTimeMax = document.getElementById('filterTimeMax').value ? new Date(document.getElementById('filterTimeMax').value) : new Date();
+
+            // 计算统计数据
+            const summary = {};
+            
+            databaseData.forEach(item => {
+                const location = item['货位'];
+                const status = item['状态'];
+                const time = new Date(item['时间']);
+
+                // 应用过滤器
+                if ((filterLocation && location !== filterLocation) ||
+                    (time < filterTimeMin || time > filterTimeMax)) {
+                    return; // 如果不匹配过滤器，则跳过此项
+                }
+
+                if (!summary[location]) {
+                    summary[location] = { count: 0, minTime: time, maxTime: time };
+                }
+
+                // 计算条码数量（总记录数减去2倍的'出'状态记录）
+                summary[location].count += 1;
+                if (status === '出') {
+                    summary[location].count -= 2; // 调整'出'状态的计数
+                }
+            });
+
+            // 根据数量范围过滤
+            for (const location in summary) {
+                const { count, minTime, maxTime } = summary[location];
+                if (count < filterCountMin || count > filterCountMax) {
+                    delete summary[location]; // 如果不匹配数量过滤器，则从统计中移除
+                } else {
+                    summary[location].minTime = minTime;
+                    summary[location].maxTime = maxTime;
+                }
+            }
+
+            // 显示统计结果
+            displaySummary(summary);
+        }
+
+        // 显示统计结果
+        function displaySummary(summary) {
+            let summaryContainer = document.getElementById('summaryContainer');
+            summaryContainer.innerHTML = ''; // 清除现有内容
+
+            if (Object.keys(summary).length === 0) {
+                summaryContainer.innerHTML = '<div class="no-results">没有找到符合条件的货位记录</div>';
+                return;
+            }
+
+            let summaryTable = document.createElement('table');
+            summaryTable.style.width = '100%';
+            summaryTable.style.borderCollapse = 'collapse';
+            summaryTable.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>货位 <button onclick="sortSummary('location', 'asc')">↑</button><button onclick="sortSummary('location', 'desc')">↓</button></th>
+                        <th>条码数量 <button onclick="sortSummary('count', 'asc')">↑</button><button onclick="sortSummary('count', 'desc')">↓</button></th>
+                        <th>最早时间 <button onclick="sortSummary('minTime', 'asc')">↑</button><button onclick="sortSummary('minTime', 'desc')">↓</button></th>
+                        <th>最晚时间 <button onclick="sortSummary('maxTime', 'asc')">↑</button><button onclick="sortSummary('maxTime', 'desc')">↓</button></th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+            summaryContainer.appendChild(summaryTable);
+
+            // 填充统计表格
+            for (const location in summary) {
+                const { count, minTime, maxTime } = summary[location];
+                summaryTable.querySelector('tbody').innerHTML += `
+                    <tr>
+                        <td>${location}</td>
+                        <td>${count}</td>
+                        <td>${minTime.toLocaleString()}</td>
+                        <td>${maxTime.toLocaleString()}</td>
+                    </tr>
+                `;
+            }
+        }
+
+        let currentSortColumn = null;
+        let currentSortOrder = 'asc';
+
+        // 排序统计结果
+        function sortSummary(column, order) {
+            const summaryTable = document.querySelector('#summaryContainer table');
+            if (!summaryTable) return;
+
+            const tbody = summaryTable.querySelector('tbody');
+            const rows = Array.from(tbody.rows);
+
+            // 根据选定的列和顺序排序行
+            rows.sort((a, b) => {
+                let aValue, bValue;
+
+                if (column === 'location') {
+                    aValue = a.cells[0].textContent; // 货位
+                    bValue = b.cells[0].textContent;
+                    return order === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+                } else if (column === 'count') {
+                    aValue = parseInt(a.cells[1].textContent); // 条码数量
+                    bValue = parseInt(b.cells[1].textContent);
+                    return order === 'asc' ? aValue - bValue : bValue - aValue;
+                } else if (column === 'minTime' || column === 'maxTime') {
+                    aValue = new Date(a.cells[column === 'minTime' ? 2 : 3].textContent); // 最早时间 or 最晚时间
+                    bValue = new Date(b.cells[column === 'minTime' ? 2 : 3].textContent);
+                    return order === 'asc' ? aValue - bValue : bValue - aValue;
+                }
+            });
+
+            // 清除现有的tbody并追加排序后的行
+            tbody.innerHTML = '';
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // 显示标签页
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.style.display = 'none'; // 隐藏所有标签页
+            });
+            document.getElementById(tabName).style.display = 'block'; // 显示选定的标签页
+
+            // 切换到查询标签页时清除统计容器
+            if (tabName === 'queryTab') {
+                document.getElementById('summaryContainer').innerHTML = '';
+            }
+        }
+
+        // 执行统计
+        function executeStatistics() {
+            // 显示加载指示器
+            document.getElementById('loadingIndicator').style.display = 'block';
+
+            // 模拟统计执行（替换为实际函数）
+            setTimeout(() => {
+                // 统计逻辑
+                summarizeData();
+
+                // 执行后隐藏加载指示器
+                document.getElementById('loadingIndicator').style.display = 'none';
+            }, 500); // 模拟500毫秒加载时间
+        }
+    </script>
+</body>
+</html>
