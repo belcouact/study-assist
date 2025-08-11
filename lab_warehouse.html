@@ -500,9 +500,8 @@
                         tbody.appendChild(tr);
                     });
 
-                    previewContainer.style.display = 'block';
-                    showStatus('success', `已预览 ${Math.min(10, data.length)} 条数据，共 ${data.length} 条记录`);
-                    uploadBtn.disabled = false;
+                    // 自动上传，无需预览
+                    uploadBtn.click();
                 } catch (error) {
                     showStatus('error', '预览数据失败：' + error.message);
                     console.error('Preview Error:', error);
@@ -514,8 +513,19 @@
                 const selectedDatabase = databaseSelect.value || 'default';
                 const selectedTable = tableSelect.value;
                 
-                if (!currentData || !selectedTable) {
-                    showStatus('error', '没有可上传的数据');
+                if (!fileInput.files[0] || !selectedTable) {
+                    showStatus('error', '请选择数据表和文件');
+                    return;
+                }
+
+                // 直接从文件读取数据
+                let currentData = null;
+                try {
+                    showStatus('info', '正在读取文件数据...');
+                    currentData = await readExcelFile(fileInput.files[0]);
+                } catch (error) {
+                    showStatus('error', '读取文件失败：' + error.message);
+                    console.error('File Read Error:', error);
                     return;
                 }
 
@@ -671,7 +681,7 @@
                 
                 fileInput.disabled = !tableSelected;
                 previewBtn.disabled = !tableSelected || !fileSelected;
-                uploadBtn.disabled = true; // Only enabled after successful preview
+                uploadBtn.disabled = !tableSelected || !fileSelected; // 选择表和文件后启用上传
             }
 
             function resetPreview() {
