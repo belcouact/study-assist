@@ -56,7 +56,9 @@ async function handleRequest(request) {
   try {
     const url = new URL(request.url)
     const database = url.searchParams.get('database') || 'default'
+    const table = url.searchParams.get('table') || 'lab_warehouse'
     const batchSize = parseInt(url.searchParams.get('batchSize')) || 50
+    console.log('Upload parameters:', { database, table, batchSize })
 
     // Parse JSON data from request body
     const body = await request.json()
@@ -98,7 +100,7 @@ async function handleRequest(request) {
     })
 
     // Store data in KV
-    const result = await storeInDatabase(data, database, batchSize)
+    const result = await storeInDatabase(data, database, table, batchSize)
     
     return new Response(JSON.stringify({
       success: true,
@@ -127,18 +129,19 @@ async function handleRequest(request) {
   }
 }
 
-async function storeInDatabase(data, database, batchSize) {
+async function storeInDatabase(data, database, table, batchSize) {
   const startTime = Date.now()
   let insertedCount = 0
   let deletedCount = 0
   let invalidRecords = 0
 
   console.log('Storing data:', {
-    dataLength: data.length,
-    database,
-    batchSize,
-    dataType: typeof data
-  })
+      dataLength: data.length,
+      database,
+      table,
+      batchSize,
+      dataType: typeof data
+    })
 
   try {
     // Get KV namespace
@@ -149,7 +152,7 @@ async function storeInDatabase(data, database, batchSize) {
     }
 
     // Clear existing data for this database
-    const existingKeys = await DATA_KV.list({ prefix: `${database}:` })
+    const existingKeys = await DATA_KV.list({ prefix: `${database}:${table}:` })
     if (existingKeys.keys.length > 0) {
       await DATA_KV.delete(existingKeys.keys.map(k => k.name))
       deletedCount = existingKeys.keys.length
@@ -172,7 +175,7 @@ async function storeInDatabase(data, database, batchSize) {
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex]
-      const key = `${database}:batch_${batchIndex}`
+      const key = `${database}:${table}:batch_${batchIndex}`
       await DATA_KV.put(key, JSON.stringify(batch))
       insertedCount += batch.length
     }
@@ -182,7 +185,9 @@ async function storeInDatabase(data, database, batchSize) {
       insertedCount,
       deletedCount,
       invalidRecords,
-      duration: `${duration}ms`
+      duration: `${duration}ms`,
+      database,
+      table
     })
 
     return {

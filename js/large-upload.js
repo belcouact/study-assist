@@ -21,12 +21,15 @@ class LargeDatasetUploader {
      * @returns {Promise<Object>} Upload result
      */
     async upload(data, options = {}) {
+        console.log('Starting upload process with options:', options);
         const {
             database = 'db_gore',
+            table = 'lab_warehouse',
             batchSize = this.chunkSize,
             skipClear = false,
             showProgress = true
         } = options;
+        console.log('Upload configuration:', { database, table, batchSize, dataLength: data.length });
 
         try {
             if (!Array.isArray(data) || data.length === 0) {
@@ -42,6 +45,7 @@ class LargeDatasetUploader {
             if (validation.warnings.length > 0) {
                 console.warn('Data validation warnings:', validation.warnings);
             }
+            console.log('Data validation completed. Ready to upload:', { rowCount: validation.rowCount });
 
             const totalRows = data.length;
             let uploadedRows = 0;
@@ -136,22 +140,33 @@ class LargeDatasetUploader {
 
                 // 增强日志记录，显示更多数据详情
                 console.log('Table name:', table || 'default_table');
-                console.log('Sending upload data:', {
+                console.log('Preparing to send upload data:', {
                     dataLength: data.length,
                     database,
+                    table,
                     batchSize,
                     endpoint: this.endpoint,
-                    sampleData: data.length > 0 ? JSON.stringify(data[0]) : 'No data',
-                    fullDataPreview: data.length > 0 ? JSON.stringify(data.slice(0, 3)) : 'No data',
                     dataType: Array.isArray(data) ? 'Array' : typeof data,
                     uploadDataSize: new Blob([JSON.stringify(uploadData)]).size + ' bytes'
                 });
+                console.log('First 3 rows preview:', data.length > 0 ? JSON.stringify(data.slice(0, 3)) : 'No data');
                 
                 // 验证数据是否存在
                 if (!data || data.length === 0) {
                     console.error('Attempting to upload empty data!');
                 }
 
+                console.log('Sending fetch request to:', `${this.endpoint}?database=${database}&batchSize=${batchSize}`);
+                console.log('Fetch request options:', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    bodySize: uploadData ? new Blob([JSON.stringify(uploadData)]).size + ' bytes' : '0 bytes',
+                    timeout: '60000ms',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
                 const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
                     method: 'POST',
                     headers: {
@@ -162,6 +177,7 @@ class LargeDatasetUploader {
                     mode: 'cors',
                     credentials: 'omit'
                 });
+                console.log('Received response:', { status: response.status, statusText: response.statusText });
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -170,7 +186,10 @@ class LargeDatasetUploader {
                 }
 
                 const result = await response.json();
+                console.log('Response JSON:', result);
                 console.log('Upload success:', result);
+                console.log('Server processed records:', result.details?.recordsProcessed);
+                console.log('Server stored records:', result.details?.database?.recordsStored);
                 
                 // Verify upload result
                 if (!result.details || typeof result.details.recordsProcessed !== 'number') {
