@@ -55,7 +55,7 @@ class LargeDatasetUploader {
             const result = await this.uploadWithRetry(data, database, showProgress);
             
             if (result.success) {
-                uploadedRows = result.details.insertedCount || 0;
+                uploadedRows = result.details.recordsProcessed || 0;
                 
                 if (showProgress) {
                     this.updateProgress(100, totalRows, '上传完成');
