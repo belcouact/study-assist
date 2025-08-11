@@ -60,7 +60,11 @@ class LargeDatasetUploader {
             const result = await this.uploadWithRetry(data, database, options.table, showProgress);
             
             if (result.success) {
-                uploadedRows = result.details.recordsProcessed || 0;
+                // 调试recordsProcessed值
+                console.log('Debug: result.details:', result.details);
+                console.log('Debug: result.details.recordsProcessed:', result.details.recordsProcessed);
+                uploadedRows = typeof result.details.recordsProcessed === 'number' ? result.details.recordsProcessed : 0;
+                console.log('Debug: uploadedRows set to:', uploadedRows);
                 
                 if (showProgress) {
                     this.updateProgress(100, totalRows, '上传完成');
