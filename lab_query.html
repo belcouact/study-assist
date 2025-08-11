@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>戈尔实验室样品管理系统</title>
@@ -271,7 +272,17 @@
                 <input type="file" id="uploadFile" accept=".xlsx, .xls">
             </div>
             <div id="upload-status" class="status"></div>
+            <button class="submit-button" id="previewBtn" disabled>预览数据</button>
             <button class="submit-button" id="uploadBtn" disabled>上传到数据库</button>
+            <div id="previewContainer" style="display: none; margin-top: 20px;">
+                <h4>数据预览 (前10行)</h4>
+                <div class="table-container">
+                    <table id="previewTable" border="1">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -690,18 +701,25 @@
         // 初始化上传功能
         function initUpload() {
             uploadFileInput = document.getElementById('uploadFile');
+            previewBtn = document.getElementById('previewBtn');
             uploadBtn = document.getElementById('uploadBtn');
             uploadStatus = document.getElementById('upload-status');
+            previewContainer = document.getElementById('previewContainer');
+            previewTable = document.getElementById('previewTable');
 
             // 文件选择事件监听
             uploadFileInput.addEventListener('change', updateUploadButtonState);
+            // 预览按钮点击事件
+            previewBtn.addEventListener('click', previewData);
             // 上传按钮点击事件
             uploadBtn.addEventListener('click', uploadData);
         }
 
         // 更新上传按钮状态
         function updateUploadButtonState() {
-            uploadBtn.disabled = !uploadFileInput.files.length;
+            const hasFile = !!uploadFileInput.files.length;
+            previewBtn.disabled = !hasFile;
+            uploadBtn.disabled = !hasFile;
         }
 
         // 显示上传状态
@@ -733,6 +751,67 @@
                 
                 reader.readAsArrayBuffer(file);
             });
+        }
+
+        // 预览数据
+        async function previewData() {
+            const file = uploadFileInput.files[0];
+            if (!file) {
+                showUploadStatus('error', '请选择Excel文件');
+                return;
+            }
+
+            try {
+                previewBtn.classList.add('loading');
+                showUploadStatus('info', '正在读取文件数据...');
+
+                const data = await readExcelFile(file);
+                displayPreview(data);
+
+                showUploadStatus('success', `已预览 ${Math.min(10, data.length)} 条数据，共 ${data.length} 条记录`);
+            } catch (error) {
+                showUploadStatus('error', '预览数据失败：' + error.message);
+                console.error('Preview Error:', error);
+            } finally {
+                previewBtn.classList.remove('loading');
+            }
+        }
+
+        // 显示数据预览
+        function displayPreview(data) {
+            // 清空之前的预览
+            previewTable.querySelector('thead').innerHTML = '';
+            previewTable.querySelector('tbody').innerHTML = '';
+
+            if (data.length === 0) {
+                previewContainer.style.display = 'block';
+                showUploadStatus('info', '文件中没有数据');
+                return;
+            }
+
+            // 创建表头
+            const headers = Object.keys(data[0]);
+            const headerRow = document.createElement('tr');
+            headers.forEach(header => {
+                const th = document.createElement('th');
+                th.textContent = header;
+                headerRow.appendChild(th);
+            });
+            previewTable.querySelector('thead').appendChild(headerRow);
+
+            // 添加数据行（最多10行）
+            const rowsToShow = Math.min(10, data.length);
+            for (let i = 0; i < rowsToShow; i++) {
+                const row = document.createElement('tr');
+                headers.forEach(header => {
+                    const td = document.createElement('td');
+                    td.textContent = data[i][header] || '';
+                    row.appendChild(td);
+                });
+                previewTable.querySelector('tbody').appendChild(row);
+            }
+
+            previewContainer.style.display = 'block';
         }
 
         // 上传数据到数据库
