@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>实验室样品管理系统</title>
+    <title>戈尔实验室样品管理系统</title>
     <style>
         /* 基础样式和移动优先设计 */
         body {
@@ -216,6 +216,7 @@
     <div class="tab-buttons">
         <button class="tab-button active" onclick="showTab('queryTab')">查询</button>
         <button class="tab-button" onclick="showTab('summaryTab')">统计</button>
+        <button class="tab-button" onclick="showTab('uploadTab')">上传</button>
     </div>
 
     <div id="queryTab" class="tab-content active">
@@ -259,6 +260,18 @@
                     <tbody id="resultsBody"></tbody>
                 </table>
             </div>
+        </div>
+    </div>
+
+    <div id="uploadTab" class="tab-content">
+        <div class="file-section">
+            <h3>数据上传</h3>
+            <div class="form-group">
+                <label for="uploadFile">选择Excel文件:</label>
+                <input type="file" id="uploadFile" accept=".xlsx, .xls">
+            </div>
+            <div id="upload-status" class="status"></div>
+            <button class="submit-button" id="uploadBtn" disabled>上传到数据库</button>
         </div>
     </div>
 
@@ -669,6 +682,120 @@
                 document.getElementById('loadingIndicator').style.display = 'none';
             }, 500); // 模拟500毫秒加载时间
         }
+            // 文件上传相关变量和函数
+        let uploadFileInput;
+        let uploadBtn;
+        let uploadStatus;
+
+        // 初始化上传功能
+        function initUpload() {
+            uploadFileInput = document.getElementById('uploadFile');
+            uploadBtn = document.getElementById('uploadBtn');
+            uploadStatus = document.getElementById('upload-status');
+
+            // 文件选择事件监听
+            uploadFileInput.addEventListener('change', updateUploadButtonState);
+            // 上传按钮点击事件
+            uploadBtn.addEventListener('click', uploadData);
+        }
+
+        // 更新上传按钮状态
+        function updateUploadButtonState() {
+            uploadBtn.disabled = !uploadFileInput.files.length;
+        }
+
+        // 显示上传状态
+        function showUploadStatus(type, message) {
+            uploadStatus.className = `status ${type}`;
+            uploadStatus.textContent = message;
+        }
+
+        // 读取Excel文件
+        async function readExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+                        resolve(jsonData);
+                    } catch (error) {
+                        reject(new Error('Excel文件解析失败: ' + error.message));
+                    }
+                };
+                
+                reader.onerror = function(error) {
+                    reject(new Error('文件读取失败: ' + error));
+                };
+                
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // 上传数据到数据库
+        async function uploadData() {
+            const file = uploadFileInput.files[0];
+            if (!file) {
+                showUploadStatus('error', '请选择Excel文件');
+                return;
+            }
+
+            try {
+                uploadBtn.classList.add('loading');
+                uploadBtn.disabled = true;
+                showUploadStatus('info', '正在读取并上传数据...');
+
+                // 直接读取并上传，无需预览
+                const data = await readExcelFile(file);
+                const response = await fetch(`/api/db/upload/${TABLE_NAME}?database=${DATABASE_NAME}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data: data, database: DATABASE_NAME })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showUploadStatus('success', `成功上传 ${result.insertedCount || data.length} 条记录`);
+                    // 上传成功后重置文件输入
+                    uploadFileInput.value = '';
+                    updateUploadButtonState();
+                } else {
+                    throw new Error(result.error || '上传失败');
+                }
+            } catch (error) {
+                showUploadStatus('error', '上传失败：' + error.message);
+                console.error('Upload Error:', error);
+            } finally {
+                uploadBtn.classList.remove('loading');
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // 页面加载完成后初始化上传功能
+        window.addEventListener('load', function() {
+            initUpload();
+        });
+
+        // 显示标签页时的处理
+        function showTab(tabName) {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => {
+                tab.style.display = 'none'; // 隐藏所有标签页
+            });
+            document.getElementById(tabName).style.display = 'block'; // 显示选定的标签页
+
+            // 切换到查询标签页时清除统计容器
+            if (tabName === 'queryTab') {
+                document.getElementById('summaryContainer').innerHTML = '';
+            }
+        }
+
     </script>
 </body>
 </html>
