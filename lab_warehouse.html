@@ -579,32 +579,61 @@
                     uploadBtn.disabled = true;
                     showStatus('info', '正在上传数据...');
 
-                    // Use large dataset uploader
-                    const uploader = new LargeDatasetUploader({
-                        endpoint: 'https://lab-upload.study-llm.me/upload',
-                        chunkSize: 50, // Smaller chunks for better progress tracking
-                        maxRetries: 3,
-                        onProgress: (progress) => {
-                            const progressBar = progressContainer.querySelector('.upload-progress-bar');
-                            const progressText = progressContainer.querySelector('.upload-progress-text');
-                            
-                            if (progressBar) {
-                                progressBar.style.width = `${progress.percentage}%`;
-                            }
-                            if (progressText) {
-                                progressText.textContent = `${progress.message} (${progress.current}/${progress.total})`;
-                            }
-                        }
+                    // Normal Excel data upload
+                    const uploadData = {
+                        data: currentData,
+                        database: selectedDatabase,
+                        table: selectedTable,
+                        filename: 'uploaded_data.json'
+                    };
+
+                    console.log('Sending upload data:', {
+                        dataLength: currentData.length,
+                        database: selectedDatabase,
+                        table: selectedTable,
+                        endpoint: 'https://lab-upload.study-llm.me/upload'
                     });
 
-                    const result = await uploader.upload(currentData, {
-                            database: selectedDatabase,
-                            table: selectedTable,
-                            batchSize: 50
-                        });
+                    // Update progress to 30% as we start uploading
+                    const progressBar = progressContainer.querySelector('.upload-progress-bar');
+                    const progressText = progressContainer.querySelector('.upload-progress-text');
+                    if (progressBar) {
+                        progressBar.style.width = '30%';
+                    }
+                    if (progressText) {
+                        progressText.textContent = `正在上传 ${currentData.length} 条数据...`;
+                    }
+
+                    const response = await fetch('https://lab-upload.study-llm.me/upload', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(uploadData),
+                        signal: AbortSignal.timeout(60000)
+                    });
+
+                    // Update progress to 80% after receiving response
+                    if (progressBar) {
+                        progressBar.style.width = '80%';
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`上传失败: HTTP ${response.status} - ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+
+                    // Update progress to 100% on success
+                    if (progressBar) {
+                        progressBar.style.width = '100%';
+                    }
+                    if (progressText) {
+                        progressText.textContent = '上传完成';
+                    }
 
                     if (result.success) {
-                        const message = `数据上传成功！共上传${result.details.database?.recordsStored || 0}条数据到${selectedDatabase}数据库的${selectedTable}表。`;
+                        const message = `数据上传成功！共上传${result.recordsStored || currentData.length}条数据到${selectedDatabase}数据库的${selectedTable}表。`;
                         showStatus('success', message);
                         alert(message);
                         resetPreview();
