@@ -400,7 +400,7 @@
         const TABLE_NAME = 'lab_warehouse';
 
         // 页面加载时初始化
-        window.onload = function() {
+        window.onload = async function() {
             // 聚焦到搜索框
             document.getElementById('queryBarcodes').focus();
             
@@ -411,72 +411,27 @@
                 }
             });
 
-            // 初始化上传功能
-            initUpload();
+            // 从数据库加载数据
+            await loadDataFromDatabase();
         };
 
-        // 按需从数据库加载数据 - 查询功能
-        async function queryFromDatabase(barcodeList, showAll = false) {
+        // 从数据库加载数据
+        async function loadDataFromDatabase() {
             showLoadingIndicator();
             try {
-                const response = await fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        barcodes: barcodeList,
-                        showAll: showAll
-                    })
-                });
+                const response = await fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`);
                 const result = await response.json();
                 
                 if (result.success) {
-                    return {
-                        results: result.data.results,
-                        missingBarcodes: result.data.missingBarcodes,
-                        totalRecords: result.data.totalRecords,
-                        barcodePositions: result.data.barcodePositions
-                    };
+                    databaseData = result.data;
+                    console.log('数据加载成功，共', databaseData.length, '条记录');
                 } else {
-                    console.error('数据查询失败:', result.error);
-                    alert('数据查询失败: ' + result.error);
-                    return null;
+                    console.error('数据加载失败:', result.error);
+                    alert('数据加载失败: ' + result.error);
                 }
             } catch (error) {
                 console.error('数据库连接错误:', error);
                 alert('无法连接到数据库，请稍后重试');
-                return null;
-            } finally {
-                hideLoadingIndicator();
-            }
-        }
-
-        // 按需从数据库加载数据 - 统计功能
-        async function statisticsFromDatabase(filters) {
-            showLoadingIndicator();
-            try {
-                // 修改API路径以匹配后端支持的格式
-                const response = await fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ action: 'statistics', filters: filters })
-                });
-                const result = await response.json();
-                
-                if (result.success) {
-                    return result.data;
-                } else {
-                    console.error('统计数据获取失败:', result.error);
-                    alert('统计数据获取失败: ' + result.error);
-                    return null;
-                }
-            } catch (error) {
-                console.error('数据库连接错误:', error);
-                alert('无法连接到数据库，请稍后重试');
-                return null;
             } finally {
                 hideLoadingIndicator();
             }
@@ -564,6 +519,10 @@
                 alert('请输入样品条码');
                 return;
             }
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
 
             document.getElementById('queryLoading').style.display = 'inline';
             
@@ -571,16 +530,18 @@
                 let barcodeList = barcodes.split(/[\s,]+/).filter(code => code.length > 0);
                 let showAll = document.getElementById('showAllRecords').checked;
 
-                // 从服务器查询数据
-                const result = await queryFromDatabase(barcodeList, showAll);
-                if (result) {
-                    displayResults(
-                        result.results,
-                        result.missingBarcodes,
-                        result.totalRecords,
-                        result.barcodePositions
-                    );
-                }
+                // 计算每个货位的总记录数
+                const totalRecords = calculateTotalRecords(databaseData);
+                // 计算每个条码在货位中的位置
+                const barcodePositions = calculateBarcodePosition(databaseData);
+
+                let results = showAll ? 
+                    databaseData.filter(item => barcodeList.includes(item['条码']))
+                        .sort((a, b) => new Date(b['时间']) - new Date(a['时间'])) :
+                    getLatestRecords(databaseData, barcodeList);
+                
+                const missingBarcodes = findMissingBarcodes(barcodeList, results);
+                displayResults(results, missingBarcodes, totalRecords, barcodePositions);
             } catch (error) {
                 console.error('查询错误:', error);
                 alert('查询出错，请重试');
@@ -591,10 +552,6 @@
 
         // 显示查询结果
         function displayResults(results, missingBarcodes, totalRecords, barcodePositions) {
-            // 确保results是数组，防止undefined错误
-            if (!Array.isArray(results)) {
-                results = [];
-            }
             let table = document.getElementById('resultsTable');
             let tbody = document.getElementById('resultsBody');
             let noResults = document.getElementById('noResults');
@@ -657,28 +614,58 @@
         }
 
         // 统计数据
-        async function summarizeData() {
+        function summarizeData() {
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
+
             // 获取过滤值
             const filterLocation = document.getElementById('filterLocation').value.trim();
             const filterLocationList = filterLocation ? filterLocation.split(/[\s,]+/).filter(loc => loc.length > 0) : [];
             const filterCountMin = parseInt(document.getElementById('filterCountMin').value) || 0;
             const filterCountMax = parseInt(document.getElementById('filterCountMax').value) || Infinity;
-            const filterTimeMin = document.getElementById('filterTimeMin').value ? document.getElementById('filterTimeMin').value : '';
-            const filterTimeMax = document.getElementById('filterTimeMax').value ? document.getElementById('filterTimeMax').value : '';
+            const filterTimeMin = document.getElementById('filterTimeMin').value ? new Date(document.getElementById('filterTimeMin').value) : new Date(0);
+            const filterTimeMax = document.getElementById('filterTimeMax').value ? new Date(document.getElementById('filterTimeMax').value) : new Date();
 
-            // 从服务器获取统计数据
-            const filters = {
-                locations: filterLocationList,
-                countMin: filterCountMin,
-                countMax: filterCountMax,
-                timeMin: filterTimeMin,
-                timeMax: filterTimeMax
-            };
+            // 计算统计数据
+            const summary = {};
+            
+            databaseData.forEach(item => {
+                const location = item['货位'];
+                const status = item['状态'];
+                const time = new Date(item['时间']);
 
-            const summary = await statisticsFromDatabase(filters);
-            if (summary) {
-                displaySummary(summary);
+                // 应用过滤器
+                if ((filterLocationList.length > 0 && !filterLocationList.includes(location)) ||
+                    (time < filterTimeMin || time > filterTimeMax)) {
+                    return; // 如果不匹配过滤器，则跳过此项
+                }
+
+                if (!summary[location]) {
+                    summary[location] = { count: 0, minTime: time, maxTime: time };
+                }
+
+                // 计算条码数量（总记录数减去2倍的'出'状态记录）
+                summary[location].count += 1;
+                if (status === '出') {
+                    summary[location].count -= 2; // 调整'出'状态的计数
+                }
+            });
+
+            // 根据数量范围过滤
+            for (const location in summary) {
+                const { count, minTime, maxTime } = summary[location];
+                if (count < filterCountMin || count > filterCountMax) {
+                    delete summary[location]; // 如果不匹配数量过滤器，则从统计中移除
+                } else {
+                    summary[location].minTime = minTime;
+                    summary[location].maxTime = maxTime;
+                }
             }
+
+            // 显示统计结果
+            displaySummary(summary);
         }
 
         // 显示统计结果
@@ -784,20 +771,18 @@
         }
 
         // 执行统计
-        async function executeStatistics() {
+        function executeStatistics() {
             // 显示加载指示器
             document.getElementById('loadingIndicator').style.display = 'block';
 
-            try {
+            // 模拟统计执行（替换为实际函数）
+            setTimeout(() => {
                 // 统计逻辑
-                await summarizeData();
-            } catch (error) {
-                console.error('统计执行错误:', error);
-                alert('统计执行出错，请重试');
-            } finally {
+                summarizeData();
+
                 // 执行后隐藏加载指示器
                 document.getElementById('loadingIndicator').style.display = 'none';
-            }
+            }, 500); // 模拟500毫秒加载时间
         }
             // 文件上传相关变量和函数
         let uploadFileInput;
