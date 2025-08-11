@@ -160,7 +160,9 @@ class LargeDatasetUploader {
                     console.error('Attempting to upload empty data!');
                 }
 
-                console.log('Sending fetch request to:', `${this.endpoint}?database=${database}&batchSize=${batchSize}`);
+                // 确保table参数被添加到请求URL中
+                const requestUrl = `${this.endpoint}?database=${database}&table=${encodeURIComponent(table || '')}&batchSize=${batchSize}`;
+                console.log('Sending fetch request to:', requestUrl);
                 console.log('Fetch request options:', {
                     method: 'POST',
                     headers: {
@@ -171,7 +173,7 @@ class LargeDatasetUploader {
                     mode: 'cors',
                     credentials: 'omit'
                 });
-                const response = await fetch(`${this.endpoint}?database=${database}&batchSize=${batchSize}`, {
+                const response = await fetch(requestUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
