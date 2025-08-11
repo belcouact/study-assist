@@ -160,6 +160,7 @@ class LargeDatasetUploader {
                     uploadDataSize: new Blob([JSON.stringify(uploadData)]).size + ' bytes'
                 });
                 console.log('First 3 rows preview:', data.length > 0 ? JSON.stringify(data.slice(0, 3)) : 'No data');
+                console.log('Complete uploadData object:', JSON.stringify(uploadData, null, 2));
                 
                 // 验证数据是否存在
                 if (!data || data.length === 0) {

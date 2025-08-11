@@ -135,7 +135,7 @@ async function storeInDatabase(data, database, table, batchSize) {
   let deletedCount = 0
   let invalidRecords = 0
 
-  console.log('Storing data:', {
+  console.log('Storing data in D1:', {
       dataLength: data.length,
       database,
       table,
@@ -144,44 +144,61 @@ async function storeInDatabase(data, database, table, batchSize) {
     })
 
   try {
-    // Get KV namespace
-    const DATA_KV = DATA
+    // Get D1 database client - ensure this matches your Cloudflare Workers D1 binding
+    // The binding name should correspond to your actual D1 database
+    const DB = globalThis[database.toUpperCase()];
+    const d1Database = `cloudflare-d1-${database}`;
     
-    if (!DATA_KV) {
-      throw new Error('KV namespace not available')
+    if (!DB) {
+      throw new Error(`D1 database not available. Ensure D1 binding named "${database.toUpperCase()}" is configured.`)
+    }
+    
+    console.log('Using D1 database binding:', { binding: database.toUpperCase(), database: d1Database });
+
+    // Clear existing data for this table
+    try {
+      const deleteResult = await DB.prepare(`DELETE FROM ${table}`).run();
+      deletedCount = deleteResult.meta.changes;
+      console.log(`Cleared existing data from ${database}.${table}: ${deletedCount} records deleted`);
+    } catch (deleteError) {
+      console.warn(`Warning: Could not clear existing data from ${database}.${table}:`, deleteError.message);
+      // Continue even if delete fails (table might not exist yet)
     }
 
-    // Clear existing data for this database
-    const existingKeys = await DATA_KV.list({ prefix: `${database}:${table}:` })
-    if (existingKeys.keys.length > 0) {
-      await DATA_KV.delete(existingKeys.keys.map(k => k.name))
-      deletedCount = existingKeys.keys.length
-    }
-
-    // Validate and store new data
+    // Validate data
     const validData = data.filter(record => {
-      if (record === null || record === undefined) {
-        invalidRecords++
-        return false
+      if (record === null || record === undefined || typeof record !== 'object') {
+        invalidRecords++;
+        return false;
       }
-      return true
+      return true;
     })
 
     // Store data in batches
-    const batches = []
-    for (let i = 0; i < validData.length; i += batchSize) {
-      batches.push(validData.slice(i, i + batchSize))
-    }
+    if (validData.length > 0) {
+      // Get column names from first valid record
+      const columns = Object.keys(validData[0]);
+      const placeholders = validData.map((_, i) => 
+        `(${columns.map((_, j) => `$${i * columns.length + j + 1}`).join(',')})`
+      ).join(',');
 
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-      const batch = batches[batchIndex]
-      const key = `${database}:${table}:batch_${batchIndex}`
-      await DATA_KV.put(key, JSON.stringify(batch))
-      insertedCount += batch.length
+      // Flatten values for prepared statement
+      const values = validData.flatMap(record => 
+        columns.map(column => record[column])
+      );
+
+      // Create insert statement
+      const insertQuery = `INSERT INTO ${table} (${columns.join(',')}) VALUES ${placeholders}`;
+      console.log(`Executing insert query: ${insertQuery.substring(0, 100)}...`);
+
+      // Execute batch insert
+      const result = await DB.prepare(insertQuery).bind(...values).run();
+      insertedCount = result.meta.changes;
+      console.log(`Inserted ${insertedCount} records into ${database}.${table}`);
     }
 
     const duration = Date.now() - startTime
-    console.log('Storage complete:', {
+    console.log('D1 storage complete:', {
       insertedCount,
       deletedCount,
       invalidRecords,
@@ -195,7 +212,15 @@ async function storeInDatabase(data, database, table, batchSize) {
       deletedCount,
       invalidRecords,
       duration: `${duration}ms`,
-      totalRecords: data.length
+      totalRecords: data.length,
+      database: {
+        name: database,
+        table: table,
+        status: 'active',
+        storageLocation: d1Database,
+        recordsStored: insertedCount,
+        binding: database.toUpperCase()
+      }
     }
 
   } catch (error) {
