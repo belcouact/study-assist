@@ -334,7 +334,7 @@
                 <div class="select-group">
                     <label for="database-select">选择数据库</label>
                     <select id="database-select" class="form-control">
-                        <option value="">-- 请选择数据库 --</option>                        
+                        <option value="">-- 请选择数据库 --</option>
                         <option value="db_gore">db_gore</option>
                     </select>
                 </div>
@@ -362,7 +362,7 @@
             <div class="file-upload">
                 <input type="file" id="data-file" accept=".xlsx,.xls" class="form-control" disabled />
                 <div class="button-row">
-                    <button id="preview-data" class="btn btn-secondary" disabled>预览Excel数据</button>
+                    <button id="preview-data" class="btn btn-secondary" disabled>预览数据</button>
                     <button id="upload-data" class="btn btn-primary" disabled>上传到数据库</button>
                 </div>
             </div>
@@ -383,7 +383,7 @@
         const tableConfigs = {
             lab_warehouse: {
                 name: 'lab_warehouse',
-                columns: ['扫描单', '货位', '条码', '数量', '品名', '状态', '单位', '价格', '品牌', '产地', '时间', '作业者']
+                columns: ['扫描单', '货位', '条码', '数量', '品名', '状态', '单位', '价格', '品牌', '产地', '时间', '作业者', '其他1', '其他2', '其他3', '其他4', '其他5', '其他6', '其他7', '其他8']
             }
         };
 
@@ -426,9 +426,8 @@
                     connectionResult.className = 'status info';
                     connectionResult.innerHTML = '<p>正在测试连接...</p>';
 
-                    const selectedDatabase = databaseSelect.value || 'default';
-                    const selectedTable = tableSelect.value || 'lab_warehouse';
-                    const response = await fetch(`/api/db/test/${selectedTable}?database=${selectedDatabase}`);
+                    const selectedTable = tableSelect.value || 'chinese_dynasty';
+                    const response = await fetch(`/api/db/test/${selectedTable}`);
                     const data = await response.json();
                     
                     if (data.success) {
@@ -436,7 +435,7 @@
                         connectionResult.innerHTML = `
                             <h3>连接成功！</h3>
                             <p>${data.message}</p>
-                            <p>已连接到数据库: ${data.database}</p>
+                            <p>已连接到数据库: ${databaseSelect.value}</p>
                             <p>已连接到表: ${data.table}</p>
                         `;
                     } else {
@@ -496,8 +495,9 @@
                         tbody.appendChild(tr);
                     });
 
-                    // 自动上传，无需预览
-                    uploadBtn.click();
+                    previewContainer.style.display = 'block';
+                    showStatus('success', `已预览 ${Math.min(10, data.length)} 条数据，共 ${data.length} 条记录`);
+                    uploadBtn.disabled = false;
                 } catch (error) {
                     showStatus('error', '预览数据失败：' + error.message);
                     console.error('Preview Error:', error);
@@ -506,157 +506,36 @@
 
             // Upload data handler
             uploadBtn.addEventListener('click', async () => {
-                const selectedDatabase = databaseSelect.value || 'default';
                 const selectedTable = tableSelect.value;
                 
-                if (!fileInput.files[0] || !selectedTable) {
-                    showStatus('error', '请选择数据表和文件');
-                    return;
-                }
-
-                // 直接从文件读取数据
-                let currentData = null;
-                try {
-                    showStatus('info', '正在读取文件数据...');
-                    currentData = await readExcelFile(fileInput.files[0]);
-                } catch (error) {
-                    showStatus('error', '读取文件失败：' + error.message);
-                    console.error('File Read Error:', error);
+                if (!currentData || !selectedTable) {
+                    showStatus('error', '没有可上传的数据');
                     return;
                 }
 
                 try {
-                    // Show progress indicator
-                    const progressContainer = document.createElement('div');
-                    progressContainer.innerHTML = `
-                        <div class="upload-progress-container">
-                            <div class="upload-progress-info">
-                                <div class="upload-progress-bar-container">
-                                    <div class="upload-progress-bar" style="width: 0%"></div>
-                                </div>
-                                <div class="upload-progress-text">准备上传 ${currentData.length} 条数据...</div>
-                            </div>
-                        </div>
-                        <style>
-                            .upload-progress-container {
-                                margin: 20px 0;
-                                padding: 15px;
-                                background: #f8f9fa;
-                                border-radius: 8px;
-                                border: 1px solid #dee2e6;
-                            }
-                            .upload-progress-bar-container {
-                                width: 100%;
-                                height: 8px;
-                                background: #e9ecef;
-                                border-radius: 4px;
-                                overflow: hidden;
-                                margin-bottom: 10px;
-                            }
-                            .upload-progress-bar {
-                                height: 100%;
-                                background: linear-gradient(90deg, #007bff, #0056b3);
-                                transition: width 0.3s ease;
-                            }
-                            .upload-progress-text {
-                                font-size: 14px;
-                                color: #495057;
-                                text-align: center;
-                            }
-                            @media (max-width: 768px) {
-                                .upload-progress-container {
-                                    margin: 10px 0;
-                                    padding: 10px;
-                                }
-                            }
-                        </style>
-                    `;
-                    
-                    // Insert progress indicator
-                    const previewSection = document.getElementById('preview-container');
-                    if (previewSection) {
-                        previewSection.appendChild(progressContainer);
-                    }
-
                     uploadBtn.classList.add('loading');
                     uploadBtn.disabled = true;
                     showStatus('info', '正在上传数据...');
 
-                    // Normal Excel data upload
-                    const uploadData = {
-                        data: currentData,
-                        database: selectedDatabase,
-                        table: selectedTable,
-                        filename: 'uploaded_data.json'
-                    };
-
-                    // Update progress to 30% as we start uploading
-                    const progressBar = progressContainer.querySelector('.upload-progress-bar');
-                    const progressText = progressContainer.querySelector('.upload-progress-text');
-                    if (progressBar) {
-                        progressBar.style.width = '30%';
-                    }
-                    if (progressText) {
-                        progressText.textContent = `正在上传 ${currentData.length} 条数据...`;
-                    }
-
-                    const response = await fetch(`/functions/api/db/upload/${selectedTable}`, {
+                    const response = await fetch(`/api/db/upload/${selectedTable}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(uploadData),
-                        signal: AbortSignal.timeout(60000)
+                        body: JSON.stringify({ data: currentData })
                     });
 
-                    // Update progress to 80% after receiving response
-                    if (progressBar) {
-                        progressBar.style.width = '80%';
-                    }
-
-                    if (!response.ok) {
-                        throw new Error(`上传失败: HTTP ${response.status} - ${response.statusText}`);
-                    }
-
                     const result = await response.json();
-
-                    // Update progress to 100% on success
-                    if (progressBar) {
-                        progressBar.style.width = '100%';
-                    }
-                    if (progressText) {
-                        progressText.textContent = '上传完成';
-                    }
-
+                    
                     if (result.success) {
-                        const message = `数据上传成功！共上传${result.recordsStored || currentData.length}条数据到${selectedDatabase}数据库的${selectedTable}表。`;
-                        showStatus('success', message);
-                        alert(message);
-                        resetPreview();
-                        
-                        // Remove progress indicator
-                        if (progressContainer.parentNode) {
-                            progressContainer.remove();
-                        }
+                        showStatus('success', `成功上传 ${result.insertedCount || currentData.length} 条记录`);
                     } else {
-                        showStatus('error', `上传失败：${result.error}`);
-                        
-                        // Remove progress indicator on error
-                        if (progressContainer.parentNode) {
-                            progressContainer.remove();
-                        }
+                        throw new Error(result.error || '上传失败');
                     }
                 } catch (error) {
                     showStatus('error', '上传失败：' + error.message);
                     console.error('Upload Error:', error);
-                    
-                    // Remove progress indicator on error
-                    const progressContainers = document.querySelectorAll('.upload-progress-container');
-                    progressContainers.forEach(container => {
-                        if (container.parentNode) {
-                            container.remove();
-                        }
-                    });
                 } finally {
                     uploadBtn.classList.remove('loading');
                     uploadBtn.disabled = false;
@@ -670,7 +549,7 @@
                 
                 fileInput.disabled = !tableSelected;
                 previewBtn.disabled = !tableSelected || !fileSelected;
-                uploadBtn.disabled = !tableSelected || !fileSelected; // 选择表和文件后启用上传
+                uploadBtn.disabled = true; // Only enabled after successful preview
             }
 
             function resetPreview() {
