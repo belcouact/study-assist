@@ -198,10 +198,12 @@
             border-bottom: 2px solid transparent;
             font-size: 1rem;
             min-height: 48px;
+            transition: all 0.3s ease;
         }
         .tab-button.active {
-            border-bottom: 2px solid #008CBA;
-            background-color: #f2f2f2;
+            border-bottom: 2px solid #4CAF50;
+            background-color: #4CAF50;
+            color: white;
         }
         .tab-content {
             display: none;
@@ -326,14 +328,19 @@
     </div>
 
     <div id="uploadTab" class="tab-content">
-        <div class="file-section">
+        <div class="file-section" id="uploadArea">
             <h3>数据上传</h3>
-            <div class="form-group">
-                <label for="uploadFile">选择Excel文件:</label>
-                <input type="file" id="uploadFile" accept=".xlsx, .xls">
+            <div class="upload-box">
+                <p>点击或拖拽Excel文件到此处</p>
+                <div class="form-group">
+                    <label for="uploadFile">选择Excel文件:</label>
+                    <input type="file" id="uploadFile" accept=".xlsx, .xls">
+                </div>
             </div>
-            <button class="submit-button" id="previewBtn" disabled>预览数据</button>
-            <button class="submit-button" id="uploadBtn" disabled>上传到数据库</button>
+            <div class="upload-buttons">
+                <button class="submit-button" id="previewBtn" disabled>预览数据</button>
+                <button class="submit-button" id="uploadBtn" disabled>上传到数据库</button>
+            </div>
             <div id="previewContainer" style="display: none; margin-top: 20px;">
                 <h4>数据预览 (前10行)</h4>
                 <div class="table-container">
@@ -738,11 +745,22 @@
 
         // 显示标签页
         function showTab(tabName) {
+            // 切换标签内容
             const tabs = document.querySelectorAll('.tab-content');
             tabs.forEach(tab => {
                 tab.style.display = 'none'; // 隐藏所有标签页
             });
             document.getElementById(tabName).style.display = 'block'; // 显示选定的标签页
+
+            // 切换标签按钮高亮状态
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => {
+                if (button.getAttribute('onclick').includes(tabName)) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
 
             // 切换到查询标签页时清除统计容器
             if (tabName === 'queryTab') {
@@ -777,6 +795,7 @@
             uploadStatus = document.getElementById('upload-status');
             previewContainer = document.getElementById('previewContainer');
             previewTable = document.getElementById('previewTable');
+            const uploadArea = document.getElementById('uploadArea');
 
             // 文件选择事件监听
             uploadFileInput.addEventListener('change', updateUploadButtonState);
@@ -784,6 +803,46 @@
             previewBtn.addEventListener('click', previewData);
             // 上传按钮点击事件
             uploadBtn.addEventListener('click', uploadData);
+
+            // 拖拽上传功能
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                uploadArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                uploadArea.classList.remove('highlight');
+            }
+
+            uploadArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+
+                if (files.length) {
+                    uploadFileInput.files = files;
+                    updateUploadButtonState();
+                    // 自动预览
+                    previewData();
+                }
+            }
         }
 
         // 更新上传按钮状态
