@@ -134,6 +134,7 @@ class LargeDatasetUploader {
                 };
 
                 // 增强日志记录，显示更多数据详情
+                console.log('Table name:', options.table || 'default_table');
                 console.log('Sending upload data:', {
                     dataLength: data.length,
                     database,
