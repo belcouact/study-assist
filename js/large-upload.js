@@ -60,16 +60,16 @@ class LargeDatasetUploader {
             const result = await this.uploadWithRetry(data, database, options.table, showProgress);
             
             if (result.success) {
-                // 增强型调试日志 - 分析recordsProcessed类型问题
+                // 增强型调试日志 - 分析insertedCount类型问题
                 console.log('Debug: result.details:', result.details);
-                console.log('Debug: result.details.recordsProcessed value:', result.details.recordsProcessed);
-                console.log('Debug: typeof result.details.recordsProcessed:', typeof result.details.recordsProcessed);
-                console.log('Debug: isNaN check:', isNaN(result.details.recordsProcessed));
+                console.log('Debug: result.details.insertedCount value:', result.details.insertedCount);
+                console.log('Debug: typeof result.details.insertedCount:', typeof result.details.insertedCount);
+                console.log('Debug: isNaN check:', isNaN(result.details.insertedCount));
                 
                 // 优化的上传行数计算逻辑 - 尝试类型转换
-                uploadedRows = typeof result.details.recordsProcessed === 'number' 
-                    ? result.details.recordsProcessed 
-                    : (Number.isInteger(Number(result.details.recordsProcessed)) ? Number(result.details.recordsProcessed) : 0);
+                uploadedRows = typeof result.details.insertedCount === 'number' 
+                    ? result.details.insertedCount 
+                    : (Number.isInteger(Number(result.details.insertedCount)) ? Number(result.details.insertedCount) : 0);
                 console.log('Debug: uploadedRows set to:', uploadedRows);
                 
                 if (showProgress) {
