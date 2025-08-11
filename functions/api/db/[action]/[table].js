@@ -91,8 +91,9 @@ export async function onRequest(context) {
                 // Use D1's JavaScript transaction API
                 try {
                     // First, clear existing data from the table
-                    const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
-                    deletedCount = deleteResult.meta.changes || 0;
+                    // const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                    deletedCount = 0
+                    // deletedCount = deleteResult.meta.changes || 0;
 
                     // Then insert new data
                     if (table === 'chinese_dynasty') {
