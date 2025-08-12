@@ -1088,81 +1088,12 @@
                 }
             });
 
-            // 移动端优化：添加触摸事件支持
-            addMobileOptimizations();
-
             // 从数据库加载数据
             await loadDataFromDatabase();
 
             // 获取并显示样品数量
             getSampleCount();
         };
-        
-        // 移动端优化功能
-        function addMobileOptimizations() {
-            // 检测是否为移动设备
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            
-            if (isMobile) {
-                // 为移动设备添加触摸反馈
-                document.querySelectorAll('.submit-button, .modal-button, .tab-button').forEach(button => {
-                    button.addEventListener('touchstart', function() {
-                        this.style.transform = 'scale(0.95)';
-                    });
-                    
-                    button.addEventListener('touchend', function() {
-                        this.style.transform = 'scale(1)';
-                    });
-                });
-                
-                // 优化输入框体验
-                document.querySelectorAll('input[type="text"], input[type="number"], input[type="datetime-local"]').forEach(input => {
-                    input.addEventListener('focus', function() {
-                        // 延迟滚动以确保输入框可见
-                        setTimeout(() => {
-                            this.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }, 300);
-                    });
-                });
-                
-                // 添加滑动手势支持给标签按钮
-                const tabButtons = document.querySelector('.tab-buttons');
-                let startX = 0;
-                let scrollLeft = 0;
-                
-                tabButtons.addEventListener('touchstart', function(e) {
-                    startX = e.touches[0].pageX - tabButtons.offsetLeft;
-                    scrollLeft = tabButtons.scrollLeft;
-                });
-                
-                tabButtons.addEventListener('touchmove', function(e) {
-                    if (!startX) return;
-                    e.preventDefault();
-                    const x = e.touches[0].pageX - tabButtons.offsetLeft;
-                    const walk = (x - startX) * 2;
-                    tabButtons.scrollLeft = scrollLeft - walk;
-                });
-                
-                tabButtons.addEventListener('touchend', function() {
-                    startX = 0;
-                });
-            }
-            
-            // 添加双击缩放禁用（移动端）
-            document.addEventListener('touchstart', function(event) {
-                if (event.touches.length > 1) {
-                    event.preventDefault();
-                }
-            }, { passive: false });
-            
-            // 优化表格滚动体验
-            const tableContainers = document.querySelectorAll('.table-container');
-            tableContainers.forEach(container => {
-                container.addEventListener('touchstart', function() {
-                    this.style.overflowX = 'auto';
-                });
-            });
-        }
 
 
         // 获取样品数量
@@ -1170,14 +1101,11 @@
             try {
                 if (databaseData && databaseData.length > 0) {
                     document.getElementById('sampleCount').textContent = `当前样品数量：${databaseData.length}`;
-                    showMobileToast(`当前样品数量：${databaseData.length}`, 'success');
                 } else {
                     document.getElementById('sampleCount').textContent = `当前样品数量：0`;
-                    showMobileToast('当前样品数量：0', 'info');
                 }
             } catch (error) {
                 document.getElementById('sampleCount').textContent = `当前样品数量：获取失败`;
-                showMobileToast('获取样品数量失败', 'error');
                 console.error('获取样品数量出错:', error);
             }
         }
@@ -1192,14 +1120,13 @@
                 if (result.success) {
                     databaseData = result.data;
                     console.log('数据加载成功，共', databaseData.length, '条记录');
-                    showMobileToast('数据加载成功', 'success');
                 } else {
                     console.error('数据加载失败:', result.error);
-                    showMobileToast('数据加载失败: ' + result.error, 'error');
+                    alert('数据加载失败: ' + result.error);
                 }
             } catch (error) {
                 console.error('数据库连接错误:', error);
-                showMobileToast('无法连接到数据库，请稍后重试', 'error');
+                alert('无法连接到数据库，请稍后重试');
             } finally {
                 hideLoadingIndicator();
             }
@@ -1207,99 +1134,13 @@
 
         // 显示加载指示器
         function showLoadingIndicator() {
-            const indicator = document.getElementById('loadingIndicator');
-            indicator.style.display = 'block';
-            
-            // 移动端优化：添加加载动画
-            if (window.innerWidth <= 767) {
-                indicator.innerHTML = '<div class="loading-spinner"></div><span>加载中...</span>';
-                indicator.style.flexDirection = 'column';
-                indicator.style.gap = '10px';
-            }
+            document.getElementById('loadingIndicator').style.display = 'block';
         }
 
         // 隐藏加载指示器
         function hideLoadingIndicator() {
-            const indicator = document.getElementById('loadingIndicator');
-            indicator.style.display = 'none';
-            
-            // 重置内容
-            setTimeout(() => {
-                indicator.innerHTML = '加载中...';
-                indicator.style.flexDirection = 'row';
-                indicator.style.gap = '10px';
-            }, 300);
+            document.getElementById('loadingIndicator').style.display = 'none';
         }
-        
-        // 移动端优化的提示函数
-        function showMobileToast(message, type = 'info') {
-            // 检查是否为移动设备
-            const isMobile = window.innerWidth <= 767;
-            
-            if (isMobile) {
-                // 创建移动端提示
-                const toast = document.createElement('div');
-                toast.className = `mobile-toast ${type}`;
-                toast.textContent = message;
-                
-                // 添加样式
-                toast.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: ${type === 'error' ? 'var(--error-color)' : type === 'success' ? 'var(--success-color)' : 'var(--primary-color)'};
-                    color: white;
-                    padding: 12px 20px;
-                    border-radius: var(--radius);
-                    font-size: 0.9rem;
-                    z-index: 9999;
-                    box-shadow: var(--shadow-lg);
-                    animation: slideDown 0.3s ease;
-                `;
-                
-                document.body.appendChild(toast);
-                
-                // 3秒后自动移除
-                setTimeout(() => {
-                    toast.style.animation = 'slideUp 0.3s ease';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
-                }, 3000);
-            } else {
-                // 桌面端使用原有弹窗
-                showModal(type === 'error' ? '错误' : type === 'success' ? '成功' : '提示', message);
-            }
-        }
-        
-        // 添加动画样式
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideDown {
-                from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
-                to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-            @keyframes slideUp {
-                from { transform: translateX(-50%) translateY(0); opacity: 1; }
-                to { transform: translateX(-50%) translateY(-100%); opacity: 0; }
-            }
-            .loading-spinner {
-                width: 20px;
-                height: 20px;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                border-top: 2px solid white;
-                border-radius: 50%;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        `;
-        document.head.appendChild(style);
 
         // 清除搜索框
         function clearSearch() {
@@ -1370,11 +1211,11 @@
         async function queryItems() {
             const barcodes = document.getElementById('queryBarcodes').value.trim();
             if (!barcodes) {
-                showMobileToast('请输入样品条码', 'error');
+                alert('请输入样品条码');
                 return;
             }
             if (!databaseData) {
-                showMobileToast('数据尚未加载完成，请稍后重试', 'error');
+                alert('数据尚未加载完成，请稍后重试');
                 return;
             }
 
@@ -1396,14 +1237,9 @@
                 
                 const missingBarcodes = findMissingBarcodes(barcodeList, results);
                 displayResults(results, missingBarcodes, totalRecords, barcodePositions);
-                
-                // 查询成功提示
-                if (results.length > 0) {
-                    showMobileToast(`查询成功，找到 ${results.length} 条记录`, 'success');
-                }
             } catch (error) {
                 console.error('查询错误:', error);
-                showMobileToast('查询出错，请重试', 'error');
+                alert('查询出错，请重试');
             } finally {
                 document.getElementById('queryLoading').style.display = 'none';
             }
@@ -1475,7 +1311,7 @@
         // 统计数据
         function summarizeData() {
             if (!databaseData) {
-                showMobileToast('数据尚未加载完成，请稍后重试', 'error');
+                alert('数据尚未加载完成，请稍后重试');
                 return;
             }
 
@@ -1786,20 +1622,20 @@
         async function previewData() {
             const file = uploadFileInput.files[0];
             if (!file) {
-                showMobileToast('请选择Excel文件', 'error');
+                showUploadStatus('error', '请选择Excel文件');
                 return;
             }
 
             try {
                 previewBtn.classList.add('loading');
-                showMobileToast('正在读取文件数据...', 'info');
+                showUploadStatus('info', '正在读取文件数据...');
 
                 const data = await readExcelFile(file);
                 displayPreview(data);
 
-                showMobileToast(`已预览 ${Math.min(10, data.length)} 条数据，共 ${data.length} 条记录`, 'success');
+                showUploadStatus('success', `已预览 ${Math.min(10, data.length)} 条数据，共 ${data.length} 条记录`);
             } catch (error) {
-                showMobileToast('预览数据失败：' + error.message, 'error');
+                showUploadStatus('error', '预览数据失败：' + error.message);
                 console.error('Preview Error:', error);
             } finally {
                 previewBtn.classList.remove('loading');
@@ -1814,7 +1650,7 @@
 
             if (data.length === 0) {
                 previewContainer.style.display = 'block';
-                showMobileToast('文件中没有数据', 'info');
+                showUploadStatus('info', '文件中没有数据');
                 return;
             }
 
@@ -1861,13 +1697,13 @@
         async function uploadData() {
             // 先进行身份验证
             if (!authenticateUser()) {
-                showMobileToast('身份验证失败，无法上传数据', 'error');
+                showUploadStatus('error', '身份验证失败，无法上传数据');
                 return;
             }
 
             const file = uploadFileInput.files[0];
             if (!file) {
-                showMobileToast('请选择Excel文件', 'error');
+                showUploadStatus('error', '请选择Excel文件');
                 return;
             }
 
@@ -1911,7 +1747,7 @@
                                 const result = JSON.parse(xhr.responseText);
                                 if (result.success) {
                                     // 只有在上传完全成功后才显示操作成功
-                                    showMobileToast(`成功上传 ${result.insertedCount || data.length} 条记录`, 'success');
+                                    showUploadStatus('success', `成功上传 ${result.insertedCount || data.length} 条记录`);
                                     // 上传成功后重置文件输入
                                     uploadFileInput.value = '';
                                     updateUploadButtonState();
@@ -1934,7 +1770,7 @@
                     xhr.send(jsonData);
                 });
             } catch (error) {
-                showMobileToast('上传失败：' + error.message, 'error');
+                showUploadStatus('error', '上传失败：' + error.message);
                 console.error('Upload Error:', error);
             } finally {
                 uploadBtn.classList.remove('loading');
