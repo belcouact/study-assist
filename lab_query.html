@@ -1045,28 +1045,62 @@
             try {
                 uploadBtn.classList.add('loading');
                 uploadBtn.disabled = true;
-                showUploadStatus('info', '正在读取并上传数据...');
+                
+                // 添加进度条到弹窗
+                modalBody.innerHTML = `
+                    <div style="margin-bottom: 15px;">正在读取并上传数据...</div>
+                    <div style="width: 100%; background-color: #f1f1f1; border-radius: 5px;">
+                        <div id="uploadProgressBar" style="width: 0%; height: 25px; background-color: #4CAF50; border-radius: 5px; transition: width 0.3s ease-in-out;"></div>
+                    </div>
+                    <div id="uploadProgressText" style="text-align: center; margin-top: 10px;">0%</div>
+                `;
+                statusModal.style.display = 'flex';
 
                 // 直接读取并上传，无需预览
                 const data = await readExcelFile(file);
-                const response = await fetch(`/api/db/upload/${TABLE_NAME}?database=${DATABASE_NAME}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ data: data, database: DATABASE_NAME })
-                });
+                const jsonData = JSON.stringify({ data: data, database: DATABASE_NAME });
 
-                const result = await response.json();
-                
-                if (result.success) {
-                    showUploadStatus('success', `成功上传 ${result.insertedCount || data.length} 条记录`);
-                    // 上传成功后重置文件输入
-                    uploadFileInput.value = '';
-                    updateUploadButtonState();
-                } else {
-                    throw new Error(result.error || '上传失败');
-                }
+                // 使用XMLHttpRequest代替fetch以跟踪进度
+                return new Promise((resolve, reject) => {
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', `/api/db/upload/${TABLE_NAME}?database=${DATABASE_NAME}`, true);
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.round((e.loaded / e.total) * 100);
+                            document.getElementById('uploadProgressBar').style.width = percent + '%';
+                            document.getElementById('uploadProgressText').textContent = percent + '%';
+                        }
+                    };
+
+                    xhr.onload = function() {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                const result = JSON.parse(xhr.responseText);
+                                if (result.success) {
+                                    showUploadStatus('success', `成功上传 ${result.insertedCount || data.length} 条记录`);
+                                    // 上传成功后重置文件输入
+                                    uploadFileInput.value = '';
+                                    updateUploadButtonState();
+                                    resolve();
+                                } else {
+                                    throw new Error(result.error || '上传失败');
+                                }
+                            } catch (error) {
+                                reject(error);
+                            }
+                        } else {
+                            reject(new Error(`服务器响应错误: ${xhr.status}`));
+                        }
+                    };
+
+                    xhr.onerror = function() {
+                        reject(new Error('网络错误'));
+                    };
+
+                    xhr.send(jsonData);
+                });
             } catch (error) {
                 showUploadStatus('error', '上传失败：' + error.message);
                 console.error('Upload Error:', error);
