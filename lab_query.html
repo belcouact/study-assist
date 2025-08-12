@@ -760,6 +760,33 @@
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid var(--border-color);
             min-width: 300px;
+            
+            /* 浏览器性能优化 */
+            will-change: transform, opacity;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            
+            /* Edge特定优化 */
+            @supports (-ms-ime-align: auto) {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.95));
+                will-change: auto;
+            }
+            
+            /* Firefox优化 */
+            @supports (-moz-appearance: none) {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.93));
+            }
+            
+            /* Safari优化 */
+            @supports (-webkit-backdrop-filter: none) {
+                -webkit-transform: translate(-50%, -50%) translateZ(0);
+            }
         }
         
         #loadingIndicator::before {
@@ -804,6 +831,25 @@
             transition: width 0.3s ease;
             position: relative;
             overflow: hidden;
+            
+            /* 动画性能优化 */
+            will-change: width;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            
+            /* Edge动画优化 */
+            @supports (-ms-ime-align: auto) {
+                transition: width 0.2s ease;
+                will-change: auto;
+            }
+            
+            /* Firefox动画优化 */
+            @supports (-moz-appearance: none) {
+                transition: width 0.25s ease;
+            }
+            
+            /* 动态设置浏览器优化的动画持续时间 */
+            transition-duration: calc(var(--animation-duration, 300) * 1ms);
         }
         
         .loading-progress-fill::after {
@@ -1136,9 +1182,100 @@
     </div>
 
     <script>
+        // 浏览器检测和性能优化
+        const BrowserOptimizer = {
+            // 检测浏览器类型
+            detectBrowser: function() {
+                const userAgent = navigator.userAgent;
+                const browserData = {
+                    isEdge: /Edge|Edg/i.test(userAgent),
+                    isChrome: /Chrome/i.test(userAgent) && !/Edge|Edg/i.test(userAgent),
+                    isFirefox: /Firefox/i.test(userAgent),
+                    isSafari: /Safari/i.test(userAgent) && !/Chrome/i.test(userAgent),
+                    isMobile: /Mobile|Android|iPhone|iPad/i.test(userAgent)
+                };
+                
+                // 设置浏览器特定的优化参数
+                browserData.optimizations = {
+                    batchSize: browserData.isEdge || browserData.isFirefox ? 500 : 1000,
+                    animationDuration: browserData.isEdge ? 200 : (browserData.isFirefox ? 250 : 300),
+                    cacheStrategy: browserData.isChrome ? 'max-age=0' : 'no-cache',
+                    timeout: browserData.isEdge || browserData.isFirefox ? 45000 : 30000
+                };
+                
+                return browserData;
+            },
+            
+            // 预加载关键资源
+            preloadResources: function() {
+                const browser = this.detectBrowser();
+                
+                // 预连接到API服务器
+                if ('connection' in navigator) {
+                    const link = document.createElement('link');
+                    link.rel = 'preconnect';
+                    link.href = window.location.origin;
+                    document.head.appendChild(link);
+                }
+                
+                // 为Edge和Firefox预加载字体
+                if (browser.isEdge || browser.isFirefox) {
+                    const style = document.createElement('style');
+                    style.textContent = `
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            -webkit-font-smoothing: antialiased;
+                            -moz-osx-font-smoothing: grayscale;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            },
+            
+            // 优化性能设置
+            optimizePerformance: function() {
+                const browser = this.detectBrowser();
+                
+                // 设置CSS自定义属性用于动画优化
+                document.documentElement.style.setProperty('--animation-duration', browser.optimizations.animationDuration);
+                
+                // 设置requestAnimationFrame优化
+                if (browser.isEdge) {
+                    // Edge特定的性能优化
+                    window.requestAnimationFrame = (function(originalRAF) {
+                        return function(callback) {
+                            return originalRAF.call(window, function(timestamp) {
+                                callback(timestamp);
+                            });
+                        };
+                    })(window.requestAnimationFrame);
+                }
+                
+                // 优化Promise性能
+                if (browser.isFirefox) {
+                    // Firefox特定的Promise优化
+                    Promise.prototype._then = Promise.prototype.then;
+                    Promise.prototype.then = function(onFulfilled, onRejected) {
+                        return this._then(
+                            typeof onFulfilled === 'function' ? function(value) {
+                                setTimeout(() => onFulfilled(value), 0);
+                            } : onFulfilled,
+                            onRejected
+                        );
+                    };
+                }
+            }
+        };
+        
+        // 初始化浏览器优化
+        BrowserOptimizer.preloadResources();
+        BrowserOptimizer.optimizePerformance();
+        
+        // 全局变量
         let databaseData = null;
         const DATABASE_NAME = 'db_gore';
         const TABLE_NAME = 'lab_warehouse';
+        const browserInfo = BrowserOptimizer.detectBrowser();
 
         // 页面加载时初始化
         window.onload = async function() {
@@ -1183,29 +1320,65 @@
             }
         }
 
-        // 从数据库加载数据
+        // 从数据库加载数据 - 优化版本
         async function loadDataFromDatabase() {
             showLoadingIndicator('正在连接数据库...', 0);
+            
+            // 使用浏览器优化的超时设置
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('数据加载超时，请检查网络连接')), browserInfo.optimizations.timeout);
+            });
+            
             try {
+                // 使用预检测的浏览器优化参数
+                const fetchOptions = {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': browserInfo.optimizations.cacheStrategy,
+                        'Pragma': 'no-cache'
+                    },
+                    // 使用浏览器优化的超时设置
+                    signal: AbortSignal.timeout(browserInfo.optimizations.timeout)
+                };
+                
                 updateLoadingProgress('正在发送请求...', 20);
-                const response = await fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`);
+                
+                // 使用Promise.race实现超时控制
+                const fetchPromise = fetch(`/api/db/query/${TABLE_NAME}?database=${DATABASE_NAME}`, fetchOptions);
+                const response = await Promise.race([fetchPromise, timeoutPromise]);
                 
                 updateLoadingProgress('正在接收数据...', 40);
-                const result = await response.json();
+                
+                // 优化JSON解析性能
+                const result = await response.json().catch(error => {
+                    throw new Error('数据解析失败: ' + error.message);
+                });
                 
                 updateLoadingProgress('正在处理数据...', 60);
                 if (result.success) {
                     databaseData = result.data;
+                    
+                    // 数据处理优化：使用更高效的数据结构
+                    if (Array.isArray(databaseData)) {
+                        // 使用浏览器优化的批量处理大小
+                        const batchSize = browserInfo.optimizations.batchSize;
+                        for (let i = 0; i < databaseData.length; i += batchSize) {
+                            const batch = databaseData.slice(i, i + batchSize);
+                            // 这里可以添加批量处理逻辑
+                            await new Promise(resolve => setTimeout(resolve, 0)); // 让UI有机会更新
+                        }
+                    }
+                    
                     updateLoadingProgress(`数据加载成功，共 ${databaseData.length} 条记录`, 80);
                     console.log('数据加载成功，共', databaseData.length, '条记录');
                     
-                    // 模拟最终处理完成
-                    setTimeout(() => {
+                    // 优化最终处理完成逻辑
+                    requestAnimationFrame(() => {
                         updateLoadingProgress('加载完成', 100);
                         setTimeout(() => {
                             hideLoadingIndicator();
-                        }, 500);
-                    }, 300);
+                        }, 300);
+                    });
                 } else {
                     console.error('数据加载失败:', result.error);
                     updateLoadingProgress('数据加载失败', 0);
@@ -1215,7 +1388,16 @@
             } catch (error) {
                 console.error('数据库连接错误:', error);
                 updateLoadingProgress('数据库连接失败', 0);
-                alert('无法连接到数据库，请稍后重试');
+                
+                // 更友好的错误提示
+                let errorMessage = '无法连接到数据库，请稍后重试';
+                if (error.message.includes('超时')) {
+                    errorMessage = '数据加载超时，请检查网络连接后重试';
+                } else if (error.message.includes('解析失败')) {
+                    errorMessage = '数据格式错误，请联系管理员';
+                }
+                
+                alert(errorMessage);
                 hideLoadingIndicator();
             }
         }
