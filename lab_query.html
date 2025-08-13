@@ -2093,6 +2093,16 @@
         function displaySummary(summary) {
             let summaryContainer = document.getElementById('summaryContainer');
             let summaryBody = document.getElementById('summaryBody');
+            
+            // 检查DOM元素是否存在
+            if (!summaryContainer || !summaryBody) {
+                console.error('统计容器元素未找到:', {
+                    summaryContainer: !!summaryContainer,
+                    summaryBody: !!summaryBody
+                });
+                return;
+            }
+            
             summaryBody.innerHTML = ''; // 清除现有内容
 
             if (Object.keys(summary).length === 0) {
@@ -2125,10 +2135,11 @@
             if (!summary || Object.keys(summary).length === 0) {
                 console.warn('没有有效数据用于更新统计卡片');
                 // 设置默认值或显示加载状态
-                document.getElementById('totalSamples').textContent = '--';
-                document.getElementById('totalLocations').textContent = '--';
-                document.getElementById('avgInventory').textContent = '--';
-                document.getElementById('todayInbound').textContent = '--';
+                const elements = ['totalSamples', 'totalLocations', 'avgInventory', 'todayInbound'];
+                elements.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) element.textContent = '--';
+                });
                 return;
             }
             
@@ -2177,13 +2188,27 @@
                 return;
             }
             
+            // 检查图表画布元素是否存在
+            const locationCanvas = document.getElementById('locationChart');
+            const trendCanvas = document.getElementById('trendChart');
+            const statusCanvas = document.getElementById('statusChart');
+            
+            if (!locationCanvas || !trendCanvas || !statusCanvas) {
+                console.error('图表画布元素未找到:', {
+                    locationChart: !!locationCanvas,
+                    trendChart: !!trendCanvas,
+                    statusChart: !!statusCanvas
+                });
+                return;
+            }
+            
             // 销毁现有图表
             Chart.helpers.each(Chart.instances, (instance) => {
                 instance.destroy();
             });
 
             // 货位分布图
-            const locationCtx = document.getElementById('locationChart').getContext('2d');
+            const locationCtx = locationCanvas.getContext('2d');
             const locationData = Object.entries(summary)
                 .sort(([,a], [,b]) => b.count - a.count)
                 .slice(0, 10); // 取前10个
@@ -2217,7 +2242,7 @@
             });
 
             // 库存趋势图（模拟时间序列数据）
-            const trendCtx = document.getElementById('trendChart').getContext('2d');
+            const trendCtx = trendCanvas.getContext('2d');
             const last7Days = [];
             const trendData = [];
             
@@ -2259,7 +2284,7 @@
             });
 
             // 状态分布图 - 使用实际数据
-            const statusCtx = document.getElementById('statusChart').getContext('2d');
+            const statusCtx = statusCanvas.getContext('2d');
             const statusCounts = {
                 '正常': 0,
                 '预警': 0,
@@ -2496,21 +2521,41 @@
         const modalHeader = document.getElementById('modalHeader');
         const modalBody = document.getElementById('modalBody');
         const modalCloseBtn = document.getElementById('modalCloseBtn');
-
-        // 关闭弹窗
-        modalCloseBtn.addEventListener('click', function() {
-            statusModal.style.display = 'none';
-        });
-
-        // 点击弹窗外部关闭
-        window.addEventListener('click', function(event) {
-            if (event.target === statusModal) {
+        
+        // 检查弹窗元素是否存在
+        if (!statusModal || !modalHeader || !modalBody || !modalCloseBtn) {
+            console.error('弹窗元素未找到:', {
+                statusModal: !!statusModal,
+                modalHeader: !!modalHeader,
+                modalBody: !!modalBody,
+                modalCloseBtn: !!modalCloseBtn
+            });
+        } else {
+            // 关闭弹窗
+            modalCloseBtn.addEventListener('click', function() {
                 statusModal.style.display = 'none';
-            }
-        });
+            });
+
+            // 点击弹窗外部关闭
+            window.addEventListener('click', function(event) {
+                if (event.target === statusModal) {
+                    statusModal.style.display = 'none';
+                }
+            });
+        }
 
         // 显示上传状态弹窗
         function showUploadStatus(type, message) {
+            // 检查弹窗元素是否存在
+            if (!statusModal || !modalHeader || !modalBody) {
+                console.error('弹窗元素未找到，无法显示状态:', {
+                    statusModal: !!statusModal,
+                    modalHeader: !!modalHeader,
+                    modalBody: !!modalBody
+                });
+                return;
+            }
+            
             // 设置弹窗标题和内容
             if (type === 'success') {
                 modalHeader.textContent = '操作成功';
@@ -2579,6 +2624,15 @@
 
         // 显示数据预览
         function displayPreview(data) {
+            // 检查预览元素是否存在
+            if (!previewTable || !previewContainer) {
+                console.error('预览元素未找到:', {
+                    previewTable: !!previewTable,
+                    previewContainer: !!previewContainer
+                });
+                return;
+            }
+            
             // 清空之前的预览
             previewTable.querySelector('thead').innerHTML = '';
             previewTable.querySelector('tbody').innerHTML = '';
@@ -2671,8 +2725,15 @@
                     xhr.upload.onprogress = function(e) {
                         if (e.lengthComputable) {
                             const percent = Math.round((e.loaded / e.total) * 100);
-                            document.getElementById('uploadProgressBar').style.width = percent + '%';
-                            document.getElementById('uploadProgressText').textContent = percent + '%';
+                            const progressBar = document.getElementById('uploadProgressBar');
+                            const progressText = document.getElementById('uploadProgressText');
+                            
+                            if (progressBar) {
+                                progressBar.style.width = percent + '%';
+                            }
+                            if (progressText) {
+                                progressText.textContent = percent + '%';
+                            }
                         }
                     };
 
