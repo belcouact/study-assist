@@ -2036,10 +2036,16 @@
 
         // 统计数据
         function summarizeData() {
+            console.log('开始统计数据...');
+            
             if (!databaseData) {
+                console.error('databaseData为null');
                 alert('数据尚未加载完成，请稍后重试');
                 return;
             }
+            
+            console.log('原始数据量:', databaseData.length);
+            console.log('数据样本:', databaseData[0]);
 
             // 获取过滤值
             const filterLocation = document.getElementById('filterLocation').value.trim();
@@ -2048,20 +2054,38 @@
             const filterCountMax = parseInt(document.getElementById('filterCountMax').value) || Infinity;
             const filterTimeMin = document.getElementById('filterTimeMin').value ? new Date(document.getElementById('filterTimeMin').value) : new Date(0);
             const filterTimeMax = document.getElementById('filterTimeMax').value ? new Date(document.getElementById('filterTimeMax').value) : new Date();
+            
+            console.log('过滤条件:', {
+                filterLocation,
+                filterLocationList,
+                filterCountMin,
+                filterCountMax,
+                filterTimeMin,
+                filterTimeMax
+            });
 
             // 计算统计数据
             const summary = {};
+            let processedCount = 0;
             
-            databaseData.forEach(item => {
+            databaseData.forEach((item, index) => {
                 const location = item['货位'];
                 const status = item['状态'];
                 const time = new Date(item['时间']);
+                
+                // 检查数据格式
+                if (!location || !status || !item['时间']) {
+                    console.warn('数据格式异常，跳过:', item, '索引:', index);
+                    return;
+                }
 
                 // 应用过滤器
                 if ((filterLocationList.length > 0 && !filterLocationList.includes(location)) ||
                     (time < filterTimeMin || time > filterTimeMax)) {
                     return; // 如果不匹配过滤器，则跳过此项
                 }
+                
+                processedCount++;
 
                 if (!summary[location]) {
                     summary[location] = { count: 0, minTime: time, maxTime: time };
@@ -2073,17 +2097,24 @@
                     summary[location].count -= 2; // 调整'出'状态的计数
                 }
             });
+            
+            console.log('处理完成，有效记录数:', processedCount);
+            console.log('初步统计结果:', summary);
 
             // 根据数量范围过滤
             for (const location in summary) {
                 const { count, minTime, maxTime } = summary[location];
                 if (count < filterCountMin || count > filterCountMax) {
+                    console.log('过滤掉货位:', location, '数量:', count);
                     delete summary[location]; // 如果不匹配数量过滤器，则从统计中移除
                 } else {
                     summary[location].minTime = minTime;
                     summary[location].maxTime = maxTime;
                 }
             }
+            
+            console.log('最终统计结果:', summary);
+            console.log('统计货位数:', Object.keys(summary).length);
 
             // 显示统计结果
             displaySummary(summary);
@@ -2091,6 +2122,10 @@
 
         // 显示统计结果
         function displaySummary(summary) {
+            console.log('开始显示统计结果...');
+            console.log('传入的summary数据:', summary);
+            console.log('summary键数量:', Object.keys(summary).length);
+            
             let summaryContainer = document.getElementById('summaryContainer');
             let summaryBody = document.getElementById('summaryBody');
             
@@ -2103,34 +2138,47 @@
                 return;
             }
             
+            console.log('DOM元素检查通过');
             summaryBody.innerHTML = ''; // 清除现有内容
 
             if (Object.keys(summary).length === 0) {
+                console.log('没有符合条件的货位记录');
                 summaryContainer.innerHTML = '<div class="no-results">没有找到符合条件的货位记录</div>';
                 summaryContainer.style.display = 'block';
                 return;
             }
+            
+            console.log('开始更新统计卡片...');
 
             // 更新统计卡片
             updateStatCards(summary);
             
+            console.log('开始创建图表...');
             // 创建图表
             createCharts(summary);
             
+            console.log('显示表格容器...');
             // 显示表格容器
             summaryContainer.style.display = 'block';
 
+            console.log('填充表格数据...');
             // 填充表格数据
             Object.entries(summary).forEach(([location, data]) => {
                 let row = summaryBody.insertRow();
                 row.insertCell(0).textContent = location;
                 row.insertCell(1).textContent = data.count;
                 row.insertCell(2).textContent = data.maxTime.toLocaleString('zh-CN');
+                console.log('添加表格行:', location, data.count, data.maxTime.toLocaleString('zh-CN'));
             });
+            
+            console.log('统计结果显示完成');
         }
 
         // 更新统计卡片
         function updateStatCards(summary) {
+            console.log('开始更新统计卡片...');
+            console.log('传入的summary数据:', summary);
+            
             // 检查数据有效性
             if (!summary || Object.keys(summary).length === 0) {
                 console.warn('没有有效数据用于更新统计卡片');
@@ -2138,49 +2186,112 @@
                 const elements = ['totalSamples', 'totalLocations', 'avgInventory', 'todayInbound'];
                 elements.forEach(id => {
                     const element = document.getElementById(id);
-                    if (element) element.textContent = '--';
+                    if (element) {
+                        element.textContent = '--';
+                        console.log(`设置${id}为默认值'--'`);
+                    } else {
+                        console.error(`未找到${id}元素`);
+                    }
                 });
                 return;
             }
+            
+            console.log('数据有效性检查通过，summary键数量:', Object.keys(summary).length);
             
             const totalSamples = Object.values(summary).reduce((sum, item) => sum + item.count, 0);
             const totalLocations = Object.keys(summary).length;
             const avgInventory = totalLocations > 0 ? Math.round(totalSamples / totalLocations) : 0;
             const today = new Date().toDateString();
+            console.log('今日日期:', today);
+            
             const todayInbound = Object.values(summary).reduce((sum, item) => {
-                return sum + (item.maxTime.toDateString() === today ? 1 : 0);
+                const itemDate = item.maxTime.toDateString();
+                const isToday = itemDate === today;
+                console.log(`检查记录时间: ${itemDate}, 是否为今日: ${isToday}`);
+                return sum + (isToday ? 1 : 0);
             }, 0);
+            
+            console.log('计算结果:', {
+                totalSamples,
+                totalLocations,
+                avgInventory,
+                todayInbound
+            });
 
             // 更新统计卡片显示
+            console.log('开始更新DOM元素...');
             const totalSamplesEl = document.getElementById('totalSamples');
             const totalLocationsEl = document.getElementById('totalLocations');
             const avgInventoryEl = document.getElementById('avgInventory');
             const todayInboundEl = document.getElementById('todayInbound');
             
-            if (totalSamplesEl) totalSamplesEl.textContent = totalSamples.toLocaleString();
-            if (totalLocationsEl) totalLocationsEl.textContent = totalLocations.toLocaleString();
-            if (avgInventoryEl) avgInventoryEl.textContent = avgInventory.toLocaleString();
-            if (todayInboundEl) todayInboundEl.textContent = todayInbound.toLocaleString();
+            if (totalSamplesEl) {
+                totalSamplesEl.textContent = totalSamples.toLocaleString();
+                console.log('totalSamples元素更新成功:', totalSamples.toLocaleString());
+            } else {
+                console.error('totalSamples元素未找到');
+            }
+            
+            if (totalLocationsEl) {
+                totalLocationsEl.textContent = totalLocations.toLocaleString();
+                console.log('totalLocations元素更新成功:', totalLocations.toLocaleString());
+            } else {
+                console.error('totalLocations元素未找到');
+            }
+            
+            if (avgInventoryEl) {
+                avgInventoryEl.textContent = avgInventory.toLocaleString();
+                console.log('avgInventory元素更新成功:', avgInventory.toLocaleString());
+            } else {
+                console.error('avgInventory元素未找到');
+            }
+            
+            if (todayInboundEl) {
+                todayInboundEl.textContent = todayInbound.toLocaleString();
+                console.log('todayInbound元素更新成功:', todayInbound.toLocaleString());
+            } else {
+                console.error('todayInbound元素未找到');
+            }
 
             // 更新变化百分比（模拟数据）- 添加元素存在性检查
+            console.log('更新变化百分比...');
             const totalSamplesChange = document.querySelector('#totalSamples')?.nextElementSibling;
             const totalLocationsChange = document.querySelector('#totalLocations')?.nextElementSibling;
             const avgInventoryChange = document.querySelector('#avgInventory')?.nextElementSibling;
             const todayInboundChange = document.querySelector('#todayInbound')?.nextElementSibling;
             
-            if (totalSamplesChange) totalSamplesChange.textContent = '+12%';
-            if (totalLocationsChange) totalLocationsChange.textContent = '+5%';
-            if (avgInventoryChange) avgInventoryChange.textContent = '-3%';
-            if (todayInboundChange) todayInboundChange.textContent = '+8%';
+            if (totalSamplesChange) {
+                totalSamplesChange.textContent = '+12%';
+                console.log('totalSamples变化百分比更新成功');
+            }
+            if (totalLocationsChange) {
+                totalLocationsChange.textContent = '+5%';
+                console.log('totalLocations变化百分比更新成功');
+            }
+            if (avgInventoryChange) {
+                avgInventoryChange.textContent = '-3%';
+                console.log('avgInventory变化百分比更新成功');
+            }
+            if (todayInboundChange) {
+                todayInboundChange.textContent = '+8%';
+                console.log('todayInbound变化百分比更新成功');
+            }
+            
+            console.log('统计卡片更新完成');
         }
 
         // 创建图表
         function createCharts(summary) {
+            console.log('开始创建图表...');
+            console.log('传入的summary数据:', summary);
+            
             // 检查数据有效性
             if (!summary || Object.keys(summary).length === 0) {
                 console.warn('没有有效数据用于创建图表');
                 return;
             }
+            
+            console.log('数据有效性检查通过，summary键数量:', Object.keys(summary).length);
             
             // 检查Chart.js是否已加载
             if (typeof Chart === 'undefined') {
@@ -2188,30 +2299,43 @@
                 return;
             }
             
+            console.log('Chart.js加载检查通过');
+            
             // 检查图表画布元素是否存在
             const locationCanvas = document.getElementById('locationChart');
             const trendCanvas = document.getElementById('trendChart');
             const statusCanvas = document.getElementById('statusChart');
             
+            console.log('图表画布元素检查:', {
+                locationChart: !!locationCanvas,
+                trendChart: !!trendCanvas,
+                statusChart: !!statusCanvas
+            });
+            
             if (!locationCanvas || !trendCanvas || !statusCanvas) {
-                console.error('图表画布元素未找到:', {
-                    locationChart: !!locationCanvas,
-                    trendChart: !!trendCanvas,
-                    statusChart: !!statusCanvas
-                });
+                console.error('图表画布元素未找到');
                 return;
             }
             
+            console.log('所有图表画布元素检查通过');
+            
             // 销毁现有图表
+            console.log('销毁现有图表...');
             Chart.helpers.each(Chart.instances, (instance) => {
                 instance.destroy();
+                console.log('销毁一个图表实例');
             });
+            
+            console.log('现有图表销毁完成');
 
             // 货位分布图
+            console.log('创建货位分布图...');
             const locationCtx = locationCanvas.getContext('2d');
             const locationData = Object.entries(summary)
                 .sort(([,a], [,b]) => b.count - a.count)
                 .slice(0, 10); // 取前10个
+            
+            console.log('货位分布数据:', locationData);
 
             new Chart(locationCtx, {
                 type: 'bar',
@@ -2240,8 +2364,11 @@
                     }
                 }
             });
+            
+            console.log('货位分布图创建完成');
 
             // 库存趋势图（模拟时间序列数据）
+            console.log('创建库存趋势图...');
             const trendCtx = trendCanvas.getContext('2d');
             const last7Days = [];
             const trendData = [];
@@ -2253,6 +2380,11 @@
                 // 模拟趋势数据
                 trendData.push(Math.floor(Math.random() * 50) + 100);
             }
+            
+            console.log('库存趋势数据:', {
+                labels: last7Days,
+                data: trendData
+            });
 
             new Chart(trendCtx, {
                 type: 'line',
@@ -2282,8 +2414,11 @@
                     }
                 }
             });
+            
+            console.log('库存趋势图创建完成');
 
             // 状态分布图 - 使用实际数据
+            console.log('创建状态分布图...');
             const statusCtx = statusCanvas.getContext('2d');
             const statusCounts = {
                 '正常': 0,
@@ -2302,6 +2437,8 @@
                     statusCounts['超量'] += count;
                 }
             });
+            
+            console.log('状态分布数据:', statusCounts);
 
             new Chart(statusCtx, {
                 type: 'doughnut',
@@ -2332,6 +2469,9 @@
                     }
                 }
             });
+            
+            console.log('状态分布图创建完成');
+            console.log('所有图表创建完成');
         }
 
         // 导出数据功能
@@ -2423,25 +2563,53 @@
 
         // 执行统计
         async function executeStatistics() {
+            console.log('开始执行统计...');
+            console.log('当前databaseData状态:', {
+                exists: !!databaseData,
+                type: typeof databaseData,
+                length: databaseData ? databaseData.length : 0,
+                sample: databaseData ? databaseData[0] : null
+            });
+            
             // 显示加载指示器，显示统计中状态
             showLoadingIndicator('统计中...', 0);
 
             // 检查数据是否已加载
             if (!databaseData) {
+                console.log('数据未加载，开始加载数据...');
                 // 等待数据加载完成
                 showLoadingIndicator('等待数据加载...', 0);
-                await loadDataFromDatabase();
+                try {
+                    await loadDataFromDatabase();
+                } catch (error) {
+                    console.error('数据加载失败:', error);
+                    alert('数据加载失败: ' + error.message);
+                    hideLoadingIndicator();
+                    return;
+                }
             }
 
             // 再次检查数据是否成功加载
             if (!databaseData || databaseData.length === 0) {
-                alert('数据加载失败，请刷新页面重试');
+                console.error('数据加载失败或为空:', {
+                    databaseData: databaseData,
+                    length: databaseData ? databaseData.length : 0
+                });
+                alert('数据加载失败或没有数据，请检查数据库连接后重试');
                 hideLoadingIndicator();
                 return;
             }
+            
+            console.log('数据加载成功，开始统计处理，数据量:', databaseData.length);
 
             // 统计逻辑
-            summarizeData();
+            try {
+                summarizeData();
+                console.log('统计完成');
+            } catch (error) {
+                console.error('统计过程中出错:', error);
+                alert('统计过程中出错: ' + error.message);
+            }
 
             // 执行后隐藏加载指示器
             hideLoadingIndicator();
