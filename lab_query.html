@@ -1556,6 +1556,12 @@
         }
 
         // 获取特定条码在货位中的实时位置
+        // 判断是否为出库状态
+        function isOutboundStatus(status) {
+            const outboundStatuses = ['出', '出库', 'O'];
+            return outboundStatuses.includes(status);
+        }
+
         function getBarcodeRealtimePosition(data, targetBarcode, targetLocation) {
             // 筛选目标货位的所有记录并按时间排序
             const locationRecords = data
@@ -1571,15 +1577,7 @@
                 const barcode = record['条码'];
                 const status = record['状态'];
                 
-                if (status === '入') {
-                    // 入库操作
-                    if (!currentItems.includes(barcode)) {
-                        currentItems.push(barcode);
-                    }
-                    if (barcode === targetBarcode) {
-                        isCurrentlyInLocation = true;
-                    }
-                } else if (status === '出') {
+                if (isOutboundStatus(status)) {
                     // 出库操作
                     const index = currentItems.indexOf(barcode);
                     if (index > -1) {
@@ -1587,6 +1585,14 @@
                     }
                     if (barcode === targetBarcode) {
                         isCurrentlyInLocation = false;
+                    }
+                } else {
+                    // 入库操作（非出库状态都视为入库）
+                    if (!currentItems.includes(barcode)) {
+                        currentItems.push(barcode);
+                    }
+                    if (barcode === targetBarcode) {
+                        isCurrentlyInLocation = true;
                     }
                 }
             });
@@ -1610,7 +1616,7 @@
                     const lastStatus = lastRecord['状态'];
                     const lastTime = new Date(lastRecord['时间']).toLocaleString();
                     
-                    if (lastStatus === '出') {
+                    if (isOutboundStatus(lastStatus)) {
                         return {
                             position: '已出库',
                             status: '出库',
@@ -1679,16 +1685,16 @@
                 });
                 
                 // 更新当前货位状态
-                if (status === '入') {
-                    // 入库：添加到当前项目列表
-                    if (!locState.currentItems.includes(barcode)) {
-                        locState.currentItems.push(barcode);
-                    }
-                } else if (status === '出') {
+                if (isOutboundStatus(status)) {
                     // 出库：从当前项目列表中移除
                     const index = locState.currentItems.indexOf(barcode);
                     if (index > -1) {
                         locState.currentItems.splice(index, 1);
+                    }
+                } else {
+                    // 入库：添加到当前项目列表（非出库状态都视为入库）
+                    if (!locState.currentItems.includes(barcode)) {
+                        locState.currentItems.push(barcode);
                     }
                 }
             });
