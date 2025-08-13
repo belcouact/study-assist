@@ -2121,6 +2121,17 @@
 
         // 更新统计卡片
         function updateStatCards(summary) {
+            // 检查数据有效性
+            if (!summary || Object.keys(summary).length === 0) {
+                console.warn('没有有效数据用于更新统计卡片');
+                // 设置默认值或显示加载状态
+                document.getElementById('totalSamples').textContent = '--';
+                document.getElementById('totalLocations').textContent = '--';
+                document.getElementById('avgInventory').textContent = '--';
+                document.getElementById('todayInbound').textContent = '--';
+                return;
+            }
+            
             const totalSamples = Object.values(summary).reduce((sum, item) => sum + item.count, 0);
             const totalLocations = Object.keys(summary).length;
             const avgInventory = totalLocations > 0 ? Math.round(totalSamples / totalLocations) : 0;
@@ -2129,20 +2140,43 @@
                 return sum + (item.maxTime.toDateString() === today ? 1 : 0);
             }, 0);
 
-            document.getElementById('totalSamples').textContent = totalSamples.toLocaleString();
-            document.getElementById('totalLocations').textContent = totalLocations.toLocaleString();
-            document.getElementById('avgInventory').textContent = avgInventory.toLocaleString();
-            document.getElementById('todayInbound').textContent = todayInbound.toLocaleString();
+            // 更新统计卡片显示
+            const totalSamplesEl = document.getElementById('totalSamples');
+            const totalLocationsEl = document.getElementById('totalLocations');
+            const avgInventoryEl = document.getElementById('avgInventory');
+            const todayInboundEl = document.getElementById('todayInbound');
+            
+            if (totalSamplesEl) totalSamplesEl.textContent = totalSamples.toLocaleString();
+            if (totalLocationsEl) totalLocationsEl.textContent = totalLocations.toLocaleString();
+            if (avgInventoryEl) avgInventoryEl.textContent = avgInventory.toLocaleString();
+            if (todayInboundEl) todayInboundEl.textContent = todayInbound.toLocaleString();
 
-            // 更新变化百分比（模拟数据）
-            document.querySelector('#totalSamples').nextElementSibling.textContent = '+12%';
-            document.querySelector('#totalLocations').nextElementSibling.textContent = '+5%';
-            document.querySelector('#avgInventory').nextElementSibling.textContent = '-3%';
-            document.querySelector('#todayInbound').nextElementSibling.textContent = '+8%';
+            // 更新变化百分比（模拟数据）- 添加元素存在性检查
+            const totalSamplesChange = document.querySelector('#totalSamples')?.nextElementSibling;
+            const totalLocationsChange = document.querySelector('#totalLocations')?.nextElementSibling;
+            const avgInventoryChange = document.querySelector('#avgInventory')?.nextElementSibling;
+            const todayInboundChange = document.querySelector('#todayInbound')?.nextElementSibling;
+            
+            if (totalSamplesChange) totalSamplesChange.textContent = '+12%';
+            if (totalLocationsChange) totalLocationsChange.textContent = '+5%';
+            if (avgInventoryChange) avgInventoryChange.textContent = '-3%';
+            if (todayInboundChange) todayInboundChange.textContent = '+8%';
         }
 
         // 创建图表
         function createCharts(summary) {
+            // 检查数据有效性
+            if (!summary || Object.keys(summary).length === 0) {
+                console.warn('没有有效数据用于创建图表');
+                return;
+            }
+            
+            // 检查Chart.js是否已加载
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js未加载，无法创建图表');
+                return;
+            }
+            
             // 销毁现有图表
             Chart.helpers.each(Chart.instances, (instance) => {
                 instance.destroy();
@@ -2224,13 +2258,25 @@
                 }
             });
 
-            // 状态分布图
+            // 状态分布图 - 使用实际数据
             const statusCtx = document.getElementById('statusChart').getContext('2d');
             const statusCounts = {
-                '正常': Math.floor(Math.random() * 80) + 120,
-                '预警': Math.floor(Math.random() * 30) + 10,
-                '超量': Math.floor(Math.random() * 20) + 5
+                '正常': 0,
+                '预警': 0,
+                '超量': 0
             };
+            
+            // 根据实际数据计算状态分布
+            Object.entries(summary).forEach(([location, data]) => {
+                const count = data.count;
+                if (count <= 50) {
+                    statusCounts['正常'] += count;
+                } else if (count <= 100) {
+                    statusCounts['预警'] += count;
+                } else {
+                    statusCounts['超量'] += count;
+                }
+            });
 
             new Chart(statusCtx, {
                 type: 'doughnut',
