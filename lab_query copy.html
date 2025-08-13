@@ -1054,6 +1054,131 @@
                 padding: 6px 8px;
             }
         }
+
+        /* 统计卡片样式 */
+        .stats-cards-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            opacity: 0.8;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-title {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 5px;
+        }
+
+        .stat-description {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            opacity: 0.8;
+        }
+
+        /* 按钮组样式 */
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .export-button {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .export-button:hover {
+            background: linear-gradient(135deg, #218838, #1ba085);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+        }
+
+        .export-button:active {
+            transform: translateY(0);
+        }
+
+        .export-button::before {
+            content: '📊';
+            font-size: 1.2rem;
+        }
+
+        /* 响应式设计 - 统计卡片 */
+        @media (min-width: 768px) {
+            .stats-cards-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .stats-cards-container {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* 响应式设计 - 按钮组 */
+        @media (max-width: 767px) {
+            .button-group {
+                flex-direction: column;
+            }
+            .export-button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .button-group {
+                justify-content: flex-start;
+            }
+            .export-button {
+                padding: 14px 28px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1066,6 +1191,7 @@
         <button class="tab-button active" data-tab="queryTab" onclick="showTab('queryTab')">查询</button>
         <button class="tab-button" data-tab="summaryTab" onclick="showTab('summaryTab')">统计</button>
         <button class="tab-button" data-tab="uploadTab" onclick="showTab('uploadTab')">上传</button>
+        <button class="tab-button" data-tab="downloadTab" onclick="showTab('downloadTab')">下载</button>
     </div>
 
     <div id="queryTab" class="tab-content active">
@@ -1107,8 +1233,8 @@
                             <th>状态</th>
                             <th>时间</th>
                             <th>作业者</th>
-                            <th>货位数量</th>
-                            <th>条码位置</th>
+                            <th>货位记录</th>
+                            <th>入库顺序</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody"></tbody>
@@ -1156,6 +1282,35 @@
     <div id="summaryTab" class="tab-content">
         <div class="file-section">
             <h3>数据统计</h3>
+            
+            <!-- 统计摘要卡片 -->
+            <div class="stats-cards-container">
+                <div class="stat-card" id="totalSamplesCard">
+                    <div class="stat-icon">📦</div>
+                    <div class="stat-content">
+                        <div class="stat-title">总样品数</div>
+                        <div class="stat-value" id="totalSamplesValue">加载中...</div>
+                        <div class="stat-description">系统中所有样品总数</div>
+                    </div>
+                </div>
+                <div class="stat-card" id="totalLocationsCard">
+                    <div class="stat-icon">📍</div>
+                    <div class="stat-content">
+                        <div class="stat-title">货位总数</div>
+                        <div class="stat-value" id="totalLocationsValue">加载中...</div>
+                        <div class="stat-description">已使用的货位数量</div>
+                    </div>
+                </div>
+                <div class="stat-card" id="avgInventoryCard">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-title">平均库存</div>
+                        <div class="stat-value" id="avgInventoryValue">加载中...</div>
+                        <div class="stat-description">每个货位的平均样品数</div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="filter-section">
             <div class="filter-grid">
                 <div class="filter-group">
@@ -1179,11 +1334,25 @@
                     <input type="datetime-local" id="filterTimeMax">
                 </div>
             </div>
-            <button class="submit-button" onclick="executeStatistics()">统计</button>
+            <div class="button-group">
+                <button class="submit-button" onclick="executeStatistics()">统计</button>
+            </div>
                     </div>
         </div>
         
         <div id="summaryContainer"></div> <!-- 统计表格容器 -->
+    </div>
+
+    <div id="downloadTab" class="tab-content">
+        <div class="file-section">
+            <h3>数据下载</h3>
+            <div class="download-section">
+                <p style="margin-bottom: 20px; color: var(--text-light);">下载完整数据，包含所有字段信息。</p>
+                <div class="button-group">
+                    <button class="submit-button" onclick="exportFullDataToExcel()">导出Excel</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -2229,9 +2398,254 @@
             }
         }
 
+        // 加载统计卡片数据
+        async function loadStatsCards() {
+            try {
+                if (!databaseData) {
+                    console.log('数据库数据未加载，等待数据加载...');
+                    return;
+                }
+
+                // 计算总样品数
+                const totalSamples = databaseData.length;
+                
+                // 计算货位总数（去重）
+                const uniqueLocations = new Set(databaseData.map(item => item.货位));
+                const totalLocations = uniqueLocations.size;
+                
+                // 计算平均库存
+                const avgInventory = totalLocations > 0 ? Math.round(totalSamples / totalLocations) : 0;
+                
+                // 更新卡片显示
+                document.getElementById('totalSamplesValue').textContent = totalSamples.toLocaleString();
+                document.getElementById('totalLocationsValue').textContent = totalLocations.toLocaleString();
+                document.getElementById('avgInventoryValue').textContent = avgInventory;
+                
+                // 添加加载完成动画
+                const cards = document.querySelectorAll('.stat-card');
+                cards.forEach((card, index) => {
+                    setTimeout(() => {
+                        card.style.opacity = '0';
+                        card.style.transform = 'translateY(20px)';
+                        card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                        
+                        setTimeout(() => {
+                            card.style.opacity = '1';
+                            card.style.transform = 'translateY(0)';
+                        }, 100);
+                    }, index * 150);
+                });
+                
+            } catch (error) {
+                console.error('加载统计卡片数据失败:', error);
+                document.getElementById('totalSamplesValue').textContent = '加载失败';
+                document.getElementById('totalLocationsValue').textContent = '加载失败';
+                document.getElementById('avgInventoryValue').textContent = '加载失败';
+            }
+        }
+
+        // 导出统计结果到Excel
+        async function exportStatisticsToExcel() {
+            try {
+                if (!databaseData || databaseData.length === 0) {
+                    showUploadStatus('error', '没有数据可导出');
+                    return;
+                }
+
+                // 显示加载状态
+                showUploadStatus('info', '正在生成统计报表...');
+
+                // 准备统计数据
+                const locationStats = {};
+                databaseData.forEach(item => {
+                    const location = item.货位 || '未知货位';
+                    if (!locationStats[location]) {
+                        locationStats[location] = {
+                            count: 0,
+                            samples: []
+                        };
+                    }
+                    locationStats[location].count++;
+                    locationStats[location].samples.push(item);
+                });
+
+                // 创建Excel数据
+                const excelData = [];
+                
+                // 添加汇总信息
+                excelData.push({
+                    '统计类型': '汇总信息',
+                    '项目': '总样品数',
+                    '数值': databaseData.length
+                });
+                
+                const uniqueLocations = Object.keys(locationStats);
+                excelData.push({
+                    '统计类型': '汇总信息',
+                    '项目': '货位总数',
+                    '数值': uniqueLocations.length
+                });
+                
+                const avgInventory = uniqueLocations.length > 0 ? (databaseData.length / uniqueLocations.length).toFixed(2) : 0;
+                excelData.push({
+                    '统计类型': '汇总信息',
+                    '项目': '平均库存',
+                    '数值': avgInventory
+                });
+                
+                // 添加空行分隔
+                excelData.push({});
+                
+                // 添加详细统计
+                excelData.push({
+                    '货位': '货位',
+                    '样品数量': '样品数量',
+                    '占比': '占比',
+                    '最早入库时间': '最早入库时间',
+                    '最晚入库时间': '最晚入库时间'
+                });
+                
+                Object.entries(locationStats).forEach(([location, stats]) => {
+                    const percentage = ((stats.count / databaseData.length) * 100).toFixed(2);
+                    const times = stats.samples.map(s => new Date(s.时间)).filter(t => !isNaN(t));
+                    const minTime = times.length > 0 ? new Date(Math.min(...times)) : null;
+                    const maxTime = times.length > 0 ? new Date(Math.max(...times)) : null;
+                    
+                    excelData.push({
+                        '货位': location,
+                        '样品数量': stats.count,
+                        '占比': percentage + '%',
+                        '最早入库时间': minTime ? minTime.toLocaleString() : '未知',
+                        '最晚入库时间': maxTime ? maxTime.toLocaleString() : '未知'
+                    });
+                });
+
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.json_to_sheet(excelData, { skipHeader: true });
+                
+                // 设置列宽
+                const colWidths = [
+                    { wch: 15 }, // 货位
+                    { wch: 12 }, // 样品数量
+                    { wch: 10 }, // 占比
+                    { wch: 20 }, // 最早入库时间
+                    { wch: 20 }  // 最晚入库时间
+                ];
+                ws['!cols'] = colWidths;
+                
+                XLSX.utils.book_append_sheet(wb, ws, '统计报表');
+                
+                // 生成文件名
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `实验室统计报表_${timestamp}.xlsx`;
+                
+                // 下载文件
+                XLSX.writeFile(wb, filename);
+                
+                showUploadStatus('success', `统计报表已导出：${filename}`);
+                
+            } catch (error) {
+                console.error('导出统计报表失败:', error);
+                showUploadStatus('error', '导出失败：' + error.message);
+            }
+        }
+
+        // 导出完整数据到Excel
+        async function exportFullDataToExcel() {
+            try {
+                if (!databaseData || databaseData.length === 0) {
+                    showUploadStatus('error', '没有数据可导出');
+                    return;
+                }
+
+                // 显示加载状态
+                showUploadStatus('info', '正在导出完整数据...');
+
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                
+                // 主数据工作表
+                const mainData = databaseData.map(item => ({
+                    '扫描单': item.扫描单 || '',
+                    '货位': item.货位 || '',
+                    '条码': item.条码 || '',
+                    '数量': item.数量 || '',
+                    '品名': item.品名 || '',
+                    '状态': item.状态 || '',
+                    '单位': item.单位 || '',
+                    '价格': item.价格 || '',
+                    '品牌': item.品牌 || '',
+                    '产地': item.产地 || '',
+                    '时间': item.时间 ? new Date(item.时间).toLocaleString() : '',
+                    '作业者': item.作业者 || ''
+                }));
+                
+                const wsMain = XLSX.utils.json_to_sheet(mainData);
+                
+                // 设置列宽
+                const colWidths = [
+                    { wch: 15 }, // 扫描单
+                    { wch: 15 }, // 货位
+                    { wch: 20 }, // 条码
+                    { wch: 10 }, // 数量
+                    { wch: 20 }, // 品名
+                    { wch: 10 }, // 状态
+                    { wch: 10 }, // 单位
+                    { wch: 12 }, // 价格
+                    { wch: 15 }, // 品牌
+                    { wch: 15 }, // 产地
+                    { wch: 20 }, // 时间
+                    { wch: 15 }  // 作业者
+                ];
+                wsMain['!cols'] = colWidths;
+                
+                XLSX.utils.book_append_sheet(wb, wsMain, '完整数据');
+                
+                // 统计摘要工作表
+                const uniqueLocations = new Set(databaseData.map(item => item.货位));
+                const summaryData = [
+                    { '统计项目': '总样品数', '数值': databaseData.length },
+                    { '统计项目': '货位总数', '数值': uniqueLocations.size },
+                    { '统计项目': '平均库存', '数值': uniqueLocations.size > 0 ? (databaseData.length / uniqueLocations.size).toFixed(2) : 0 }
+                ];
+                
+                const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+                wsSummary['!cols'] = [{ wch: 15 }, { wch: 12 }];
+                XLSX.utils.book_append_sheet(wb, wsSummary, '统计摘要');
+                
+                // 生成文件名
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/:/g, '-');
+                const filename = `实验室完整数据_${timestamp}.xlsx`;
+                
+                // 下载文件
+                XLSX.writeFile(wb, filename);
+                
+                showUploadStatus('success', `完整数据已导出：${filename}`);
+                
+            } catch (error) {
+                console.error('导出完整数据失败:', error);
+                showUploadStatus('error', '导出失败：' + error.message);
+            }
+        }
+
+        // 修改原有的loadDataFromDatabase函数，在数据加载完成后更新统计卡片
+        const originalLoadDataFromDatabase = window.loadDataFromDatabase;
+        window.loadDataFromDatabase = async function() {
+            await originalLoadDataFromDatabase.call(this);
+            // 数据加载完成后更新统计卡片
+            setTimeout(loadStatsCards, 500); // 延迟500ms确保DOM更新完成
+        };
+
         // 页面加载完成后初始化上传功能
         window.addEventListener('load', function() {
             initUpload();
+            // 如果数据已经加载，立即更新统计卡片
+            if (databaseData) {
+                loadStatsCards();
+            }
         });
     </script>
 </body>
