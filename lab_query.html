@@ -937,6 +937,54 @@
                 grid-template-columns: 1fr;
                 gap: 10px;
             }
+            .position-query-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            .position-query-group {
+                display: flex;
+                flex-direction: column;
+            }
+            .position-query-group label {
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: var(--primary-dark);
+                font-size: 0.9rem;
+            }
+            .position-result {
+                padding: 20px;
+                border-radius: var(--radius-sm);
+                border: 2px solid var(--border-color);
+                background: linear-gradient(135deg, var(--card-bg), rgba(37, 99, 235, 0.02));
+                box-shadow: var(--shadow-sm);
+            }
+            .position-result.in-stock {
+                border-color: var(--success-color);
+                background: linear-gradient(135deg, var(--card-bg), rgba(16, 185, 129, 0.05));
+            }
+            .position-result.out-stock {
+                border-color: var(--error-color);
+                background: linear-gradient(135deg, var(--card-bg), rgba(239, 68, 68, 0.05));
+            }
+            .position-result.not-found {
+                border-color: var(--warning-color);
+                background: linear-gradient(135deg, var(--card-bg), rgba(245, 158, 11, 0.05));
+            }
+            .position-result h4 {
+                margin-bottom: 15px;
+                color: var(--primary-dark);
+                font-size: 1.1rem;
+            }
+            .position-result p {
+                margin-bottom: 8px;
+                line-height: 1.5;
+            }
+            .position-result strong {
+                color: var(--primary-color);
+                font-weight: 600;
+            }
             .search-container input {
                 font-size: 16px; /* 防止iOS缩放 */
             }
@@ -982,6 +1030,10 @@
                 grid-template-columns: repeat(2, 1fr);
                 gap: 15px;
             }
+            .position-query-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
             table {
                 font-size: 0.95rem;
             }
@@ -1005,6 +1057,10 @@
             }
             .filter-grid {
                 grid-template-columns: repeat(3, 1fr);
+            }
+            .position-query-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 25px;
             }
             table {
                 font-size: 1rem;
@@ -1083,6 +1139,24 @@
             </div>
             <button class="submit-button" onclick="queryItems()">查询</button>
                     </div>
+        </div>
+        
+        <div class="file-section">
+            <h3>精确位置查询</h3>
+            <div id="positionQuery">
+                <div class="position-query-grid">
+                    <div class="position-query-group">
+                        <label for="positionBarcode">条码:</label>
+                        <input type="text" id="positionBarcode" placeholder="请输入要查询的条码">
+                    </div>
+                    <div class="position-query-group">
+                        <label for="positionLocation">货位:</label>
+                        <input type="text" id="positionLocation" placeholder="请输入货位">
+                    </div>
+                </div>
+                <button class="submit-button" onclick="queryBarcodePosition()">查询位置</button>
+                <div id="positionResult" style="display: none; margin-top: 20px;"></div>
+            </div>
         </div>
         
         <div id="queryResults">
@@ -1481,26 +1555,199 @@
             return totals;
         }
 
-        // 计算每个条码在货位中的位置
+        // 获取特定条码在货位中的实时位置
+        function getBarcodeRealtimePosition(data, targetBarcode, targetLocation) {
+            // 筛选目标货位的所有记录并按时间排序
+            const locationRecords = data
+                .filter(item => item['货位'] === targetLocation)
+                .sort((a, b) => new Date(a['时间']) - new Date(b['时间']));
+            
+            const currentItems = [];
+            let targetPosition = null;
+            let isCurrentlyInLocation = false;
+            
+            // 处理每个记录，跟踪货位状态变化
+            locationRecords.forEach(record => {
+                const barcode = record['条码'];
+                const status = record['状态'];
+                
+                if (status === '入') {
+                    // 入库操作
+                    if (!currentItems.includes(barcode)) {
+                        currentItems.push(barcode);
+                    }
+                    if (barcode === targetBarcode) {
+                        isCurrentlyInLocation = true;
+                    }
+                } else if (status === '出') {
+                    // 出库操作
+                    const index = currentItems.indexOf(barcode);
+                    if (index > -1) {
+                        currentItems.splice(index, 1);
+                    }
+                    if (barcode === targetBarcode) {
+                        isCurrentlyInLocation = false;
+                    }
+                }
+            });
+            
+            // 计算目标条码的当前位置
+            if (isCurrentlyInLocation) {
+                const position = currentItems.indexOf(targetBarcode) + 1;
+                return {
+                    position: position,
+                    status: '在库',
+                    totalItemsInLocation: currentItems.length,
+                    message: `条码 ${targetBarcode} 当前位于货位 ${targetLocation} 的第 ${position} 个位置`
+                };
+            } else {
+                // 查找该条码最后的位置记录
+                const lastRecord = locationRecords
+                    .filter(record => record['条码'] === targetBarcode)
+                    .pop();
+                
+                if (lastRecord) {
+                    const lastStatus = lastRecord['状态'];
+                    const lastTime = new Date(lastRecord['时间']).toLocaleString();
+                    
+                    if (lastStatus === '出') {
+                        return {
+                            position: '已出库',
+                            status: '出库',
+                            totalItemsInLocation: currentItems.length,
+                            lastActionTime: lastTime,
+                            message: `条码 ${targetBarcode} 已于 ${lastTime} 从货位 ${targetLocation} 出库`
+                        };
+                    } else {
+                        return {
+                            position: '不在当前货位',
+                            status: '未知',
+                            totalItemsInLocation: currentItems.length,
+                            lastActionTime: lastTime,
+                            message: `条码 ${targetBarcode} 最后一次操作时间为 ${lastTime}，当前不在货位 ${targetLocation} 中`
+                        };
+                    }
+                } else {
+                    return {
+                        position: '未找到',
+                        status: '无记录',
+                        totalItemsInLocation: currentItems.length,
+                        message: `在货位 ${targetLocation} 中未找到条码 ${targetBarcode} 的任何记录`
+                    };
+                }
+            }
+        }
+
+        // 计算每个条码在货位中的位置（增强版，支持动态位置跟踪）
         function calculateBarcodePosition(data) {
             const positions = {};
-
-            data.forEach(item => {
+            const locationStatus = {};
+            
+            // 首先按时间排序数据，确保处理顺序正确
+            const sortedData = [...data].sort((a, b) => new Date(a['时间']) - new Date(b['时间']));
+            
+            // 初始化货位状态
+            sortedData.forEach(item => {
+                const location = item['货位'];
+                if (!locationStatus[location]) {
+                    locationStatus[location] = {
+                        currentItems: [], // 当前在货位中的条码列表
+                        itemHistory: {}   // 每个条码的历史记录
+                    };
+                }
+            });
+            
+            // 处理每个记录，更新货位状态
+            sortedData.forEach(item => {
                 const location = item['货位'];
                 const barcode = item['条码'];
                 const status = item['状态'];
-
-                if (!positions[location]) {
-                    positions[location] = {};
+                const time = new Date(item['时间']);
+                
+                if (!locationStatus[location]) return;
+                
+                const locState = locationStatus[location];
+                
+                // 记录条码历史
+                if (!locState.itemHistory[barcode]) {
+                    locState.itemHistory[barcode] = [];
                 }
-
-                // 只记录状态不是'出'的条码位置
-                if (status !== '出' && !positions[location][barcode]) {
-                    positions[location][barcode] = Object.keys(positions[location]).length + 1; // 1-based index
+                locState.itemHistory[barcode].push({
+                    status: status,
+                    time: time,
+                    position: locState.currentItems.length + 1
+                });
+                
+                // 更新当前货位状态
+                if (status === '入') {
+                    // 入库：添加到当前项目列表
+                    if (!locState.currentItems.includes(barcode)) {
+                        locState.currentItems.push(barcode);
+                    }
+                } else if (status === '出') {
+                    // 出库：从当前项目列表中移除
+                    const index = locState.currentItems.indexOf(barcode);
+                    if (index > -1) {
+                        locState.currentItems.splice(index, 1);
+                    }
                 }
             });
-
+            
+            // 根据最终状态计算位置
+            for (const location in locationStatus) {
+                positions[location] = {};
+                const currentItems = locationStatus[location].currentItems;
+                
+                // 为当前在货位中的条码分配位置
+                currentItems.forEach((barcode, index) => {
+                    positions[location][barcode] = index + 1; // 1-based index
+                });
+                
+                // 对于已出库的条码，标记为'已出库'
+                const allBarcodes = Object.keys(locationStatus[location].itemHistory);
+                allBarcodes.forEach(barcode => {
+                    if (!currentItems.includes(barcode) && !positions[location][barcode]) {
+                        positions[location][barcode] = '已出库';
+                    }
+                });
+            }
+            
             return positions;
+        }
+
+        // 查询特定条码在货位中的精确位置
+        function queryBarcodePosition() {
+            const barcode = document.getElementById('positionBarcode').value.trim();
+            const location = document.getElementById('positionLocation').value.trim();
+            
+            if (!barcode || !location) {
+                alert('请输入条码和货位');
+                return;
+            }
+            
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
+            
+            const result = getBarcodeRealtimePosition(databaseData, barcode, location);
+            displayPositionResult(result);
+        }
+        
+        // 显示位置查询结果
+        function displayPositionResult(result) {
+            const resultDiv = document.getElementById('positionResult');
+            resultDiv.innerHTML = `
+                <div class="position-result ${result.status === '在库' ? 'in-stock' : result.status === '出库' ? 'out-stock' : 'not-found'}">
+                    <h4>查询结果</h4>
+                    <p><strong>状态:</strong> ${result.status}</p>
+                    <p><strong>位置:</strong> ${result.position}</p>
+                    <p><strong>货位中当前总数:</strong> ${result.totalItemsInLocation}</p>
+                    ${result.lastActionTime ? `<p><strong>最后操作时间:</strong> ${result.lastActionTime}</p>` : ''}
+                    <p><strong>详细信息:</strong> ${result.message}</p>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
         }
 
         // 查询样品
@@ -1589,15 +1836,24 @@
                 let totalCell = row.insertCell();
                 totalCell.textContent = `入: ${inCount}, 出: ${out}, 剩下: ${remaining}`;
                 
-                // 添加入库顺序（仅当状态不是'出'时）
+                // 添加入库顺序（增强版，支持动态位置显示）
                 const barcode = result['条码'];
                 const status = result['状态'];
                 let positionCell = row.insertCell();
-                if (status !== '出') {
-                    const position = barcodePositions[location] && barcodePositions[location][barcode] ? barcodePositions[location][barcode] : 'N/A';
-                    positionCell.textContent = position;
+                
+                if (barcodePositions[location] && barcodePositions[location][barcode]) {
+                    const position = barcodePositions[location][barcode];
+                    if (position === '已出库') {
+                        positionCell.textContent = '已出库';
+                        positionCell.style.color = '#dc3545';
+                        positionCell.style.fontWeight = 'bold';
+                    } else {
+                        positionCell.textContent = position;
+                        positionCell.style.color = status === '入' ? '#28a745' : '#6c757d';
+                    }
                 } else {
-                    positionCell.textContent = '';
+                    positionCell.textContent = 'N/A';
+                    positionCell.style.color = '#6c757d';
                 }
             });
 
