@@ -112,12 +112,16 @@ class AdvancedChat {
                 // Add parameters to ensure complete, unlimited output
                 max_tokens: null, // No token limit
                 temperature: 0.7, // Balanced creativity
-                stream: false, // Get complete response at once
+                stream: true, // Enable streaming output
                 // Request full response without truncation
                 full_response: true
             };
             
-            // Make API call to GLM worker
+            // Create streaming message element
+            const streamingMessageId = 'streaming_' + Date.now();
+            this.addStreamingMessage(streamingMessageId);
+            
+            // Make API call to GLM worker with streaming
             const response = await fetch(GLM_WORKER_URL, {
                 method: 'POST',
                 headers: {
@@ -130,43 +134,72 @@ class AdvancedChat {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            const result = await response.json();
+            // Handle streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedContent = '';
             
-            // Extract the actual message content from GLM API response
-            // Handle multiple possible response formats to ensure complete output
-            let content = '抱歉，我无法生成回复。';
-            
-            // Try different response structures
-            if (result.choices?.[0]?.message?.content) {
-                content = result.choices[0].message.content;
-            } else if (result.content) {
-                content = result.content;
-            } else if (result.response) {
-                content = result.response;
-            } else if (result.message) {
-                content = result.message;
-            } else if (typeof result === 'string') {
-                content = result;
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+                            
+                            try {
+                                const json = JSON.parse(data);
+                                let content = '';
+                                
+                                // Extract content from different possible formats
+                                if (json.choices?.[0]?.delta?.content) {
+                                    content = json.choices[0].delta.content;
+                                } else if (json.content) {
+                                    content = json.content;
+                                } else if (json.response) {
+                                    content = json.response;
+                                }
+                                
+                                if (content) {
+                                    accumulatedContent += content;
+                                    this.updateStreamingMessage(streamingMessageId, accumulatedContent);
+                                }
+                            } catch (e) {
+                                console.warn('Failed to parse streaming chunk:', data);
+                            }
+                        }
+                    }
+                }
+            } finally {
+                reader.releaseLock();
             }
             
-            // Ensure content is a string and not truncated
-            content = String(content).trim();
-            
-            // Log the complete response for debugging
-            console.log('Complete GLM API Response:', result);
-            console.log('Extracted content length:', content.length);
+            // Finalize the streaming message
+            this.finalizeStreamingMessage(streamingMessageId, accumulatedContent);
             
             return {
-                content: content,
+                content: accumulatedContent,
                 metadata: {
                     model: this.currentModel,
                     timestamp: new Date().toISOString(),
-                    confidence: result.usage ? Math.min(result.usage.total_tokens / 1000, 1) : 0.8,
-                    usage: result.usage || null
+                    confidence: 0.8,
+                    streaming: true
                 }
             };
         } catch (error) {
             console.error('GLM Worker API Error:', error);
+            
+            // Remove streaming message if it exists
+            const streamingMessage = document.getElementById('streaming_message');
+            if (streamingMessage) {
+                streamingMessage.remove();
+            }
             
             // Fallback to mock responses if API fails
             console.log('Falling back to mock responses...');
@@ -260,17 +293,41 @@ class AdvancedChat {
     }
     
     formatMessage(content) {
-        // Simple markdown-like formatting
-        return content
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/`(.*?)`/g, '<code>$1</code>')
-            .replace(/\n\n/g, '</p><p>')
-            .replace(/^/, '<p>')
-            .replace(/$/, '</p>')
-            .replace(/• (.*?)/g, '<li>$1</li>')
-            .replace(/<li>(.*?)<\/li>/g, '<ul><li>$1</li></ul>')
-            .replace(/([📚🔍💡🎯])/g, '<span style="font-size: 1.2em;">$1</span>');
+        // Use marked library for proper markdown rendering
+        try {
+            // Configure marked options
+            marked.setOptions({
+                breaks: true,
+                gfm: true,
+                headerIds: false,
+                mangle: false
+            });
+            
+            // Convert markdown to HTML
+            let html = marked.parse(content);
+            
+            // Add syntax highlighting to code blocks
+            html = html.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/g, (match, lang, code) => {
+                try {
+                    const highlighted = hljs.highlight(code, { language: lang }).value;
+                    return `<pre><code class="language-${lang}">${highlighted}</code></pre>`;
+                } catch (e) {
+                    return match;
+                }
+            });
+            
+            return html;
+        } catch (error) {
+            console.error('Markdown parsing error:', error);
+            // Fallback to simple formatting
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/^/, '<p>')
+                .replace(/$/, '</p>');
+        }
     }
     
     createReactionButtons() {
@@ -529,6 +586,78 @@ class AdvancedChat {
     removeFile() {
         document.getElementById('uploadedFile').style.display = 'none';
         document.getElementById('fileUpload').value = '';
+    }
+    
+    // Streaming message methods
+    addStreamingMessage(messageId) {
+        const messagesContainer = document.querySelector('.messages-container');
+        const messageElement = document.createElement('div');
+        messageElement.className = 'message ai-message streaming';
+        messageElement.id = messageId;
+        
+        const messageContent = document.createElement('div');
+        messageContent.className = 'message-content';
+        
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'typing-indicator';
+        typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+        
+        messageContent.appendChild(typingIndicator);
+        messageElement.appendChild(messageContent);
+        messagesContainer.appendChild(messageElement);
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    updateStreamingMessage(messageId, content) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+        
+        const messageContent = messageElement.querySelector('.message-content');
+        if (!messageContent) return;
+        
+        // Remove typing indicator
+        const typingIndicator = messageContent.querySelector('.typing-indicator');
+        if (typingIndicator) {
+            typingIndicator.remove();
+        }
+        
+        // Format and update content
+        const formattedContent = this.formatMessage(content);
+        messageContent.innerHTML = formattedContent;
+        
+        // Scroll to bottom
+        const messagesContainer = document.querySelector('.messages-container');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    finalizeStreamingMessage(messageId, finalContent) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+        
+        // Remove streaming class
+        messageElement.classList.remove('streaming');
+        
+        // Update with final content
+        this.updateStreamingMessage(messageId, finalContent);
+        
+        // Add timestamp
+        const timestamp = document.createElement('div');
+        timestamp.className = 'message-timestamp';
+        timestamp.textContent = new Date().toLocaleTimeString();
+        messageElement.appendChild(timestamp);
+        
+        // Add to message history
+        this.messageHistory.push({
+            id: messageId,
+            content: finalContent,
+            sender: 'ai',
+            timestamp: new Date().toISOString()
+        });
+        
+        // Save to localStorage
+        this.saveMessageHistory();
     }
     
     // Settings and preferences
