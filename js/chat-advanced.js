@@ -97,24 +97,69 @@ class AdvancedChat {
     }
     
     async getAIResponse(message) {
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-        
-        // Mock AI response based on current model
-        const responses = {
-            'glm': this.generateGLMResponse(message),
-            'deepseek': this.generateDeepSeekResponse(message),
-            'claude': this.generateClaudeResponse(message)
-        };
-        
-        return {
-            content: responses[this.currentModel] || responses.glm,
-            metadata: {
-                model: this.currentModel,
-                timestamp: new Date().toISOString(),
-                confidence: Math.random() * 0.3 + 0.7
+        try {
+            // GLM Worker API endpoint
+            const GLM_WORKER_URL = '/chat';
+            
+            // Prepare request payload
+            const payload = {
+                messages: [
+                    {
+                        role: 'user',
+                        content: message
+                    }
+                ]
+            };
+            
+            // Make API call to GLM worker
+            const response = await fetch(GLM_WORKER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-        };
+            
+            const result = await response.json();
+            
+            // Extract the actual message content from GLM API response
+            const content = result.choices?.[0]?.message?.content || '抱歉，我无法生成回复。';
+            
+            return {
+                content: content,
+                metadata: {
+                    model: this.currentModel,
+                    timestamp: new Date().toISOString(),
+                    confidence: result.usage ? Math.min(result.usage.total_tokens / 1000, 1) : 0.8,
+                    usage: result.usage || null
+                }
+            };
+        } catch (error) {
+            console.error('GLM Worker API Error:', error);
+            
+            // Fallback to mock responses if API fails
+            console.log('Falling back to mock responses...');
+            const responses = {
+                'glm': this.generateGLMResponse(message),
+                'deepseek': this.generateDeepSeekResponse(message),
+                'claude': this.generateClaudeResponse(message)
+            };
+            
+            return {
+                content: responses[this.currentModel] || responses.glm,
+                metadata: {
+                    model: this.currentModel,
+                    timestamp: new Date().toISOString(),
+                    confidence: 0.5,
+                    error: true,
+                    fallback: true
+                }
+            };
+        }
     }
     
     generateGLMResponse(message) {
