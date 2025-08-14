@@ -1279,6 +1279,10 @@
                 width: 80%;
                 height: 1px;
             }
+            
+            .stat-item {
+                padding: 8px 0;
+            }
         }
 
         /* 直方图容器 */
@@ -1543,8 +1547,18 @@
                         </div>
                         <div class="stat-divider"></div>
                         <div class="stat-item">
-                            <div class="stat-label">平均库存</div>
+                            <div class="stat-label">库位平均库存</div>
                             <div class="stat-value" id="avgInventoryValue">加载中...</div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <div class="stat-label">样品出库记录</div>
+                            <div class="stat-value" id="outboundSamplesValue">加载中...</div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <div class="stat-label">最早入库时间</div>
+                            <div class="stat-value" id="earliestEntryTimeValue">加载中...</div>
                         </div>
                     </div>
                 </div>
@@ -2670,10 +2684,27 @@
                 // 计算平均库存
                 const avgInventory = totalLocations > 0 ? Math.round(totalSamples / totalLocations) : 0;
                 
+                // 计算出库样品数量（状态为'出库'的样品）
+                const outboundSamples = databaseData.filter(item => item.状态 === '出库').length;
+                
+                // 计算最早入库时间
+                let earliestEntryTime = '无数据';
+                const validTimeEntries = databaseData
+                    .filter(item => item.时间 && item.时间.trim() !== '')
+                    .map(item => new Date(item.时间))
+                    .filter(date => !isNaN(date.getTime()));
+                
+                if (validTimeEntries.length > 0) {
+                    const earliestDate = new Date(Math.min(...validTimeEntries.map(date => date.getTime())));
+                    earliestEntryTime = earliestDate.toLocaleDateString('zh-CN');
+                }
+                
                 // 更新卡片显示
                 document.getElementById('totalSamplesValue').textContent = totalSamples.toLocaleString();
                 document.getElementById('totalLocationsValue').textContent = totalLocations.toLocaleString();
                 document.getElementById('avgInventoryValue').textContent = avgInventory;
+                document.getElementById('outboundSamplesValue').textContent = outboundSamples.toLocaleString();
+                document.getElementById('earliestEntryTimeValue').textContent = earliestEntryTime;
                 
                 // 添加加载完成动画
                 const combinedCard = document.querySelector('.combined-stat-card');
@@ -2696,6 +2727,8 @@
                 document.getElementById('totalSamplesValue').textContent = '加载失败';
                 document.getElementById('totalLocationsValue').textContent = '加载失败';
                 document.getElementById('avgInventoryValue').textContent = '加载失败';
+                document.getElementById('outboundSamplesValue').textContent = '加载失败';
+                document.getElementById('earliestEntryTimeValue').textContent = '加载失败';
             }
         }
 
