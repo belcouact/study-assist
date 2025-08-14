@@ -2,6 +2,7 @@
 <html lang="zh-CN">
 <head>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>样品管理</title>
@@ -1193,6 +1194,184 @@
             font-size: 1.2rem;
         }
 
+        /* 统计概览容器 */
+        .stats-summary-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (min-width: 768px) {
+            .stats-summary-container {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* 合并的统计卡片 */
+        .combined-stat-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .combined-stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .combined-stat-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .combined-stat-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .combined-stat-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            line-height: 1.2;
+        }
+
+        .stat-divider {
+            width: 1px;
+            height: 50px;
+            background-color: var(--border-color);
+        }
+
+        @media (max-width: 767px) {
+            .combined-stat-content {
+                flex-direction: column;
+            }
+            
+            .stat-divider {
+                width: 80%;
+                height: 1px;
+            }
+        }
+
+        /* 直方图容器 */
+        .histogram-container {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .histogram-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .histogram-header h3 {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .histogram-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon-btn:hover {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        .histogram-chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .histogram-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .histogram-stat {
+            text-align: center;
+        }
+
+        .histogram-stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .histogram-stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary-dark);
+        }
+
+        @media (max-width: 767px) {
+            .histogram-stats {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .histogram-chart-container {
+                height: 250px;
+            }
+        }
+
         /* 响应式设计 - 统计卡片 */
         @media (min-width: 768px) {
             .stats-cards-container {
@@ -1346,29 +1525,59 @@
             <h3>数据统计</h3>
             
             <!-- 统计摘要卡片 -->
-            <div class="stats-cards-container">
-                <div class="stat-card" id="totalSamplesCard">
-                    <div class="stat-icon">📦</div>
-                    <div class="stat-content">
-                        <div class="stat-title">总样品数</div>
-                        <div class="stat-value" id="totalSamplesValue">加载中...</div>
-                        <div class="stat-description">系统中所有样品总数</div>
+            <div class="stats-summary-container">
+                <!-- 合并的统计卡片 -->
+                <div class="combined-stat-card">
+                    <div class="combined-stat-header">
+                        <h3>库存概览</h3>
+                    </div>
+                    <div class="combined-stat-content">
+                        <div class="stat-item">
+                            <div class="stat-label">总样品数</div>
+                            <div class="stat-value" id="totalSamplesValue">加载中...</div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <div class="stat-label">货位总数</div>
+                            <div class="stat-value" id="totalLocationsValue">加载中...</div>
+                        </div>
+                        <div class="stat-divider"></div>
+                        <div class="stat-item">
+                            <div class="stat-label">平均库存</div>
+                            <div class="stat-value" id="avgInventoryValue">加载中...</div>
+                        </div>
                     </div>
                 </div>
-                <div class="stat-card" id="totalLocationsCard">
-                    <div class="stat-icon">📍</div>
-                    <div class="stat-content">
-                        <div class="stat-title">货位总数</div>
-                        <div class="stat-value" id="totalLocationsValue">加载中...</div>
-                        <div class="stat-description">已使用的货位数量</div>
+                
+                <!-- 货位样品数量分布直方图 -->
+                <div class="histogram-container">
+                    <div class="histogram-header">
+                        <h3>货位样品数量分布</h3>
+                        <div class="histogram-controls">
+                            <button id="refreshHistogram" class="icon-btn" title="刷新图表">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="23 4 23 10 17 10"></polyline>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
-                <div class="stat-card" id="avgInventoryCard">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <div class="stat-title">平均库存</div>
-                        <div class="stat-value" id="avgInventoryValue">加载中...</div>
-                        <div class="stat-description">每个货位的平均样品数</div>
+                    <div class="histogram-chart-container">
+                        <canvas id="locationHistogram"></canvas>
+                    </div>
+                    <div class="histogram-stats">
+                        <div class="histogram-stat">
+                            <span class="histogram-stat-label">最多样品:</span>
+                            <span class="histogram-stat-value" id="maxSamplesPerLocation">-</span>
+                        </div>
+                        <div class="histogram-stat">
+                            <span class="histogram-stat-label">最少样品:</span>
+                            <span class="histogram-stat-value" id="minSamplesPerLocation">-</span>
+                        </div>
+                        <div class="histogram-stat">
+                            <span class="histogram-stat-label">中位数:</span>
+                            <span class="histogram-stat-value" id="medianSamplesPerLocation">-</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2467,19 +2676,20 @@
                 document.getElementById('avgInventoryValue').textContent = avgInventory;
                 
                 // 添加加载完成动画
-                const cards = document.querySelectorAll('.stat-card');
-                cards.forEach((card, index) => {
+                const combinedCard = document.querySelector('.combined-stat-card');
+                if (combinedCard) {
+                    combinedCard.style.opacity = '0';
+                    combinedCard.style.transform = 'translateY(20px)';
+                    combinedCard.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    
                     setTimeout(() => {
-                        card.style.opacity = '0';
-                        card.style.transform = 'translateY(20px)';
-                        card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                        
-                        setTimeout(() => {
-                            card.style.opacity = '1';
-                            card.style.transform = 'translateY(0)';
-                        }, 100);
-                    }, index * 150);
-                });
+                        combinedCard.style.opacity = '1';
+                        combinedCard.style.transform = 'translateY(0)';
+                    }, 100);
+                }
+                
+                // 更新直方图
+                updateLocationHistogram();
                 
             } catch (error) {
                 console.error('加载统计卡片数据失败:', error);
@@ -2488,6 +2698,180 @@
                 document.getElementById('avgInventoryValue').textContent = '加载失败';
             }
         }
+
+        // 全局变量存储直方图实例
+        let locationHistogram = null;
+
+        // 更新货位样品数量分布直方图
+        async function updateLocationHistogram() {
+            try {
+                if (!databaseData || databaseData.length === 0) {
+                    console.log('没有数据可用于生成直方图');
+                    return;
+                }
+
+                // 计算每个货位的样品数量
+                const locationCounts = {};
+                databaseData.forEach(item => {
+                    const location = item.货位 || '未知货位';
+                    locationCounts[location] = (locationCounts[location] || 0) + 1;
+                });
+
+                // 获取所有样品数量值
+                const counts = Object.values(locationCounts);
+                
+                // 计算统计信息
+                const maxCount = Math.max(...counts);
+                const minCount = Math.min(...counts);
+                const sortedCounts = [...counts].sort((a, b) => a - b);
+                const medianCount = sortedCounts.length > 0 
+                    ? sortedCounts.length % 2 === 0 
+                        ? (sortedCounts[sortedCounts.length / 2 - 1] + sortedCounts[sortedCounts.length / 2]) / 2
+                        : sortedCounts[Math.floor(sortedCounts.length / 2)]
+                    : 0;
+
+                // 更新统计信息显示
+                document.getElementById('maxSamplesPerLocation').textContent = maxCount;
+                document.getElementById('minSamplesPerLocation').textContent = minCount;
+                document.getElementById('medianSamplesPerLocation').textContent = medianCount;
+
+                // 创建直方图数据
+                const histogramData = createHistogramData(counts);
+
+                // 获取canvas上下文
+                const ctx = document.getElementById('locationHistogram').getContext('2d');
+
+                // 如果已存在直方图，先销毁
+                if (locationHistogram) {
+                    locationHistogram.destroy();
+                }
+
+                // 创建新的直方图
+                locationHistogram = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: histogramData.labels,
+                        datasets: [{
+                            label: '货位数量',
+                            data: histogramData.data,
+                            backgroundColor: 'rgba(37, 99, 235, 0.6)',
+                            borderColor: 'rgba(37, 99, 235, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            borderSkipped: false,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                titleColor: 'white',
+                                bodyColor: 'white',
+                                borderColor: 'rgba(37, 99, 235, 1)',
+                                borderWidth: 1,
+                                cornerRadius: 6,
+                                displayColors: false,
+                                callbacks: {
+                                    title: function(context) {
+                                        return `样品数量: ${context[0].label}`;
+                                    },
+                                    label: function(context) {
+                                        return `货位数量: ${context.parsed.y}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: '样品数量',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: '货位数量',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                beginAtZero: true,
+                                ticks: {
+                                    stepSize: 1
+                                }
+                            }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuart'
+                        }
+                    }
+                });
+
+            } catch (error) {
+                console.error('更新直方图失败:', error);
+            }
+        }
+
+        // 创建直方图数据
+        function createHistogramData(counts) {
+            if (counts.length === 0) {
+                return { labels: [], data: [] };
+            }
+
+            const maxCount = Math.max(...counts);
+            const minCount = Math.min(...counts);
+            
+            // 确定合适的区间数量（使用Sturges公式）
+            const binCount = Math.ceil(Math.log2(counts.length)) + 1;
+            const binSize = Math.ceil((maxCount - minCount + 1) / binCount);
+            
+            // 创建区间
+            const bins = [];
+            const labels = [];
+            
+            for (let i = 0; i < binCount; i++) {
+                const start = minCount + i * binSize;
+                const end = start + binSize - 1;
+                bins.push({ start, end, count: 0 });
+                labels.push(`${start}-${end}`);
+            }
+            
+            // 统计每个区间的数量
+            counts.forEach(count => {
+                const binIndex = Math.min(Math.floor((count - minCount) / binSize), binCount - 1);
+                bins[binIndex].count++;
+            });
+            
+            return {
+                labels: labels,
+                data: bins.map(bin => bin.count)
+            };
+        }
+
+        // 刷新直方图按钮事件
+        document.addEventListener('DOMContentLoaded', function() {
+            const refreshButton = document.getElementById('refreshHistogram');
+            if (refreshButton) {
+                refreshButton.addEventListener('click', function() {
+                    updateLocationHistogram();
+                });
+            }
+        });
 
         // 导出统计结果到Excel
         async function exportStatisticsToExcel() {
