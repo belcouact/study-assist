@@ -129,19 +129,48 @@ class AdvancedChat {
             // Extract the actual message content from GLM API response
             const content = result.choices?.[0]?.message?.content || '抱歉，我无法生成回复。';
             
+            // Check for quota limitations or API errors
+            if (result.error || result.message?.includes('quota') || result.message?.includes('limit')) {
+                throw new Error(`API限制: ${result.error?.message || result.message || '配额已用完'}`);
+            }
+            
+            // Format the response for better readability
+            const formattedContent = this.formatAIResponse(content);
+            
             return {
-                content: content,
+                content: formattedContent,
                 metadata: {
                     model: this.currentModel,
                     timestamp: new Date().toISOString(),
                     confidence: result.usage ? Math.min(result.usage.total_tokens / 1000, 1) : 0.8,
-                    usage: result.usage || null
+                    usage: result.usage || null,
+                    quotaRemaining: result.quota_remaining || null,
+                    quotaLimit: result.quota_limit || null
                 }
             };
         } catch (error) {
             console.error('GLM Worker API Error:', error);
             
-            // Fallback to mock responses if API fails
+            // Check if it's a quota error
+            const isQuotaError = error.message.includes('quota') || error.message.includes('limit') || error.message.includes('配额');
+            
+            if (isQuotaError) {
+                // Show quota warning to user
+                this.showQuotaWarning();
+                
+                return {
+                    content: this.generateQuotaErrorResponse(),
+                    metadata: {
+                        model: this.currentModel,
+                        timestamp: new Date().toISOString(),
+                        confidence: 0.3,
+                        error: true,
+                        quotaError: true
+                    }
+                };
+            }
+            
+            // Fallback to mock responses for other errors
             console.log('Falling back to mock responses...');
             const responses = {
                 'glm': this.generateGLMResponse(message),
@@ -244,6 +273,83 @@ class AdvancedChat {
             .replace(/• (.*?)/g, '<li>$1</li>')
             .replace(/<li>(.*?)<\/li>/g, '<ul><li>$1</li></ul>')
             .replace(/([📚🔍💡🎯])/g, '<span style="font-size: 1.2em;">$1</span>');
+    }
+    
+    formatAIResponse(content) {
+        // Enhanced formatting for better readability
+        return content
+            // Split into paragraphs and format
+            .split('\n\n')
+            .map(paragraph => {
+                // Format headers and important points
+                if (paragraph.includes('**') && paragraph.includes('：')) {
+                    return `<div class="ai-section-header">${paragraph}</div>`;
+                }
+                
+                // Format bullet points
+                if (paragraph.includes('•') || paragraph.includes('-')) {
+                    return `<div class="ai-bullet-points">${paragraph}</div>`;
+                }
+                
+                // Format numbered lists
+                if (paragraph.match(/^\d+\./)) {
+                    return `<div class="ai-numbered-list">${paragraph}</div>`;
+                }
+                
+                // Regular paragraph
+                return `<div class="ai-paragraph">${paragraph}</div>`;
+            })
+            .join('')
+            // Apply markdown formatting
+            .replace(/\*\*(.*?)\*\*/g, '<strong class="ai-bold">$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em class="ai-italic">$1</em>')
+            .replace(/`(.*?)`/g, '<code class="ai-code">$1</code>')
+            .replace(/• (.*?)/g, '<span class="ai-bullet">•</span> <span class="ai-bullet-text">$1</span>')
+            .replace(/([📚🔍💡🎯✨📝🔧])/g, '<span class="ai-emoji">$1</span>')
+            .replace(/(\d+\.\s)/g, '<span class="ai-number">$1</span>');
+    }
+    
+    generateQuotaErrorResponse() {
+        return `⚠️ **API配额已用完**
+
+很抱歉，当前GLM API的调用配额已经达到限制。这可能是由于以下原因：
+
+• 今日API调用次数已达上限
+• 服务器负载过高，暂时限制访问
+• 账户配额需要重置或升级
+
+**建议解决方案：**
+1. 稍后再试（配额通常会在一定时间后重置）
+2. 尝试使用其他AI模型（如DeepSeek或Claude）
+3. 联系管理员了解配额状态
+
+目前我将使用本地模拟回复来继续为您提供帮助。`;
+    }
+    
+    showQuotaWarning() {
+        // Show a persistent warning banner
+        const warningDiv = document.createElement('div');
+        warningDiv.className = 'quota-warning';
+        warningDiv.innerHTML = `
+            <div class="quota-warning-content">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>API配额已用完，正在使用备用回复模式</span>
+                <button onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+        
+        // Insert at the top of the chat container
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            chatContainer.insertBefore(warningDiv, chatContainer.firstChild);
+        }
+        
+        // Auto-remove after 10 seconds
+        setTimeout(() => {
+            if (warningDiv.parentElement) {
+                warningDiv.remove();
+            }
+        }, 10000);
     }
     
     createReactionButtons() {
