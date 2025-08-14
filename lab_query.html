@@ -479,72 +479,6 @@
             gap: 15px;
             flex-wrap: wrap;
         }
-
-        /* 响应式弹窗样式 */
-        @media (max-width: 767px) {
-            .modal-content {
-                width: 95%;
-                max-width: none;
-                padding: 25px 20px;
-                margin: 20px;
-                border-radius: var(--radius);
-                max-height: 85vh;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            .modal-header {
-                font-size: 1.3rem;
-                margin-bottom: 20px;
-                padding-right: 30px;
-            }
-            
-            .modal-body {
-                font-size: 0.95rem;
-                margin-bottom: 25px;
-                max-height: 60vh;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-            
-            .modal-footer {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .modal-button {
-                width: 100%;
-                padding: 18px 24px;
-                font-size: 1.1rem;
-                min-height: 56px;
-            }
-        }
-        
-        @media (max-width: 479px) {
-            .modal-content {
-                width: 98%;
-                padding: 20px 15px;
-                margin: 10px;
-                max-height: 90vh;
-            }
-            
-            .modal-header {
-                font-size: 1.2rem;
-                margin-bottom: 15px;
-            }
-            
-            .modal-body {
-                font-size: 0.9rem;
-                margin-bottom: 20px;
-                max-height: 65vh;
-            }
-            
-            .modal-button {
-                padding: 16px 20px;
-                font-size: 1rem;
-                min-height: 52px;
-            }
-        }
         
         .success {
             color: var(--success-color);
@@ -1545,7 +1479,7 @@
                             <th>时间</th>
                             <th>作业者</th>
                             <th>货位记录</th>
-                            <th>条码位置</th>
+                            <th>入库顺序</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody"></tbody>
@@ -1981,7 +1915,7 @@
                     totals[location] = { total: 0, out: 0 };
                 }
                 totals[location].total += 1;
-                if (item['状态'] === '出' || item['状态'] === '出库' || item['状态'] === 'O') {
+                if (item['状态'] === '出') {
                     totals[location].out += 1;
                 }
             });
@@ -2013,7 +1947,7 @@
                     if (barcode === targetBarcode) {
                         isCurrentlyInLocation = true;
                     }
-                } else if (status === '出' || status === '出库' || status === 'O') {
+                } else if (status === '出') {
                     // 出库操作
                     const index = currentItems.indexOf(barcode);
                     if (index > -1) {
@@ -2044,7 +1978,7 @@
                     const lastStatus = lastRecord['状态'];
                     const lastTime = new Date(lastRecord['时间']).toLocaleString();
                     
-                    if (lastStatus === '出' || lastStatus === '出库' || lastStatus === 'O') {
+                    if (lastStatus === '出') {
                         return {
                             position: '已出库',
                             status: '出库',
@@ -2113,17 +2047,16 @@
                 });
                 
                 // 更新当前货位状态
-                if (status === '出' || status === '出库' || status === 'O') {
+                if (status === '入') {
+                    // 入库：添加到当前项目列表
+                    if (!locState.currentItems.includes(barcode)) {
+                        locState.currentItems.push(barcode);
+                    }
+                } else if (status === '出') {
                     // 出库：从当前项目列表中移除
                     const index = locState.currentItems.indexOf(barcode);
                     if (index > -1) {
                         locState.currentItems.splice(index, 1);
-                    }
-                }
-                else{
-                    // 入库：添加到当前项目列表
-                    if (!locState.currentItems.includes(barcode)) {
-                        locState.currentItems.push(barcode);
                     }
                 }
             });
@@ -2174,8 +2107,6 @@
                 const totalRecords = calculateTotalRecords(databaseData);
                 // 计算每个条码在货位中的位置
                 const barcodePositions = calculateBarcodePosition(databaseData);
-                // 存储到全局变量以便其他函数使用
-                window.barcodePositions = barcodePositions;
 
                 let results = showAll ? 
                     databaseData.filter(item => barcodeList.includes(item['条码']))
@@ -2228,6 +2159,17 @@
                 ['条码', '货位', '状态', '时间', '作业者'].forEach(key => {
                     let cell = row.insertCell();
                     cell.textContent = result[key] || '';
+                    
+                    // 为货位列添加点击事件
+                    if (key === '货位') {
+                        cell.style.cursor = 'pointer';
+                        cell.style.color = 'var(--primary-color)';
+                        cell.style.fontWeight = 'bold';
+                        cell.style.textDecoration = 'underline';
+                        cell.addEventListener('click', function() {
+                            showLocationDetails(result['货位'], totalRecords, barcodePositions);
+                        });
+                    }
                 });
 
                 // 添加货位的总记录数
@@ -2298,10 +2240,10 @@
                     summary[location] = { count: 0, minTime: time, maxTime: time };
                 }
 
-                // 计算条码数量（总记录数减去2倍的出库状态记录）
+                // 计算条码数量（总记录数减去2倍的'出'状态记录）
                 summary[location].count += 1;
-                if (status === '出' || status === '出库' || status === 'O') {
-                    summary[location].count -= 2; // 调整出库状态的计数
+                if (status === '出') {
+                    summary[location].count -= 2; // 调整'出'状态的计数
                 }
             });
 
@@ -2315,9 +2257,6 @@
                     summary[location].maxTime = maxTime;
                 }
             }
-
-            // 计算条码位置信息并存储到全局变量
-            window.barcodePositions = calculateBarcodePosition(databaseData);
 
             // 显示统计结果
             displaySummary(summary);
@@ -2354,148 +2293,13 @@
                 const { count, minTime, maxTime } = summary[location];
                 summaryTable.querySelector('tbody').innerHTML += `
                     <tr>
-                        <td><span class="location-clickable" onclick="showLocationDetails('${location}')" style="color: #007bff; cursor: pointer; text-decoration: underline; padding: 8px 12px; display: inline-block; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#e3f2fd'" onmouseout="this.style.backgroundColor='transparent'" ontouchstart="this.style.backgroundColor='#e3f2fd'" ontouchend="this.style.backgroundColor='transparent'">${location}</span></td>
+                        <td>${location}</td>
                         <td>${count}</td>
                         <td>${minTime.toLocaleString()}</td>
                         <td>${maxTime.toLocaleString()}</td>
                     </tr>
                 `;
             }
-        }
-
-        // 显示货位详细信息弹窗
-        function showLocationDetails(location) {
-            if (!databaseData) {
-                alert('数据尚未加载完成，请稍后重试');
-                return;
-            }
-
-            // 获取该货位的所有记录
-            const locationRecords = databaseData.filter(item => item['货位'] === location);
-            
-            if (locationRecords.length === 0) {
-                alert('未找到该货位的记录');
-                return;
-            }
-
-            // 计算每个条码的统计信息
-            const barcodeStats = {};
-            const totalRecords = {};
-            
-            // 计算货位总记录数
-            locationRecords.forEach(record => {
-                const loc = record['货位'];
-                if (!totalRecords[loc]) {
-                    totalRecords[loc] = { total: 0, out: 0 };
-                }
-                totalRecords[loc].total++;
-                if (record['状态'] === '出' || record['状态'] === '出库' || record['状态'] === 'O') {
-                    totalRecords[loc].out++;
-                }
-            });
-            
-            // 统计每个条码的信息
-            locationRecords.forEach(record => {
-                const barcode = record['条码'];
-                const sampleBarcode = record['样品条码'] || '';
-                const status = record['状态'];
-                
-                if (!barcodeStats[barcode]) {
-                    barcodeStats[barcode] = {
-                        货位: location,
-                        条码: barcode,
-                        条码数量: 1,
-                        剩余数量: 0,
-                        原始位置: sampleBarcode,
-                        条码位置: 'N/A'
-                    };
-                } else {
-                    barcodeStats[barcode].条码数量++;
-                }
-            });
-            
-            // 计算剩余数量和条码位置
-            const locTotal = totalRecords[location];
-            const inCount = locTotal.total - locTotal.out;
-            const remaining = inCount - locTotal.out;
-            
-            // 获取条码位置信息
-            if (window.barcodePositions && window.barcodePositions[location]) {
-                const positions = window.barcodePositions[location];
-                for (const [barcode, position] of Object.entries(positions)) {
-                    if (barcodeStats[barcode]) {
-                        if (position === '已出库') {
-                            barcodeStats[barcode].条码位置 = '已出库';
-                            barcodeStats[barcode].剩余数量 = 0;
-                        } else {
-                            const newPosition = remaining - parseInt(position) + 1;
-                            barcodeStats[barcode].条码位置 = newPosition;
-                            barcodeStats[barcode].剩余数量 = 1;
-                        }
-                    }
-                }
-            }
-            
-            // 构建标准表格内容
-            let tableRows = '';
-            for (const barcode in barcodeStats) {
-                const stats = barcodeStats[barcode];
-                tableRows += `
-                    <tr>
-                        <td>${stats.货位}</td>
-                        <td>${stats.条码}</td>
-                        <td>${stats.条码数量}</td>
-                        <td>${stats.剩余数量}</td>
-                        <td>${stats.原始位置}</td>
-                        <td style="color: ${stats.条码位置 === '已出库' ? '#dc3545' : '#28a745'}; font-weight: ${stats.条码位置 === '已出库' ? 'bold' : 'normal'};">${stats.条码位置}</td>
-                    </tr>
-                `;
-            }
-            
-            // 构建弹窗内容 - 标准表格格式
-            const modalContent = `
-                <div style="max-height: 400px; overflow-y: auto; padding: 0;">
-                    <table style="width: 100%; border-collapse: collapse; margin: 0;">
-                        <thead>
-                            <tr style="background-color: #f8f9fa;">
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">货位</th>
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">条码</th>
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">条码数量</th>
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">剩余数量</th>
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">原始位置</th>
-                                <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #dee2e6; font-weight: 600; color: #495057;">条码位置</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tableRows}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
-            // 显示弹窗
-            const modal = document.getElementById('statusModal');
-            const modalHeader = document.getElementById('modalHeader');
-            const modalBody = document.getElementById('modalBody');
-            const modalCloseBtn = document.getElementById('modalCloseBtn');
-
-            modalHeader.innerHTML = `<h3 style="margin: 0; color: #333; text-align: center;">货位: ${location}</h3>`;
-            modalBody.innerHTML = modalContent;
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
-
-            // 关闭弹窗事件
-            modalCloseBtn.onclick = function() {
-                modal.style.display = 'none';
-            };
-
-            // 点击弹窗外部关闭
-            window.onclick = function(event) {
-                if (event.target === modal) {
-                    modal.style.display = 'none';
-                }
-            };
         }
 
         let currentSortColumn = null;
@@ -2531,6 +2335,130 @@
             // 清除现有的tbody并追加排序后的行
             tbody.innerHTML = '';
             rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // 显示货位详细信息
+        function showLocationDetails(location, totalRecords, barcodePositions) {
+            if (!location || !totalRecords || !barcodePositions) {
+                showUploadStatus('error', '数据不完整，无法显示货位详细信息');
+                return;
+            }
+
+            const locationData = totalRecords[location];
+            if (!locationData) {
+                showUploadStatus('error', '找不到货位 ' + location + ' 的数据');
+                return;
+            }
+
+            const total = locationData.total || 0;
+            const out = locationData.out || 0;
+            const inCount = total - out;
+            const remaining = inCount - out;
+            
+            // 获取该货位的所有条码信息
+            const locationBarcodes = barcodePositions[location] || {};
+            const barcodeList = [];
+            
+            for (const barcode in locationBarcodes) {
+                const position = locationBarcodes[barcode];
+                const currentPosition = position === '已出库' ? '已出库' : (remaining - parseInt(position) + 1);
+                const status = position === '已出库' ? '出库' : '在库';
+                
+                barcodeList.push({
+                    barcode: barcode,
+                    position: currentPosition,
+                    status: status
+                });
+            }
+            
+            // 按位置排序
+            barcodeList.sort((a, b) => {
+                if (a.position === '已出库') return 1;
+                if (b.position === '已出库') return -1;
+                return parseInt(a.position) - parseInt(b.position);
+            });
+            
+            // 构建弹窗内容
+            let modalContent = `
+                <div style="max-width: 600px; max-height: 70vh; overflow-y: auto;">
+                    <h3 style="color: var(--primary-color); margin-bottom: 20px; text-align: center;">货位详细信息</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                        <div style="background: var(--bg-color); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-weight: bold; color: var(--text-light); font-size: 0.9rem; margin-bottom: 5px;">库位</div>
+                            <div style="font-size: 1.2rem; color: var(--primary-color); font-weight: bold;">${location}</div>
+                        </div>
+                        
+                        <div style="background: var(--bg-color); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-weight: bold; color: var(--text-light); font-size: 0.9rem; margin-bottom: 5px;">条码数量</div>
+                            <div style="font-size: 1.2rem; color: var(--secondary-color); font-weight: bold;">${inCount}</div>
+                        </div>
+                        
+                        <div style="background: var(--bg-color); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-weight: bold; color: var(--text-light); font-size: 0.9rem; margin-bottom: 5px;">剩余数量</div>
+                            <div style="font-size: 1.2rem; color: ${remaining > 0 ? 'var(--success-color)' : 'var(--error-color)'}; font-weight: bold;">${remaining}</div>
+                        </div>
+                        
+                        <div style="background: var(--bg-color); padding: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                            <div style="font-weight: bold; color: var(--text-light); font-size: 0.9rem; margin-bottom: 5px;">当前状态</div>
+                            <div style="font-size: 1.2rem; color: ${remaining > 0 ? 'var(--success-color)' : 'var(--error-color)'}; font-weight: bold;">${remaining > 0 ? '有库存' : '无库存'}</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1rem;">条码位置详情</h4>
+                        <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead style="background: var(--primary-color); color: white; position: sticky; top: 0;">
+                                    <tr>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">序号</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">条码</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">条码位置</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            if (barcodeList.length === 0) {
+                modalContent += `
+                    <tr>
+                        <td colspan="4" style="padding: 20px; text-align: center; color: var(--text-light);">暂无条码数据</td>
+                    </tr>
+                `;
+            } else {
+                barcodeList.forEach((item, index) => {
+                    const statusColor = item.status === '在库' ? 'var(--success-color)' : 'var(--error-color)';
+                    const positionColor = item.position === '已出库' ? 'var(--error-color)' : 'var(--secondary-color)';
+                    
+                    modalContent += `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 10px;">${index + 1}</td>
+                            <td style="padding: 10px; font-family: monospace; font-weight: bold;">${item.barcode}</td>
+                            <td style="padding: 10px; color: ${positionColor}; font-weight: bold;">${item.position}</td>
+                            <td style="padding: 10px; color: ${statusColor}; font-weight: bold;">${item.status}</td>
+                        </tr>
+                    `;
+                });
+            }
+            
+            modalContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px; color: var(--text-light); font-size: 0.9rem;">
+                        总记录数: ${total} | 出库数: ${out} | 入库数: ${inCount} | 剩余数: ${remaining}
+                    </div>
+                </div>
+            `;
+            
+            // 显示弹窗
+            modalHeader.textContent = '货位详情 - ' + location;
+            modalHeader.className = 'modal-header info';
+            modalBody.innerHTML = modalContent;
+            statusModal.style.display = 'flex';
         }
 
         // 显示标签页
