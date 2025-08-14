@@ -660,6 +660,11 @@ class AdvancedChat {
         this.saveMessageHistory();
     }
     
+    // Message history management
+    saveMessageHistory() {
+        this.saveChatHistory();
+    }
+    
     // Settings and preferences
     loadSettings() {
         const saved = localStorage.getItem('chatSettings');
