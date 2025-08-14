@@ -479,6 +479,72 @@
             gap: 15px;
             flex-wrap: wrap;
         }
+
+        /* 响应式弹窗样式 */
+        @media (max-width: 767px) {
+            .modal-content {
+                width: 95%;
+                max-width: none;
+                padding: 25px 20px;
+                margin: 20px;
+                border-radius: var(--radius);
+                max-height: 85vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .modal-header {
+                font-size: 1.3rem;
+                margin-bottom: 20px;
+                padding-right: 30px;
+            }
+            
+            .modal-body {
+                font-size: 0.95rem;
+                margin-bottom: 25px;
+                max-height: 60vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            .modal-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .modal-button {
+                width: 100%;
+                padding: 18px 24px;
+                font-size: 1.1rem;
+                min-height: 56px;
+            }
+        }
+        
+        @media (max-width: 479px) {
+            .modal-content {
+                width: 98%;
+                padding: 20px 15px;
+                margin: 10px;
+                max-height: 90vh;
+            }
+            
+            .modal-header {
+                font-size: 1.2rem;
+                margin-bottom: 15px;
+            }
+            
+            .modal-body {
+                font-size: 0.9rem;
+                margin-bottom: 20px;
+                max-height: 65vh;
+            }
+            
+            .modal-button {
+                padding: 16px 20px;
+                font-size: 1rem;
+                min-height: 52px;
+            }
+        }
         
         .success {
             color: var(--success-color);
@@ -2108,6 +2174,8 @@
                 const totalRecords = calculateTotalRecords(databaseData);
                 // 计算每个条码在货位中的位置
                 const barcodePositions = calculateBarcodePosition(databaseData);
+                // 存储到全局变量以便其他函数使用
+                window.barcodePositions = barcodePositions;
 
                 let results = showAll ? 
                     databaseData.filter(item => barcodeList.includes(item['条码']))
@@ -2248,6 +2316,9 @@
                 }
             }
 
+            // 计算条码位置信息并存储到全局变量
+            window.barcodePositions = calculateBarcodePosition(databaseData);
+
             // 显示统计结果
             displaySummary(summary);
         }
@@ -2283,13 +2354,105 @@
                 const { count, minTime, maxTime } = summary[location];
                 summaryTable.querySelector('tbody').innerHTML += `
                     <tr>
-                        <td>${location}</td>
+                        <td><span class="location-clickable" onclick="showLocationDetails('${location}')" style="color: #007bff; cursor: pointer; text-decoration: underline; padding: 8px 12px; display: inline-block; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#e3f2fd'" onmouseout="this.style.backgroundColor='transparent'" ontouchstart="this.style.backgroundColor='#e3f2fd'" ontouchend="this.style.backgroundColor='transparent'">${location}</span></td>
                         <td>${count}</td>
                         <td>${minTime.toLocaleString()}</td>
                         <td>${maxTime.toLocaleString()}</td>
                     </tr>
                 `;
             }
+        }
+
+        // 显示货位详细信息弹窗
+        function showLocationDetails(location) {
+            if (!databaseData) {
+                alert('数据尚未加载完成，请稍后重试');
+                return;
+            }
+
+            // 获取该货位的所有记录
+            const locationRecords = databaseData.filter(item => item['货位'] === location);
+            
+            if (locationRecords.length === 0) {
+                alert('未找到该货位的记录');
+                return;
+            }
+
+            // 计算剩余数量（入库数量减去出库数量）
+            let remainingCount = 0;
+            const samples = new Set(); // 存储所有样品
+            const outboundRecords = []; // 出库记录
+            const inboundRecords = []; // 入库记录
+
+            locationRecords.forEach(record => {
+                const sample = record['样品条码'];
+                const status = record['状态'];
+                const time = record['时间'];
+                
+                samples.add(sample);
+                
+                if (status === '入') {
+                    remainingCount++;
+                    inboundRecords.push({ sample, time });
+                } else if (status === '出' || status === '出库' || status === 'O') {
+                    remainingCount--;
+                    outboundRecords.push({ sample, time });
+                }
+            });
+
+            // 获取条码位置信息
+            let barcodePositionsText = '';
+            if (window.barcodePositions && window.barcodePositions[location]) {
+                const positions = window.barcodePositions[location];
+                barcodePositionsText = '<div style="margin-top: 10px;"><strong>条码位置详情:</strong><ul>';
+                for (const [barcode, position] of Object.entries(positions)) {
+                    if (position === '已出库') {
+                        barcodePositionsText += `<li>${barcode}: <span style="color: #dc3545;">已出库</span></li>`;
+                    } else {
+                        barcodePositionsText += `<li>${barcode}: 位置 ${position}</li>`;
+                    }
+                }
+                barcodePositionsText += '</ul></div>';
+            } else {
+                barcodePositionsText = '<div style="margin-top: 10px; color: #6c757d;">暂无条码位置信息</div>';
+            }
+
+            // 构建弹窗内容
+            const modalContent = `
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <h4 style="margin-bottom: 15px; color: #333;">货位详细信息</h4>
+                    <div style="margin-bottom: 10px;"><strong>货位:</strong> ${location}</div>
+                    <div style="margin-bottom: 10px;"><strong>样品数量:</strong> ${samples.size}</div>
+                    <div style="margin-bottom: 10px;"><strong>剩余数量:</strong> ${remainingCount}</div>
+                    <div style="margin-bottom: 10px;"><strong>最早入库时间:</strong> ${inboundRecords.length > 0 ? new Date(Math.min(...inboundRecords.map(r => new Date(r.time)))).toLocaleString() : '无'}</div>
+                    <div style="margin-bottom: 10px;"><strong>最晚入库时间:</strong> ${inboundRecords.length > 0 ? new Date(Math.max(...inboundRecords.map(r => new Date(r.time)))).toLocaleString() : '无'}</div>
+                    <div style="margin-bottom: 10px;"><strong>最早出库时间:</strong> ${outboundRecords.length > 0 ? new Date(Math.min(...outboundRecords.map(r => new Date(r.time)))).toLocaleString() : '无'}</div>
+                    <div style="margin-bottom: 10px;"><strong>最晚出库时间:</strong> ${outboundRecords.length > 0 ? new Date(Math.max(...outboundRecords.map(r => new Date(r.time)))).toLocaleString() : '无'}</div>
+                    ${barcodePositionsText}
+                </div>
+            `;
+
+            // 显示弹窗
+            const modal = document.getElementById('statusModal');
+            const modalHeader = document.getElementById('modalHeader');
+            const modalBody = document.getElementById('modalBody');
+            const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+            modalHeader.innerHTML = `<h3 style="margin: 0; color: #333;">货位: ${location}</h3>`;
+            modalBody.innerHTML = modalContent;
+            modal.style.display = 'block';
+
+            // 关闭弹窗事件
+            modalCloseBtn.onclick = function() {
+                modal.style.display = 'none';
+            };
+
+            // 点击弹窗外部关闭
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            };
         }
 
         let currentSortColumn = null;
