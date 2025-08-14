@@ -99,7 +99,7 @@ class AdvancedChat {
     async getAIResponse(message) {
         try {
             // GLM Worker API endpoint
-            const GLM_WORKER_URL = '/chat';
+            const GLM_WORKER_URL = 'https://glm.study-llm.me/chat';
             
             // Prepare request payload
             const payload = {
