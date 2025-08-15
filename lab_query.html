@@ -2229,10 +2229,12 @@
 
             // 计算统计数据
             const summary = {};
+            const locationBarcodes = {}; // 用于存储每个货位的条码信息
             
             databaseData.forEach(item => {
                 const location = item['货位'];
                 const status = item['状态'];
+                const barcode = item['条码'];
                 const time = new Date(item['时间']);
 
                 // 应用过滤器
@@ -2242,7 +2244,8 @@
                 }
 
                 if (!summary[location]) {
-                    summary[location] = { count: 0, minTime: time, maxTime: time };
+                    summary[location] = { count: 0, minTime: time, maxTime: time, uniqueBarcodes: new Set() };
+                    locationBarcodes[location] = {};
                 }
 
                 // 计算条码数量（总记录数减去2倍的'出'状态记录）
@@ -2250,7 +2253,30 @@
                 if (status === '出') {
                     summary[location].count -= 2; // 调整'出'状态的计数
                 }
+                
+                // 记录条码信息，用于计算唯一在库条码数
+                if (!locationBarcodes[location][barcode]) {
+                    locationBarcodes[location][barcode] = { inStock: false };
+                }
+                
+                // 如果状态不是出库状态，则标记为在库
+                if (status !== '出' && status !== 'O' && status !== '出库') {
+                    locationBarcodes[location][barcode].inStock = true;
+                }
             });
+            
+            // 计算每个货位的唯一在库条码数
+            for (const location in locationBarcodes) {
+                if (summary[location]) {
+                    let uniqueInStockCount = 0;
+                    for (const barcode in locationBarcodes[location]) {
+                        if (locationBarcodes[location][barcode].inStock) {
+                            uniqueInStockCount++;
+                        }
+                    }
+                    summary[location].uniqueInStockCount = uniqueInStockCount;
+                }
+            }
 
             // 根据数量范围过滤
             for (const location in summary) {
@@ -2285,8 +2311,10 @@
                     <tr>
                         <th>货位 <button onclick="sortSummary('location', 'asc')">↑</button><button onclick="sortSummary('location', 'desc')">↓</button></th>
                         <th>条码数量 <button onclick="sortSummary('count', 'asc')">↑</button><button onclick="sortSummary('count', 'desc')">↓</button></th>
+                        <th>唯一条码数 <button onclick="sortSummary('uniqueInStockCount', 'asc')">↑</button><button onclick="sortSummary('uniqueInStockCount', 'desc')">↓</button></th>
                         <th>最早时间 <button onclick="sortSummary('minTime', 'asc')">↑</button><button onclick="sortSummary('minTime', 'desc')">↓</button></th>
                         <th>最晚时间 <button onclick="sortSummary('maxTime', 'asc')">↑</button><button onclick="sortSummary('maxTime', 'desc')">↓</button></th>
+                        <th>备注</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -2295,13 +2323,19 @@
 
             // 填充统计表格
             for (const location in summary) {
-                const { count, minTime, maxTime } = summary[location];
+                const { count, minTime, maxTime, uniqueInStockCount } = summary[location];
+                const isMismatch = count !== uniqueInStockCount;
+                const remark = isMismatch ? '数量不匹配' : '';
+                const remarkColor = isMismatch ? 'red' : 'inherit';
+                
                 summaryTable.querySelector('tbody').innerHTML += `
                     <tr>
-                        <td>${location}</td>
+                        <td><a href="#" onclick="showLocationDetails('${location}')">${location}</a></td>
                         <td>${count}</td>
+                        <td>${uniqueInStockCount || 0}</td>
                         <td>${minTime.toLocaleString()}</td>
                         <td>${maxTime.toLocaleString()}</td>
+                        <td style="color: ${remarkColor}">${remark}</td>
                     </tr>
                 `;
             }
@@ -2330,9 +2364,13 @@
                     aValue = parseInt(a.cells[1].textContent); // 条码数量
                     bValue = parseInt(b.cells[1].textContent);
                     return order === 'asc' ? aValue - bValue : bValue - aValue;
+                } else if (column === 'uniqueInStockCount') {
+                    aValue = parseInt(a.cells[2].textContent); // 唯一条码数
+                    bValue = parseInt(b.cells[2].textContent);
+                    return order === 'asc' ? aValue - bValue : bValue - aValue;
                 } else if (column === 'minTime' || column === 'maxTime') {
-                    aValue = new Date(a.cells[column === 'minTime' ? 2 : 3].textContent); // 最早时间 or 最晚时间
-                    bValue = new Date(b.cells[column === 'minTime' ? 2 : 3].textContent);
+                    aValue = new Date(a.cells[column === 'minTime' ? 3 : 4].textContent); // 最早时间 or 最晚时间
+                    bValue = new Date(b.cells[column === 'minTime' ? 3 : 4].textContent);
                     return order === 'asc' ? aValue - bValue : bValue - aValue;
                 }
             });
