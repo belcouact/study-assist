@@ -2256,12 +2256,14 @@
                 
                 // 记录条码信息，用于计算唯一在库条码数
                 if (!locationBarcodes[location][barcode]) {
-                    locationBarcodes[location][barcode] = { inStock: false };
+                    locationBarcodes[location][barcode] = { hasInStock: false, hasOutStock: false };
                 }
                 
-                // 如果状态不是出库状态，则标记为在库
+                // 记录条码的入库和出库状态
                 if (status !== '出' && status !== 'O' && status !== '出库') {
-                    locationBarcodes[location][barcode].inStock = true;
+                    locationBarcodes[location][barcode].hasInStock = true;
+                } else {
+                    locationBarcodes[location][barcode].hasOutStock = true;
                 }
             });
             
@@ -2270,7 +2272,9 @@
                 if (summary[location]) {
                     let uniqueInStockCount = 0;
                     for (const barcode in locationBarcodes[location]) {
-                        if (locationBarcodes[location][barcode].inStock) {
+                        const barcodeInfo = locationBarcodes[location][barcode];
+                        // 只有当条码有入库记录且没有出库记录时，才计入唯一在库条码数
+                        if (barcodeInfo.hasInStock && !barcodeInfo.hasOutStock) {
                             uniqueInStockCount++;
                         }
                     }
