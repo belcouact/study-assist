@@ -1469,7 +1469,8 @@
             <div id="noResults" class="no-results">
                 未找到任何匹配的样品记录，请检查输入的条码是否正确。
             </div>
-            <table id="resultsTable" style="display: none;">
+            <div class="table-container">
+                <table id="resultsTable" style="display: none;">
                     <thead>
                         <tr>
                             <th>条码</th>
@@ -1477,14 +1478,13 @@
                             <th>状态</th>
                             <th>时间</th>
                             <th>作业者</th>
-                            <th>货位在库条码记录</th>
-                            <th>货位在库条码数量</th>
-                            <th>在库位置</th>
+                            <th>货位记录</th>
+                            <th>入库顺序</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody"></tbody>
                 </table>
-            <p style="font-size: 0.85rem; color: #6b7280; font-weight: 400; letter-spacing: 0.3px; margin-top: 10px;">注意：如果货位在库条码记录 > 货位在库条码数量，说明同一条码有重复入库记录，可能会影响在库位置。</p>
+            </div>
         </div>
     </div>
 
@@ -2187,19 +2187,6 @@
                 let totalCell = row.insertCell();
                 totalCell.textContent = remaining; // 货位记录列显示货位中当前总数
                 
-                // 添加唯一条码数量列（排除出库条码）
-                const allBarcodes = barcodePositions[location] || {};
-                const uniqueBarcodeCount = Object.keys(allBarcodes).filter(barcode => allBarcodes[barcode] !== '已出库').length;
-                let uniqueBarcodeCell = row.insertCell();
-                uniqueBarcodeCell.textContent = uniqueBarcodeCount;
-                
-                // 如果货位记录数与唯一条码数量不同，高亮货位记录列
-                if (remaining !== uniqueBarcodeCount) {
-                    totalCell.style.backgroundColor = '#fff3cd';
-                    totalCell.style.fontWeight = 'bold';
-                    totalCell.style.color = '#856404';
-                }
-                
                 // 添加入库顺序（增强版，支持动态位置显示）
                 const barcode = result['条码'];
                 const status = result['状态'];
@@ -2373,11 +2360,11 @@
             const inCount = total - out;
             const remaining = inCount - out;
             
+            // 计算唯一条码数量
+            const uniqueBarcodes = Object.keys(locationBarcodes).length;
+            
             // 获取该货位的所有条码信息
             const locationBarcodes = barcodePositions[location] || {};
-            
-            // 计算唯一条码数量（排除出库条码）
-            const uniqueBarcodes = Object.keys(locationBarcodes).filter(barcode => locationBarcodes[barcode] !== '已出库').length;
             const barcodeList = [];
             
             for (const barcode in locationBarcodes) {
@@ -2418,24 +2405,17 @@
             
             // 构建弹窗内容
             let modalContent = `
-                <div style="max-width: 95vw; max-height: 70vh; overflow-y: auto; overflow-x: auto;">
+                <div style="max-width: 1400px; max-height: 70vh; overflow-y: auto;">
                     <h3 style="color: var(--primary-color); margin-bottom: 20px; text-align: center;">货位详细信息</h3>
                     
                     <div style="margin-bottom: 20px;">
                         <div style="text-align: center; margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem; background: var(--bg-color); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            入库记录: ${inCount} | 出库记录: ${out} |  在库条码记录: ${remaining} | 在库唯一条码数量: ${uniqueBarcodes}
+                            总记录数: ${total} | 出库数: ${out} | 入库数: ${inCount} | 剩余数: ${remaining} | 唯一条码数: ${uniqueBarcodes}
                         </div>
                         
                         <h4 style="color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1rem;">条码位置详情</h4>
                         <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                            <table style="width: 100%; min-width: 1200px; border-collapse: collapse; font-size: 0.9rem;">
-                            <style>
-                                @media screen and (max-width: 1200px) {
-                                    table { min-width: 100% !important; }
-                                    th, td { padding: 8px 5px !important; font-size: 0.8rem !important; }
-                                    .modal-content { width: 98vw !important; max-width: none !important; }
-                                }
-                            </style>
+                            <table style="width: 100%; min-width: 1300px; border-collapse: collapse; font-size: 0.9rem;">
                                 <thead style="background: var(--primary-color); color: white; position: sticky; top: 0;">
                                     <tr>
                                         <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">序号</th>
