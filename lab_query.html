@@ -2314,8 +2314,8 @@
                 <thead>
                     <tr>
                         <th>货位 <button onclick="sortSummary('location', 'asc')">↑</button><button onclick="sortSummary('location', 'desc')">↓</button></th>
-                        <th>条码数量 <button onclick="sortSummary('count', 'asc')">↑</button><button onclick="sortSummary('count', 'desc')">↓</button></th>
-                        <th>唯一条码数 <button onclick="sortSummary('uniqueInStockCount', 'asc')">↑</button><button onclick="sortSummary('uniqueInStockCount', 'desc')">↓</button></th>
+                        <th>在库条码记录 <button onclick="sortSummary('count', 'asc')">↑</button><button onclick="sortSummary('count', 'desc')">↓</button></th>
+                        <th>在库唯一条码数 <button onclick="sortSummary('uniqueInStockCount', 'asc')">↑</button><button onclick="sortSummary('uniqueInStockCount', 'desc')">↓</button></th>
                         <th>最早时间 <button onclick="sortSummary('minTime', 'asc')">↑</button><button onclick="sortSummary('minTime', 'desc')">↓</button></th>
                         <th>最晚时间 <button onclick="sortSummary('maxTime', 'asc')">↑</button><button onclick="sortSummary('maxTime', 'desc')">↓</button></th>
                         <th>备注</th>
@@ -2328,9 +2328,17 @@
             // 填充统计表格
             for (const location in summary) {
                 const { count, minTime, maxTime, uniqueInStockCount } = summary[location];
-                const isMismatch = count !== uniqueInStockCount;
-                const remark = isMismatch ? '数量不匹配' : '';
-                const remarkColor = isMismatch ? 'red' : 'inherit';
+                const inStockOffset = count - uniqueInStockCount;
+                let remark = '';
+                let remarkColor = 'inherit';
+                
+                if (inStockOffset > 0) {
+                    remark = '可能存在同一样品多次入库，请检查';
+                    remarkColor = 'red';
+                } else if (inStockOffset < 0) {
+                    remark = '可能入库和出库样品条码不一致，请检查';
+                    remarkColor = 'red';
+                }
                 
                 summaryTable.querySelector('tbody').innerHTML += `
                     <tr>
@@ -2365,11 +2373,11 @@
                     bValue = b.cells[0].textContent;
                     return order === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
                 } else if (column === 'count') {
-                    aValue = parseInt(a.cells[1].textContent); // 条码数量
+                    aValue = parseInt(a.cells[1].textContent); // 在库条码记录
                     bValue = parseInt(b.cells[1].textContent);
                     return order === 'asc' ? aValue - bValue : bValue - aValue;
                 } else if (column === 'uniqueInStockCount') {
-                    aValue = parseInt(a.cells[2].textContent); // 唯一条码数
+                    aValue = parseInt(a.cells[2].textContent); // 在库唯一条码数
                     bValue = parseInt(b.cells[2].textContent);
                     return order === 'asc' ? aValue - bValue : bValue - aValue;
                 } else if (column === 'minTime' || column === 'maxTime') {
@@ -2452,7 +2460,7 @@
                     
                     <div style="margin-bottom: 20px;">
                         <div style="text-align: center; margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem; background: var(--bg-color); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            总记录数: ${total} | 出库数: ${out} | 入库数: ${inCount} | 剩余数: ${remaining} | 唯一条码数: ${uniqueBarcodes}
+                            总记录数: ${total} | 出库数: ${out} | 入库数: ${inCount} | 剩余数: ${remaining} | 在库唯一条码数: ${uniqueBarcodes}
                         </div>
                         
                         <h4 style="color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1rem;">条码位置详情</h4>
