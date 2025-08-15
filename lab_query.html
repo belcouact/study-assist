@@ -441,6 +441,41 @@
             overflow: hidden;
         }
         
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--text-light);
+            cursor: pointer;
+            z-index: 1002;
+            transition: color 0.3s ease;
+        }
+        
+        .modal-close:hover {
+            color: var(--error-color);
+        }
+        
+        .data-filter-options {
+            margin-bottom: 15px;
+            text-align: left;
+            background: var(--bg-color);
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+        
+        .data-filter-options label {
+            margin-right: 15px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .data-filter-options input[type="radio"] {
+            margin-right: 5px;
+        }
+        
         /* 响应式弹窗样式 */
         @media (max-width: 768px) {
             .modal {
@@ -1546,10 +1581,8 @@
     <div id="statusModal" class="modal">
         <div class="modal-content">
             <div class="modal-header" id="modalHeader"></div>
+            <div class="modal-close" id="modalCloseBtn">×</div>
             <div class="modal-body" id="modalBody"></div>
-            <div class="modal-footer">
-                <button class="modal-button" id="modalCloseBtn">确定</button>
-            </div>
         </div>
     </div>
 
@@ -2590,6 +2623,10 @@
             // 构建弹窗内容
             let modalContent = `
                 <div style="max-width: 2000px; max-height: 70vh; overflow-y: auto;">
+                    <div class="data-filter-options">
+                        <label><input type="radio" name="dataFilter" value="all" checked> 显示原始数据</label>
+                        <label><input type="radio" name="dataFilter" value="inStock"> 仅显示在库条码</label>
+                    </div>
                     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                         <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 0.85rem;">
                                 <thead style="background: var(--primary-color); color: white; position: sticky; top: 0;">
@@ -2605,12 +2642,24 @@
                                 <tbody>
             `;
             
+            // 获取当前选择的过滤选项
+            const filterOption = document.querySelector('input[name="dataFilter"]:checked')?.value || 'all';
+            let displayIndex = 0;
+            
             locationRecords.forEach((record, index) => {
                 const barcode = record['条码'] || '';
                 const recordLocation = record['货位'] || '';
                 const status = record['状态'] || '';
                 const time = record['时间'] || '';
                 const operator = record['作业者'] || '';
+                
+                // 检查是否为在库条码
+                const isInStock = status === '在库' || status === '入';
+                
+                // 如果选择了仅显示在库条码且当前记录不在库，则跳过
+                if (filterOption === 'inStock' && !isInStock) {
+                    return;
+                }
                 
                 // 状态颜色设置
                 let statusColor = 'var(--text-color)';
@@ -2625,9 +2674,10 @@
                 const barcodeStyle = isSearchedBarcode ? 'text-decoration: underline; font-weight: bold;' : 'font-family: monospace; font-weight: bold;';
                 const rowStyle = isSearchedBarcode ? 'border-bottom: 1px solid var(--border-color); background-color: rgba(255, 235, 59, 0.3);' : 'border-bottom: 1px solid var(--border-color);';
                 
+                displayIndex++;
                 modalContent += `
                     <tr style="${rowStyle}">
-                        <td style="padding: 8px;">${index + 1}</td>
+                        <td style="padding: 8px;">${displayIndex}</td>
                         <td style="padding: 8px; ${barcodeStyle}">${barcode}</td>
                         <td style="padding: 8px;">${recordLocation}</td>
                         <td style="padding: 8px; color: ${statusColor}; font-weight: bold;">${status}</td>
@@ -2649,6 +2699,17 @@
             modalHeader.className = 'modal-header info';
             modalBody.innerHTML = modalContent;
             statusModal.style.display = 'flex';
+            
+            // 添加过滤选项的事件监听器
+            setTimeout(() => {
+                const filterRadios = document.querySelectorAll('input[name="dataFilter"]');
+                filterRadios.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        // 重新调用showLocationDetails函数来刷新表格
+                        showLocationDetails(location, locationRecords, searchedBarcodes);
+                    });
+                });
+            }, 100);
         }
 
         // 显示标签页
