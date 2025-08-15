@@ -2646,6 +2646,24 @@
             const filterOption = document.querySelector('input[name="dataFilter"]:checked')?.value || 'all';
             let displayIndex = 0;
             
+            // 构建条码的入库出库状态映射
+            const barcodeStatusMap = {};
+            locationRecords.forEach((record) => {
+                const barcode = record['条码'] || '';
+                const status = record['状态'] || '';
+                
+                if (!barcodeStatusMap[barcode]) {
+                    barcodeStatusMap[barcode] = { hasInStock: false, hasOutStock: false };
+                }
+                
+                // 记录条码的入库和出库状态
+                if (status === '在库' || status === '入') {
+                    barcodeStatusMap[barcode].hasInStock = true;
+                } else if (status === '出' || status === 'O' || status === '出库') {
+                    barcodeStatusMap[barcode].hasOutStock = true;
+                }
+            });
+            
             locationRecords.forEach((record, index) => {
                 const barcode = record['条码'] || '';
                 const recordLocation = record['货位'] || '';
@@ -2653,8 +2671,9 @@
                 const time = record['时间'] || '';
                 const operator = record['作业者'] || '';
                 
-                // 检查是否为在库条码
-                const isInStock = status === '在库' || status === '入';
+                // 使用之前的入库判断条件：只有当条码有入库记录且没有出库记录时，才认为是在库条码
+                const barcodeInfo = barcodeStatusMap[barcode];
+                const isInStock = barcodeInfo && barcodeInfo.hasInStock && !barcodeInfo.hasOutStock;
                 
                 // 如果选择了仅显示在库条码且当前记录不在库，则跳过
                 if (filterOption === 'inStock' && !isInStock) {
@@ -2700,10 +2719,19 @@
             modalBody.innerHTML = modalContent;
             statusModal.style.display = 'flex';
             
+            // 保存当前选择的过滤选项
+            const currentFilterOption = document.querySelector('input[name="dataFilter"]:checked')?.value || 'all';
+            
             // 添加过滤选项的事件监听器
             setTimeout(() => {
                 const filterRadios = document.querySelectorAll('input[name="dataFilter"]');
+                
+                // 恢复之前选择的过滤选项
                 filterRadios.forEach(radio => {
+                    if (radio.value === currentFilterOption) {
+                        radio.checked = true;
+                    }
+                    
                     radio.addEventListener('change', function() {
                         // 重新调用showLocationDetails函数来刷新表格
                         showLocationDetails(location, locationRecords, searchedBarcodes);
