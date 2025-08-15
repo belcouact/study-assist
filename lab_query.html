@@ -2646,22 +2646,20 @@
             const filterOption = document.querySelector('input[name="dataFilter"]:checked')?.value || 'all';
             let displayIndex = 0;
             
-            // 构建条码的入库出库状态映射
-            const barcodeStatusMap = {};
-            locationRecords.forEach((record) => {
+            // 构建条码的最后状态映射（基于时间顺序的最后一条记录）
+            const barcodeLastStatusMap = {};
+            // 先按时间排序所有记录
+            const sortedRecords = [...locationRecords].sort((a, b) => {
+                const timeA = new Date(a['时间'] || '1970-01-01 00:00:00');
+                const timeB = new Date(b['时间'] || '1970-01-01 00:00:00');
+                return timeA - timeB;
+            });
+            
+            // 记录每个条码的最后状态
+            sortedRecords.forEach((record) => {
                 const barcode = record['条码'] || '';
                 const status = record['状态'] || '';
-                
-                if (!barcodeStatusMap[barcode]) {
-                    barcodeStatusMap[barcode] = { hasInStock: false, hasOutStock: false };
-                }
-                
-                // 记录条码的入库和出库状态
-                if (status === '在库' || status === '入') {
-                    barcodeStatusMap[barcode].hasInStock = true;
-                } else if (status === '出' || status === 'O' || status === '出库') {
-                    barcodeStatusMap[barcode].hasOutStock = true;
-                }
+                barcodeLastStatusMap[barcode] = status;
             });
             
             locationRecords.forEach((record, index) => {
@@ -2671,9 +2669,9 @@
                 const time = record['时间'] || '';
                 const operator = record['作业者'] || '';
                 
-                // 使用之前的入库判断条件：只有当条码有入库记录且没有出库记录时，才认为是在库条码
-                const barcodeInfo = barcodeStatusMap[barcode];
-                const isInStock = barcodeInfo && barcodeInfo.hasInStock && !barcodeInfo.hasOutStock;
+                // 使用基于最后状态的入库判断条件：只有当条码的最后状态是'在库'或'入'时，才认为是在库条码
+                const lastStatus = barcodeLastStatusMap[barcode];
+                const isInStock = lastStatus === '在库' || lastStatus === '入';
                 
                 // 如果选择了仅显示在库条码且当前记录不在库，则跳过
                 if (filterOption === 'inStock' && !isInStock) {
