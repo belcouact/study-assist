@@ -2383,6 +2383,52 @@
             return summary[targetLocation] || null;
         }
 
+        // 导出统计表格到Excel
+        function exportSummaryToExcel() {
+            const summaryTable = document.querySelector('#summaryContainer table');
+            if (!summaryTable) {
+                showUploadStatus('error', '没有可导出的数据');
+                return;
+            }
+
+            // 获取表格数据
+            const rows = Array.from(summaryTable.rows);
+            let csvContent = '\ufeff'; // BOM for UTF-8
+            
+            // 添加表头
+            const headers = ['货位', '在库条码记录', '在库唯一条码数', '最早时间', '最晚时间', '备注'];
+            csvContent += headers.join(',') + '\n';
+            
+            // 添加数据行
+            for (let i = 1; i < rows.length; i++) { // 跳过表头行
+                const cells = rows[i].cells;
+                const rowData = [];
+                for (let j = 0; j < cells.length; j++) {
+                    // 处理单元格内容，移除HTML标签和换行符，并转义逗号
+                    let cellText = cells[j].textContent.replace(/<[^>]*>/g, '').replace(/\n/g, ' ').trim();
+                    // 如果包含逗号，用双引号包围
+                    if (cellText.includes(',')) {
+                        cellText = '"' + cellText + '"';
+                    }
+                    rowData.push(cellText);
+                }
+                csvContent += rowData.join(',') + '\n';
+            }
+            
+            // 创建下载链接
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', '货位统计_' + new Date().toLocaleDateString().replace(/\//g, '-') + '.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showUploadStatus('success', '统计表格已导出为CSV文件');
+        }
+
         // 显示统计结果
         function displaySummary(summary) {
             let summaryContainer = document.getElementById('summaryContainer');
@@ -2392,6 +2438,23 @@
                 summaryContainer.innerHTML = '<div class="no-results">没有找到符合条件的货位记录</div>';
                 return;
             }
+            
+            // 添加Excel下载按钮
+            const downloadButton = document.createElement('button');
+            downloadButton.textContent = '导出Excel';
+            downloadButton.className = 'btn btn-primary';
+            downloadButton.style.cssText = 'margin-bottom: 15px; padding: 8px 16px; background-color: var(--primary-color); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: background-color 0.3s;';
+            downloadButton.onclick = exportSummaryToExcel;
+            
+            // 添加悬停效果
+            downloadButton.addEventListener('mouseenter', function() {
+                this.style.backgroundColor = 'var(--primary-hover)';
+            });
+            downloadButton.addEventListener('mouseleave', function() {
+                this.style.backgroundColor = 'var(--primary-color)';
+            });
+            
+            summaryContainer.appendChild(downloadButton);
 
             let summaryTable = document.createElement('table');
             summaryTable.style.width = '100%';
@@ -2419,10 +2482,10 @@
                 let remarkColor = 'inherit';
                 
                 if (inStockOffset > 0) {
-                    remark = '可能存在同一样品多次入库，请检查';
+                    remark = '可能存在同一样品多次入库';
                     remarkColor = 'red';
                 } else if (inStockOffset < 0) {
-                    remark = '可能入库和出库样品条码不一致，请检查';
+                    remark = '可能入库和出库样品条码不一致';
                     remarkColor = 'red';
                 }
                 
