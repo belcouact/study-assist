@@ -1450,7 +1450,7 @@
             </div>
             <div style="margin: 10px 0;">
                 <label style="display: inline-flex; align-items: center;">
-                    <input type="checkbox" id="showAllRecords" style="margin-right: 5px; width: auto;">
+                    <input type="checkbox" id="showAllRecords" checked style="margin-right: 5px; width: auto;">
                     保留所有记录
                 </label>
                 <span class="loading" id="queryLoading">查询中...</span>
@@ -2543,64 +2543,21 @@
 
         // 显示货位详细信息
         function showLocationDetails(location, totalRecords, barcodePositions, searchedBarcodes = []) {
-            if (!location || !totalRecords || !barcodePositions) {
+            if (!location || !databaseData) {
                 showUploadStatus('error', '数据不完整，无法显示货位详细信息');
                 return;
             }
 
-            const locationData = totalRecords[location];
-            if (!locationData) {
+            // 获取该货位的所有原始记录
+            const locationRecords = databaseData.filter(item => item['货位'] === location);
+            
+            if (locationRecords.length === 0) {
                 showUploadStatus('error', '找不到货位 ' + location + ' 的数据');
                 return;
             }
-
-            const total = locationData.total || 0;
-            const out = locationData.out || 0;
-            const inCount = total - out;
-            const remaining = inCount - out;
             
-            // 获取该货位的所有条码信息
-            const locationBarcodes = barcodePositions[location] || {};
-            
-            // 计算唯一条码数量
-            const uniqueBarcodes = Object.keys(locationBarcodes).length;
-            const barcodeList = [];
-            
-            for (const barcode in locationBarcodes) {
-                const position = locationBarcodes[barcode];
-                const currentPosition = position === '已出库' ? '已出库' : (remaining - parseInt(position) + 1);
-                const status = position === '已出库' ? '出库' : '在库';
-                
-                // 计算该条码的入库和出库记录数
-                let inRecords = 0;
-                let outRecords = 0;
-                if (databaseData) {
-                    databaseData.forEach(item => {
-                        if (item['条码'] === barcode && item['货位'] === location) {
-                            if (item['状态'] !== '出' && item['状态'] !== 'O' && item['状态'] !== '出库') {
-                                inRecords++;
-                            } else {
-                                outRecords++;
-                            }
-                        }
-                    });
-                }
-                
-                barcodeList.push({
-                    barcode: barcode,
-                    position: currentPosition,
-                    status: status,
-                    inRecords: inRecords,
-                    outRecords: outRecords
-                });
-            }
-            
-            // 按位置排序
-            barcodeList.sort((a, b) => {
-                if (a.position === '已出库') return 1;
-                if (b.position === '已出库') return -1;
-                return parseInt(a.position) - parseInt(b.position);
-            });
+            // 按时间倒序排序记录
+            locationRecords.sort((a, b) => new Date(b['时间']) - new Date(a['时间']));
             
             // 构建弹窗内容
             let modalContent = `
@@ -2609,56 +2566,55 @@
                     
                     <div style="margin-bottom: 20px;">
                         <div style="text-align: center; margin-bottom: 15px; color: var(--text-light); font-size: 0.9rem; background: var(--bg-color); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                            总记录数: ${total} | 出库数: ${out} | 入库数: ${inCount} | 剩余数: ${remaining} | 在库唯一条码数: ${uniqueBarcodes}
+                            货位: ${location} | 记录数: ${locationRecords.length}
                         </div>
                         
-                        <h4 style="color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1rem;">条码位置详情</h4>
+                        <h4 style="color: var(--primary-dark); margin-bottom: 15px; font-size: 1.1rem;">原始数据记录</h4>
                         <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-                            <table style="width: 100%; min-width: 900px; border-collapse: collapse; font-size: 0.9rem;">
+                            <table style="width: 100%; min-width: 600px; border-collapse: collapse; font-size: 0.9rem;">
                                 <thead style="background: var(--primary-color); color: white; position: sticky; top: 0;">
                                     <tr>
                                         <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">序号</th>
                                         <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">条码</th>
-                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">入库记录数</th>
-                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">出库记录数</th>
-                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">条码位置</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">货位</th>
                                         <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">状态</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">时间</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid var(--border-color);">作业者</th>
                                     </tr>
                                 </thead>
                                 <tbody>
             `;
             
-            if (barcodeList.length === 0) {
+            locationRecords.forEach((record, index) => {
+                const barcode = record['条码'] || '';
+                const recordLocation = record['货位'] || '';
+                const status = record['状态'] || '';
+                const time = record['时间'] || '';
+                const operator = record['作业者'] || '';
+                
+                // 状态颜色设置
+                let statusColor = 'var(--text-color)';
+                if (status === '出' || status === 'O' || status === '出库') {
+                    statusColor = 'var(--error-color)';
+                } else if (status === '在库' || status === '入') {
+                    statusColor = 'var(--success-color)';
+                }
+                
+                // 判断是否为搜索的条码
+                const isSearchedBarcode = searchedBarcodes.includes(barcode);
+                const barcodeStyle = isSearchedBarcode ? 'text-decoration: underline; font-weight: bold;' : 'font-family: monospace; font-weight: bold;';
+                
                 modalContent += `
-                    <tr>
-                        <td colspan="6" style="padding: 20px; text-align: center; color: var(--text-light);">暂无条码数据</td>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 10px;">${index + 1}</td>
+                        <td style="padding: 10px; ${barcodeStyle}">${barcode}</td>
+                        <td style="padding: 10px;">${recordLocation}</td>
+                        <td style="padding: 10px; color: ${statusColor}; font-weight: bold;">${status}</td>
+                        <td style="padding: 10px;">${time}</td>
+                        <td style="padding: 10px;">${operator}</td>
                     </tr>
                 `;
-            } else {
-                barcodeList.forEach((item, index) => {
-                    const statusColor = item.status === '在库' ? 'var(--success-color)' : 'var(--error-color)';
-                    const positionColor = item.position === '已出库' ? 'var(--error-color)' : 'var(--secondary-color)';
-                    
-                    // 判断是否需要高亮整行
-                    const shouldHighlightRow = item.outRecords > item.inRecords || (item.inRecords > 1 && item.outRecords === 0);
-                    const rowStyle = shouldHighlightRow ? 'background-color: #fff3cd;' : '';
-                    
-                    // 判断是否为搜索的条码
-                    const isSearchedBarcode = searchedBarcodes.includes(item.barcode);
-                    const barcodeStyle = isSearchedBarcode ? 'text-decoration: underline; font-weight: bold;' : '';
-                    
-                    modalContent += `
-                        <tr style="border-bottom: 1px solid var(--border-color); ${rowStyle}">
-                            <td style="padding: 10px;">${index + 1}</td>
-                            <td style="padding: 10px; font-family: monospace; font-weight: bold; ${barcodeStyle}">${item.barcode}</td>
-                            <td style="padding: 10px; text-align: center;">${item.inRecords}</td>
-                            <td style="padding: 10px; text-align: center;">${item.outRecords}</td>
-                            <td style="padding: 10px; color: ${positionColor}; font-weight: bold;">${item.position}</td>
-                            <td style="padding: 10px; color: ${statusColor}; font-weight: bold;">${item.status}</td>
-                        </tr>
-                    `;
-                });
-            }
+            });
             
             modalContent += `
                                 </tbody>
