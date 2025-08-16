@@ -135,6 +135,110 @@
             border-bottom: 2px solid var(--primary-dark);
         }
         
+        /* 表头信息图标样式 */
+        .header-info-icon {
+            display: inline-block;
+            margin-left: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+            position: relative;
+            vertical-align: super;
+            line-height: 1;
+        }
+        
+        .header-info-icon:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        /* 工具提示气泡样式 */
+        .header-info-icon::before {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            max-width: 250px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            line-height: 1.4;
+        }
+        
+        .header-info-icon::after {
+            content: '';
+            position: absolute;
+            bottom: 115%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(0, 0, 0, 0.9);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .header-info-icon:hover::before,
+        .header-info-icon:hover::after {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        /* 移动端优化 */
+        @media (max-width: 767px) {
+            .header-info-icon::before {
+                max-width: 180px;
+                font-size: 0.75rem;
+                padding: 6px 10px;
+                white-space: normal;
+                line-height: 1.3;
+            }
+            
+            .header-info-icon {
+                font-size: 0.8em;
+                margin-left: 4px;
+            }
+        }
+        
+        /* 触摸设备支持 */
+        @media (hover: none) {
+            .header-info-icon:active::before,
+            .header-info-icon:active::after {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+        
+        /* 激活状态样式（用于移动端点击） */
+        .header-info-icon.active::before,
+        .header-info-icon.active::after {
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* 确保在桌面端也能正常工作 */
+        @media (hover: hover) {
+            .header-info-icon.active::before,
+            .header-info-icon.active::after {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+        
         tr:last-child td {
             border-bottom: none;
         }
@@ -1537,15 +1641,42 @@
                 <table id="resultsTable" style="display: none;">
                     <thead>
                         <tr>
-                            <th>条码</th>
-                            <th>货位</th>
-                            <th>状态</th>
-                            <th>时间</th>
-                            <th>作业者</th>
-                            <th>在库条码记录</th>
-                            <th>在库唯一条码数</th>
-                            <th>条码位置</th>
-                            <th>备注</th>
+                            <th>
+                                条码
+                                <span class="header-info-icon" data-tooltip="样品的唯一标识码，用于追踪和管理样品信息">ℹ️</span>
+                            </th>
+                            <th>
+                                货位
+                                <span class="header-info-icon" data-tooltip="样品存放的具体位置，点击可查看该货位的详细记录">ℹ️</span>
+                            </th>
+                            <th>
+                                状态
+                                <span class="header-info-icon" data-tooltip="样品当前状态：'入'表示入库，'出'表示出库，'O'表示其他状态">ℹ️</span>
+                            </th>
+                            <th>
+                                时间
+                                <span class="header-info-icon" data-tooltip="记录操作的时间戳，显示样品入库或出库的具体时间">ℹ️</span>
+                            </th>
+                            <th>
+                                作业者
+                                <span class="header-info-icon" data-tooltip="执行操作的人员姓名或工号">ℹ️</span>
+                            </th>
+                            <th>
+                                在库条码记录
+                                <span class="header-info-icon" data-tooltip="该货位中所有在库样品的记录总数（包含重复入库）">ℹ️</span>
+                            </th>
+                            <th>
+                                在库唯一条码数
+                                <span class="header-info-icon" data-tooltip="该货位中不同样品条码的数量（不计算重复）">ℹ️</span>
+                            </th>
+                            <th>
+                                条码位置
+                                <span class="header-info-icon" data-tooltip="样品在货位中的位置编号，从后往前计算">ℹ️</span>
+                            </th>
+                            <th>
+                                备注
+                                <span class="header-info-icon" data-tooltip="系统自动生成的提示信息，如重复入库或条码不一致等异常情况">ℹ️</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody"></tbody>
@@ -1705,6 +1836,41 @@
     </div>
 
     <script>
+        // 表头信息图标交互功能
+        function initHeaderInfoIcons() {
+            const infoIcons = document.querySelectorAll('.header-info-icon');
+            
+            infoIcons.forEach(icon => {
+                // 为移动设备添加点击事件
+                icon.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // 关闭其他已打开的工具提示
+                    infoIcons.forEach(otherIcon => {
+                        if (otherIcon !== this) {
+                            otherIcon.classList.remove('active');
+                        }
+                    });
+                    
+                    // 切换当前工具提示
+                    this.classList.toggle('active');
+                });
+                
+                // 点击其他地方关闭工具提示
+                document.addEventListener('click', function(e) {
+                    if (!icon.contains(e.target)) {
+                        icon.classList.remove('active');
+                    }
+                });
+            });
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initHeaderInfoIcons();
+        });
+        
         // 浏览器检测和性能优化
         const BrowserOptimizer = {
             // 检测浏览器类型
@@ -2295,11 +2461,11 @@
                 // 添加备注列
                 let remarkCell = row.insertCell();
                 if (inStockOffset > 0) {
-                    remarkCell.textContent = '可能存在同一样品多次入库';
+                    remarkCell.textContent = '存在同一样品多次入库';
                     remarkCell.style.color = 'red';
                     remarkCell.style.fontWeight = 'bold';
                 } else if (inStockOffset < 0) {
-                    remarkCell.textContent = '可能入库和出库样品条码不一致';
+                    remarkCell.textContent = '入库和出库样品条码不一致';
                     remarkCell.style.color = 'red';
                     remarkCell.style.fontWeight = 'bold';
                 } else {
@@ -2579,10 +2745,10 @@
                 let remarkColor = 'inherit';
                 
                 if (inStockOffset > 0) {
-                    remark = '可能存在同一样品多次入库';
+                    remark = '存在同一样品多次入库';
                     remarkColor = 'red';
                 } else if (inStockOffset < 0) {
-                    remark = '可能入库和出库样品条码不一致';
+                    remark = '入库和出库样品条码不一致';
                     remarkColor = 'red';
                 }
                 
@@ -2684,19 +2850,22 @@
                 <div style="max-width: 2000px; max-height: 70vh; overflow-y: auto;">
                     <!-- 汇总信息显示 -->
                     <div style="background-color: var(--bg-secondary); padding: 15px; margin-bottom: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                        <h4 style="margin: 0 0 10px 0; color: var(--primary-color);">汇总信息</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                             <div>
                                 <strong>货位：</strong> ${location}
+                            </div>
+                            <div>
+                                <strong>在库条码记录：</strong> ${locationRecords.filter(record => {
+                                    const barcode = record['条码'] || '';
+                                    const barcodeInfo = barcodeStatusMap[barcode];
+                                    return barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库';
+                                }).length}
                             </div>
                             <div>
                                 <strong>在库唯一条码数：</strong> ${uniqueInStockBarcodes.size}
                             </div>
                             <div>
                                 <strong>搜索的条码：</strong> ${searchedBarcodes.length > 0 ? searchedBarcodes.join(', ') : '无'}
-                            </div>
-                            <div>
-                                <strong>总记录数：</strong> ${locationRecords.length}
                             </div>
                         </div>
                     </div>
@@ -2843,7 +3012,7 @@
             });
             
             // 显示弹窗
-            modalHeader.textContent = '货位详情 - ' + location;
+            modalHeader.textContent = '货位详情 : ' + location;
             modalHeader.className = 'modal-header info';
             modalBody.innerHTML = modalContent;
             statusModal.style.display = 'flex';
