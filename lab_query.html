@@ -2798,7 +2798,7 @@
             let recordsToShow = [];
             if (filterOption === 'all') {
                 recordsToShow = locationRecords;
-            } else if (filterOption === 'inStock' || filterOption === 'duplicatedInStock') {
+            } else if (filterOption === 'inStock') {
                 // 仅显示在库条码的最新记录
                 Object.values(latestRecordsMap).forEach(record => {
                     const barcode = record['条码'] || '';
@@ -2806,9 +2806,34 @@
                     const isInStock = barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库';
                     
                     if (isInStock) {
-                        if (filterOption === 'inStock' || (filterOption === 'duplicatedInStock' && inStockBarcodeCounts[barcode] > 1)) {
-                            recordsToShow.push(record);
-                        }
+                        recordsToShow.push(record);
+                    }
+                });
+            } else if (filterOption === 'duplicatedInStock') {
+                // 先获取'仅显示在库条码'的结果
+                const inStockRecords = [];
+                Object.values(latestRecordsMap).forEach(record => {
+                    const barcode = record['条码'] || '';
+                    const barcodeInfo = barcodeStatusMap[barcode];
+                    const isInStock = barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库';
+                    
+                    if (isInStock) {
+                        inStockRecords.push(record);
+                    }
+                });
+                
+                // 基于'仅显示在库条码'的结果统计重复条码
+                const inStockBarcodeMap = {};
+                inStockRecords.forEach(record => {
+                    const barcode = record['条码'] || '';
+                    inStockBarcodeMap[barcode] = (inStockBarcodeMap[barcode] || 0) + 1;
+                });
+                
+                // 显示在库重复条码（基于'仅显示在库条码'的结果）
+                inStockRecords.forEach(record => {
+                    const barcode = record['条码'] || '';
+                    if (inStockBarcodeMap[barcode] > 1) {
+                        recordsToShow.push(record);
                     }
                 });
             }

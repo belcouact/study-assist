@@ -2328,12 +2328,6 @@
                 const barcode = item['条码'];
                 const time = new Date(item['时间']);
 
-                // 应用过滤器
-                if ((filterLocationList.length > 0 && !filterLocationList.includes(location)) ||
-                    (time < filterTimeMin || time > filterTimeMax)) {
-                    return; // 如果不匹配过滤器，则跳过此项
-                }
-
                 if (!summary[location]) {
                     summary[location] = { count: 0, minTime: time, maxTime: time, uniqueBarcodes: new Set() };
                     locationBarcodes[location] = {};
@@ -2358,29 +2352,50 @@
             // 计算每个货位的在库条码记录和在库唯一条码数（使用与弹窗表格相同的逻辑）
             for (const location in locationBarcodes) {
                 if (summary[location]) {
-                    // 为每个条码找到最新记录
-                    const latestRecordsMap = {};
-                    databaseData.forEach(item => {
-                        if (item['货位'] === location) {
-                            const barcode = item['条码'];
-                            const time = item['时间'];
-                            
-                            if (!latestRecordsMap[barcode] || time > latestRecordsMap[barcode]['时间']) {
-                                latestRecordsMap[barcode] = item;
-                            }
+                    // 构建条码的入库出库状态映射（与弹窗表格相同的逻辑）
+                    const barcodeStatusMap = {};
+                    const locationRecords = databaseData.filter(item => item['货位'] === location);
+                    
+                    locationRecords.forEach((record) => {
+                        const barcode = record['条码'] || '';
+                        const status = record['状态'] || '';
+                        const time = record['时间'] || '';
+                        
+                        if (!barcodeStatusMap[barcode]) {
+                            barcodeStatusMap[barcode] = { hasInStock: false, hasOutStock: false, latestTime: '', latestStatus: '' };
+                        }
+                        
+                        // 记录条码的入库和出库状态（使用通用出入库规则）
+                        if (status !== '出' && status !== 'O' && status !== '出库') {
+                            barcodeStatusMap[barcode].hasInStock = true;
+                        } else {
+                            barcodeStatusMap[barcode].hasOutStock = true;
+                        }
+                        
+                        // 更新最新状态和时间
+                        if (!barcodeStatusMap[barcode].latestTime || time > barcodeStatusMap[barcode].latestTime) {
+                            barcodeStatusMap[barcode].latestTime = time;
+                            barcodeStatusMap[barcode].latestStatus = status;
                         }
                     });
                     
-                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态）
+                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态，与弹窗表格相同的逻辑）
                     let inStockCount = 0;
                     let uniqueInStockCount = 0;
-                    Object.values(latestRecordsMap).forEach(record => {
-                        const barcode = record['条码'];
-                        const status = record['状态'];
-                        // 使用与弹窗表格相同的判断逻辑
-                        if (status !== '出' && status !== 'O' && status !== '出库') {
-                            inStockCount++;
+                    
+                    // 计算在库唯一条码数
+                    Object.values(barcodeStatusMap).forEach(barcodeInfo => {
+                        if (barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
                             uniqueInStockCount++;
+                        }
+                    });
+                    
+                    // 计算在库条码记录数（基于该货位的所有记录）
+                    locationRecords.forEach(record => {
+                        const barcode = record['条码'] || '';
+                        const barcodeInfo = barcodeStatusMap[barcode];
+                        if (barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
+                            inStockCount++;
                         }
                     });
                     
@@ -2390,15 +2405,31 @@
                 }
             }
 
-            // 根据数量范围过滤
+            // 根据过滤条件过滤货位
             for (const location in summary) {
                 const { count, minTime, maxTime } = summary[location];
+                
+                // 检查货位过滤器
+                if (filterLocationList.length > 0 && !filterLocationList.includes(location)) {
+                    delete summary[location]; // 如果不匹配货位过滤器，则从统计中移除
+                    continue;
+                }
+                
+                // 检查时间过滤器（使用该货位的最早和最晚时间）
+                if (minTime < filterTimeMin || maxTime > filterTimeMax) {
+                    delete summary[location]; // 如果不匹配时间过滤器，则从统计中移除
+                    continue;
+                }
+                
+                // 检查数量范围过滤器
                 if (count < filterCountMin || count > filterCountMax) {
                     delete summary[location]; // 如果不匹配数量过滤器，则从统计中移除
-                } else {
-                    summary[location].minTime = minTime;
-                    summary[location].maxTime = maxTime;
+                    continue;
                 }
+                
+                // 保留符合条件的货位
+                summary[location].minTime = minTime;
+                summary[location].maxTime = maxTime;
             }
 
             // 显示统计结果
@@ -2450,29 +2481,50 @@
             // 计算每个货位的在库条码记录和在库唯一条码数（使用与弹窗表格相同的逻辑）
             for (const location in locationBarcodes) {
                 if (summary[location]) {
-                    // 为每个条码找到最新记录
-                    const latestRecordsMap = {};
-                    databaseData.forEach(item => {
-                        if (item['货位'] === location) {
-                            const barcode = item['条码'];
-                            const time = item['时间'];
-                            
-                            if (!latestRecordsMap[barcode] || time > latestRecordsMap[barcode]['时间']) {
-                                latestRecordsMap[barcode] = item;
-                            }
+                    // 构建条码的入库出库状态映射（与弹窗表格相同的逻辑）
+                    const barcodeStatusMap = {};
+                    const locationRecords = databaseData.filter(item => item['货位'] === location);
+                    
+                    locationRecords.forEach((record) => {
+                        const barcode = record['条码'] || '';
+                        const status = record['状态'] || '';
+                        const time = record['时间'] || '';
+                        
+                        if (!barcodeStatusMap[barcode]) {
+                            barcodeStatusMap[barcode] = { hasInStock: false, hasOutStock: false, latestTime: '', latestStatus: '' };
+                        }
+                        
+                        // 记录条码的入库和出库状态（使用通用出入库规则）
+                        if (status !== '出' && status !== 'O' && status !== '出库') {
+                            barcodeStatusMap[barcode].hasInStock = true;
+                        } else {
+                            barcodeStatusMap[barcode].hasOutStock = true;
+                        }
+                        
+                        // 更新最新状态和时间
+                        if (!barcodeStatusMap[barcode].latestTime || time > barcodeStatusMap[barcode].latestTime) {
+                            barcodeStatusMap[barcode].latestTime = time;
+                            barcodeStatusMap[barcode].latestStatus = status;
                         }
                     });
                     
-                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态）
+                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态，与弹窗表格相同的逻辑）
                     let inStockCount = 0;
                     let uniqueInStockCount = 0;
-                    Object.values(latestRecordsMap).forEach(record => {
-                        const barcode = record['条码'];
-                        const status = record['状态'];
-                        // 使用与弹窗表格相同的判断逻辑
-                        if (status !== '出' && status !== 'O' && status !== '出库') {
-                            inStockCount++;
+                    
+                    // 计算在库唯一条码数
+                    Object.values(barcodeStatusMap).forEach(barcodeInfo => {
+                        if (barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
                             uniqueInStockCount++;
+                        }
+                    });
+                    
+                    // 计算在库条码记录数（基于该货位的所有记录）
+                    locationRecords.forEach(record => {
+                        const barcode = record['条码'] || '';
+                        const barcodeInfo = barcodeStatusMap[barcode];
+                        if (barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
+                            inStockCount++;
                         }
                     });
                     
@@ -2664,11 +2716,6 @@
             // 构建弹窗内容
             let modalContent = `
                 <div style="max-width: 2000px; max-height: 70vh; overflow-y: auto;">
-                    <div class="data-filter-options">
-                        <label><input type="radio" name="dataFilter" value="all" checked> 显示原始数据</label>
-                        <label><input type="radio" name="dataFilter" value="inStock"> 仅显示在库条码</label>
-                        <label><input type="radio" name="dataFilter" value="duplicatedInStock"> 显示在库重复条码</label>
-                    </div>
                     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                         <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 0.85rem;">
                                 <thead style="background: var(--primary-color); color: white; position: sticky; top: 0;">
@@ -2766,9 +2813,9 @@
                 });
             }
             
-            // 计算在库条码记录数
+            // 计算在库条码记录数（基于该货位的所有记录，不随过滤选项变化）
             let inStockRecordsCount = 0;
-            recordsToShow.forEach(record => {
+            locationRecords.forEach(record => {
                 const barcode = record['条码'] || '';
                 const barcodeInfo = barcodeStatusMap[barcode];
                 if (barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
@@ -2779,10 +2826,16 @@
             // 添加汇总信息
             modalContent += `
                 <div style="background-color: #f5f5f5; padding: 10px; margin-bottom: 10px; border-radius: 4px; font-size: 0.9rem;">
-                    货位：${location} | 
-                    在库唯一条码数：${uniqueInStockBarcodes} | 
-                    搜索的条码：${searchedBarcodes.join(', ') || '无'} | 
-                    在库条码记录：${inStockRecordsCount}
+                    货位：${location}  | 
+                    在库条码记录：${inStockRecordsCount}  |
+                    在库唯一条码数：${uniqueInStockBarcodes}  | 
+                    搜索的条码：${searchedBarcodes.join(', ') || '无'}
+                    
+                </div>
+                <div class="data-filter-options">
+                    <label><input type="radio" name="dataFilter" value="all" checked> 显示原始数据</label>
+                    <label><input type="radio" name="dataFilter" value="inStock"> 仅显示在库条码</label>
+                    <label><input type="radio" name="dataFilter" value="duplicatedInStock"> 显示在库重复条码</label>
                 </div>
             `;
             
