@@ -2339,11 +2339,8 @@
                     locationBarcodes[location] = {};
                 }
 
-                // 计算条码数量（总记录数减去2倍的'出'状态记录）
+                // 计算条码数量（暂时记录总记录数，后续会重新计算在库条码记录）
                 summary[location].count += 1;
-                if (status === '出') {
-                    summary[location].count -= 2; // 调整'出'状态的计数
-                }
                 
                 // 记录条码信息，用于计算唯一在库条码数
                 if (!locationBarcodes[location][barcode]) {
@@ -2358,7 +2355,7 @@
                 }
             });
             
-            // 计算每个货位的唯一在库条码数（使用与弹窗表格相同的逻辑）
+            // 计算每个货位的在库条码记录和在库唯一条码数（使用与弹窗表格相同的逻辑）
             for (const location in locationBarcodes) {
                 if (summary[location]) {
                     // 为每个条码找到最新记录
@@ -2374,17 +2371,21 @@
                         }
                     });
                     
-                    // 统计在库唯一条码数量（基于最新状态）
+                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态）
+                    let inStockCount = 0;
                     let uniqueInStockCount = 0;
                     Object.values(latestRecordsMap).forEach(record => {
                         const barcode = record['条码'];
                         const status = record['状态'];
                         // 使用与弹窗表格相同的判断逻辑
                         if (status !== '出' && status !== 'O' && status !== '出库') {
+                            inStockCount++;
                             uniqueInStockCount++;
                         }
                     });
                     
+                    // 更新在库条码记录数和在库唯一条码数
+                    summary[location].count = inStockCount;
                     summary[location].uniqueInStockCount = uniqueInStockCount;
                 }
             }
@@ -2430,11 +2431,8 @@
                     locationBarcodes[location] = {};
                 }
 
-                // 计算条码数量（总记录数减去2倍的'出'状态记录）
+                // 计算条码数量（暂时记录总记录数，后续会重新计算在库条码记录）
                 summary[location].count += 1;
-                if (status === '出') {
-                    summary[location].count -= 2; // 调整'出'状态的计数
-                }
                 
                 // 记录条码信息，用于计算唯一在库条码数
                 if (!locationBarcodes[location][barcode]) {
@@ -2449,17 +2447,37 @@
                 }
             });
             
-            // 计算每个货位的唯一在库条码数
+            // 计算每个货位的在库条码记录和在库唯一条码数（使用与弹窗表格相同的逻辑）
             for (const location in locationBarcodes) {
                 if (summary[location]) {
+                    // 为每个条码找到最新记录
+                    const latestRecordsMap = {};
+                    databaseData.forEach(item => {
+                        if (item['货位'] === location) {
+                            const barcode = item['条码'];
+                            const time = item['时间'];
+                            
+                            if (!latestRecordsMap[barcode] || time > latestRecordsMap[barcode]['时间']) {
+                                latestRecordsMap[barcode] = item;
+                            }
+                        }
+                    });
+                    
+                    // 统计在库条码记录数和在库唯一条码数量（基于最新状态）
+                    let inStockCount = 0;
                     let uniqueInStockCount = 0;
-                    for (const barcode in locationBarcodes[location]) {
-                        const barcodeInfo = locationBarcodes[location][barcode];
-                        // 只有当条码有入库记录且没有出库记录时，才计入唯一在库条码数
-                        if (barcodeInfo.hasInStock && !barcodeInfo.hasOutStock) {
+                    Object.values(latestRecordsMap).forEach(record => {
+                        const barcode = record['条码'];
+                        const status = record['状态'];
+                        // 使用与弹窗表格相同的判断逻辑
+                        if (status !== '出' && status !== 'O' && status !== '出库') {
+                            inStockCount++;
                             uniqueInStockCount++;
                         }
-                    }
+                    });
+                    
+                    // 更新在库条码记录数和在库唯一条码数
+                    summary[location].count = inStockCount;
                     summary[location].uniqueInStockCount = uniqueInStockCount;
                 }
             }
