@@ -2656,9 +2656,51 @@
             // 按时间倒序排序记录
             locationRecords.sort((a, b) => new Date(b['时间']) - new Date(a['时间']));
             
+            // 计算汇总信息
+            const uniqueInStockBarcodes = new Set();
+            const searchedBarcodesSet = new Set(searchedBarcodes);
+            const latestRecordsMap = new Map(); // 存储每个条码的最新记录
+            
+            // 首先找出每个条码的最新记录
+            locationRecords.forEach((record) => {
+                const barcode = record['条码'] || '';
+                const time = new Date(record['时间'] || '');
+                
+                if (!latestRecordsMap.has(barcode) || time > new Date(latestRecordsMap.get(barcode)['时间'] || '')) {
+                    latestRecordsMap.set(barcode, record);
+                }
+            });
+            
+            // 统计在库唯一条码数
+            latestRecordsMap.forEach((record, barcode) => {
+                const status = record['状态'] || '';
+                if (status !== '出' && status !== 'O' && status !== '出库') {
+                    uniqueInStockBarcodes.add(barcode);
+                }
+            });
+            
             // 构建弹窗内容
             let modalContent = `
                 <div style="max-width: 2000px; max-height: 70vh; overflow-y: auto;">
+                    <!-- 汇总信息显示 -->
+                    <div style="background-color: var(--bg-secondary); padding: 15px; margin-bottom: 15px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                        <h4 style="margin: 0 0 10px 0; color: var(--primary-color);">汇总信息</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                            <div>
+                                <strong>货位：</strong> ${location}
+                            </div>
+                            <div>
+                                <strong>在库唯一条码数：</strong> ${uniqueInStockBarcodes.size}
+                            </div>
+                            <div>
+                                <strong>搜索的条码：</strong> ${searchedBarcodes.length > 0 ? searchedBarcodes.join(', ') : '无'}
+                            </div>
+                            <div>
+                                <strong>总记录数：</strong> ${locationRecords.length}
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="data-filter-options">
                         <label><input type="radio" name="dataFilter" value="all" checked> 显示原始数据</label>
                         <label><input type="radio" name="dataFilter" value="inStock"> 仅显示在库条码</label>
@@ -2723,7 +2765,31 @@
                 }
             });
             
-            locationRecords.forEach((record, index) => {
+            // 根据过滤选项决定要显示的记录
+            let recordsToShow = [];
+            
+            if (filterOption === 'all') {
+                // 显示所有原始记录
+                recordsToShow = locationRecords;
+            } else {
+                // 对于在库条码相关选项，只显示每个条码的最新记录
+                latestRecordsMap.forEach((record, barcode) => {
+                    const status = record['状态'] || '';
+                    const isInStock = status !== '出' && status !== 'O' && status !== '出库';
+                    
+                    if (filterOption === 'inStock' && isInStock) {
+                        recordsToShow.push(record);
+                    } else if (filterOption === 'duplicatedInStock') {
+                        const barcodeCount = inStockBarcodeCounts[barcode] || 0;
+                        if (isInStock && barcodeCount > 1) {
+                            recordsToShow.push(record);
+                        }
+                    }
+                });
+            }
+            
+            // 显示记录
+            recordsToShow.forEach((record, index) => {
                 const barcode = record['条码'] || '';
                 const recordLocation = record['货位'] || '';
                 const status = record['状态'] || '';
@@ -2733,19 +2799,6 @@
                 // 使用基于时间的最新状态判断：只有当条码的最新状态不是出库状态时，才认为是在库条码
                 const barcodeInfo = barcodeStatusMap[barcode];
                 const isInStock = barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库';
-                
-                // 如果选择了仅显示在库条码且当前记录不在库，则跳过
-                if (filterOption === 'inStock' && !isInStock) {
-                    return;
-                }
-                
-                // 如果选择了仅显示在库重复条码且当前条码不是重复的在库条码，则跳过
-                if (filterOption === 'duplicatedInStock') {
-                    const barcodeCount = inStockBarcodeCounts[barcode] || 0;
-                    if (barcodeCount <= 1) {
-                        return;
-                    }
-                }
                 
                 // 状态颜色设置
                 let statusColor = 'var(--text-color)';
