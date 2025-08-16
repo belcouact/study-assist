@@ -2662,6 +2662,7 @@
                     <div class="data-filter-options">
                         <label><input type="radio" name="dataFilter" value="all" checked> 显示原始数据</label>
                         <label><input type="radio" name="dataFilter" value="inStock"> 仅显示在库条码</label>
+                        <label><input type="radio" name="dataFilter" value="duplicatedInStock"> 显示在库重复条码</label>
                     </div>
                     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
                         <table style="width: 100%; min-width: 800px; border-collapse: collapse; font-size: 0.85rem;">
@@ -2682,14 +2683,26 @@
             const filterOption = document.querySelector('input[name="dataFilter"]:checked')?.value || 'all';
             let displayIndex = 0;
             
-            // 构建条码的入库出库状态映射
+            // 构建条码的入库出库状态映射（基于时间的最新状态）
             const barcodeStatusMap = {};
             locationRecords.forEach((record) => {
                 const barcode = record['条码'] || '';
                 const status = record['状态'] || '';
+                const time = new Date(record['时间'] || '');
                 
                 if (!barcodeStatusMap[barcode]) {
-                    barcodeStatusMap[barcode] = { hasInStock: false, hasOutStock: false };
+                    barcodeStatusMap[barcode] = { 
+                        hasInStock: false, 
+                        hasOutStock: false,
+                        latestTime: time,
+                        latestStatus: status
+                    };
+                } else {
+                    // 更新为最新的时间和状态
+                    if (time > barcodeStatusMap[barcode].latestTime) {
+                        barcodeStatusMap[barcode].latestTime = time;
+                        barcodeStatusMap[barcode].latestStatus = status;
+                    }
                 }
                 
                 // 记录条码的入库和出库状态（使用通用出入库规则）
@@ -2700,6 +2713,16 @@
                 }
             });
             
+            // 统计在库条码的出现次数（用于重复条码过滤）
+            const inStockBarcodeCounts = {};
+            locationRecords.forEach((record) => {
+                const barcode = record['条码'] || '';
+                const barcodeInfo = barcodeStatusMap[barcode];
+                if (barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库') {
+                    inStockBarcodeCounts[barcode] = (inStockBarcodeCounts[barcode] || 0) + 1;
+                }
+            });
+            
             locationRecords.forEach((record, index) => {
                 const barcode = record['条码'] || '';
                 const recordLocation = record['货位'] || '';
@@ -2707,13 +2730,21 @@
                 const time = record['时间'] || '';
                 const operator = record['作业者'] || '';
                 
-                // 使用之前的入库判断条件：只有当条码有入库记录且没有出库记录时，才认为是在库条码
+                // 使用基于时间的最新状态判断：只有当条码的最新状态不是出库状态时，才认为是在库条码
                 const barcodeInfo = barcodeStatusMap[barcode];
-                const isInStock = barcodeInfo && barcodeInfo.hasInStock && !barcodeInfo.hasOutStock;
+                const isInStock = barcodeInfo && barcodeInfo.latestStatus !== '出' && barcodeInfo.latestStatus !== 'O' && barcodeInfo.latestStatus !== '出库';
                 
                 // 如果选择了仅显示在库条码且当前记录不在库，则跳过
                 if (filterOption === 'inStock' && !isInStock) {
                     return;
+                }
+                
+                // 如果选择了仅显示在库重复条码且当前条码不是重复的在库条码，则跳过
+                if (filterOption === 'duplicatedInStock') {
+                    const barcodeCount = inStockBarcodeCounts[barcode] || 0;
+                    if (barcodeCount <= 1) {
+                        return;
+                    }
                 }
                 
                 // 状态颜色设置
