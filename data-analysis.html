@@ -1249,6 +1249,12 @@
 
             executeGeneratedCode(code) {
                 try {
+                    // 预处理代码，修复常见语法错误
+                    const cleanedCode = this.preprocessCode(code);
+                    
+                    // 验证代码语法
+                    this.validateCodeSyntax(cleanedCode);
+                    
                     // 创建图表容器
                     const container = document.getElementById('chartContainer');
                     container.innerHTML = '';
@@ -1268,15 +1274,46 @@
                     };
 
                     // 创建执行函数
-                    const executeFunction = new Function('data', 'columns', 'echarts', 'chartContainer', code);
+                    const executeFunction = new Function('data', 'columns', 'echarts', 'chartContainer', cleanedCode);
                     executeFunction(this.data, this.columns, echarts, chartDiv);
 
-                    // 显示生成的代码
+                    // 显示生成的代码（显示原始代码，而不是清理后的代码）
                     this.showGeneratedCode(code);
                     
                 } catch (error) {
                     console.error('代码执行错误:', error);
                     this.showError('图表生成代码执行失败: ' + error.message);
+                }
+            }
+            
+            preprocessCode(code) {
+                // 移除多余的空行和注释
+                let cleaned = code.trim();
+                
+                // 修复常见的语法错误
+                // 移除多余的右括号
+                cleaned = cleaned.replace(/\)\s*\)+/g, ')');
+                
+                // 修复缺失的分号
+                cleaned = cleaned.replace(/([^;\s])\s*$/gm, '$1;');
+                
+                // 移除多余的逗号
+                cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+                
+                // 确保代码以分号结尾
+                if (cleaned && !cleaned.endsWith(';')) {
+                    cleaned += ';';
+                }
+                
+                return cleaned;
+            }
+            
+            validateCodeSyntax(code) {
+                try {
+                    // 尝试创建函数来验证语法
+                    new Function('data', 'columns', 'echarts', 'chartContainer', code);
+                } catch (syntaxError) {
+                    throw new Error(`代码语法错误: ${syntaxError.message}\n\n请检查生成的代码并重试。`);
                 }
             }
 
