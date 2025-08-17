@@ -1294,14 +1294,37 @@
                 // 移除多余的右括号
                 cleaned = cleaned.replace(/\)\s*\)+/g, ')');
                 
-                // 修复缺失的分号
-                cleaned = cleaned.replace(/([^;\s])\s*$/gm, '$1;');
-                
                 // 移除多余的逗号
                 cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
                 
-                // 确保代码以分号结尾
-                if (cleaned && !cleaned.endsWith(';')) {
+                // 更智能地处理分号：只在语句末尾添加分号
+                // 避免在函数定义、控制结构、代码块等地方添加分号
+                cleaned = cleaned.replace(/([^;{}\s])\s*$/gm, (match, p1) => {
+                    // 检查是否是应该添加分号的情况
+                    const line = match.trim();
+                    const shouldAddSemicolon = !(
+                        line.endsWith('{') || // 函数定义或控制结构
+                        line.endsWith('}') || // 代码块结束
+                        line.endsWith('if') || // if语句
+                        line.endsWith('else') || // else语句
+                        line.endsWith('for') || // for循环
+                        line.endsWith('while') || // while循环
+                        line.endsWith('function') || // function关键字
+                        line.endsWith('return') || // return语句（可能后面有值）
+                        line.endsWith('break') || // break语句
+                        line.endsWith('continue') || // continue语句
+                        line.includes('=>') || // 箭头函数
+                        line.endsWith('//') || // 注释行
+                        line.endsWith('/*') || // 多行注释开始
+                        line.endsWith('*/') || // 多行注释结束
+                        line.trim() === '' // 空行
+                    );
+                    
+                    return shouldAddSemicolon ? p1 + ';' : p1;
+                });
+                
+                // 确保代码以分号结尾（仅适用于简单语句）
+                if (cleaned && !cleaned.endsWith(';') && !cleaned.endsWith('}') && !cleaned.endsWith('{')) {
                     cleaned += ';';
                 }
                 
@@ -1313,7 +1336,34 @@
                     // 尝试创建函数来验证语法
                     new Function('data', 'columns', 'echarts', 'chartContainer', code);
                 } catch (syntaxError) {
-                    throw new Error(`代码语法错误: ${syntaxError.message}\n\n请检查生成的代码并重试。`);
+                    // 提供更详细的错误信息
+                    const errorMessage = syntaxError.message;
+                    let detailedError = `代码语法错误: ${errorMessage}`;
+                    
+                    // 尝试定位错误位置
+                    const lineMatch = errorMessage.match(/at position (\d+)/);
+                    if (lineMatch) {
+                        const position = parseInt(lineMatch[1]);
+                        const codeLines = code.split('\n');
+                        let currentPos = 0;
+                        let errorLine = 0;
+                        
+                        for (let i = 0; i < codeLines.length; i++) {
+                            currentPos += codeLines[i].length + 1; // +1 for newline
+                            if (currentPos >= position) {
+                                errorLine = i + 1;
+                                break;
+                            }
+                        }
+                        
+                        if (errorLine > 0 && errorLine <= codeLines.length) {
+                            detailedError += `\n错误可能出现在第 ${errorLine} 行附近：`;
+                            detailedError += `\n${codeLines[errorLine - 1].trim()}`;
+                        }
+                    }
+                    
+                    detailedError += `\n\n请检查生成的代码并重试。`;
+                    throw new Error(detailedError);
                 }
             }
 
