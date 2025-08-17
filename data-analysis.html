@@ -1517,9 +1517,9 @@
                     const prompt = this.buildRequirementsPrompt();
                     console.log('构建的prompt长度:', prompt.length);
                     
-                    // 调用GLM API生成需求
+                    // 调用DeepSeek API生成需求
                     this.updateProgress(1, '正在生成分析需求...');
-                    const requirements = await this.callGLMAPI(prompt, false);
+                    const requirements = await this.callDeepSeekAPI(prompt, false);
                     console.log('生成的需求长度:', requirements ? requirements.length : 0);
                     console.log('生成的需求内容:', requirements ? requirements.substring(0, 200) + '...' : 'null');
                     
@@ -1664,7 +1664,7 @@
                     // Step 2: Call API with streaming
                     this.updateProgress(2, '正在生成图表代码...');
                     console.log('调用API生成代码...');
-                    const code = await this.callGLMAPI(prompt, true); // Enable streaming
+                    const code = await this.callDeepSeekAPI(prompt, true); // Enable streaming
                     console.log('生成的代码长度:', code ? code.length : 0);
                     
                     // 验证生成的代码
@@ -1833,9 +1833,9 @@
 - 合适的图表选项`;
             }
 
-            async callGLMAPI(prompt, stream = false) {
+            async callDeepSeekAPI(prompt, stream = false) {
                 try {
-                    console.log('开始调用GLM API...');
+                    console.log('开始调用DeepSeek API...');
                     console.log('Stream mode:', stream);
                     console.log('Prompt length:', prompt.length);
                     
@@ -1843,44 +1843,45 @@
                     const selectedGoal = document.querySelector('.analysis-goal.active');
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
-                    const requestBody = { 
-                        prompt,
-                        data: this.data,
-                        chartType: this.selectedChartType,
-                        analysisGoal: analysisGoal
+                    // 构建系统消息
+                    const systemMessage = `你是一个数据可视化专家。请根据用户的需求生成ECharts图表配置代码。你需要返回完整的JavaScript代码，包含图表初始化、配置选项和数据处理逻辑。`;
+                    
+                    console.log('发送请求到DeepSeek API...');
+                    
+                    // 使用DeepSeek API格式
+                    const requestBody = {
+                        messages: [
+                            {
+                                role: "system",
+                                content: systemMessage
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ]
                     };
                     
-                    if (stream) {
-                        requestBody.stream = true;
-                    }
-                    
-                    console.log('发送请求到API...');
                     console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
                     
-                    // 尝试不同的API端点和请求格式
+                    // 尝试不同的API端点
                     const apiEndpoints = [
                         {
-                            url: 'https://glm.study-llm.me/chat',
+                            url: '/api/chat',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Accept': stream ? 'text/event-stream' : 'application/json'
+                                'Accept': 'application/json'
                             },
                             body: requestBody
                         },
                         {
-                            url: 'https://glm.study-llm.me/chat',
+                            url: '/api/chat',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json'
                             },
                             body: {
-                                model: 'glm-4',
-                                messages: [{
-                                    role: 'user',
-                                    content: prompt
-                                }],
-                                stream: stream,
-                                temperature: 0.7
+                                prompt: prompt
                             }
                         }
                     ];
@@ -1931,65 +1932,43 @@
                         throw new Error(`API调用失败: ${response.status} - ${errorText}`);
                     }
 
-                    if (stream) {
-                        // Handle streaming response
-                        console.log('开始处理流式响应...');
-                        // 检查响应体是否可读
-                        if (!response.body) {
-                            console.error('响应体为空，无法处理流式响应');
-                            throw new Error('响应体为空');
-                        }
-                        
-                        // Check if the response is actually streaming
-                        const contentType = response.headers.get('Content-Type');
-                        console.log('响应Content-Type:', contentType);
-                        
-                        if (contentType && contentType.includes('text/event-stream')) {
-                            console.log('确认是Server-Sent Events流式响应');
-                            return this.handleStreamingResponse(response);
-                        } else if (contentType && contentType.includes('application/json')) {
-                            console.log('响应是JSON格式，可能不是真正的流式响应');
-                            // Try to handle as regular response
-                            const result = await response.json();
-                            console.log('JSON响应结果:', result);
-                            const content = result.choices?.[0]?.message?.content || result.message || result.content || result;
-                            console.log('提取的内容长度:', content ? content.length : 0);
-                            return this.extractCodeFromResponse(content);
-                        } else {
-                            console.log('未知的响应格式，尝试作为流处理');
-                            
-                            // 检查响应体是否为空
-                            const responseText = await response.text();
-                            console.log('响应体文本长度:', responseText.length);
-                            console.log('响应体内容预览:', responseText.substring(0, 500));
-                            
-                            if (responseText.length === 0) {
-                                console.error('API返回了空响应体');
-                                throw new Error('API返回了空响应体');
-                            }
-                            
-                            // 尝试重新创建响应对象（因为text()已经消耗了响应体）
-                            const newResponse = new Response(responseText, {
-                                status: response.status,
-                                statusText: response.statusText,
-                                headers: response.headers
-                            });
-                            
-                            return this.handleStreamingResponse(newResponse);
-                        }
+                    // DeepSeek API目前不支持流式响应，直接处理普通响应
+                    console.log('处理DeepSeek API响应...');
+                    const result = await response.json();
+                    console.log('DeepSeek API响应结果:', result);
+                    
+                    // 处理不同的响应格式
+                    let content;
+                    if (result.choices && result.choices[0] && result.choices[0].message) {
+                        // 标准DeepSeek API格式
+                        content = result.choices[0].message.content;
+                    } else if (result.output) {
+                        // Worker-chat格式
+                        content = result.output;
+                    } else if (result.message) {
+                        // 备用格式
+                        content = result.message;
+                    } else if (result.content) {
+                        // 另一种备用格式
+                        content = result.content;
                     } else {
-                        // Handle regular response
-                        console.log('处理普通响应...');
-                        const result = await response.json();
-                        console.log('API响应结果:', result);
-                        const content = result.choices?.[0]?.message?.content || result.message || result.content || result;
-                        console.log('提取的内容长度:', content ? content.length : 0);
-                        return this.extractCodeFromResponse(content);
+                        // 最后尝试直接使用result
+                        content = result;
                     }
                     
+                    console.log('提取的内容长度:', content ? content.length : 0);
+                    console.log('内容预览:', content ? content.substring(0, 200) : 'null');
+                    
+                    if (!content || content.length === 0) {
+                        console.error('API返回了空内容');
+                        throw new Error('API返回了空内容');
+                    }
+                    
+                    return this.extractCodeFromResponse(content);
+                    
                 } catch (error) {
-                    console.error('callGLMAPI错误:', error);
-                    throw new Error('无法连接到分析服务: ' + error.message);
+                    console.error('callDeepSeekAPI错误:', error);
+                    throw new Error('无法连接到DeepSeek分析服务: ' + error.message);
                 }
             }
             
