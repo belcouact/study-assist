@@ -1331,10 +1331,15 @@
                     this.updateProgress(4, '正在渲染图表...');
                     this.showResult();
                     
+                    // 只有成功时才隐藏loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                    }, 1000); // 延迟1秒隐藏，让用户看到完成状态
+                    
                 } catch (error) {
+                    console.error('生成图表时出错:', error);
                     this.showError('生成图表失败: ' + error.message);
-                } finally {
-                    this.hideLoading();
+                    // 出错时不隐藏loading，让用户看到错误状态
                 }
             }
 
@@ -1458,19 +1463,25 @@
                 // 移除多余的右括号
                 cleaned = cleaned.replace(/\)\s*\)+/g, ')');
                 
-                // 智能修复缺失的分号 - 只在变量赋值和表达式语句末尾添加
-                cleaned = cleaned.replace(/^\s*(var|let|const|\w+\s*=|return|throw|break|continue)\s[^;\n]*$/gm, '$&;');
-                
                 // 移除多余的逗号
                 cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
                 
-                // 确保代码以分号结尾（仅当是表达式语句时）
-                if (cleaned && !cleaned.endsWith(';') && !cleaned.endsWith('}') && !cleaned.endsWith(']')) {
-                    const lastLine = cleaned.split('\n').pop().trim();
-                    if (!lastLine.match(/^(if|for|while|function|switch|try|catch|finally|class|else|do)/)) {
-                        cleaned += ';';
+                // 更智能的修复缺失分号逻辑
+                const lines = cleaned.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line && !line.endsWith(';') && !line.endsWith('{') && !line.endsWith('}') && 
+                        !line.endsWith('[') && !line.endsWith(']') && !line.endsWith('(') && !line.endsWith(')')) {
+                        // 只在特定类型的语句末尾添加分号
+                        if (line.match(/^(var|let|const|return|throw|break|continue)\s/) ||
+                            line.match(/\w+\s*=/) || // 变量赋值
+                            line.match(/\w+\(.*\)/) || // 函数调用
+                            line.match(/\w+\.\w+\(.*\)/)) { // 方法调用
+                            lines[i] = line + ';';
+                        }
                     }
                 }
+                cleaned = lines.join('\n');
                 
                 return cleaned;
             }
