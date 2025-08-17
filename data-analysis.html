@@ -161,6 +161,27 @@
             background: var(--border-color);
         }
 
+        .btn-requirements {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-requirements:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-requirements:disabled {
+            background: #ccc;
+            color: #666;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
         .btn:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -871,11 +892,6 @@
                     </div>
                 </div>
             </div>
-            <div class="form-group">
-                <button id="generateRequirements" class="btn btn-secondary" disabled>
-                    <i class="fas fa-magic"></i> 生成分析需求
-                </button>
-            </div>
             <div class="chart-types" id="chartTypes">
                 <div class="chart-type" data-type="line">
                     <i class="fas fa-chart-line"></i>
@@ -909,6 +925,11 @@
                     <i class="fas fa-spider"></i>
                     <span>雷达图</span>
                 </div>
+            </div>
+            <div class="form-group">
+                <button id="generateRequirements" class="btn btn-requirements" disabled>
+                    <i class="fas fa-magic"></i> 生成分析需求
+                </button>
             </div>
             <div class="form-group">
                 <label class="form-label">额外要求（可选）</label>
@@ -1044,7 +1065,7 @@
                 const chartTypes = document.querySelectorAll('.chart-type');
                 const generateBtn = document.getElementById('generateChart');
                 const generateRequirementsBtn = document.getElementById('generateRequirements');
-                const analysisGoal = document.getElementById('analysisGoal');
+                const analysisGoals = document.querySelectorAll('.analysis-goal');
 
                 if (fileInput) {
                     fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
@@ -1066,9 +1087,10 @@
                     generateRequirementsBtn.addEventListener('click', () => this.generateUserRequirements());
                 }
 
-                if (analysisGoal) {
-                    analysisGoal.addEventListener('change', this.updateChartTypes.bind(this));
-                }
+                // 为分析目标添加点击事件监听器
+                analysisGoals.forEach(goal => {
+                    goal.addEventListener('click', () => this.selectAnalysisGoal(goal));
+                });
             }
 
             setupDataGeneration() {
@@ -1406,7 +1428,10 @@
             }
 
             updateChartTypes() {
-                const goal = document.getElementById('analysisGoal').value;
+                // 获取当前选择的分析目标（同时支持.active和.selected类）
+                const selectedGoal = document.querySelector('.analysis-goal.active, .analysis-goal.selected');
+                const goal = selectedGoal ? selectedGoal.dataset.goal : '';
+                console.log('当前选中的分析目标:', goal);
                 const chartTypes = document.querySelectorAll('.chart-type');
                 
                 // Reset selection
@@ -1417,9 +1442,25 @@
                 // You could add logic here to highlight recommended chart types based on goal
             }
 
+            selectAnalysisGoal(element) {
+                console.log('选择分析目标:', element.dataset.goal);
+                // 移除所有分析目标的selected和active类
+                document.querySelectorAll('.analysis-goal').forEach(goal => {
+                    goal.classList.remove('selected', 'active');
+                });
+                // 为当前点击的分析目标添加selected和active类
+                element.classList.add('selected', 'active');
+                console.log('已添加selected和active类');
+                // 更新图表类型和生成按钮状态
+                this.updateChartTypes();
+            }
+
             updateGenerateButton() {
                 const generateBtn = document.getElementById('generateChart');
-                const analysisGoal = document.getElementById('analysisGoal').value;
+                // 获取当前选择的分析目标（同时支持.active和.selected类）
+                const selectedGoal = document.querySelector('.analysis-goal.active, .analysis-goal.selected');
+                const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
+                console.log('更新生成按钮状态 - 分析目标:', analysisGoal, '图表类型:', this.selectedChartType);
                 
                 generateBtn.disabled = !this.selectedChartType || !analysisGoal;
             }
@@ -1435,8 +1476,16 @@
                     console.log('开始生成分析需求...');
                     console.log('数据行数:', this.data.length);
                     
+                    // 显示加载指示器
                     this.showLoading();
                     this.hideError();
+                    
+                    // 禁用生成需求按钮，防止重复点击
+                    const generateRequirementsBtn = document.getElementById('generateRequirements');
+                    if (generateRequirementsBtn) {
+                        generateRequirementsBtn.disabled = true;
+                        generateRequirementsBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+                    }
                     
                     // 构建生成需求的prompt
                     const prompt = this.buildRequirementsPrompt();
@@ -1450,9 +1499,13 @@
                     // 显示生成的需求
                     this.showGeneratedRequirements(requirements);
                     
-                    // 隐藏loading
+                    // 恢复按钮状态并隐藏loading
                     setTimeout(() => {
                         this.hideLoading();
+                        if (generateRequirementsBtn) {
+                            generateRequirementsBtn.disabled = false;
+                            generateRequirementsBtn.innerHTML = '<i class="fas fa-magic"></i> 生成分析需求';
+                        }
                         console.log('需求生成完成');
                     }, 1000);
                     
@@ -1460,8 +1513,14 @@
                     console.error('生成需求时出错:', error);
                     console.error('错误堆栈:', error.stack);
                     this.showError('生成需求失败: ' + error.message);
+                    
+                    // 恢复按钮状态并隐藏loading
                     setTimeout(() => {
                         this.hideLoading();
+                        if (generateRequirementsBtn) {
+                            generateRequirementsBtn.disabled = false;
+                            generateRequirementsBtn.innerHTML = '<i class="fas fa-magic"></i> 生成分析需求';
+                        }
                     }, 3000);
                 }
             }
