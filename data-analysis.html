@@ -1637,6 +1637,9 @@
             }
 
             async generateScript() {
+                // 获取生成脚本按钮元素
+                const generateScriptBtn = document.getElementById('generateScript');
+                
                 // 前置检查
                 const optimizedContent = document.getElementById('optimizedContent');
                 const optimizedText = optimizedContent ? optimizedContent.value.trim() : '';
@@ -1660,7 +1663,6 @@
                     this.hideError();
                     
                     // 禁用生成脚本按钮，防止重复点击
-                    const generateScriptBtn = document.getElementById('generateScript');
                     if (generateScriptBtn) {
                         generateScriptBtn.disabled = true;
                         generateScriptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
@@ -1670,13 +1672,20 @@
                     const prompt = this.buildScriptPrompt(optimizedText);
                     console.log('构建的prompt长度:', prompt.length);
                     
-                    // 调用DeepSeek API生成脚本
+                    // 调用DeepSeek API生成脚本（单次调用）
                     this.updateProgress(4, '正在生成图表脚本...');
+                    console.log('尝试生成脚本...');
+                    
                     const script = await this.callDeepSeekAPI(prompt, true);
-                    console.log('生成的脚本长度:', script ? script.length : 0);
-                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本长度:`, script ? script.length : 0);
-                    console.log('生成的脚本内容:', script ? script.substring(0, 200) + '...' : 'null');
-                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本内容:`, script ? script.substring(0, 200) + '...' : 'null');
+                    
+                    if (!script || !script.trim()) {
+                        throw new Error('无法生成脚本');
+                    }
+                    
+                    console.log('生成的脚本长度:', script.length);
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本长度:`, script.length);
+                    console.log('生成的脚本内容:', script.substring(0, 200) + '...');
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本内容:`, script.substring(0, 200) + '...');
                     
                     // 保存生成的脚本供后续执行使用
                     if (script && script.trim()) {
@@ -1711,7 +1720,18 @@
                 } catch (error) {
                     console.error('生成脚本时出错:', error);
                     console.error('错误堆栈:', error.stack);
-                    this.showError('生成脚本失败: ' + error.message);
+                    
+                    // 提供更友好的错误信息
+                    let errorMessage = '生成脚本失败';
+                    if (error.message.includes('超时') || error.message.includes('524')) {
+                        errorMessage = '服务器响应超时，请稍后重试。可能是服务器负载过高或网络连接不稳定。';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMessage = '网络连接失败，请检查网络连接后重试。';
+                    } else {
+                        errorMessage += ': ' + error.message;
+                    }
+                    
+                    this.showError(errorMessage);
                     
                     // 恢复按钮状态并隐藏loading
                     setTimeout(() => {
@@ -1802,7 +1822,7 @@
 5. 确保代码语法正确，可以直接执行
 6. 特别注意：生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配
 
-重要：请只返回ECharts配置对象，不要包含任何解释文字、注释或其他内容。返回格式应该是一个纯粹的JavaScript对象。`;
+重要：请只返回ECharts配置对象，不要包含任何HTML代码、解释文字、注释或其他内容。返回格式应该是一个纯粹的JavaScript对象，例如：{title: {...}, xAxis: {...}, yAxis: {...}, series: [...]}。`;
             }
 
             async callDeepSeekAPI(prompt, stream = false) {
@@ -1816,7 +1836,7 @@
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
                     // 构建系统消息
-                    const systemMessage = `你是一个数据可视化专家。请根据用户的需求生成ECharts图表配置代码。你需要返回完整的JavaScript代码，包含图表初始化、配置选项和数据处理逻辑。`;
+                    const systemMessage = `你是一个ECharts图表配置专家。请根据用户的需求生成纯粹的ECharts配置对象代码。只返回JavaScript对象格式的配置代码，不包含任何HTML、初始化代码、注释或解释文字。`;
                     
                     console.log('发送请求到DeepSeek API...');
                     
@@ -1868,11 +1888,25 @@
                             console.log('请求头:', endpoint.headers);
                             console.log('请求体:', JSON.stringify(endpoint.body, null, 2));
                             
-                            response = await fetch(endpoint.url, {
-                                method: 'POST',
-                                headers: endpoint.headers,
-                                body: JSON.stringify(endpoint.body)
-                            });
+                            // 添加超时控制
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+                            
+                            try {
+                                response = await fetch(endpoint.url, {
+                                    method: 'POST',
+                                    headers: endpoint.headers,
+                                    body: JSON.stringify(endpoint.body),
+                                    signal: controller.signal
+                                });
+                                clearTimeout(timeoutId);
+                            } catch (fetchError) {
+                                clearTimeout(timeoutId);
+                                if (fetchError.name === 'AbortError') {
+                                    throw new Error(`端点 ${i + 1} 请求超时（30秒）`);
+                                }
+                                throw fetchError;
+                            }
                             
                             console.log(`端点 ${i + 1} 响应状态:`, response.status);
                             
@@ -1949,7 +1983,22 @@
                     
                 } catch (error) {
                     console.error('callDeepSeekAPI错误:', error);
-                    throw new Error('无法连接到DeepSeek分析服务: ' + error.message);
+                    
+                    // 检查是否是超时错误或524错误
+                    let errorMessage = '无法连接到DeepSeek分析服务';
+                    if (error.message.includes('超时') || error.message.includes('524')) {
+                        errorMessage = '服务器响应超时，请稍后重试。可能是服务器负载过高或网络连接不稳定。';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMessage = '网络连接失败，请检查网络连接后重试。';
+                    } else {
+                        errorMessage += ': ' + error.message;
+                    }
+                    
+                    // 显示用户友好的错误信息
+                    this.showError(errorMessage);
+                    
+                    // 抛出错误以保持原有错误处理逻辑
+                    throw new Error(errorMessage);
                 }
             }
             
@@ -2569,6 +2618,26 @@
                 const errorDiv = document.getElementById('error');
                 errorDiv.textContent = message;
                 errorDiv.classList.remove('hidden');
+                
+                // 检查是否已经存在重试按钮
+                let retryButton = errorDiv.querySelector('.retry-button');
+                
+                if (!retryButton) {
+                    // 创建重试按钮
+                    retryButton = document.createElement('button');
+                    retryButton.className = 'retry-button';
+                    retryButton.textContent = '重试';
+                    retryButton.style.cssText = 'margin-left: 10px; padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件 - 重新调用generateScript方法
+                    retryButton.addEventListener('click', () => {
+                        this.hideError();
+                        this.generateScript();
+                    });
+                    
+                    // 将按钮添加到错误div中
+                    errorDiv.appendChild(retryButton);
+                }
             }
 
             hideError() {
