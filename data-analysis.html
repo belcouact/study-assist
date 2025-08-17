@@ -187,6 +187,22 @@
             cursor: not-allowed;
         }
 
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .button-group .btn {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
         .form-group {
             margin-bottom: 1rem;
         }
@@ -958,12 +974,17 @@
                     </h3>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">生成的分析需求</label>
-                    <textarea id="requirementsContent" class="form-input" rows="8" readonly></textarea>
+                    <label class="form-label">分析需求（可编辑）</label>
+                    <textarea id="requirementsContent" class="form-input" rows="8" placeholder="请在此编辑您的分析需求..."></textarea>
                 </div>
-                <button id="generateChart" class="btn btn-primary hidden" disabled>
-                    <i class="fas fa-magic"></i> 生成图表
-                </button>
+                <div class="button-group">
+                    <button id="generateScript" class="btn btn-primary hidden" disabled>
+                        <i class="fas fa-code"></i> 生成脚本
+                    </button>
+                    <button id="executeScript" class="btn btn-success hidden" disabled>
+                        <i class="fas fa-play"></i> 执行脚本显示图表
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1089,7 +1110,8 @@
                 const fileInput = document.getElementById('fileInput');
                 const uploadArea = document.getElementById('uploadArea');
                 const chartTypes = document.querySelectorAll('.chart-type');
-                const generateBtn = document.getElementById('generateChart');
+                const generateScriptBtn = document.getElementById('generateScript');
+                const executeScriptBtn = document.getElementById('executeScript');
                 const generateRequirementsBtn = document.getElementById('generateRequirements');
                 const analysisGoals = document.querySelectorAll('.analysis-goal');
 
@@ -1105,8 +1127,12 @@
                     type.addEventListener('click', () => this.selectChartType(type));
                 });
 
-                if (generateBtn) {
-                    generateBtn.addEventListener('click', () => this.generateVisualization());
+                if (generateScriptBtn) {
+                    generateScriptBtn.addEventListener('click', () => this.generateScript());
+                }
+                
+                if (executeScriptBtn) {
+                    executeScriptBtn.addEventListener('click', () => this.executeScriptAndShowChart());
                 }
                 
                 if (generateRequirementsBtn) {
@@ -1450,7 +1476,6 @@
                 });
                 element.classList.add('selected');
                 this.selectedChartType = element.dataset.type;
-                this.updateGenerateButton();
             }
 
             updateChartTypes() {
@@ -1463,7 +1488,6 @@
                 // Reset selection
                 chartTypes.forEach(type => type.classList.remove('selected'));
                 this.selectedChartType = null;
-                this.updateGenerateButton();
 
                 // You could add logic here to highlight recommended chart types based on goal
             }
@@ -1481,15 +1505,7 @@
                 this.updateChartTypes();
             }
 
-            updateGenerateButton() {
-                const generateBtn = document.getElementById('generateChart');
-                // 获取当前选择的分析目标（同时支持.active和.selected类）
-                const selectedGoal = document.querySelector('.analysis-goal.active, .analysis-goal.selected');
-                const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
-                console.log('更新生成按钮状态 - 分析目标:', analysisGoal, '图表类型:', this.selectedChartType);
-                
-                generateBtn.disabled = !this.selectedChartType || !analysisGoal;
-            }
+
 
             async generateUserRequirements() {
                 // 前置检查
@@ -1597,12 +1613,12 @@
                         generatedRequirements.classList.remove('hidden');
                         console.log('generatedRequirements 区域已显示');
                         
-                        // 显示并启用生成图表按钮
-                        const generateChartBtn = document.getElementById('generateChart');
-                        if (generateChartBtn) {
-                            generateChartBtn.disabled = false;
-                            generateChartBtn.classList.remove('hidden');
-                            console.log('生成图表按钮已显示并启用');
+                        // 显示并启用生成脚本按钮
+                        const generateScriptBtn = document.getElementById('generateScript');
+                        if (generateScriptBtn) {
+                            generateScriptBtn.disabled = false;
+                            generateScriptBtn.classList.remove('hidden');
+                            console.log('生成脚本按钮已显示并启用');
                         }
                     }
                 } else {
@@ -1610,7 +1626,7 @@
                 }
             }
 
-            async generateVisualization() {
+            async generateScript() {
                 // 前置检查
                 if (!this.selectedChartType) {
                     this.showError('请先选择图表类型');
@@ -1642,11 +1658,7 @@
                         streamingArea.remove();
                     }
                     
-                    // Clear any previous generate chart button
-                    const generateChartBtn = document.getElementById('generateChartBtn');
-                    if (generateChartBtn) {
-                        generateChartBtn.remove();
-                    }
+
                     
                     // Reset stored code
                     this.generatedCode = null;
@@ -1655,10 +1667,14 @@
                     const selectedGoal = document.querySelector('.analysis-goal.active');
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
+                    // 获取用户编辑的需求
+                    const requirementsContent = document.getElementById('requirementsContent');
+                    const userRequirements = requirementsContent ? requirementsContent.value : '';
+                    
                     // Step 1: Build prompt
                     this.updateProgress(1, '正在分析数据和要求...');
                     console.log('分析数据和要求...');
-                    const prompt = this.buildPrompt(analysisGoal, '');
+                    const prompt = this.buildPrompt(analysisGoal, userRequirements);
                     console.log('构建的prompt长度:', prompt.length);
                     
                     // Step 2: Call API with streaming
@@ -1681,14 +1697,19 @@
                     this.generatedCode = code;
                     console.log('存储的生成代码预览:', code.substring(0, 200));
                     
-                    // Step 3: Show completion and create generate chart button
-                    this.updateProgress(3, '脚本生成完成，点击生成图表');
+                    // Step 3: Show completion and enable execute script button
+                    this.updateProgress(3, '脚本生成完成');
                     console.log('脚本生成完成');
                     
-                    // Create generate chart button
-                    this.createGenerateChartButton();
+                    // Enable execute script button
+                    const executeScriptBtn = document.getElementById('executeScript');
+                    if (executeScriptBtn) {
+                        executeScriptBtn.disabled = false;
+                        executeScriptBtn.classList.remove('hidden');
+                        console.log('执行脚本按钮已启用');
+                    }
                     
-                    // Hide loading but keep streaming area visible
+                    // Hide loading
                     setTimeout(() => {
                         this.hideLoading();
                         console.log('脚本生成流程完成');
@@ -1705,65 +1726,14 @@
                 }
             }
             
-            createGenerateChartButton() {
-                // Remove existing button if any
-                const existingBtn = document.getElementById('generateChartBtn');
-                if (existingBtn) {
-                    existingBtn.remove();
-                }
-                
-                // Create new button
-                const button = document.createElement('button');
-                button.id = 'generateChartBtn';
-                button.textContent = '生成图表';
-                button.className = 'btn btn-primary';
-                button.style.cssText = `
-                    background-color: #007bff;
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 6px;
-                    cursor: pointer;
-                    font-size: 16px;
-                    margin: 15px 0;
-                    transition: background-color 0.3s ease;
-                `;
-                
-                // Add hover effect
-                button.addEventListener('mouseenter', () => {
-                    button.style.backgroundColor = '#0056b3';
-                });
-                
-                button.addEventListener('mouseleave', () => {
-                    button.style.backgroundColor = '#007bff';
-                });
-                
-                // Add click handler
-                button.addEventListener('click', () => {
-                    this.generateChartFromCode();
-                });
-                
-                // Insert button after streaming area
-                const streamingArea = document.getElementById('streamingArea');
-                if (streamingArea) {
-                    streamingArea.parentNode.insertBefore(button, streamingArea.nextSibling);
-                } else {
-                    // If no streaming area, insert before chart container
-                    const chartContainer = document.getElementById('chartContainer');
-                    if (chartContainer) {
-                        chartContainer.parentNode.insertBefore(button, chartContainer);
-                    }
-                }
-            }
-            
-            async generateChartFromCode() {
+            async executeScriptAndShowChart() {
                 if (!this.generatedCode) {
                     this.showError('没有可用的生成代码，请先生成脚本');
                     return;
                 }
                 
                 try {
-                    console.log('开始生成图表...');
+                    console.log('开始执行脚本并显示图表...');
                     this.showLoading();
                     
                     // Execute the stored code
@@ -1776,12 +1746,6 @@
                     console.log('渲染图表...');
                     this.showResult();
                     
-                    // Remove the generate chart button
-                    const generateChartBtn = document.getElementById('generateChartBtn');
-                    if (generateChartBtn) {
-                        generateChartBtn.remove();
-                    }
-                    
                     // Hide loading
                     setTimeout(() => {
                         this.hideLoading();
@@ -1789,14 +1753,18 @@
                     }, 1000);
                     
                 } catch (error) {
-                    console.error('生成图表时出错:', error);
+                    console.error('执行脚本时出错:', error);
                     console.error('错误堆栈:', error.stack);
-                    this.showError('生成图表失败: ' + error.message);
+                    this.showError('执行脚本失败: ' + error.message);
                     setTimeout(() => {
                         this.hideLoading();
                     }, 3000);
                 }
             }
+            
+
+            
+
 
             buildPrompt(analysisGoal, additionalRequirements) {
                 const sampleData = this.data.slice(0, 3);
