@@ -1447,28 +1447,48 @@
             }
 
             buildOptimizationPrompt(userText) {
+                // 获取预览数据的统计信息
+                let dataInfo = '';
+                if (this.data && this.data.length > 0) {
+                    const dataStats = this.getDataStatistics();
+                    dataInfo = `\n\n**可用数据信息**：\n`;
+                    dataInfo += `- 数据行数：${this.data.length}\n`;
+                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
+                    dataInfo += `- 数据类型分析：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    dataInfo += `- 数据分布：${dataStats.distribution}\n`;
+                    
+                    // 添加数据样本
+                    if (this.data.length > 0) {
+                        dataInfo += `\n**数据样本**（前3行）：\n`;
+                        this.data.slice(0, 3).forEach((row, index) => {
+                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                        });
+                    }
+                }
+                
                 return `你是一个数据可视化专家。请将用户的简单需求优化为详细、具体的图表配置要求描述。
 
-用户的原始需求：${userText}
+用户的原始需求：${userText}${dataInfo}
 
-请基于用户的需求，生成一份详细的图表配置要求描述，包括以下具体内容：
+请基于用户的需求和实际的数据特征，生成一份详细的图表配置要求描述，包括以下具体内容：
 
-1. **图表类型**：明确推荐使用哪种图表类型（如折线图、柱状图、饼图、散点图等）及选择理由
+1. **图表类型**：明确推荐使用哪种图表类型（如折线图、柱状图、饼图、散点图等）及选择理由，考虑数据的实际特征
 
 2. **坐标轴配置**：
-   - X轴：应该显示什么数据（如时间、类别、数值等）
-   - Y轴：应该显示什么数据（如数值、百分比等）
-   - 坐标轴标题和单位说明
+   - X轴：应该显示什么数据（如时间、类别、数值等），基于实际数据列推荐
+   - Y轴：应该显示什么数据（如数值、百分比等），基于实际数据列推荐
+   - 坐标轴标题和单位说明，考虑数据的实际单位和范围
 
 3. **图表标题和说明**：
-   - 主标题：简洁明了的图表标题
-   - 副标题：补充说明（如有需要）
+   - 主标题：简洁明了的图表标题，反映数据的核心特征
+   - 副标题：补充说明（如有需要），包含数据的时间范围或其他重要信息
    - 图表说明文字
 
 4. **数据系列配置**：
-   - 需要显示哪些数据系列
-   - 每个系列的名称和数据类型
-   - 系列的颜色和样式建议
+   - 需要显示哪些数据系列，基于实际可用的数据列
+   - 每个系列的名称和数据类型，考虑数据的实际类型
+   - 系列的颜色和样式建议，考虑数据的数量和分布
 
 5. **图例配置**：
    - 图例的位置和显示方式
@@ -1479,10 +1499,111 @@
    - 是否需要数据标签
    - 是否需要提示框（tooltip）
    - 特殊的视觉效果要求
+   - 数据处理建议（如数据聚合、筛选等，基于实际数据特征）
 
 请以结构化的方式组织内容，确保描述清晰具体，用户可以根据这些要求确认和编辑，然后再生成ECharts代码。注意：这一步不要生成任何代码，只生成配置要求的描述。`;
             }
 
+            getDataStatistics() {
+                if (!this.data || this.data.length === 0 || !this.columns || this.columns.length === 0) {
+                    return {
+                        typeAnalysis: '无数据',
+                        valueRange: '无数据',
+                        distribution: '无数据'
+                    };
+                }
+                
+                const stats = {
+                    typeAnalysis: '',
+                    valueRange: '',
+                    distribution: ''
+                };
+                
+                // 分析每列的数据类型
+                const columnTypes = {};
+                const columnRanges = {};
+                
+                this.columns.forEach(col => {
+                    const values = this.data.map(row => row[col]).filter(val => val !== null && val !== undefined && val !== '');
+                    
+                    if (values.length === 0) {
+                        columnTypes[col] = '空';
+                        return;
+                    }
+                    
+                    // 判断数据类型
+                    const isNumeric = values.every(val => !isNaN(val) && isFinite(val));
+                    const isDate = values.every(val => !isNaN(Date.parse(val)));
+                    const isString = values.every(val => typeof val === 'string');
+                    
+                    if (isNumeric) {
+                        columnTypes[col] = '数值型';
+                        const numericValues = values.map(val => Number(val));
+                        const min = Math.min(...numericValues);
+                        const max = Math.max(...numericValues);
+                        columnRanges[col] = `${min} - ${max}`;
+                    } else if (isDate) {
+                        columnTypes[col] = '日期型';
+                        const dates = values.map(val => new Date(val));
+                        const minDate = new Date(Math.min(...dates));
+                        const maxDate = new Date(Math.max(...dates));
+                        columnRanges[col] = `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`;
+                    } else if (isString) {
+                        columnTypes[col] = '文本型';
+                        const uniqueValues = [...new Set(values)];
+                        columnRanges[col] = `${uniqueValues.length} 个唯一值`;
+                    } else {
+                        columnTypes[col] = '混合型';
+                    }
+                });
+                
+                // 生成类型分析描述
+                const numericColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '数值型');
+                const dateColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '日期型');
+                const stringColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '文本型');
+                
+                stats.typeAnalysis = `数值型列${numericColumns.length}个(${numericColumns.join(', ')})，`;
+                if (dateColumns.length > 0) {
+                    stats.typeAnalysis += `日期型列${dateColumns.length}个(${dateColumns.join(', ')})，`;
+                }
+                stats.typeAnalysis += `文本型列${stringColumns.length}个(${stringColumns.join(', ')})`;
+                
+                // 生成数值范围描述
+                const rangeDescriptions = [];
+                Object.entries(columnRanges).forEach(([col, range]) => {
+                    if (columnTypes[col] === '数值型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    } else if (columnTypes[col] === '日期型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    } else if (columnTypes[col] === '文本型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    }
+                });
+                stats.valueRange = rangeDescriptions.join('；') || '无有效数值范围';
+                
+                // 生成数据分布描述
+                if (numericColumns.length > 0) {
+                    stats.distribution = '包含数值数据，适合进行趋势分析、对比分析等';
+                } else if (dateColumns.length > 0) {
+                    stats.distribution = '包含时间序列数据，适合进行时间趋势分析';
+                } else if (stringColumns.length > 0) {
+                    const avgUniqueValues = stringColumns.reduce((sum, col) => {
+                        const values = this.data.map(row => row[col]).filter(val => val !== null && val !== undefined && val !== '');
+                        return sum + (new Set(values)).size;
+                    }, 0) / stringColumns.length;
+                    
+                    if (avgUniqueValues < 10) {
+                        stats.distribution = '主要包含分类数据，适合进行分类统计和对比';
+                    } else {
+                        stats.distribution = '包含大量文本数据，适合进行数据筛选和分组分析';
+                    }
+                } else {
+                    stats.distribution = '数据分布特征不明显，建议进一步分析';
+                }
+                
+                return stats;
+            }
+            
             showOptimizedDescription(description) {
                 console.log('showOptimizedDescription 被调用，配置要求内容:', description ? description.substring(0, 100) + '...' : 'null');
                 
@@ -1520,6 +1641,11 @@
                 const optimizedContent = document.getElementById('optimizedContent');
                 const optimizedText = optimizedContent ? optimizedContent.value.trim() : '';
                 
+                // 添加调试信息 - 确认控制台日志正常工作
+                console.log('=== 脚本生成开始 ===');
+                console.log('时间戳:', new Date().toISOString());
+                console.log('配置要求长度:', optimizedText.length);
+                
                 if (!optimizedText) {
                     this.showError('请先生成图表配置要求');
                     return;
@@ -1548,7 +1674,9 @@
                     this.updateProgress(4, '正在生成图表脚本...');
                     const script = await this.callDeepSeekAPI(prompt, true);
                     console.log('生成的脚本长度:', script ? script.length : 0);
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本长度:`, script ? script.length : 0);
                     console.log('生成的脚本内容:', script ? script.substring(0, 200) + '...' : 'null');
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本内容:`, script ? script.substring(0, 200) + '...' : 'null');
                     
                     // 显示生成的脚本
                     if (script && script.trim()) {
@@ -1566,6 +1694,7 @@
                             generateScriptBtn.innerHTML = '<i class="fas fa-code"></i> 生成脚本';
                         }
                         console.log('脚本生成完成');
+                        console.log(`data-analysis:${new Date().getTime()} 脚本生成完成`);
                     }, 1000);
                     
                 } catch (error) {
@@ -1625,22 +1754,42 @@
 
 
             buildScriptPrompt(optimizedText) {
-                return `你是一个ECharts图表开发专家。请根据以下用户确认的图表配置要求，生成纯粹的ECharts配置代码。
+                // 获取预览数据的统计信息
+                let dataInfo = '';
+                if (this.data && this.data.length > 0) {
+                    const dataStats = this.getDataStatistics();
+                    dataInfo = `\n\n**实际数据特征**：\n`;
+                    dataInfo += `- 数据行数：${this.data.length}\n`;
+                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
+                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    
+                    // 添加完整的数据样本用于代码生成
+                    if (this.data.length > 0) {
+                        dataInfo += `\n**完整数据样本**（用于生成series数据）：\n`;
+                        this.data.slice(0, Math.min(10, this.data.length)).forEach((row, index) => {
+                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                        });
+                    }
+                }
+                
+                return `你是一个ECharts图表开发专家。请根据以下用户确认的图表配置要求和实际数据特征，生成纯粹的ECharts配置代码。
 
-用户确认的图表配置要求：${optimizedText}
+用户确认的图表配置要求：${optimizedText}${dataInfo}
 
-请根据上述配置要求，生成完整的ECharts配置代码，要求：
+请根据上述配置要求和实际数据特征，生成完整的ECharts配置代码，要求：
 1. 代码必须是完整的JavaScript对象格式，可以直接用于echarts.setOption()
-2. 严格按照配置要求设置：
-   - 图表类型（type）
-   - 标题（title）
-   - 坐标轴（xAxis, yAxis）
-   - 数据系列（series）
-   - 图例（legend）
-   - 网格线、数据标签、提示框等
-3. 配置合适的颜色方案和样式
-4. 添加必要的交互功能
+2. 严格按照配置要求设置，同时考虑实际数据特征：
+   - 图表类型（type）：根据数据特征选择最合适的图表类型
+   - 标题（title）：基于数据内容生成有意义的标题
+   - 坐标轴（xAxis, yAxis）：根据实际数据列设置合适的坐标轴
+   - 数据系列（series）：使用实际数据生成series数据，确保数据格式正确
+   - 图例（legend）：根据实际数据系列设置图例
+   - 网格线、数据标签、提示框等：根据数据特点配置
+3. 配置合适的颜色方案和样式，考虑数据系列的数量
+4. 添加必要的交互功能，如缩放、提示框等
 5. 确保代码语法正确，可以直接执行
+6. 特别注意：生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配
 
 重要：请只返回ECharts配置对象，不要包含任何解释文字、注释或其他内容。返回格式应该是一个纯粹的JavaScript对象。`;
             }
@@ -1718,10 +1867,12 @@
                             
                             if (response.ok) {
                                 console.log(`端点 ${i + 1} 成功`);
+                                console.log(`data-analysis:${new Date().getTime()} 端点 ${i + 1} 成功`);
                                 break;
                             } else {
                                 const errorText = await response.text();
                                 console.error(`端点 ${i + 1} 失败:`, response.status, errorText);
+                                console.error(`data-analysis:${new Date().getTime()} 端点 ${i + 1} 失败:`, response.status, errorText);
                                 lastError = new Error(`端点 ${i + 1} 失败: ${response.status} - ${errorText}`);
                             }
                         } catch (error) {
@@ -1735,8 +1886,11 @@
                     }
 
                     console.log('API响应状态:', response.status);
+                    console.log(`data-analysis:${new Date().getTime()} API响应状态:`, response.status);
                     console.log('响应头Content-Type:', response.headers.get('Content-Type'));
+                    console.log(`data-analysis:${new Date().getTime()} 响应头Content-Type:`, response.headers.get('Content-Type'));
                     console.log('响应头Transfer-Encoding:', response.headers.get('Transfer-Encoding'));
+                    console.log(`data-analysis:${new Date().getTime()} 响应头Transfer-Encoding:`, response.headers.get('Transfer-Encoding'));
                     
                     if (!response.ok) {
                         const errorText = await response.text();
@@ -1746,8 +1900,10 @@
 
                     // DeepSeek API目前不支持流式响应，直接处理普通响应
                     console.log('处理DeepSeek API响应...');
+                    console.log(`data-analysis:${new Date().getTime()} 处理DeepSeek API响应...`);
                     const result = await response.json();
                     console.log('DeepSeek API响应结果:', result);
+                    console.log(`data-analysis:${new Date().getTime()} DeepSeek API响应结果:`, result);
                     
                     // 处理不同的响应格式
                     let content;
@@ -1769,7 +1925,9 @@
                     }
                     
                     console.log('提取的内容长度:', content ? content.length : 0);
+                    console.log(`data-analysis:${new Date().getTime()} 提取的内容长度:`, content ? content.length : 0);
                     console.log('内容预览:', content ? content.substring(0, 200) : 'null');
+                    console.log(`data-analysis:${new Date().getTime()} 内容预览:`, content ? content.substring(0, 200) : 'null');
                     
                     if (!content || content.length === 0) {
                         console.error('API返回了空内容');
@@ -1975,8 +2133,11 @@
 
             extractCodeFromResponse(response) {
                 console.log('extractCodeFromResponse被调用...');
+                console.log(`data-analysis:${new Date().getTime()} extractCodeFromResponse被调用...`);
                 console.log('输入响应长度:', response ? response.length : 0);
+                console.log(`data-analysis:${new Date().getTime()} 输入响应长度:`, response ? response.length : 0);
                 console.log('输入响应预览:', response ? response.substring(0, 200) : 'null');
+                console.log(`data-analysis:${new Date().getTime()} 输入响应预览:`, response ? response.substring(0, 200) : 'null');
                 
                 if (!response || response.trim() === '') {
                     console.warn('警告：响应内容为空');
@@ -2343,10 +2504,12 @@
 
             hideLoading() {
                 console.log('隐藏loading指示器...');
+                console.log(`data-analysis:${new Date().getTime()} 隐藏loading指示器...`);
                 const loadingElement = document.getElementById('loading');
                 if (loadingElement) {
                     loadingElement.classList.add('hidden');
                     console.log('loading元素已隐藏');
+                    console.log(`data-analysis:${new Date().getTime()} loading元素已隐藏`);
                 } else {
                     console.error('找不到loading元素');
                 }
