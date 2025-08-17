@@ -122,6 +122,26 @@ export async function onRequest(context) {
         });
     }
     
+    // Worker Data Analysis API
+    if (pathname === '/api/worker-data-analysis') {
+      // Forward the request to the worker-data-analysis handler
+      return await import('./api/worker-data-analysis.js')
+        .then(module => module.onRequest(context))
+        .catch(error => {
+          console.error('Error loading worker-data-analysis module:', error);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Internal server error loading worker-data-analysis module' 
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        });
+    }
+    
     // Database Query API
     if (pathname.startsWith('/api/db/query/')) {
       const queryPath = pathname.replace('/api/db/query/', '');

@@ -1,5 +1,7 @@
 // GLM-4.5 Text Generation Functions
 const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+// Alternative endpoint if the above doesn't work
+// const GLM_URL = "https://api.bigmodel.cn/api/paas/v4/chat/completions";
 
 // Define the function to be exported
 async function workerGlmOutput(prompt, env) {
@@ -10,9 +12,9 @@ async function workerGlmOutput(prompt, env) {
         }
 
         // Get API key from environment
-        const GLM_KEY = env.GLM_API_KEY || env.DEEPSEEK_API_KEY;
-        if (!GLM_KEY) {
-            throw new Error('Neither GLM API key nor DeepSeek API key is configured');
+        const GLM_KEY = env.GLM_API_KEY;
+        if (!GLM_KEY || GLM_KEY === 'your-glm-api-key-here') {
+            throw new Error('GLM API key is not configured or using placeholder value');
         }
 
         // Log the request details
@@ -26,7 +28,7 @@ async function workerGlmOutput(prompt, env) {
                 "Authorization": `Bearer ${GLM_KEY}`
             },
             body: JSON.stringify({
-                model: "glm-4.5",
+                model: "glm-4-flash", // Using free model that's more likely to be available
                 messages: [{
                     role: "user",
                     content: prompt.trim()
@@ -40,8 +42,15 @@ async function workerGlmOutput(prompt, env) {
         console.log('GLM Response status:', response.status);
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('GLM API Error Response:', errorText);
+            let errorData;
+            try {
+                errorData = JSON.parse(errorText);
+            } catch (e) {
+                errorData = { raw_error: errorText };
+            }
+            throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}, Response: ${errorText.substring(0, 200)}`);
         }
 
         const result = await response.json();
