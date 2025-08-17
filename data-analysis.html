@@ -1864,6 +1864,8 @@
                     });
 
                     console.log('API响应状态:', response.status);
+                    console.log('响应头Content-Type:', response.headers.get('Content-Type'));
+                    console.log('响应头Transfer-Encoding:', response.headers.get('Transfer-Encoding'));
                     
                     if (!response.ok) {
                         const errorText = await response.text();
@@ -1874,6 +1876,11 @@
                     if (stream) {
                         // Handle streaming response
                         console.log('开始处理流式响应...');
+                        // 检查响应体是否可读
+                        if (!response.body) {
+                            console.error('响应体为空，无法处理流式响应');
+                            throw new Error('响应体为空');
+                        }
                         return this.handleStreamingResponse(response);
                     } else {
                         // Handle regular response
@@ -1911,11 +1918,19 @@
                                     break;
                                 }
                                 
-                                buffer += decoder.decode(value, { stream: true });
+                                const chunk = decoder.decode(value, { stream: true });
+                                console.log('收到数据块长度:', chunk.length);
+                                console.log('数据块内容预览:', chunk.substring(0, 200));
+                                
+                                buffer += chunk;
+                                console.log('当前缓冲区长度:', buffer.length);
+                                console.log('缓冲区内容预览:', buffer.substring(0, 200));
+                                
                                 const lines = buffer.split('\n');
                                 buffer = lines.pop(); // Keep the last incomplete line in buffer
                                 
                                 console.log(`处理 ${lines.length} 行数据`);
+                                console.log('剩余缓冲区长度:', buffer.length);
                                 
                                 for (const line of lines) {
                                     if (line.trim() === '') continue;
@@ -1958,8 +1973,20 @@
                             console.log('最终内容长度:', fullContent.length);
                             console.log('是否有内容:', hasContent);
                             
-                            if (!hasContent) {
-                                console.warn('警告：流式响应中没有收到任何内容');
+                            if (!hasContent && fullContent.length === 0) {
+                                console.warn('警告：流式响应中没有收到任何内容，尝试备用处理方式');
+                                // 尝试将整个响应作为普通文本处理
+                                try {
+                                    const responseText = await response.text();
+                                    console.log('备用处理：响应文本长度:', responseText.length);
+                                    console.log('备用处理：响应文本预览:', responseText.substring(0, 200));
+                                    const fallbackCode = this.extractCodeFromResponse(responseText);
+                                    console.log('备用处理：提取的代码长度:', fallbackCode ? fallbackCode.length : 0);
+                                    resolve(fallbackCode);
+                                    return;
+                                } catch (fallbackError) {
+                                    console.error('备用处理也失败:', fallbackError);
+                                }
                             }
                             
                             const finalCode = this.extractCodeFromResponse(fullContent);
