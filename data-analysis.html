@@ -232,10 +232,114 @@
 
         .loading {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 2rem;
             color: var(--text-secondary);
+        }
+
+        .progress-container {
+            width: 100%;
+            max-width: 500px;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 60%;
+            width: 80%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 1;
+        }
+
+        .step.active:not(:last-child)::after {
+            background: var(--primary-color);
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: var(--success-color);
+        }
+
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 0.5rem;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-icon {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed .step-icon {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .step-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            transition: color 0.3s ease;
+        }
+
+        .step.active .step-text,
+        .step.completed .step-text {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .progress-status {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            min-height: 20px;
         }
 
         .spinner {
@@ -245,7 +349,33 @@
             width: 40px;
             height: 40px;
             animation: spin 1s linear infinite;
-            margin-right: 1rem;
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .progress-steps {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .step {
+                flex: 1 1 calc(50% - 0.5rem);
+                min-width: 120px;
+            }
+            
+            .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .step-text {
+                font-size: 11px;
+            }
+            
+            .step-icon {
+                width: 25px;
+                height: 25px;
+                font-size: 12px;
+            }
         }
 
         @keyframes spin {
@@ -671,8 +801,31 @@
                 </h2>
             </div>
             <div id="loading" class="loading hidden">
+                <div class="progress-container">
+                    <div class="progress-steps">
+                        <div class="step active" data-step="1">
+                            <div class="step-icon">1</div>
+                            <div class="step-text">分析数据</div>
+                        </div>
+                        <div class="step" data-step="2">
+                            <div class="step-icon">2</div>
+                            <div class="step-text">生成代码</div>
+                        </div>
+                        <div class="step" data-step="3">
+                            <div class="step-icon">3</div>
+                            <div class="step-text">执行代码</div>
+                        </div>
+                        <div class="step" data-step="4">
+                            <div class="step-icon">4</div>
+                            <div class="step-text">渲染图表</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                    <div class="progress-status" id="progress-status">正在准备生成图表...</div>
+                </div>
                 <div class="spinner"></div>
-                <span>正在生成图表...</span>
             </div>
             <div id="error" class="error hidden"></div>
             <div id="chartContainer" class="chart-container hidden"></div>
@@ -1161,10 +1314,20 @@
                     const analysisGoal = document.getElementById('analysisGoal').value;
                     const additionalRequirements = document.getElementById('additionalRequirements').value;
                     
+                    // Step 1: Build prompt
+                    this.updateProgress(1, '正在分析数据和要求...');
                     const prompt = this.buildPrompt(analysisGoal, additionalRequirements);
+                    
+                    // Step 2: Call API
+                    this.updateProgress(2, '正在生成图表代码...');
                     const code = await this.callGLMAPI(prompt);
                     
+                    // Step 3: Execute code
+                    this.updateProgress(3, '正在执行生成的代码...');
                     this.executeGeneratedCode(code);
+                    
+                    // Step 4: Show result
+                    this.updateProgress(4, '正在渲染图表...');
                     this.showResult();
                     
                 } catch (error) {
@@ -1294,15 +1457,18 @@
                 // 移除多余的右括号
                 cleaned = cleaned.replace(/\)\s*\)+/g, ')');
                 
-                // 修复缺失的分号
-                cleaned = cleaned.replace(/([^;\s])\s*$/gm, '$1;');
+                // 智能修复缺失的分号 - 只在变量赋值和表达式语句末尾添加
+                cleaned = cleaned.replace(/^\s*(var|let|const|\w+\s*=|return|throw|break|continue)\s[^;\n]*$/gm, '$&;');
                 
                 // 移除多余的逗号
                 cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
                 
-                // 确保代码以分号结尾
-                if (cleaned && !cleaned.endsWith(';')) {
-                    cleaned += ';';
+                // 确保代码以分号结尾（仅当是表达式语句时）
+                if (cleaned && !cleaned.endsWith(';') && !cleaned.endsWith('}') && !cleaned.endsWith(']')) {
+                    const lastLine = cleaned.split('\n').pop().trim();
+                    if (!lastLine.match(/^(if|for|while|function|switch|try|catch|finally|class|else|do)/)) {
+                        cleaned += ';';
+                    }
                 }
                 
                 return cleaned;
@@ -1330,10 +1496,48 @@
 
             showLoading() {
                 document.getElementById('loading').classList.remove('hidden');
+                this.resetProgress();
+                this.updateProgress(1, '正在分析数据...');
             }
 
             hideLoading() {
                 document.getElementById('loading').classList.add('hidden');
+            }
+
+            resetProgress() {
+                // Reset all steps
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+                
+                // Reset progress bar
+                document.getElementById('progress-bar').style.width = '0%';
+                
+                // Reset status text
+                document.getElementById('progress-status').textContent = '正在准备生成图表...';
+            }
+
+            updateProgress(step, status) {
+                // Update steps
+                document.querySelectorAll('.step').forEach((stepEl, index) => {
+                    const stepNum = parseInt(stepEl.dataset.step);
+                    if (stepNum < step) {
+                        stepEl.classList.add('completed');
+                        stepEl.classList.remove('active');
+                    } else if (stepNum === step) {
+                        stepEl.classList.add('active');
+                        stepEl.classList.remove('completed');
+                    } else {
+                        stepEl.classList.remove('active', 'completed');
+                    }
+                });
+                
+                // Update progress bar
+                const progressPercentage = (step / 4) * 100;
+                document.getElementById('progress-bar').style.width = progressPercentage + '%';
+                
+                // Update status text
+                document.getElementById('progress-status').textContent = status;
             }
 
             showError(message) {
