@@ -4,16 +4,29 @@
 const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
 // GLM API function
-async function callGlmAPI(messages, env) {
+async function callGlmAPI(messages, env, stream = false) {
     try {
         // Get API key from environment
-        const GLM_KEY = env.GLM_API_KEY || env.DEEPSEEK_API_KEY;
+        const GLM_KEY = env.GLM_API_KEY;
         if (!GLM_KEY) {
-            throw new Error('Neither GLM API key nor DeepSeek API key is configured');
+            throw new Error('GLM API key is not configured');
         }
 
         console.log('Sending GLM request with messages:', messages);
         console.log('Request URL:', GLM_URL);
+        console.log('Stream mode:', stream);
+
+        const requestBody = {
+            model: "glm-4.5",
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 2000
+        };
+
+        // Add streaming parameter if requested
+        if (stream) {
+            requestBody.stream = true;
+        }
 
         const response = await fetch(GLM_URL, {
             method: "POST",
@@ -21,12 +34,7 @@ async function callGlmAPI(messages, env) {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${GLM_KEY}`
             },
-            body: JSON.stringify({
-                model: "glm-4.5",
-                messages: messages,
-                temperature: 0.7,
-                max_tokens: 2000
-            })
+            body: JSON.stringify(requestBody)
         });
 
         console.log('GLM Response status:', response.status);
@@ -36,14 +44,80 @@ async function callGlmAPI(messages, env) {
             throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`);
         }
 
-        const result = await response.json();
-        console.log('Raw GLM API response:', result);
-        
-        return result;
+        if (stream) {
+            // Return the response stream for streaming mode
+            return response;
+        } else {
+            // Return JSON response for non-streaming mode
+            const result = await response.json();
+            console.log('Raw GLM API response:', result);
+            return result;
+        }
     } catch (error) {
         console.error('GLM API call error:', error);
         throw error;
     }
+}
+
+// Function to handle streaming response
+async function handleStreamingResponse(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let lineCount = 0;
+    
+    return new ReadableStream({
+        async start(controller) {
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Keep the last incomplete line in buffer
+                    
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6); // Remove 'data: ' prefix
+                            if (data === '[DONE]') {
+                                controller.close();
+                                return;
+                            }
+                            
+                            try {
+                                const parsed = JSON.parse(data);
+                                lineCount++;
+                                
+                                // Send line by line with line number
+                                controller.enqueue(JSON.stringify({
+                                    line: lineCount,
+                                    content: parsed.choices?.[0]?.delta?.content || '',
+                                    done: false
+                                }) + '\n');
+                            } catch (e) {
+                                console.error('Error parsing SSE data:', e);
+                            }
+                        }
+                    }
+                }
+                
+                // Send completion signal
+                controller.enqueue(JSON.stringify({
+                    line: lineCount + 1,
+                    content: '',
+                    done: true
+                }) + '\n');
+                
+                controller.close();
+            } catch (error) {
+                console.error('Streaming error:', error);
+                controller.error(error);
+            }
+        }
+    });
 }
 
 // Main fetch event handler
@@ -138,16 +212,34 @@ export default {
                         });
                     }
 
-                    // Call GLM API
-                    const result = await callGlmAPI(messages, env);
+                    // Check if streaming is requested
+                    const streamMode = body.stream === true || body.stream === 'true';
                     
-                    // Return the response
-                    return new Response(JSON.stringify(result), {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            ...corsHeaders
-                        }
-                    });
+                    if (streamMode) {
+                        // Streaming mode
+                        const response = await callGlmAPI(messages, env, true);
+                        const stream = await handleStreamingResponse(response);
+                        
+                        return new Response(stream, {
+                            headers: {
+                                'Content-Type': 'text/plain; charset=utf-8',
+                                'Cache-Control': 'no-cache',
+                                'Connection': 'keep-alive',
+                                ...corsHeaders
+                            }
+                        });
+                    } else {
+                        // Non-streaming mode
+                        const result = await callGlmAPI(messages, env, false);
+                        
+                        // Return the response
+                        return new Response(JSON.stringify(result), {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
 
                 } catch (error) {
                     console.error('Error processing GLM request:', error);
