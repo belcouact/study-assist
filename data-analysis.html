@@ -1900,6 +1900,16 @@
             
             async handleStreamingResponse(response) {
                 console.log('handleStreamingResponse开始执行...');
+                
+                // 先缓存响应内容，以防流处理失败时需要备用处理
+                let responseClone = null;
+                try {
+                    responseClone = response.clone();
+                    console.log('响应克隆成功');
+                } catch (e) {
+                    console.warn('无法克隆响应:', e);
+                }
+                
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
@@ -1975,9 +1985,21 @@
                             
                             if (!hasContent && fullContent.length === 0) {
                                 console.warn('警告：流式响应中没有收到任何内容，尝试备用处理方式');
-                                // 尝试将整个响应作为普通文本处理
+                                // 尝试使用克隆的响应作为普通文本处理
                                 try {
-                                    const responseText = await response.text();
+                                    let responseText = '';
+                                    if (responseClone) {
+                                        responseText = await responseClone.text();
+                                        console.log('备用处理：使用克隆响应成功');
+                                    } else {
+                                        console.warn('没有可用的响应克隆，尝试原始响应');
+                                        // 最后尝试原始响应，可能会失败
+                                        try {
+                                            responseText = await response.text();
+                                        } catch (e) {
+                                            console.error('原始响应也无法读取:', e);
+                                        }
+                                    }
                                     console.log('备用处理：响应文本长度:', responseText.length);
                                     console.log('备用处理：响应文本预览:', responseText.substring(0, 200));
                                     const fallbackCode = this.extractCodeFromResponse(responseText);
