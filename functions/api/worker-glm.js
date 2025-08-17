@@ -10,9 +10,9 @@ async function workerGlmOutput(prompt, env) {
         }
 
         // Get API key from environment
-        const GLM_KEY = env.GLM_API_KEY;
+        const GLM_KEY = env.GLM_API_KEY || env.DEEPSEEK_API_KEY;
         if (!GLM_KEY) {
-            throw new Error('GLM API key not configured');
+            throw new Error('Neither GLM API key nor DeepSeek API key is configured');
         }
 
         // Log the request details
