@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能数据分析工具 - Alex的学习助手</title>
+    <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --success-color: #06ffa5;
+            --warning-color: #ffbe0b;
+            --error-color: #ff006e;
+            --text-primary: #2b2d42;
+            --text-secondary: #8d99ae;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .main-content {
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-select,
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-select:focus,
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        .chart-types {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .chart-type {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .chart-type:hover,
+        .chart-type.selected {
+            border-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .chart-type i {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-right: 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: var(--error-color);
+            background: rgba(255, 0, 110, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .success {
+            color: var(--success-color);
+            background: rgba(6, 255, 165, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .data-preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-preview th,
+        .data-preview td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-preview th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .code-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            gap: 0.25rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Template Grid */
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+
+        .template-card {
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-primary);
+        }
+
+        .template-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .template-card i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .template-card h4 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .template-card p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        /* Mobile Responsive Styles for New Components */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+
+            .template-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .template-card {
+                padding: 1rem;
+            }
+
+            .template-card i {
+                font-size: 2rem;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .chart-types {
+                grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+                gap: 0.5rem;
+            }
+
+            .chart-type {
+                padding: 0.75rem;
+            }
+
+            .chart-type i {
+                font-size: 1.5rem;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .upload-area {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .chart-types {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .btn {
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Tablet Styles */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .chart-types {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 1025px) {
+            .two-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+
+            .three-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-chart-line"></i> 智能数据分析
+                </a>
+                <nav class="main-nav">
+                    <a href="index.html" class="btn btn-secondary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <!-- 数据源选择 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-database"></i> 数据源选择
+                </h2>
+            </div>
+            
+            <!-- 数据源选项卡 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="upload">
+                    <i class="fas fa-upload"></i> 文件上传
+                </button>
+                <button class="tab-btn" data-tab="generate">
+                    <i class="fas fa-magic"></i> 生成数据
+                </button>
+                <button class="tab-btn" data-tab="templates">
+                    <i class="fas fa-file-alt"></i> 示例数据
+                </button>
+            </div>
+            
+            <!-- 文件上传面板 -->
+            <div class="tab-panel active" id="upload-panel">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <p>拖拽文件到此处或点击选择文件</p>
+                    <p class="text-muted">支持 Excel (.xlsx, .xls) 和 CSV (.csv) 格式</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls" />
+                </div>
+                <div id="fileInfo" class="hidden">
+                    <div class="success">
+                        <i class="fas fa-check"></i> <span id="fileName"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 数据生成面板 -->
+            <div class="tab-panel" id="generate-panel">
+                <div class="form-group">
+                    <label class="form-label">数据类型</label>
+                    <select id="dataType" class="form-select">
+                        <option value="sales">销售数据</option>
+                        <option value="temperature">温度数据</option>
+                        <option value="stock">股票数据</option>
+                        <option value="survey">调查数据</option>
+                        <option value="random">随机数据</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">数据行数</label>
+                    <input type="number" id="dataRows" class="form-input" value="50" min="10" max="1000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">数据列数</label>
+                    <input type="number" id="dataColumns" class="form-input" value="3" min="1" max="10">
+                </div>
+                <button id="generateData" class="btn btn-primary">
+                    <i class="fas fa-magic"></i> 生成数据
+                </button>
+            </div>
+            
+            <!-- 示例数据面板 -->
+            <div class="tab-panel" id="templates-panel">
+                <div class="template-grid">
+                    <div class="template-card" data-template="monthly-sales">
+                        <i class="fas fa-chart-line"></i>
+                        <h4>月度销售数据</h4>
+                        <p>12个月的销售趋势数据</p>
+                    </div>
+                    <div class="template-card" data-template="temperature-comparison">
+                        <i class="fas fa-thermometer-half"></i>
+                        <h4>城市温度对比</h4>
+                        <p>多个城市的年度温度数据</p>
+                    </div>
+                    <div class="template-card" data-template="product-performance">
+                        <i class="fas fa-box"></i>
+                        <h4>产品性能分析</h4>
+                        <p>不同产品的销售和评分数据</p>
+                    </div>
+                    <div class="template-card" data-template="student-scores">
+                        <i class="fas fa-graduation-cap"></i>
+                        <h4>学生成绩分析</h4>
+                        <p>多科目学生成绩数据</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据预览 -->
+        <div class="card hidden" id="dataPreviewCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-table"></i> 数据预览
+                </h2>
+            </div>
+            <div id="dataPreview" class="data-preview"></div>
+        </div>
+
+        <!-- 图表选择 -->
+        <div class="card hidden" id="chartSelectionCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-bar"></i> 选择图表类型
+                </h2>
+            </div>
+            <div class="form-group">
+                <label class="form-label">分析目标</label>
+                <select id="analysisGoal" class="form-select">
+                    <option value="">请选择分析目标...</option>
+                    <option value="trend">趋势分析</option>
+                    <option value="distribution">分布分析</option>
+                    <option value="comparison">对比分析</option>
+                    <option value="correlation">相关性分析</option>
+                    <option value="composition">构成分析</option>
+                </select>
+            </div>
+            <div class="chart-types" id="chartTypes">
+                <div class="chart-type" data-type="line">
+                    <i class="fas fa-chart-line"></i>
+                    <span>折线图</span>
+                </div>
+                <div class="chart-type" data-type="bar">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>柱状图</span>
+                </div>
+                <div class="chart-type" data-type="pie">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>饼图</span>
+                </div>
+                <div class="chart-type" data-type="scatter">
+                    <i class="fas fa-braille"></i>
+                    <span>散点图</span>
+                </div>
+                <div class="chart-type" data-type="histogram">
+                    <i class="fas fa-chart-area"></i>
+                    <span>直方图</span>
+                </div>
+                <div class="chart-type" data-type="boxplot">
+                    <i class="fas fa-box"></i>
+                    <span>箱线图</span>
+                </div>
+                <div class="chart-type" data-type="heatmap">
+                    <i class="fas fa-th"></i>
+                    <span>热力图</span>
+                </div>
+                <div class="chart-type" data-type="radar">
+                    <i class="fas fa-spider"></i>
+                    <span>雷达图</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">额外要求（可选）</label>
+                <textarea id="additionalRequirements" class="form-input" rows="3" 
+                    placeholder="例如：突出显示最大值、添加趋势线、设置特定颜色等..."></textarea>
+            </div>
+            <button id="generateChart" class="btn btn-primary" disabled>
+                <i class="fas fa-magic"></i> 生成图表
+            </button>
+        </div>
+
+        <!-- 生成结果 -->
+        <div class="card hidden" id="resultCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-area"></i> 可视化结果
+                </h2>
+            </div>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <span>正在生成图表...</span>
+            </div>
+            <div id="error" class="error hidden"></div>
+            <div id="chartContainer" class="chart-container hidden"></div>
+            <div id="codeOutput" class="code-output hidden"></div>
+        </div>
+    </main>
+
+    <script>
+        class DataAnalysisTool {
+            constructor() {
+                this.data = null;
+                this.columns = [];
+                this.selectedChartType = null;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.setupDragAndDrop();
+                this.setupDataGeneration();
+            }
+
+            setupEventListeners() {
+                const fileInput = document.getElementById('fileInput');
+                const uploadArea = document.getElementById('uploadArea');
+                const chartTypes = document.querySelectorAll('.chart-type');
+                const generateBtn = document.getElementById('generateChart');
+
+                fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                uploadArea.addEventListener('click', () => fileInput.click());
+                
+                chartTypes.forEach(type => {
+                    type.addEventListener('click', () => this.selectChartType(type));
+                });
+
+                generateBtn.addEventListener('click', () => this.generateVisualization());
+
+                document.getElementById('analysisGoal').addEventListener('change', this.updateChartTypes.bind(this));
+            }
+
+            setupDataGeneration() {
+                // Tab switching
+                const tabBtns = document.querySelectorAll('.tab-btn');
+                tabBtns.forEach(btn => {
+                    btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+                });
+
+                // Data generation
+                document.getElementById('generateData').addEventListener('click', () => this.generateSampleData());
+
+                // Template cards
+                const templateCards = document.querySelectorAll('.template-card');
+                templateCards.forEach(card => {
+                    card.addEventListener('click', () => this.loadTemplate(card.dataset.template));
+                });
+            }
+
+            switchTab(tabName) {
+                // Hide all panels
+                document.querySelectorAll('.tab-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                // Show selected panel
+                document.getElementById(`${tabName}-panel`).classList.add('active');
+
+                // Add active class to selected button
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            }
+
+            generateSampleData() {
+                const dataType = document.getElementById('dataType').value;
+                const rows = parseInt(document.getElementById('dataRows').value);
+                const columns = parseInt(document.getElementById('dataColumns').value);
+
+                let data = [];
+                let columnNames = [];
+
+                switch (dataType) {
+                    case 'sales':
+                        columnNames = ['月份', '销售额', '利润'];
+                        data = this.generateSalesData(rows, columns);
+                        break;
+                    case 'temperature':
+                        columnNames = ['日期', '温度', '湿度'];
+                        data = this.generateTemperatureData(rows, columns);
+                        break;
+                    case 'stock':
+                        columnNames = ['日期', '开盘价', '收盘价', '成交量'];
+                        data = this.generateStockData(rows, columns);
+                        break;
+                    case 'survey':
+                        columnNames = ['受访者', '评分', '年龄', '性别'];
+                        data = this.generateSurveyData(rows, columns);
+                        break;
+                    case 'random':
+                        columnNames = Array.from({length: columns}, (_, i) => `列${i + 1}`);
+                        data = this.generateRandomData(rows, columns);
+                        break;
+                }
+
+                this.data = data;
+                this.columns = columnNames;
+                this.showFileInfo(`生成的${dataType}数据 (${rows}行)`);
+                this.showDataPreview();
+                this.showChartSelection();
+            }
+
+            generateSalesData(rows, columns) {
+                const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                const data = [];
+                
+                for (let i = 0; i < Math.min(rows, 12); i++) {
+                    const sales = Math.floor(Math.random() * 100000) + 50000;
+                    const profit = Math.floor(sales * (Math.random() * 0.3 + 0.1));
+                    
+                    data.push({
+                        '月份': months[i],
+                        '销售额': sales,
+                        '利润': profit
+                    });
+                }
+                
+                return data;
+            }
+
+            generateTemperatureData(rows, columns) {
+                const data = [];
+                const baseTemp = 20;
+                
+                for (let i = 0; i < rows; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (rows - i));
+                    
+                    data.push({
+                        '日期': date.toLocaleDateString('zh-CN'),
+                        '温度': Math.floor(baseTemp + Math.random() * 20 - 10),
+                        '湿度': Math.floor(Math.random() * 40 + 40)
+                    });
+                }
+                
+                return data;
+            }
+
+            generateStockData(rows, columns) {
+                const data = [];
+                let basePrice = 100;
+                
+                for (let i = 0; i < rows; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (rows - i));
+                    
+                    const change = (Math.random() - 0.5) * 10;
+                    const openPrice = basePrice;
+                    const closePrice = Math.max(10, basePrice + change);
+                    const volume = Math.floor(Math.random() * 1000000) + 100000;
+                    
+                    data.push({
+                        '日期': date.toLocaleDateString('zh-CN'),
+                        '开盘价': Math.round(openPrice * 100) / 100,
+                        '收盘价': Math.round(closePrice * 100) / 100,
+                        '成交量': volume
+                    });
+                    
+                    basePrice = closePrice;
+                }
+                
+                return data;
+            }
+
+            generateSurveyData(rows, columns) {
+                const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十'];
+                const genders = ['男', '女'];
+                const data = [];
+                
+                for (let i = 0; i < rows; i++) {
+                    data.push({
+                        '受访者': names[Math.floor(Math.random() * names.length)] + (i + 1),
+                        '评分': Math.floor(Math.random() * 5) + 1,
+                        '年龄': Math.floor(Math.random() * 50) + 18,
+                        '性别': genders[Math.floor(Math.random() * genders.length)]
+                    });
+                }
+                
+                return data;
+            }
+
+            generateRandomData(rows, columns) {
+                const data = [];
+                
+                for (let i = 0; i < rows; i++) {
+                    const row = {};
+                    for (let j = 0; j < columns; j++) {
+                        row[`列${j + 1}`] = Math.floor(Math.random() * 1000);
+                    }
+                    data.push(row);
+                }
+                
+                return data;
+            }
+
+            loadTemplate(templateName) {
+                let data = [];
+                let columnNames = [];
+                let description = '';
+
+                switch (templateName) {
+                    case 'monthly-sales':
+                        columnNames = ['月份', '销售额', '利润', '增长率'];
+                        data = this.getMonthlySalesTemplate();
+                        description = '月度销售数据模板';
+                        break;
+                    case 'temperature-comparison':
+                        columnNames = ['城市', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                        data = this.getTemperatureComparisonTemplate();
+                        description = '城市温度对比模板';
+                        break;
+                    case 'product-performance':
+                        columnNames = ['产品', '销售额', '评分', '库存', '退货率'];
+                        data = this.getProductPerformanceTemplate();
+                        description = '产品性能分析模板';
+                        break;
+                    case 'student-scores':
+                        columnNames = ['学生', '语文', '数学', '英语', '物理', '化学', '总分'];
+                        data = this.getStudentScoresTemplate();
+                        description = '学生成绩分析模板';
+                        break;
+                }
+
+                this.data = data;
+                this.columns = columnNames;
+                this.showFileInfo(description);
+                this.showDataPreview();
+                this.showChartSelection();
+            }
+
+            getMonthlySalesTemplate() {
+                const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                const baseSales = 80000;
+                
+                return months.map((month, index) => ({
+                    '月份': month,
+                    '销售额': Math.floor(baseSales + Math.random() * 40000 + index * 2000),
+                    '利润': Math.floor((baseSales + Math.random() * 40000 + index * 2000) * (Math.random() * 0.2 + 0.15)),
+                    '增长率': Math.round((Math.random() * 20 - 5) * 100) / 100
+                }));
+            }
+
+            getTemperatureComparisonTemplate() {
+                const cities = ['北京', '上海', '广州', '深圳', '成都', '杭州'];
+                
+                return cities.map(city => {
+                    const row = { '城市': city };
+                    const baseTemp = Math.random() * 20 + 5;
+                    
+                    for (let i = 1; i <= 12; i++) {
+                        row[`${i}月`] = Math.round(baseTemp + Math.sin(i * Math.PI / 6) * 15 + Math.random() * 5 - 2.5);
+                    }
+                    
+                    return row;
+                });
+            }
+
+            getProductPerformanceTemplate() {
+                const products = ['产品A', '产品B', '产品C', '产品D', '产品E'];
+                
+                return products.map(product => ({
+                    '产品': product,
+                    '销售额': Math.floor(Math.random() * 500000) + 100000,
+                    '评分': (Math.random() * 2 + 3).toFixed(1),
+                    '库存': Math.floor(Math.random() * 1000) + 100,
+                    '退货率': (Math.random() * 5).toFixed(1) + '%'
+                }));
+            }
+
+            getStudentScoresTemplate() {
+                const names = ['张三', '李四', '王五', '赵六', '钱七', '孙八', '周九', '吴十', '郑十一', '王十二'];
+                
+                return names.map(name => {
+                    const chinese = Math.floor(Math.random() * 30) + 70;
+                    const math = Math.floor(Math.random() * 30) + 70;
+                    const english = Math.floor(Math.random() * 30) + 70;
+                    const physics = Math.floor(Math.random() * 30) + 70;
+                    const chemistry = Math.floor(Math.random() * 30) + 70;
+                    
+                    return {
+                        '学生': name,
+                        '语文': chinese,
+                        '数学': math,
+                        '英语': english,
+                        '物理': physics,
+                        '化学': chemistry,
+                        '总分': chinese + math + english + physics + chemistry
+                    };
+                });
+            }
+
+            setupDragAndDrop() {
+                const uploadArea = document.getElementById('uploadArea');
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.add('dragover');
+                    });
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.remove('dragover');
+                    });
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.processFile(files[0]);
+                    }
+                });
+            }
+
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.processFile(file);
+                }
+            }
+
+            async processFile(file) {
+                try {
+                    this.showLoading();
+                    
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    let data;
+
+                    if (extension === 'csv') {
+                        data = await this.parseCSV(file);
+                    } else if (['xlsx', 'xls'].includes(extension)) {
+                        data = await this.parseExcel(file);
+                    } else {
+                        throw new Error('不支持的文件格式');
+                    }
+
+                    this.data = data;
+                    this.columns = Object.keys(data[0] || {});
+                    
+                    this.showFileInfo(file.name);
+                    this.showDataPreview();
+                    this.showChartSelection();
+                    
+                } catch (error) {
+                    this.showError('文件处理失败: ' + error.message);
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            parseCSV(file) {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: true,
+                        dynamicTyping: true,
+                        complete: (results) => resolve(results.data),
+                        error: (error) => reject(error)
+                    });
+                });
+            }
+
+            async parseExcel(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const sheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            resolve(jsonData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('文件读取失败'));
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            showFileInfo(info) {
+                document.getElementById('fileName').textContent = info;
+                document.getElementById('fileInfo').classList.remove('hidden');
+            }
+
+            showDataPreview() {
+                const preview = document.getElementById('dataPreview');
+                const previewCard = document.getElementById('dataPreviewCard');
+                
+                if (!this.data || this.data.length === 0) {
+                    preview.innerHTML = '<p>无数据</p>';
+                    return;
+                }
+
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+
+                // Header
+                const headerRow = document.createElement('tr');
+                this.columns.forEach(col => {
+                    const th = document.createElement('th');
+                    th.textContent = col;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+
+                // Body (first 5 rows)
+                this.data.slice(0, 5).forEach(row => {
+                    const tr = document.createElement('tr');
+                    this.columns.forEach(col => {
+                        const td = document.createElement('td');
+                        td.textContent = row[col] !== null && row[col] !== undefined ? row[col] : '';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                preview.innerHTML = '';
+                preview.appendChild(table);
+                
+                previewCard.classList.remove('hidden');
+            }
+
+            showChartSelection() {
+                document.getElementById('chartSelectionCard').classList.remove('hidden');
+            }
+
+            selectChartType(element) {
+                document.querySelectorAll('.chart-type').forEach(type => {
+                    type.classList.remove('selected');
+                });
+                element.classList.add('selected');
+                this.selectedChartType = element.dataset.type;
+                this.updateGenerateButton();
+            }
+
+            updateChartTypes() {
+                const goal = document.getElementById('analysisGoal').value;
+                const chartTypes = document.querySelectorAll('.chart-type');
+                
+                // Reset selection
+                chartTypes.forEach(type => type.classList.remove('selected'));
+                this.selectedChartType = null;
+                this.updateGenerateButton();
+
+                // You could add logic here to highlight recommended chart types based on goal
+            }
+
+            updateGenerateButton() {
+                const generateBtn = document.getElementById('generateChart');
+                const analysisGoal = document.getElementById('analysisGoal').value;
+                
+                generateBtn.disabled = !this.selectedChartType || !analysisGoal;
+            }
+
+            async generateVisualization() {
+                if (!this.selectedChartType || !this.data) return;
+
+                this.showLoading();
+                this.hideError();
+                this.hideChart();
+
+                try {
+                    const analysisGoal = document.getElementById('analysisGoal').value;
+                    const additionalRequirements = document.getElementById('additionalRequirements').value;
+                    
+                    const prompt = this.buildPrompt(analysisGoal, additionalRequirements);
+                    const code = await this.callGLMAPI(prompt);
+                    
+                    this.executeGeneratedCode(code);
+                    this.showResult();
+                    
+                } catch (error) {
+                    this.showError('生成图表失败: ' + error.message);
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            buildPrompt(analysisGoal, additionalRequirements) {
+                const sampleData = this.data.slice(0, 3);
+                const columns = this.columns;
+                
+                return `你是一个数据可视化专家。请根据以下数据和要求，生成一个完整的ECharts图表配置代码。
+
+数据信息：
+- 列名：${columns.join(', ')}
+- 数据行数：${this.data.length}
+- 示例数据：${JSON.stringify(sampleData, null, 2)}
+
+图表要求：
+- 图表类型：${this.selectedChartType}
+- 分析目标：${analysisGoal}
+- 额外要求：${additionalRequirements || '无'}
+
+请生成一个完整的JavaScript代码，包含：
+1. 使用ECharts创建图表
+2. 合适的图表配置（标题、坐标轴、图例等）
+3. 数据处理和格式化
+4. 响应式设计
+5. 美观的颜色和样式
+
+返回的代码应该可以直接执行，格式如下：
+\`\`\`javascript
+// 图表代码
+\`\`\`
+
+确保代码包含：
+- 图表初始化和渲染
+- 错误处理
+- 数据预处理（如需要）
+- 合适的图表选项`;
+            }
+
+            async callGLMAPI(prompt) {
+                try {
+                    const response = await fetch('/api/worker-data-analysis', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ 
+                            prompt,
+                            data: this.data,
+                            chartType: this.selectedChartType,
+                            analysisGoal: document.getElementById('analysisGoal').value
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('API调用失败');
+                    }
+
+                    const result = await response.json();
+                    return this.extractCodeFromResponse(result.content || result.message || result);
+                    
+                } catch (error) {
+                    throw new Error('无法连接到分析服务: ' + error.message);
+                }
+            }
+
+            extractCodeFromResponse(response) {
+                // 从响应中提取代码块
+                const codeMatch = response.match(/```javascript\s*([\s\S]*?)\s*```/);
+                if (codeMatch) {
+                    return codeMatch[1];
+                }
+                
+                // 如果没有代码块，尝试清理响应
+                return response.replace(/^```javascript\s*/, '').replace(/\s*```$/, '');
+            }
+
+            executeGeneratedCode(code) {
+                try {
+                    // 创建图表容器
+                    const container = document.getElementById('chartContainer');
+                    container.innerHTML = '';
+                    
+                    // 创建一个新的div用于图表
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.width = '100%';
+                    chartDiv.style.height = '100%';
+                    container.appendChild(chartDiv);
+
+                    // 准备执行环境
+                    const executeContext = {
+                        data: this.data,
+                        columns: this.columns,
+                        echarts: echarts,
+                        chartContainer: chartDiv
+                    };
+
+                    // 创建执行函数
+                    const executeFunction = new Function('data', 'columns', 'echarts', 'chartContainer', code);
+                    executeFunction(this.data, this.columns, echarts, chartDiv);
+
+                    // 显示生成的代码
+                    this.showGeneratedCode(code);
+                    
+                } catch (error) {
+                    console.error('代码执行错误:', error);
+                    this.showError('图表生成代码执行失败: ' + error.message);
+                }
+            }
+
+            showGeneratedCode(code) {
+                const codeOutput = document.getElementById('codeOutput');
+                codeOutput.textContent = code;
+                codeOutput.classList.remove('hidden');
+            }
+
+            showResult() {
+                document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('chartContainer').classList.remove('hidden');
+            }
+
+            showLoading() {
+                document.getElementById('loading').classList.remove('hidden');
+            }
+
+            hideLoading() {
+                document.getElementById('loading').classList.add('hidden');
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('hidden');
+            }
+
+            hideError() {
+                document.getElementById('error').classList.add('hidden');
+            }
+
+            hideChart() {
+                document.getElementById('chartContainer').classList.add('hidden');
+                document.getElementById('codeOutput').classList.add('hidden');
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new DataAnalysisTool();
+        });
+    </script>
+</body>
+</html>
