@@ -1857,14 +1857,69 @@
                     console.log('发送请求到API...');
                     console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
                     
-                    const response = await fetch('https://glm.study-llm.me/chat', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': stream ? 'text/event-stream' : 'application/json'
+                    // 尝试不同的API端点和请求格式
+                    const apiEndpoints = [
+                        {
+                            url: 'https://glm.study-llm.me/chat',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': stream ? 'text/event-stream' : 'application/json'
+                            },
+                            body: requestBody
                         },
-                        body: JSON.stringify(requestBody)
-                    });
+                        {
+                            url: 'https://glm.study-llm.me/chat',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            },
+                            body: {
+                                model: 'glm-4',
+                                messages: [{
+                                    role: 'user',
+                                    content: prompt
+                                }],
+                                stream: stream,
+                                temperature: 0.7
+                            }
+                        }
+                    ];
+                    
+                    let response = null;
+                    let lastError = null;
+                    
+                    for (let i = 0; i < apiEndpoints.length; i++) {
+                        const endpoint = apiEndpoints[i];
+                        try {
+                            console.log(`尝试API端点 ${i + 1}:`, endpoint.url);
+                            console.log('请求头:', endpoint.headers);
+                            console.log('请求体:', JSON.stringify(endpoint.body, null, 2));
+                            
+                            response = await fetch(endpoint.url, {
+                                method: 'POST',
+                                headers: endpoint.headers,
+                                body: JSON.stringify(endpoint.body)
+                            });
+                            
+                            console.log(`端点 ${i + 1} 响应状态:`, response.status);
+                            
+                            if (response.ok) {
+                                console.log(`端点 ${i + 1} 成功`);
+                                break;
+                            } else {
+                                const errorText = await response.text();
+                                console.error(`端点 ${i + 1} 失败:`, response.status, errorText);
+                                lastError = new Error(`端点 ${i + 1} 失败: ${response.status} - ${errorText}`);
+                            }
+                        } catch (error) {
+                            console.error(`端点 ${i + 1} 请求异常:`, error);
+                            lastError = error;
+                        }
+                    }
+                    
+                    if (!response || !response.ok) {
+                        throw lastError || new Error('所有API端点都失败了');
+                    }
 
                     console.log('API响应状态:', response.status);
                     console.log('响应头Content-Type:', response.headers.get('Content-Type'));
@@ -1902,7 +1957,25 @@
                             return this.extractCodeFromResponse(content);
                         } else {
                             console.log('未知的响应格式，尝试作为流处理');
-                            return this.handleStreamingResponse(response);
+                            
+                            // 检查响应体是否为空
+                            const responseText = await response.text();
+                            console.log('响应体文本长度:', responseText.length);
+                            console.log('响应体内容预览:', responseText.substring(0, 500));
+                            
+                            if (responseText.length === 0) {
+                                console.error('API返回了空响应体');
+                                throw new Error('API返回了空响应体');
+                            }
+                            
+                            // 尝试重新创建响应对象（因为text()已经消耗了响应体）
+                            const newResponse = new Response(responseText, {
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: response.headers
+                            });
+                            
+                            return this.handleStreamingResponse(newResponse);
                         }
                     } else {
                         // Handle regular response
