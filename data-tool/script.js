@@ -479,24 +479,10 @@ class DataAnalysisTool {
         });
     }
 
-    async checkTempDirectory() {
-        // 静默检查temp目录，不抛出错误
-        try {
-            // 检查temp目录是否存在
-            const response = await fetch('./temp/', { method: 'HEAD', cache: 'no-cache' }).catch(() => null);
-            if (response && response.ok) {
-                console.log('temp目录访问正常');
-                this.loadTempFiles();
-            } else {
-                // temp目录不存在，这是正常情况
-                console.log('temp目录不存在，使用默认配置');
-                this.initializeDefaultConfig();
-            }
-        } catch (error) {
-            // 完全忽略任何错误，直接使用默认配置
-            console.log('temp目录访问失败，使用默认配置');
-            this.initializeDefaultConfig();
-        }
+    checkTempDirectory() {
+        // 简化的目录检查，直接使用默认配置
+        console.log('使用默认配置');
+        this.initializeDefaultConfig();
     }
     
     initializeDefaultConfig() {
@@ -506,21 +492,13 @@ class DataAnalysisTool {
         this.tempFiles = [];
         this.tempConfig = {
             enabled: false,
-            path: './temp/',
             maxSize: 10485760 // 10MB
         };
     }
 
-    async loadTempFiles() {
-        try {
-            const response = await fetch('./temp/');
-            if (response.ok) {
-                // 这里应该返回temp目录下的文件列表
-                console.log('temp目录文件加载成功');
-            }
-        } catch (error) {
-            console.warn('加载temp目录文件失败:', error);
-        }
+    loadTempFiles() {
+        // 简化的文件加载，不依赖临时目录
+        console.log('不使用临时文件');
     }
 
     switchTab(tab) {
@@ -1562,7 +1540,7 @@ class DataAnalysisTool {
         prompt += `分析目标: ${analysisGoal}\n\n`;
         prompt += `数据列名: ${requirements.dataColumns.join(', ')}\n\n`;
         prompt += `数据样本:\n`;
-        prompt += `JSON数据文件路径: ./temp/data.json\n\n`;
+        prompt += `数据已直接提供，无需读取文件\n\n`;
         prompt += `数据样本(前3行):\n`;
         prompt += `${JSON.stringify(requirements.dataSample, null, 2)}\n\n`;
         
@@ -1582,7 +1560,7 @@ class DataAnalysisTool {
         
         prompt += `\n请生成完整的JavaScript代码，要求:\n`;
         prompt += `1. 只输出JavaScript代码，不要包含HTML\n`;
-        prompt += `2. 代码应该从./temp/data.json文件加载数据\n`;
+        prompt += `2. 代码应该直接使用提供的数据数组\n`;
         prompt += `3. 使用提供的数据列名进行图表配置\n`;
         prompt += `4. 确保代码可以直接执行\n`;
         prompt += `5. 添加适当的错误处理\n`;

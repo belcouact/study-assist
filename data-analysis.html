@@ -611,6 +611,78 @@
             font-weight: 600;
         }
 
+        /* 手动输入表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .data-table td input {
+            width: 100%;
+            border: none;
+            padding: 0.25rem;
+            background: transparent;
+            font-size: 0.875rem;
+        }
+
+        .data-table td input:focus {
+            outline: 2px solid var(--primary-color);
+            border-radius: 2px;
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .data-table tr:hover {
+            background: rgba(67, 97, 238, 0.02);
+        }
+
+        /* 删除按钮样式 */
+        .delete-row {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: var(--transition);
+        }
+
+        .delete-row:hover {
+            background: #d63447;
+            transform: scale(1.05);
+        }
+
+        /* 响应式表格样式 */
+        @media (max-width: 768px) {
+            .data-table {
+                font-size: 0.8rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 0.5rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+
         .code-output {
             background: #1e1e1e;
             color: #d4d4d4;
@@ -772,6 +844,9 @@
                 <button class="tab-btn" data-tab="templates">
                     <i class="fas fa-file-alt"></i> 示例数据
                 </button>
+                <button class="tab-btn" data-tab="manual-input">
+                    <i class="fas fa-keyboard"></i> 数据输入
+                </button>
             </div>
             
             <!-- 文件上传面板 -->
@@ -817,8 +892,39 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 手动数据输入面板 -->
+        <div class="tab-panel" id="manual-input-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-table"></i> 手动数据输入
+                    </h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">表格列名（用逗号分隔）</label>
+                    <input type="text" id="columnNames" class="form-input" placeholder="例如：月份,销售额,成本,利润" />
+                </div>
+                <div class="form-group">
+                    <button id="createTable" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 创建表格
+                    </button>
+                    <button id="addRow" class="btn btn-secondary" disabled>
+                        <i class="fas fa-plus"></i> 添加行
+                    </button>
+                    <button id="previewData" class="btn btn-success" disabled>
+                        <i class="fas fa-eye"></i> 预览数据
+                    </button>
+                </div>
+                <div id="manualInputTable" class="data-preview hidden">
+                    <table id="dataTable" class="data-table">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
             
-
             
 
         </div>
@@ -1030,6 +1136,33 @@
                         const hasContent = userRequirement.value.trim().length > 0;
                         optimizeDescriptionBtn.disabled = !hasContent;
                     });
+                }
+
+                // 手动数据输入相关事件监听器
+                const createTableBtn = document.getElementById('createTableBtn');
+                const addRowBtn = document.getElementById('addRowBtn');
+                const previewDataBtn = document.getElementById('previewDataBtn');
+                const columnNamesInput = document.getElementById('columnNamesInput');
+
+                if (createTableBtn) {
+                    createTableBtn.addEventListener('click', () => this.createManualInputTable());
+                }
+
+                if (addRowBtn) {
+                    addRowBtn.addEventListener('click', () => this.addTableRow());
+                }
+
+                if (previewDataBtn) {
+                    previewDataBtn.addEventListener('click', () => this.previewManualInputData());
+                }
+
+                if (columnNamesInput) {
+                    columnNamesInput.addEventListener('input', () => {
+                        const hasColumns = columnNamesInput.value.trim().length > 0;
+                        createTableBtn.disabled = !hasColumns;
+                    });
+                    // 初始状态
+                    createTableBtn.disabled = !columnNamesInput.value.trim();
                 }
             }
 
@@ -1259,17 +1392,12 @@
                     this.data = data;
                     this.columns = Object.keys(data[0] || {});
                     
-                    // 生成唯一文件名并保存到./data-tool/temp/目录
-                    const timestamp = new Date().getTime();
-                    const randomId = Math.random().toString(36).substr(2, 9);
-                    const jsonFileName = `data_${timestamp}_${randomId}.json`;
-                    this.tempDataFile = `./data-tool/temp/${jsonFileName}`;
+                    // 数据已准备好用于处理
                     
                     // 创建JSON数据结构 - 只保存纯数据
                     const jsonData = this.data;
                     
-                    // 保存JSON数据到临时文件
-                    await this.saveDataToFile(jsonData, jsonFileName);
+                    // 数据已准备好用于生成脚本
                     
                     this.showFileInfo(file.name);
                     this.showDataPreview();
@@ -1287,114 +1415,7 @@
                 }
             }
             
-            async saveDataToFile(jsonData, fileName) {
-                try {
-                    // 创建Blob对象
-                    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
-                    
-                    // 创建下载链接
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = fileName;
-                    
-                    // 触发下载
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    
-                    // 显示保存成功提示
-                    this.showDataSaveSuccess(fileName);
-                    
-                } catch (error) {
-                    console.error('保存数据文件失败:', error);
-                    this.showError('保存数据文件失败: ' + error.message);
-                }
-            }
-            
-            showDataSaveSuccess(fileName) {
-                // 检查是否已存在保存成功提示区域
-                let successArea = document.getElementById('dataSaveSuccess');
-                if (!successArea) {
-                    successArea = document.createElement('div');
-                    successArea.id = 'dataSaveSuccess';
-                    successArea.className = 'success-area';
-                    
-                    // 将提示区域插入到数据预览卡片之前
-                    const previewCard = document.getElementById('dataPreviewCard');
-                    if (previewCard) {
-                        previewCard.parentNode.insertBefore(successArea, previewCard);
-                    }
-                }
-                
-                // 创建成功提示内容
-                successArea.innerHTML = `
-                    <div class="success-card">
-                        <div class="success-icon">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                        <div class="success-content">
-                            <h4>数据文件保存成功</h4>
-                            <p>您的数据已保存为 <code>${fileName}</code></p>
-                            <p><strong>请将此文件移动到项目的 <code>./data-tool/temp/</code> 目录中</strong></p>
-                            <p>系统将在生成代码时自动引用此文件路径和数据列名</p>
-                        </div>
-                    </div>
-                `;
-                
-                // 添加成功卡片的样式
-                if (!document.getElementById('dataSaveSuccessStyles')) {
-                    const style = document.createElement('style');
-                    style.id = 'dataSaveSuccessStyles';
-                    style.textContent = `
-                        .success-area {
-                            margin: 1rem 0;
-                        }
-                        .success-card {
-                            border-radius: 8px;
-                            padding: 1rem;
-                            margin-bottom: 1rem;
-                            display: flex;
-                            align-items: flex-start;
-                            gap: 1rem;
-                            background-color: #e8f5e8;
-                            border: 1px solid #4caf50;
-                        }
-                        .success-icon {
-                            font-size: 1.5rem;
-                            color: #4caf50;
-                            margin-top: 0.25rem;
-                        }
-                        .success-content h4 {
-                            margin: 0 0 0.5rem 0;
-                            color: #2e7d32;
-                        }
-                        .success-content p {
-                            margin: 0.5rem 0;
-                            color: #424242;
-                        }
-                        .success-content code {
-                            background-color: #f5f5f5;
-                            padding: 0.2rem 0.4rem;
-                            border-radius: 3px;
-                            font-family: 'Courier New', monospace;
-                            font-size: 0.9rem;
-                        }
-                        @media (max-width: 768px) {
-                            .success-card {
-                                flex-direction: column;
-                                align-items: center;
-                                text-align: center;
-                            }
-                            .success-icon {
-                                margin-top: 0;
-                            }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-            }
+
 
             parseCSV(file) {
                 return new Promise((resolve, reject) => {
@@ -1441,139 +1462,32 @@
                     return;
                 }
                 
-                // 显示数据文件信息提示
-                this.showDataFileNotice();
+                // 数据已准备好用于预览
             }
             
-            showDataFileNotice() {
-                // 检查是否已存在数据文件提示区域
-                let noticeArea = document.getElementById('dataFileNotice');
-                if (!noticeArea) {
-                    noticeArea = document.createElement('div');
-                    noticeArea.id = 'dataFileNotice';
-                    noticeArea.className = 'notice-area';
-                    
-                    // 将提示区域插入到数据预览卡片之前
-                    const previewCard = document.getElementById('dataPreviewCard');
-                    if (previewCard) {
-                        previewCard.parentNode.insertBefore(noticeArea, previewCard);
-                    }
-                }
-                
-                // 创建提示内容
-                noticeArea.innerHTML = `
-                    <div class="notice-card info">
-                        <div class="notice-icon">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
-                        <div class="notice-content">
-                            <h4>数据文件处理说明</h4>
-                            <p>为了优化性能并避免API超时，系统已将您的数据样本保存为JSON文件。</p>
-                            <div class="notice-steps">
-                                <p><strong>请按以下步骤操作：</strong></p>
-                                <ol>
-                                    <li>检查您的浏览器下载文件夹，找到名为 <code>data_sample_*.json</code> 的文件</li>
-                                    <li>将该文件移动到项目的 <code>./temp/</code> 目录中</li>
-                                    <li>重新生成图表脚本，系统将自动引用该文件中的数据结构</li>
-                                </ol>
-                            </div>
-                            <div class="notice-benefits">
-                                <p><strong>这样做的好处：</strong></p>
-                                <ul>
-                                    <li>大幅减少API请求的数据量，避免超时错误</li>
-                                    <li>提高代码生成速度和成功率</li>
-                                    <li>保持数据结构的完整性</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                // 添加提示卡片的样式
-                if (!document.getElementById('dataFileNoticeStyles')) {
-                    const style = document.createElement('style');
-                    style.id = 'dataFileNoticeStyles';
-                    style.textContent = `
-                        .notice-area {
-                            margin: 1rem 0;
-                        }
-                        .notice-card {
-                            border-radius: 8px;
-                            padding: 1rem;
-                            margin-bottom: 1rem;
-                            display: flex;
-                            align-items: flex-start;
-                            gap: 1rem;
-                        }
-                        .notice-card.info {
-                            background-color: #e3f2fd;
-                            border: 1px solid #2196f3;
-                        }
-                        .notice-icon {
-                            font-size: 1.5rem;
-                            color: #2196f3;
-                            margin-top: 0.25rem;
-                        }
-                        .notice-content h4 {
-                            margin: 0 0 0.5rem 0;
-                            color: #1976d2;
-                        }
-                        .notice-content p {
-                            margin: 0.5rem 0;
-                            color: #424242;
-                        }
-                        .notice-steps, .notice-benefits {
-                            margin: 1rem 0;
-                            padding: 0.75rem;
-                            background-color: rgba(255, 255, 255, 0.7);
-                            border-radius: 4px;
-                        }
-                        .notice-steps ol, .notice-benefits ul {
-                            margin: 0.5rem 0 0 0;
-                            padding-left: 1.5rem;
-                        }
-                        .notice-steps li, .notice-benefits li {
-                            margin: 0.25rem 0;
-                            color: #616161;
-                        }
-                        .notice-steps code {
-                            background-color: #f5f5f5;
-                            padding: 0.2rem 0.4rem;
-                            border-radius: 3px;
-                            font-family: 'Courier New', monospace;
-                            font-size: 0.9rem;
-                        }
-                        @media (max-width: 768px) {
-                            .notice-card {
-                                flex-direction: column;
-                                align-items: center;
-                                text-align: center;
-                            }
-                            .notice-icon {
-                                margin-top: 0;
-                            }
-                        }
-                    `;
-                    document.head.appendChild(style);
-                }
-            }
+
             
-            async checkTempDataFile() {
+            async checkAvailableData() {
                 try {
-                    // 直接检查data.json文件是否存在
-                    try {
-                        const response = await fetch('./temp/data.json', { method: 'HEAD' });
-                        if (response.ok) {
-                            console.log('检测到data.json文件存在');
-                            return true;
-                        }
-                    } catch (fetchError) {
-                        console.log('无法检查data.json文件:', fetchError.message);
+                    // 检查是否有手动输入的数据
+                    if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
+                        console.log('检测到手动输入的数据');
+                        console.log('数据行数:', this.manualInputData.data.length);
+                        console.log('数据列:', this.manualInputData.headers.join(', '));
+                        return true;
+                    }
+                    
+                    // 检查是否有文件上传的数据
+                    if (this.data && this.data.length > 0) {
+                        console.log('检测到文件上传的数据');
+                        console.log('数据行数:', this.data.length);
+                        console.log('数据列:', this.columns.join(', '));
+                        return true;
                     }
                     
                     return false;
                 } catch (error) {
-                    console.error('检查temp数据文件时出错:', error);
+                    console.error('检查数据源时出错:', error);
                     return false;
                 }
             }
@@ -1587,8 +1501,7 @@
                     return;
                 }
                 
-                // 显示数据文件信息提示
-                this.showDataFileNotice();
+                // 显示数据预览
                 
                 const table = document.createElement('table');
                 const thead = document.createElement('thead');
@@ -1937,13 +1850,12 @@
                         generateScriptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
                     }
                     
-                    // 检查temp目录中是否存在数据文件
-                    const hasDataFile = await this.checkTempDataFile();
-                    console.log('temp目录中数据文件存在:', hasDataFile);
-                    console.log('临时数据文件路径:', this.tempDataFile || '无');
+                    // 检查是否有可用数据
+                    const hasData = await this.checkAvailableData();
+                    console.log('可用数据状态:', hasData);
                     
                     // 构建生成脚本的prompt
-                    const prompt = this.buildScriptPrompt(optimizedText, hasDataFile);
+                    const prompt = this.buildScriptPrompt(optimizedText, hasData);
                     console.log('构建的prompt长度:', prompt.length);
                     
                     // 调用DeepSeek API生成脚本（单次调用）
@@ -2057,7 +1969,32 @@
             buildScriptPrompt(optimizedText, hasDataFile = false) {
                 // 获取预览数据的统计信息
                 let dataInfo = '';
-                if (this.data && this.data.length > 0) {
+                let useManualData = false;
+                
+                // 优先检查是否有手动输入的数据
+                if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
+                    useManualData = true;
+                    const dataStats = this.getManualDataStatistics();
+                    dataInfo = `\n\n**实际数据特征**：\n`;
+                    dataInfo += `- 数据行数：${this.manualInputData.data.length}\n`;
+                    dataInfo += `- 数据列：${this.manualInputData.headers.join(', ')}\n`;
+                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    
+                    // 使用手动输入的数据
+                    dataInfo += `\n**数据来源**：手动输入数据\n`;
+                    dataInfo += `- 数据已直接输入，无需读取文件\n`;
+                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
+                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
+                    
+                    // 添加完整的数据样本
+                    dataInfo += `\n**完整数据**：\n`;
+                    this.manualInputData.data.forEach((row, index) => {
+                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                    });
+                    
+                    console.log('使用手动输入的数据');
+                } else if (this.data && this.data.length > 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**实际数据特征**：\n`;
                     dataInfo += `- 数据行数：${this.data.length}\n`;
@@ -2065,30 +2002,19 @@
                     dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
                     dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
                     
-                    // 检查是否有临时保存的数据文件
-                    if (this.tempDataFile) {
-                        // 使用临时保存的数据文件
-                        const fileName = this.tempDataFile.split('/').pop();
-                        dataInfo += `\n**数据文件**：${this.tempDataFile}\n`;
-                        dataInfo += `- 文件名：${fileName}\n`;
-                        dataInfo += `- 数据列名：${this.columns.join(', ')}\n`;
-                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据数组\n`;
-                        dataInfo += `- JSON文件结构：直接是数据数组，每个元素是一个数据行对象\n`;
-                        console.log('使用临时保存的数据文件:', this.tempDataFile);
-                    } else if (hasDataFile) {
-                        // 直接引用已存在的data.json文件
-                        dataInfo += `\n**数据文件**：./temp/data.json\n`;
-                        dataInfo += `- 文件包含：完整的列名、所有数据记录、数据类型和数值范围\n`;
-                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据数组\n`;
-                        dataInfo += `- JSON文件结构：直接是数据数组，每个元素是一个数据行对象\n`;
-                        console.log('使用已存在的data.json文件');
-                    } else {
-                        // 如果没有数据文件，只包含少量数据样本
-                        dataInfo += `\n**数据样本**（前3行）：\n`;
-                        this.data.slice(0, Math.min(3, this.data.length)).forEach((row, index) => {
-                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                        });
-                    }
+                    // 使用预览数据
+                    dataInfo += `\n**数据来源**：预览数据\n`;
+                    dataInfo += `- 数据已直接提供，无需读取文件\n`;
+                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
+                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
+                    
+                    // 添加完整的数据样本
+                    dataInfo += `\n**完整数据**：\n`;
+                    this.data.forEach((row, index) => {
+                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                    });
+                    
+                    console.log('使用预览数据');
                 }
                 
                 return `你是一个ECharts图表开发专家。请根据以下用户确认的图表配置要求和实际数据特征，生成纯粹的ECharts配置代码。
@@ -2107,18 +2033,15 @@
 3. 配置合适的颜色方案和样式，考虑数据系列的数量
 4. 添加必要的交互功能，如缩放、提示框等
 5. 确保代码语法正确，可以直接执行
-6. 特别注意：${this.tempDataFile ? 
-   `数据文件已保存为${this.tempDataFile}，请生成能够读取此JSON文件的完整JavaScript代码。` + 
-   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的数据数组。` + 
-   `请使用以下代码结构：\n   fetch('${this.tempDataFile}')\n     .then(response => response.json())\n     .then(dataArray => {\n       // 直接使用数据数组生成图表\n       const firstRow = dataArray[0] || {};\n       const columns = Object.keys(firstRow);\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: dataArray.map(item => item[columns[0]]) },\n         yAxis: {},\n         series: [{\n           name: columns[1],\n           type: 'line',\n           data: dataArray.map(item => item[columns[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
-   hasDataFile ? 
-   `数据文件已存在于./temp/data.json，请生成能够读取此JSON文件的完整JavaScript代码。` + 
-   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的数据数组。` + 
-   `请使用以下代码结构：\n   fetch('./temp/data.json')\n     .then(response => response.json())\n     .then(dataArray => {\n       // 直接使用数据数组生成图表\n       const firstRow = dataArray[0] || {};\n       const columns = Object.keys(firstRow);\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: dataArray.map(item => item[columns[0]]) },\n         yAxis: {},\n         series: [{\n           name: columns[1],\n           type: 'line',\n           data: dataArray.map(item => item[columns[1]])\n         }]
-       };\n       myChart.setOption(option);\n     });` : 
-   `生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配`}
+6. 特别注意：${useManualData ? 
+   `使用手动输入的数据，请生成能够直接使用数据数组的完整JavaScript代码。` + 
+   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
+   `请使用以下代码结构：\n   // 手动输入的数据已直接提供\n   const dataArray = ${JSON.stringify(this.manualInputData.data)};\n   const columns = ${JSON.stringify(this.manualInputData.headers)};\n   const option = {\n     title: { text: '基于手动输入数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);` : 
+   `使用预览数据生成图表，请生成能够直接使用数据数组的完整JavaScript代码。` + 
+   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
+   `请使用以下代码结构：\n   // 预览数据已直接提供\n   const dataArray = ${JSON.stringify(this.data)};\n   const columns = ${JSON.stringify(this.columns)};\n   const option = {\n     title: { text: '基于预览数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);`}
 
-重要：请只返回完整的JavaScript代码，包含fetch调用和ECharts配置，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
+重要：请只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
             }
 
             async callDeepSeekAPI(prompt, stream = false) {
@@ -2980,6 +2903,212 @@
             hideChart() {
                 document.getElementById('chartContainer').classList.add('hidden');
                 document.getElementById('codeOutput').classList.add('hidden');
+            }
+
+            // 手动数据输入相关方法
+            createManualInputTable() {
+                const columnNamesInput = document.getElementById('columnNamesInput');
+                const columnNames = columnNamesInput.value.split(',').map(name => name.trim()).filter(name => name);
+                
+                if (columnNames.length === 0) {
+                    this.showError('请输入列名，用逗号分隔');
+                    return;
+                }
+                
+                const tableContainer = document.getElementById('manualInputTableContainer');
+                tableContainer.innerHTML = '';
+                
+                const table = document.createElement('table');
+                table.className = 'data-table';
+                
+                // 创建表头
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                
+                columnNames.forEach(columnName => {
+                    const th = document.createElement('th');
+                    th.textContent = columnName;
+                    headerRow.appendChild(th);
+                });
+                
+                // 添加操作列
+                const actionTh = document.createElement('th');
+                actionTh.textContent = '操作';
+                headerRow.appendChild(actionTh);
+                
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // 创建表体
+                const tbody = document.createElement('tbody');
+                table.appendChild(tbody);
+                
+                tableContainer.appendChild(table);
+                
+                // 启用添加行和预览按钮
+                document.getElementById('addRowBtn').disabled = false;
+                document.getElementById('previewDataBtn').disabled = true;
+                
+                // 自动添加一行
+                this.addTableRow();
+            }
+            
+            addTableRow() {
+                const table = document.querySelector('#manualInputTableContainer .data-table tbody');
+                if (!table) {
+                    this.showError('请先创建表格');
+                    return;
+                }
+                
+                const columnNamesInput = document.getElementById('columnNamesInput');
+                const columnNames = columnNamesInput.value.split(',').map(name => name.trim()).filter(name => name);
+                
+                const row = document.createElement('tr');
+                
+                // 为每列创建输入框
+                columnNames.forEach(() => {
+                    const td = document.createElement('td');
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-input';
+                    input.placeholder = '输入数据';
+                    td.appendChild(input);
+                    row.appendChild(td);
+                });
+                
+                // 添加删除按钮
+                const actionTd = document.createElement('td');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-row';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.title = '删除行';
+                deleteBtn.addEventListener('click', () => {
+                    row.remove();
+                    this.updatePreviewButtonState();
+                });
+                actionTd.appendChild(deleteBtn);
+                row.appendChild(actionTd);
+                
+                table.appendChild(row);
+                
+                // 启用预览按钮
+                this.updatePreviewButtonState();
+            }
+            
+            updatePreviewButtonState() {
+                const table = document.querySelector('#manualInputTableContainer .data-table tbody');
+                const previewBtn = document.getElementById('previewDataBtn');
+                
+                if (table && table.children.length > 0) {
+                    previewBtn.disabled = false;
+                } else {
+                    previewBtn.disabled = true;
+                }
+            }
+            
+            previewManualInputData() {
+                const table = document.querySelector('#manualInputTableContainer .data-table');
+                if (!table) {
+                    this.showError('请先创建表格并添加数据');
+                    return;
+                }
+                
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0) {
+                    this.showError('请至少添加一行数据');
+                    return;
+                }
+                
+                // 收集数据
+                const data = [];
+                const headers = Array.from(table.querySelectorAll('thead th')).slice(0, -1).map(th => th.textContent);
+                
+                rows.forEach(row => {
+                    const rowData = {};
+                    const cells = row.querySelectorAll('td');
+                    
+                    headers.forEach((header, index) => {
+                        const input = cells[index].querySelector('input');
+                        rowData[header] = input ? input.value : '';
+                    });
+                    
+                    data.push(rowData);
+                });
+                
+                // 显示预览
+                this.showDataPreview(data, headers);
+                
+                // 存储数据以供后续使用
+                this.manualInputData = {
+                    headers: headers,
+                    data: data
+                };
+            }
+            
+            getManualDataStatistics() {
+                if (!this.manualInputData || !this.manualInputData.data || this.manualInputData.data.length === 0) {
+                    return {
+                        typeAnalysis: '无数据',
+                        valueRange: '无',
+                        distribution: '无'
+                    };
+                }
+                
+                const data = this.manualInputData.data;
+                const headers = this.manualInputData.headers;
+                
+                // 分析数据类型
+                const types = {};
+                const numericColumns = [];
+                const textColumns = [];
+                
+                headers.forEach(header => {
+                    const values = data.map(row => row[header]).filter(val => val !== '' && val !== null && val !== undefined);
+                    
+                    if (values.length === 0) {
+                        types[header] = '空';
+                    } else {
+                        const numericCount = values.filter(val => !isNaN(parseFloat(val)) && isFinite(val)).length;
+                        if (numericCount === values.length) {
+                            types[header] = '数值';
+                            numericColumns.push(header);
+                        } else {
+                            types[header] = '文本';
+                            textColumns.push(header);
+                        }
+                    }
+                });
+                
+                // 分析数值范围
+                let valueRange = '无数值列';
+                if (numericColumns.length > 0) {
+                    const ranges = numericColumns.map(col => {
+                        const values = data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+                        if (values.length === 0) return `${col}: 无有效数值`;
+                        const min = Math.min(...values);
+                        const max = Math.max(...values);
+                        return `${col}: ${min} ~ ${max}`;
+                    });
+                    valueRange = ranges.join('; ');
+                }
+                
+                // 分析数据分布
+                let distribution = '无数据';
+                if (data.length > 0) {
+                    if (data.length <= 10) {
+                        distribution = '少量数据';
+                    } else if (data.length <= 50) {
+                        distribution = '中等数据量';
+                    } else {
+                        distribution = '大量数据';
+                    }
+                }
+                
+                return {
+                    typeAnalysis: Object.entries(types).map(([col, type]) => `${col}: ${type}`).join('; '),
+                    valueRange: valueRange,
+                    distribution: distribution
+                };
             }
         }
 
