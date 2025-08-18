@@ -31,13 +31,6 @@ self.addEventListener('install', event => {
 
 // Fetch event - serve cached content when offline
 self.addEventListener('fetch', event => {
-    // Only cache GET requests, skip POST, HEAD, and other methods
-    if (event.request.method !== 'GET') {
-        // For non-GET requests, just fetch from network without caching
-        event.respondWith(fetch(event.request));
-        return;
-    }
-    
     event.respondWith(
         caches.match(event.request)
             .then(response => {
