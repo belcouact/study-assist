@@ -1259,6 +1259,23 @@
                     this.data = data;
                     this.columns = Object.keys(data[0] || {});
                     
+                    // 生成唯一文件名并保存到./data-tool/temp/目录
+                    const timestamp = new Date().getTime();
+                    const randomId = Math.random().toString(36).substr(2, 9);
+                    const jsonFileName = `data_${timestamp}_${randomId}.json`;
+                    this.tempDataFile = `./data-tool/temp/${jsonFileName}`;
+                    
+                    // 创建JSON数据结构
+                    const jsonData = {
+                        headers: this.columns,
+                        data: this.data,
+                        timestamp: new Date().toISOString(),
+                        sourceFile: file.name
+                    };
+                    
+                    // 保存JSON数据到临时文件
+                    await this.saveDataToFile(jsonData, jsonFileName);
+                    
                     this.showFileInfo(file.name);
                     this.showDataPreview();
                     
@@ -1272,6 +1289,115 @@
                     this.showError('文件处理失败: ' + error.message);
                 } finally {
                     this.hideLoading();
+                }
+            }
+            
+            async saveDataToFile(jsonData, fileName) {
+                try {
+                    // 创建Blob对象
+                    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+                    
+                    // 创建下载链接
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    
+                    // 触发下载
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    // 显示保存成功提示
+                    this.showDataSaveSuccess(fileName);
+                    
+                } catch (error) {
+                    console.error('保存数据文件失败:', error);
+                    this.showError('保存数据文件失败: ' + error.message);
+                }
+            }
+            
+            showDataSaveSuccess(fileName) {
+                // 检查是否已存在保存成功提示区域
+                let successArea = document.getElementById('dataSaveSuccess');
+                if (!successArea) {
+                    successArea = document.createElement('div');
+                    successArea.id = 'dataSaveSuccess';
+                    successArea.className = 'success-area';
+                    
+                    // 将提示区域插入到数据预览卡片之前
+                    const previewCard = document.getElementById('dataPreviewCard');
+                    if (previewCard) {
+                        previewCard.parentNode.insertBefore(successArea, previewCard);
+                    }
+                }
+                
+                // 创建成功提示内容
+                successArea.innerHTML = `
+                    <div class="success-card">
+                        <div class="success-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="success-content">
+                            <h4>数据文件保存成功</h4>
+                            <p>您的数据已保存为 <code>${fileName}</code></p>
+                            <p><strong>请将此文件移动到项目的 <code>./data-tool/temp/</code> 目录中</strong></p>
+                            <p>系统将在生成代码时自动引用此文件路径和数据列名</p>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加成功卡片的样式
+                if (!document.getElementById('dataSaveSuccessStyles')) {
+                    const style = document.createElement('style');
+                    style.id = 'dataSaveSuccessStyles';
+                    style.textContent = `
+                        .success-area {
+                            margin: 1rem 0;
+                        }
+                        .success-card {
+                            border-radius: 8px;
+                            padding: 1rem;
+                            margin-bottom: 1rem;
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 1rem;
+                            background-color: #e8f5e8;
+                            border: 1px solid #4caf50;
+                        }
+                        .success-icon {
+                            font-size: 1.5rem;
+                            color: #4caf50;
+                            margin-top: 0.25rem;
+                        }
+                        .success-content h4 {
+                            margin: 0 0 0.5rem 0;
+                            color: #2e7d32;
+                        }
+                        .success-content p {
+                            margin: 0.5rem 0;
+                            color: #424242;
+                        }
+                        .success-content code {
+                            background-color: #f5f5f5;
+                            padding: 0.2rem 0.4rem;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 0.9rem;
+                        }
+                        @media (max-width: 768px) {
+                            .success-card {
+                                flex-direction: column;
+                                align-items: center;
+                                text-align: center;
+                            }
+                            .success-icon {
+                                margin-top: 0;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
                 }
             }
 
@@ -1439,35 +1565,15 @@
             
             async checkTempDataFile() {
                 try {
-                    // 由于浏览器安全限制，无法直接检查服务器文件系统
-                    // 这里我们通过检查是否有数据文件下载记录来推断
-                    const dataFileKey = 'dataSampleDownloaded';
-                    const downloadTime = localStorage.getItem(dataFileKey);
-                    
-                    if (downloadTime) {
-                        // 检查下载时间是否在最近10分钟内
-                        const downloadDate = new Date(parseInt(downloadTime));
-                        const now = new Date();
-                        const timeDiff = now - downloadDate;
-                        const minutesDiff = timeDiff / (1000 * 60);
-                        
-                        if (minutesDiff <= 10) {
-                            console.log('检测到最近的数据文件下载记录');
-                            return true;
-                        }
-                    }
-                    
-                    // 尝试通过fetch检查temp目录是否存在数据文件
-                    // 注意：这需要服务器支持CORS和目录列表
+                    // 直接检查data.json文件是否存在
                     try {
-                        const response = await fetch('./temp/', { method: 'HEAD' });
+                        const response = await fetch('./temp/data.json', { method: 'HEAD' });
                         if (response.ok) {
-                            console.log('temp目录可访问');
-                            // 这里可以进一步检查目录内容，但需要服务器支持
+                            console.log('检测到data.json文件存在');
                             return true;
                         }
                     } catch (fetchError) {
-                        console.log('无法直接检查temp目录，使用本地存储判断');
+                        console.log('无法检查data.json文件:', fetchError.message);
                     }
                     
                     return false;
@@ -1839,6 +1945,7 @@
                     // 检查temp目录中是否存在数据文件
                     const hasDataFile = await this.checkTempDataFile();
                     console.log('temp目录中数据文件存在:', hasDataFile);
+                    console.log('临时数据文件路径:', this.tempDataFile || '无');
                     
                     // 构建生成脚本的prompt
                     const prompt = this.buildScriptPrompt(optimizedText, hasDataFile);
@@ -1955,7 +2062,6 @@
             buildScriptPrompt(optimizedText, hasDataFile = false) {
                 // 获取预览数据的统计信息
                 let dataInfo = '';
-                let dataFilePath = '';
                 if (this.data && this.data.length > 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**实际数据特征**：\n`;
@@ -1964,55 +2070,29 @@
                     dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
                     dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
                     
-                    // 将数据样本保存到JSON文件中，避免prompt过长
-                    if (this.data && this.data.length >= 0) {
-                        try {
-                            // 生成唯一文件名
-                            const timestamp = Date.now();
-                            const fileName = `data_sample_${timestamp}.json`;
-                            dataFilePath = `./temp/${fileName}`;
-                            
-                            // 创建数据样本（前10行或全部数据，如果少于10行）
-                            const sampleData = this.data.slice(0, Math.min(10, this.data.length));
-                            const dataToSave = {
-                                columns: this.columns,
-                                sampleData: sampleData,
-                                totalRows: this.data.length,
-                                dataTypes: dataStats.typeAnalysis,
-                                valueRange: dataStats.valueRange
-                            };
-                            
-                            // 创建并下载JSON文件
-                            const dataStr = JSON.stringify(dataToSave, null, 2);
-                            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-                            
-                            // 创建下载链接
-                            const link = document.createElement('a');
-                            link.href = URL.createObjectURL(dataBlob);
-                            link.download = fileName;
-                            link.style.display = 'none';
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(link.href);
-                            
-                            // 记录下载时间到localStorage
-                            localStorage.setItem('dataSampleDownloaded', Date.now().toString());
-                            
-                            // 在prompt中只引用文件路径，不包含实际数据
-                            dataInfo += `\n**数据样本文件**：${dataFilePath}\n`;
-                            dataInfo += `- 文件包含：列名、前10行数据样本、数据类型和数值范围\n`;
-                            dataInfo += `- 请在生成代码时参考此文件中的数据结构\n`;
-                            
-                            console.log(`数据样本已保存到: ${dataFilePath}`);
-                        } catch (error) {
-                            console.error('保存数据样本文件失败:', error);
-                            // 如果保存失败，回退到原来的方式（只包含少量数据）
-                            dataInfo += `\n**数据样本**（前3行）：\n`;
-                            this.data.slice(0, Math.min(3, this.data.length)).forEach((row, index) => {
-                                dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                            });
-                        }
+                    // 检查是否有临时保存的数据文件
+                    if (this.tempDataFile) {
+                        // 使用临时保存的数据文件
+                        const fileName = this.tempDataFile.split('/').pop();
+                        dataInfo += `\n**数据文件**：${this.tempDataFile}\n`;
+                        dataInfo += `- 文件名：${fileName}\n`;
+                        dataInfo += `- 数据列名：${this.columns.join(', ')}\n`;
+                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的headers和data字段\n`;
+                        dataInfo += `- JSON文件结构：{headers: [...], data: [...], timestamp: ..., sourceFile: ...}\n`;
+                        console.log('使用临时保存的数据文件:', this.tempDataFile);
+                    } else if (hasDataFile) {
+                        // 直接引用已存在的data.json文件
+                        dataInfo += `\n**数据文件**：./temp/data.json\n`;
+                        dataInfo += `- 文件包含：完整的列名、所有数据记录、数据类型和数值范围\n`;
+                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据\n`;
+                        dataInfo += `- JSON文件结构：{headers: [...], data: [...], timestamp: ...}\n`;
+                        console.log('使用已存在的data.json文件');
+                    } else {
+                        // 如果没有数据文件，只包含少量数据样本
+                        dataInfo += `\n**数据样本**（前3行）：\n`;
+                        this.data.slice(0, Math.min(3, this.data.length)).forEach((row, index) => {
+                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                        });
                     }
                 }
                 
@@ -2032,13 +2112,17 @@
 3. 配置合适的颜色方案和样式，考虑数据系列的数量
 4. 添加必要的交互功能，如缩放、提示框等
 5. 确保代码语法正确，可以直接执行
-6. 特别注意：${hasDataFile ? 
-   `数据样本文件已存在于./temp/目录，请参考该文件中的数据结构生成series数据。` + 
-   `文件包含列名、数据样本、数据类型和数值范围信息。` + 
-   `生成的代码应该能够处理类似结构的数据，避免在prompt中包含大量实际数据。` : 
+6. 特别注意：${this.tempDataFile ? 
+   `数据文件已保存为${this.tempDataFile}，请生成能够读取此JSON文件的完整JavaScript代码。` + 
+   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的headers和data字段。` + 
+   `请使用以下代码结构：\n   fetch('${this.tempDataFile}')\n     .then(response => response.json())\n     .then(jsonData => {\n       // 使用jsonData.headers和jsonData.data生成图表\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: jsonData.data.map(item => item[jsonData.headers[0]]) },\n         yAxis: {},\n         series: [{\n           name: jsonData.headers[1],\n           type: 'line',\n           data: jsonData.data.map(item => item[jsonData.headers[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
+   hasDataFile ? 
+   `数据文件已存在于./temp/data.json，请生成能够读取此JSON文件的完整JavaScript代码。` + 
+   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的headers和data字段。` + 
+   `请使用以下代码结构：\n   fetch('./temp/data.json')\n     .then(response => response.json())\n     .then(jsonData => {\n       // 使用jsonData.headers和jsonData.data生成图表\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: jsonData.data.map(item => item[jsonData.headers[0]]) },\n         yAxis: {},\n         series: [{\n           name: jsonData.headers[1],\n           type: 'line',\n           data: jsonData.data.map(item => item[jsonData.headers[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
    `生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配`}
 
-重要：请只返回ECharts配置对象，不要包含任何HTML代码、解释文字、注释或其他内容。返回格式应该是一个纯粹的JavaScript对象，例如：{title: {...}, xAxis: {...}, yAxis: {...}, series: [...]}。`;
+重要：请只返回完整的JavaScript代码，包含fetch调用和ECharts配置，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
             }
 
             async callDeepSeekAPI(prompt, stream = false) {
@@ -2502,7 +2586,11 @@
                             decodeURIComponent: decodeURIComponent,
                             encodeURI: encodeURI,
                             encodeURIComponent: encodeURIComponent,
-                            echarts: echarts
+                            echarts: echarts,
+                            fetch: fetch,
+                            Promise: Promise,
+                            setTimeout: setTimeout,
+                            clearTimeout: clearTimeout
                         };
                         
                         // 创建安全的执行上下文
@@ -2529,7 +2617,7 @@
                         
                         // 创建并执行函数
                         const executeFunction = new Function(
-                            'data', 'columns', 'echarts', 'chartContainer', 'console',
+                            'data', 'columns', 'echarts', 'chartContainer', 'console', 'fetch', 'Promise', 'setTimeout', 'clearTimeout',
                             cleanedCode
                         );
                         
@@ -2540,7 +2628,11 @@
                                 safeProxy.columns,
                                 safeProxy.echarts,
                                 safeProxy.chartContainer,
-                                safeProxy.console
+                                safeProxy.console,
+                                safeProxy.fetch,
+                                safeProxy.Promise,
+                                safeProxy.setTimeout,
+                                safeProxy.clearTimeout
                             );
                             console.log('代码执行成功');
                         } catch (execError) {
@@ -2578,9 +2670,18 @@
                 // 移除多余的逗号
                 cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
                 
-                // 确保代码以分号结尾
-                if (cleaned && !cleaned.endsWith(';')) {
-                    cleaned += ';';
+                // 对于包含fetch的代码，不强制添加分号，因为可能是多行代码
+                if (cleaned.includes('fetch') || cleaned.includes('.then') || cleaned.includes('.catch')) {
+                    // 对于异步代码，确保代码块完整
+                    if (!cleaned.endsWith('}') && !cleaned.endsWith(';')) {
+                        // 如果不是完整的代码块，添加分号
+                        cleaned += ';';
+                    }
+                } else {
+                    // 对于普通代码，确保以分号结尾
+                    if (cleaned && !cleaned.endsWith(';') && !cleaned.endsWith('}')) {
+                        cleaned += ';';
+                    }
                 }
                 
                 return cleaned;
@@ -2624,6 +2725,11 @@
                     const lines = code.split('\n');
                     lines.forEach((line, index) => {
                         const trimmed = line.trim();
+                        // 跳过包含fetch、then、catch的异步代码行
+                        if (trimmed.includes('fetch') || trimmed.includes('.then') || trimmed.includes('.catch') || trimmed.includes('.finally')) {
+                            return;
+                        }
+                        
                         if (trimmed && !trimmed.endsWith(';') && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
                             !trimmed.endsWith('[') && !trimmed.endsWith(']') && !trimmed.endsWith('(') && !trimmed.endsWith(')') &&
                             !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
