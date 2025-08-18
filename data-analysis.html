@@ -1265,13 +1265,8 @@
                     const jsonFileName = `data_${timestamp}_${randomId}.json`;
                     this.tempDataFile = `./data-tool/temp/${jsonFileName}`;
                     
-                    // 创建JSON数据结构
-                    const jsonData = {
-                        headers: this.columns,
-                        data: this.data,
-                        timestamp: new Date().toISOString(),
-                        sourceFile: file.name
-                    };
+                    // 创建JSON数据结构 - 只保存纯数据
+                    const jsonData = this.data;
                     
                     // 保存JSON数据到临时文件
                     await this.saveDataToFile(jsonData, jsonFileName);
@@ -2077,15 +2072,15 @@
                         dataInfo += `\n**数据文件**：${this.tempDataFile}\n`;
                         dataInfo += `- 文件名：${fileName}\n`;
                         dataInfo += `- 数据列名：${this.columns.join(', ')}\n`;
-                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的headers和data字段\n`;
-                        dataInfo += `- JSON文件结构：{headers: [...], data: [...], timestamp: ..., sourceFile: ...}\n`;
+                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据数组\n`;
+                        dataInfo += `- JSON文件结构：直接是数据数组，每个元素是一个数据行对象\n`;
                         console.log('使用临时保存的数据文件:', this.tempDataFile);
                     } else if (hasDataFile) {
                         // 直接引用已存在的data.json文件
                         dataInfo += `\n**数据文件**：./temp/data.json\n`;
                         dataInfo += `- 文件包含：完整的列名、所有数据记录、数据类型和数值范围\n`;
-                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据\n`;
-                        dataInfo += `- JSON文件结构：{headers: [...], data: [...], timestamp: ...}\n`;
+                        dataInfo += `- 请在生成代码时直接读取此JSON文件并使用其中的数据数组\n`;
+                        dataInfo += `- JSON文件结构：直接是数据数组，每个元素是一个数据行对象\n`;
                         console.log('使用已存在的data.json文件');
                     } else {
                         // 如果没有数据文件，只包含少量数据样本
@@ -2114,12 +2109,13 @@
 5. 确保代码语法正确，可以直接执行
 6. 特别注意：${this.tempDataFile ? 
    `数据文件已保存为${this.tempDataFile}，请生成能够读取此JSON文件的完整JavaScript代码。` + 
-   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的headers和data字段。` + 
-   `请使用以下代码结构：\n   fetch('${this.tempDataFile}')\n     .then(response => response.json())\n     .then(jsonData => {\n       // 使用jsonData.headers和jsonData.data生成图表\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: jsonData.data.map(item => item[jsonData.headers[0]]) },\n         yAxis: {},\n         series: [{\n           name: jsonData.headers[1],\n           type: 'line',\n           data: jsonData.data.map(item => item[jsonData.headers[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
+   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的数据数组。` + 
+   `请使用以下代码结构：\n   fetch('${this.tempDataFile}')\n     .then(response => response.json())\n     .then(dataArray => {\n       // 直接使用数据数组生成图表\n       const firstRow = dataArray[0] || {};\n       const columns = Object.keys(firstRow);\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: dataArray.map(item => item[columns[0]]) },\n         yAxis: {},\n         series: [{\n           name: columns[1],\n           type: 'line',\n           data: dataArray.map(item => item[columns[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
    hasDataFile ? 
    `数据文件已存在于./temp/data.json，请生成能够读取此JSON文件的完整JavaScript代码。` + 
-   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的headers和data字段。` + 
-   `请使用以下代码结构：\n   fetch('./temp/data.json')\n     .then(response => response.json())\n     .then(jsonData => {\n       // 使用jsonData.headers和jsonData.data生成图表\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: jsonData.data.map(item => item[jsonData.headers[0]]) },\n         yAxis: {},\n         series: [{\n           name: jsonData.headers[1],\n           type: 'line',\n           data: jsonData.data.map(item => item[jsonData.headers[1]])\n         }]\n       };\n       myChart.setOption(option);\n     });` : 
+   `生成的代码应该包含fetch API调用，读取JSON文件并解析其中的数据数组。` + 
+   `请使用以下代码结构：\n   fetch('./temp/data.json')\n     .then(response => response.json())\n     .then(dataArray => {\n       // 直接使用数据数组生成图表\n       const firstRow = dataArray[0] || {};\n       const columns = Object.keys(firstRow);\n       const option = {\n         title: { text: '基于数据的图表' },\n         xAxis: { data: dataArray.map(item => item[columns[0]]) },\n         yAxis: {},\n         series: [{\n           name: columns[1],\n           type: 'line',\n           data: dataArray.map(item => item[columns[1]])\n         }]
+       };\n       myChart.setOption(option);\n     });` : 
    `生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配`}
 
 重要：请只返回完整的JavaScript代码，包含fetch调用和ECharts配置，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
