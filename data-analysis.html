@@ -938,7 +938,6 @@
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.setupDataGeneration();
-                this.ensureTempDirectory();
             }
             
             checkEChartsLibrary() {
@@ -1046,36 +1045,6 @@
                 templateCards.forEach(card => {
                     card.addEventListener('click', () => this.loadTemplate(card.dataset.template));
                 });
-            }
-
-            ensureTempDirectory() {
-                // 确保temp目录存在用于保存数据文件
-                try {
-                    // 在浏览器环境中，我们无法直接创建服务器端目录
-                    // 但我们可以检查localStorage中是否有标记，如果没有则设置一个
-                    if (!localStorage.getItem('tempDirectoryInitialized')) {
-                        console.log('初始化temp目录标记');
-                        localStorage.setItem('tempDirectoryInitialized', Date.now().toString());
-                        
-                        // 尝试通过API调用创建目录（如果后端支持）
-                        fetch('/api/create-temp-directory', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        }).then(response => {
-                            if (!response.ok) {
-                                // 如果返回404或其他错误，说明目录可能已存在或API不可用
-                                console.log('Temp目录API返回状态:', response.status, '- 目录可能已存在');
-                            }
-                        }).catch(error => {
-                            // 网络错误或其他异常，说明API不可用
-                            console.log('Temp目录API不可用，将使用客户端文件下载:', error.message);
-                        });
-                    }
-                } catch (error) {
-                    console.warn('初始化temp目录时出错:', error);
-                }
             }
 
             switchTab(tabName) {
@@ -1658,7 +1627,7 @@
                     dataInfo += `- 数据分布：${dataStats.distribution}\n`;
                     
                     // 添加数据样本
-                    if (this.data && this.data.length >= 0) {
+                    if (this.data.length > 0) {
                         dataInfo += `\n**数据样本**（前3行）：\n`;
                         this.data.slice(0, 3).forEach((row, index) => {
                             dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
@@ -1987,7 +1956,7 @@
                 // 获取预览数据的统计信息
                 let dataInfo = '';
                 let dataFilePath = '';
-                if (this.data && this.data.length >= 0) {
+                if (this.data && this.data.length > 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**实际数据特征**：\n`;
                     dataInfo += `- 数据行数：${this.data.length}\n`;
@@ -2029,9 +1998,6 @@
                             
                             // 记录下载时间到localStorage
                             localStorage.setItem('dataSampleDownloaded', Date.now().toString());
-                            
-                            // 显示成功消息给用户
-                            this.showSuccessMessage(`数据样本文件已成功保存到 ${dataFilePath}`);
                             
                             // 在prompt中只引用文件路径，不包含实际数据
                             dataInfo += `\n**数据样本文件**：${dataFilePath}\n`;
@@ -2907,44 +2873,6 @@
 
             hideError() {
                 document.getElementById('error').classList.add('hidden');
-            }
-
-            showSuccessMessage(message) {
-                // 创建成功消息元素
-                const successDiv = document.createElement('div');
-                successDiv.id = 'success-message';
-                successDiv.style.cssText = 'background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin: 15px 0; border-radius: 4px; position: relative;';
-                
-                // 添加消息内容
-                const messageText = document.createElement('span');
-                messageText.textContent = message;
-                successDiv.appendChild(messageText);
-                
-                // 添加关闭按钮
-                const closeButton = document.createElement('button');
-                closeButton.textContent = '×';
-                closeButton.style.cssText = 'position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 20px; cursor: pointer; color: #155724;';
-                closeButton.addEventListener('click', () => {
-                    successDiv.remove();
-                });
-                successDiv.appendChild(closeButton);
-                
-                // 查找合适的插入位置（在错误消息div之后）
-                const errorDiv = document.getElementById('error');
-                if (errorDiv && errorDiv.parentNode) {
-                    errorDiv.parentNode.insertBefore(successDiv, errorDiv.nextSibling);
-                } else {
-                    // 如果找不到错误消息div，就插入到页面主体中
-                    const mainContent = document.querySelector('.container') || document.body;
-                    mainContent.insertBefore(successDiv, mainContent.firstChild);
-                }
-                
-                // 3秒后自动隐藏
-                setTimeout(() => {
-                    if (successDiv.parentNode) {
-                        successDiv.remove();
-                    }
-                }, 3000);
             }
 
             hideChart() {
