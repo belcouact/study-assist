@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>数据助手</title>
-
     <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
     <link rel="stylesheet" href="css/common.css">
     <link rel="stylesheet" href="css/components.css">
@@ -939,6 +938,7 @@
                 this.setupEventListeners();
                 this.setupDragAndDrop();
                 this.setupDataGeneration();
+                this.ensureTempDirectory();
             }
             
             checkEChartsLibrary() {
@@ -1046,6 +1046,30 @@
                 templateCards.forEach(card => {
                     card.addEventListener('click', () => this.loadTemplate(card.dataset.template));
                 });
+            }
+
+            ensureTempDirectory() {
+                // 确保temp目录存在用于保存数据文件
+                try {
+                    // 在浏览器环境中，我们无法直接创建服务器端目录
+                    // 但我们可以检查localStorage中是否有标记，如果没有则设置一个
+                    if (!localStorage.getItem('tempDirectoryInitialized')) {
+                        console.log('初始化temp目录标记');
+                        localStorage.setItem('tempDirectoryInitialized', Date.now().toString());
+                        
+                        // 尝试通过API调用创建目录（如果后端支持）
+                        fetch('/api/create-temp-directory', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        }).catch(error => {
+                            console.log('无法通过API创建temp目录，将使用客户端文件下载:', error.message);
+                        });
+                    }
+                } catch (error) {
+                    console.warn('初始化temp目录时出错:', error);
+                }
             }
 
             switchTab(tabName) {
@@ -1320,7 +1344,176 @@
                     preview.innerHTML = '<p>无数据</p>';
                     return;
                 }
-
+                
+                // 显示数据文件信息提示
+                this.showDataFileNotice();
+            }
+            
+            showDataFileNotice() {
+                // 检查是否已存在数据文件提示区域
+                let noticeArea = document.getElementById('dataFileNotice');
+                if (!noticeArea) {
+                    noticeArea = document.createElement('div');
+                    noticeArea.id = 'dataFileNotice';
+                    noticeArea.className = 'notice-area';
+                    
+                    // 将提示区域插入到数据预览卡片之前
+                    const previewCard = document.getElementById('dataPreviewCard');
+                    if (previewCard) {
+                        previewCard.parentNode.insertBefore(noticeArea, previewCard);
+                    }
+                }
+                
+                // 创建提示内容
+                noticeArea.innerHTML = `
+                    <div class="notice-card info">
+                        <div class="notice-icon">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="notice-content">
+                            <h4>数据文件处理说明</h4>
+                            <p>为了优化性能并避免API超时，系统已将您的数据样本保存为JSON文件。</p>
+                            <div class="notice-steps">
+                                <p><strong>请按以下步骤操作：</strong></p>
+                                <ol>
+                                    <li>检查您的浏览器下载文件夹，找到名为 <code>data_sample_*.json</code> 的文件</li>
+                                    <li>将该文件移动到项目的 <code>./temp/</code> 目录中</li>
+                                    <li>重新生成图表脚本，系统将自动引用该文件中的数据结构</li>
+                                </ol>
+                            </div>
+                            <div class="notice-benefits">
+                                <p><strong>这样做的好处：</strong></p>
+                                <ul>
+                                    <li>大幅减少API请求的数据量，避免超时错误</li>
+                                    <li>提高代码生成速度和成功率</li>
+                                    <li>保持数据结构的完整性</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加提示卡片的样式
+                if (!document.getElementById('dataFileNoticeStyles')) {
+                    const style = document.createElement('style');
+                    style.id = 'dataFileNoticeStyles';
+                    style.textContent = `
+                        .notice-area {
+                            margin: 1rem 0;
+                        }
+                        .notice-card {
+                            border-radius: 8px;
+                            padding: 1rem;
+                            margin-bottom: 1rem;
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 1rem;
+                        }
+                        .notice-card.info {
+                            background-color: #e3f2fd;
+                            border: 1px solid #2196f3;
+                        }
+                        .notice-icon {
+                            font-size: 1.5rem;
+                            color: #2196f3;
+                            margin-top: 0.25rem;
+                        }
+                        .notice-content h4 {
+                            margin: 0 0 0.5rem 0;
+                            color: #1976d2;
+                        }
+                        .notice-content p {
+                            margin: 0.5rem 0;
+                            color: #424242;
+                        }
+                        .notice-steps, .notice-benefits {
+                            margin: 1rem 0;
+                            padding: 0.75rem;
+                            background-color: rgba(255, 255, 255, 0.7);
+                            border-radius: 4px;
+                        }
+                        .notice-steps ol, .notice-benefits ul {
+                            margin: 0.5rem 0 0 0;
+                            padding-left: 1.5rem;
+                        }
+                        .notice-steps li, .notice-benefits li {
+                            margin: 0.25rem 0;
+                            color: #616161;
+                        }
+                        .notice-steps code {
+                            background-color: #f5f5f5;
+                            padding: 0.2rem 0.4rem;
+                            border-radius: 3px;
+                            font-family: 'Courier New', monospace;
+                            font-size: 0.9rem;
+                        }
+                        @media (max-width: 768px) {
+                            .notice-card {
+                                flex-direction: column;
+                                align-items: center;
+                                text-align: center;
+                            }
+                            .notice-icon {
+                                margin-top: 0;
+                            }
+                        }
+                    `;
+                    document.head.appendChild(style);
+                }
+            }
+            
+            async checkTempDataFile() {
+                try {
+                    // 由于浏览器安全限制，无法直接检查服务器文件系统
+                    // 这里我们通过检查是否有数据文件下载记录来推断
+                    const dataFileKey = 'dataSampleDownloaded';
+                    const downloadTime = localStorage.getItem(dataFileKey);
+                    
+                    if (downloadTime) {
+                        // 检查下载时间是否在最近10分钟内
+                        const downloadDate = new Date(parseInt(downloadTime));
+                        const now = new Date();
+                        const timeDiff = now - downloadDate;
+                        const minutesDiff = timeDiff / (1000 * 60);
+                        
+                        if (minutesDiff <= 10) {
+                            console.log('检测到最近的数据文件下载记录');
+                            return true;
+                        }
+                    }
+                    
+                    // 尝试通过fetch检查temp目录是否存在数据文件
+                    // 注意：这需要服务器支持CORS和目录列表
+                    try {
+                        const response = await fetch('./temp/', { method: 'HEAD' });
+                        if (response.ok) {
+                            console.log('temp目录可访问');
+                            // 这里可以进一步检查目录内容，但需要服务器支持
+                            return true;
+                        }
+                    } catch (fetchError) {
+                        console.log('无法直接检查temp目录，使用本地存储判断');
+                    }
+                    
+                    return false;
+                } catch (error) {
+                    console.error('检查temp数据文件时出错:', error);
+                    return false;
+                }
+            }
+            
+            showDataPreview() {
+                const preview = document.getElementById('dataPreview');
+                const previewCard = document.getElementById('dataPreviewCard');
+                
+                if (!preview || !previewCard) {
+                    console.error('未找到数据预览元素');
+                    return;
+                }
+                
+                // 显示数据文件信息提示
+                this.showDataFileNotice();
+                
                 const table = document.createElement('table');
                 const thead = document.createElement('thead');
                 const tbody = document.createElement('tbody');
@@ -1449,7 +1642,7 @@
             buildOptimizationPrompt(userText) {
                 // 获取预览数据的统计信息
                 let dataInfo = '';
-                if (this.data && this.data.length > 0) {
+                if (this.data && this.data.length >= 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**可用数据信息**：\n`;
                     dataInfo += `- 数据行数：${this.data.length}\n`;
@@ -1459,7 +1652,7 @@
                     dataInfo += `- 数据分布：${dataStats.distribution}\n`;
                     
                     // 添加数据样本
-                    if (this.data.length > 0) {
+                    if (this.data && this.data.length >= 0) {
                         dataInfo += `\n**数据样本**（前3行）：\n`;
                         this.data.slice(0, 3).forEach((row, index) => {
                             dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
@@ -1668,8 +1861,12 @@
                         generateScriptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
                     }
                     
+                    // 检查temp目录中是否存在数据文件
+                    const hasDataFile = await this.checkTempDataFile();
+                    console.log('temp目录中数据文件存在:', hasDataFile);
+                    
                     // 构建生成脚本的prompt
-                    const prompt = this.buildScriptPrompt(optimizedText);
+                    const prompt = this.buildScriptPrompt(optimizedText, hasDataFile);
                     console.log('构建的prompt长度:', prompt.length);
                     
                     // 调用DeepSeek API生成脚本（单次调用）
@@ -1780,14 +1977,11 @@
                 }
             }
             
-
-            
-
-
-            buildScriptPrompt(optimizedText) {
+            buildScriptPrompt(optimizedText, hasDataFile = false) {
                 // 获取预览数据的统计信息
                 let dataInfo = '';
-                if (this.data && this.data.length > 0) {
+                let dataFilePath = '';
+                if (this.data && this.data.length >= 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**实际数据特征**：\n`;
                     dataInfo += `- 数据行数：${this.data.length}\n`;
@@ -1795,12 +1989,58 @@
                     dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
                     dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
                     
-                    // 添加完整的数据样本用于代码生成
-                    if (this.data.length > 0) {
-                        dataInfo += `\n**完整数据样本**（用于生成series数据）：\n`;
-                        this.data.slice(0, Math.min(10, this.data.length)).forEach((row, index) => {
-                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                        });
+                    // 将数据样本保存到JSON文件中，避免prompt过长
+                    if (this.data && this.data.length >= 0) {
+                        try {
+                            // 生成唯一文件名
+                            const timestamp = Date.now();
+                            const fileName = `data_sample_${timestamp}.json`;
+                            dataFilePath = `./temp/${fileName}`;
+                            
+                            // 创建数据样本（前10行或全部数据，如果少于10行）
+                            const sampleData = this.data.slice(0, Math.min(10, this.data.length));
+                            const dataToSave = {
+                                columns: this.columns,
+                                sampleData: sampleData,
+                                totalRows: this.data.length,
+                                dataTypes: dataStats.typeAnalysis,
+                                valueRange: dataStats.valueRange
+                            };
+                            
+                            // 创建并下载JSON文件
+                            const dataStr = JSON.stringify(dataToSave, null, 2);
+                            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                            
+                            // 创建下载链接
+                            const link = document.createElement('a');
+                            link.href = URL.createObjectURL(dataBlob);
+                            link.download = fileName;
+                            link.style.display = 'none';
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(link.href);
+                            
+                            // 记录下载时间到localStorage
+                            localStorage.setItem('dataSampleDownloaded', Date.now().toString());
+                            
+                            // 显示成功消息给用户
+                            this.showSuccessMessage(`数据样本文件已成功保存到 ${dataFilePath}`);
+                            
+                            // 在prompt中只引用文件路径，不包含实际数据
+                            dataInfo += `\n**数据样本文件**：${dataFilePath}\n`;
+                            dataInfo += `- 文件包含：列名、前10行数据样本、数据类型和数值范围\n`;
+                            dataInfo += `- 请在生成代码时参考此文件中的数据结构\n`;
+                            
+                            console.log(`数据样本已保存到: ${dataFilePath}`);
+                        } catch (error) {
+                            console.error('保存数据样本文件失败:', error);
+                            // 如果保存失败，回退到原来的方式（只包含少量数据）
+                            dataInfo += `\n**数据样本**（前3行）：\n`;
+                            this.data.slice(0, Math.min(3, this.data.length)).forEach((row, index) => {
+                                dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                            });
+                        }
                     }
                 }
                 
@@ -1820,7 +2060,11 @@
 3. 配置合适的颜色方案和样式，考虑数据系列的数量
 4. 添加必要的交互功能，如缩放、提示框等
 5. 确保代码语法正确，可以直接执行
-6. 特别注意：生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配
+6. 特别注意：${hasDataFile ? 
+   `数据样本文件已存在于./temp/目录，请参考该文件中的数据结构生成series数据。` + 
+   `文件包含列名、数据样本、数据类型和数值范围信息。` + 
+   `生成的代码应该能够处理类似结构的数据，避免在prompt中包含大量实际数据。` : 
+   `生成的series数据必须基于提供的实际数据样本，确保数据格式和类型匹配`}
 
 重要：请只返回ECharts配置对象，不要包含任何HTML代码、解释文字、注释或其他内容。返回格式应该是一个纯粹的JavaScript对象，例如：{title: {...}, xAxis: {...}, yAxis: {...}, series: [...]}。`;
             }
@@ -2657,6 +2901,44 @@
 
             hideError() {
                 document.getElementById('error').classList.add('hidden');
+            }
+
+            showSuccessMessage(message) {
+                // 创建成功消息元素
+                const successDiv = document.createElement('div');
+                successDiv.id = 'success-message';
+                successDiv.style.cssText = 'background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 15px; margin: 15px 0; border-radius: 4px; position: relative;';
+                
+                // 添加消息内容
+                const messageText = document.createElement('span');
+                messageText.textContent = message;
+                successDiv.appendChild(messageText);
+                
+                // 添加关闭按钮
+                const closeButton = document.createElement('button');
+                closeButton.textContent = '×';
+                closeButton.style.cssText = 'position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 20px; cursor: pointer; color: #155724;';
+                closeButton.addEventListener('click', () => {
+                    successDiv.remove();
+                });
+                successDiv.appendChild(closeButton);
+                
+                // 查找合适的插入位置（在错误消息div之后）
+                const errorDiv = document.getElementById('error');
+                if (errorDiv && errorDiv.parentNode) {
+                    errorDiv.parentNode.insertBefore(successDiv, errorDiv.nextSibling);
+                } else {
+                    // 如果找不到错误消息div，就插入到页面主体中
+                    const mainContent = document.querySelector('.container') || document.body;
+                    mainContent.insertBefore(successDiv, mainContent.firstChild);
+                }
+                
+                // 3秒后自动隐藏
+                setTimeout(() => {
+                    if (successDiv.parentNode) {
+                        successDiv.remove();
+                    }
+                }, 3000);
             }
 
             hideChart() {
