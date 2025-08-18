@@ -2103,13 +2103,20 @@
                     for (let i = 0; i < apiEndpoints.length; i++) {
                         const endpoint = apiEndpoints[i];
                         try {
+                            // 添加超时控制 - 使用递增超时策略
+                            const timeoutDuration = Math.min(30000 * (i + 1), 60000); // 递增超时，最大60秒
+                            
                             console.log(`尝试API端点 ${i + 1}:`, endpoint.url);
                             console.log('请求头:', endpoint.headers);
                             console.log('请求体:', JSON.stringify(endpoint.body, null, 2));
+                            console.log(`超时设置: ${timeoutDuration/1000}秒`);
                             
-                            // 添加超时控制
+                            // 更新UI显示当前尝试的端点信息
+                            if (this.updateProgress) {
+                                this.updateProgress(i + 1, `尝试API端点 ${i + 1}（超时: ${timeoutDuration/1000}秒）...`);
+                            }
                             const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+                            const timeoutId = setTimeout(() => controller.abort(), timeoutDuration);
                             
                             try {
                                 response = await fetch(endpoint.url, {
@@ -2122,7 +2129,7 @@
                             } catch (fetchError) {
                                 clearTimeout(timeoutId);
                                 if (fetchError.name === 'AbortError') {
-                                    throw new Error(`端点 ${i + 1} 请求超时（30秒）`);
+                                    throw new Error(`端点 ${i + 1} 请求超时（${timeoutDuration/1000}秒）`);
                                 }
                                 throw fetchError;
                             }
@@ -2206,7 +2213,9 @@
                     // 检查是否是超时错误或524错误
                     let errorMessage = '无法连接到DeepSeek分析服务';
                     if (error.message.includes('超时') || error.message.includes('524')) {
-                        errorMessage = '服务器响应超时，请稍后重试。可能是服务器负载过高或网络连接不稳定。';
+                        const timeoutMatch = error.match(/(\d+)秒/);
+                        const timeoutSeconds = timeoutMatch ? timeoutMatch[1] : '30';
+                        errorMessage = `服务器响应超时（${timeoutSeconds}秒），请稍后重试。建议：\n1. 检查网络连接是否稳定\n2. 尝试简化分析需求\n3. 稍后重试，可能是服务器负载过高`;
                     } else if (error.message.includes('Failed to fetch')) {
                         errorMessage = '网络连接失败，请检查网络连接后重试。';
                     } else {
