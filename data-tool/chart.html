@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能数据分析工具 - 现代化数据可视化平台</title>
+    <meta name="description" content="智能数据分析工具 - 支持多种数据格式，AI驱动的图表生成和分析报告，现代化的数据可视化平台">
+    <meta name="keywords" content="数据分析,图表生成,数据可视化,智能分析,AI分析,现代化平台">
+    <meta name="author" content="智能数据分析团队">
+    <meta name="theme-color" content="#667eea">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="script.js" as="script">
+    
+    <!-- 外部资源 -->
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- 图标库 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- 数据处理库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- ECharts 图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    
+    <style>
+        /* CSS Variables for Theme */
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #06ffa5;
+            --error-color: #ff006e;
+            --warning-color: #ffbe0b;
+            --info-color: #3a86ff;
+            
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            
+            --bg-primary: #ffffff;
+            --bg-secondary: #f7fafc;
+            --bg-tertiary: #edf2f7;
+            
+            --border-color: #e2e8f0;
+            --border-radius: 0.5rem;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            
+            --transition: all 0.3s ease;
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-sm);
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo i {
+            font-size: 1.8rem;
+        }
+
+        .main-nav {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Card Component */
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title i {
+            color: var(--primary-color);
+        }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+            background: var(--bg-secondary);
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .btn-requirements {
+            background: linear-gradient(135deg, var(--info-color), var(--primary-color));
+            color: white;
+        }
+
+        .btn-requirements:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--success-color), #00d4aa);
+            color: var(--text-primary);
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+            background: var(--bg-primary);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        /* Button Group */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        /* Analysis Goal Select */
+        .analysis-goal-select {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .analysis-goal {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .analysis-goal input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .analysis-goal-label {
+            display: block;
+            padding: 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            text-align: center;
+            transition: var(--transition);
+            background: var(--bg-primary);
+            cursor: pointer;
+        }
+
+        .analysis-goal-label:hover {
+            border-color: var(--primary-color);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .analysis-goal input[type="radio"]:checked + .analysis-goal-label {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .analysis-goal-label i {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .analysis-goal-label h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .analysis-goal-label p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Progress Steps */
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2rem 0;
+            position: relative;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: var(--transition);
+        }
+
+        .step.active .step-icon {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed .step-icon {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: var(--text-primary);
+        }
+
+        .step-text {
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .step.active .step-text {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .step.completed .step-text {
+            color: var(--success-color);
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: -1;
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: var(--success-color);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-status {
+            text-align: center;
+            margin-top: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--bg-secondary);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: var(--error-color);
+            background: rgba(255, 0, 110, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .success {
+            color: var(--success-color);
+            background: rgba(6, 255, 165, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .template-card {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .template-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .template-card i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .template-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .template-card p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 1rem 0;
+        }
+
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .data-preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-preview th,
+        .data-preview td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-preview th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        .code-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .script-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            gap: 0.25rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Mobile Responsive Styles for New Components */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .upload-area {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .btn {
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Tablet Styles */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            /* 图表类型选择已移除 */
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 1025px) {
+            .two-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+
+            .three-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-chart-line"></i> 智能数据分析
+                </a>
+                <nav class="main-nav">
+                    <a href="index.html" class="btn btn-secondary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <!-- 数据源选择 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-database"></i> 数据源选择
+                </h2>
+            </div>
+            
+            <!-- 数据源选项卡 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="upload">
+                    <i class="fas fa-upload"></i> 文件上传
+                </button>
+                <button class="tab-btn" data-tab="templates">
+                    <i class="fas fa-file-alt"></i> 示例数据
+                </button>
+            </div>
+            
+            <!-- 文件上传面板 -->
+            <div class="tab-panel active" id="upload-panel">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <p>拖拽文件到此处或点击选择文件</p>
+                    <p class="text-muted">支持 Excel (.xlsx, .xls) 和 CSV (.csv) 格式</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls" />
+                </div>
+                <div id="fileInfo" class="hidden">
+                    <div class="success">
+                        <i class="fas fa-check"></i> <span id="fileName"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 示例数据面板 -->
+            <div class="tab-panel" id="templates-panel">
+                <div class="template-grid">
+                    <div class="template-card" data-template="monthly-sales">
+                        <i class="fas fa-chart-line"></i>
+                        <h4>月度销售数据</h4>
+                        <p>包含12个月的销售数据，适合趋势分析</p>
+                    </div>
+                    <div class="template-card" data-template="temperature">
+                        <i class="fas fa-thermometer-half"></i>
+                        <h4>城市温度对比</h4>
+                        <p>多个城市的月度温度数据，适合对比分析</p>
+                    </div>
+                    <div class="template-card" data-template="stock">
+                        <i class="fas fa-chart-area"></i>
+                        <h4>股票价格走势</h4>
+                        <p>股票历史价格数据，适合金融分析</p>
+                    </div>
+                    <div class="template-card" data-template="survey">
+                        <i class="fas fa-poll"></i>
+                        <h4>调查问卷结果</h4>
+                        <p>用户满意度调查数据，适合统计分析</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据预览 -->
+        <div class="card hidden" id="dataPreviewCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-table"></i> 数据预览
+                </h2>
+            </div>
+            <div id="dataPreview" class="data-preview"></div>
+        </div>
+
+        <!-- 图表分析需求 -->
+        <div class="card" id="analysisInputCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-bar"></i> 图表分析需求
+                </h2>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-edit"></i>
+                    请输入您的分析需求
+                </label>
+                <textarea id="userRequirement" class="form-input" rows="6" placeholder="请描述您想要分析的数据和期望的图表类型，例如：我想分析销售数据的月度趋势...系统将为您生成详细的图表配置要求，您可编辑确认后再生成代码"></textarea>
+            </div>
+            <div class="form-group">
+                <button id="optimizeDescription" class="btn btn-requirements" disabled>
+                    <i class="fas fa-magic"></i> 生成图表配置要求
+                </button>
+            </div>
+            <!-- 优化后的图表描述 -->
+            <div class="card hidden" id="optimizedDescription">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clipboard-list"></i> 图表配置要求
+                    </h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图表配置要求（可编辑确认）</label>
+                    <textarea id="optimizedContent" class="form-input" rows="8" placeholder="具体的图表配置要求将显示在这里，包括图表类型、坐标轴、标题等详细配置..."></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="generateScript" class="btn btn-primary hidden" disabled>
+                        <i class="fas fa-code"></i> 生成脚本
+                    </button>
+                    <button id="executeScript" class="btn btn-success hidden" disabled>
+                        <i class="fas fa-play"></i> 执行脚本显示图表
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 生成结果 -->
+        <div class="card hidden" id="resultCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-area"></i> 可视化结果
+                </h2>
+            </div>
+            <div id="loading" class="loading hidden">
+                <div class="progress-container">
+                    <div class="progress-steps">
+                    <div class="step active" data-step="1">
+                        <div class="step-icon">1</div>
+                        <div class="step-text">分析数据</div>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-icon">2</div>
+                        <div class="step-text">生成配置要求</div>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-icon">3</div>
+                        <div class="step-text">配置要求完成</div>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-icon">4</div>
+                        <div class="step-text">生成脚本</div>
+                    </div>
+                    <div class="step" data-step="5">
+                        <div class="step-icon">5</div>
+                        <div class="step-text">执行完成</div>
+                    </div>
+                    </div>
+                    <div class="progress-status" id="progressStatus">准备中...</div>
+                </div>
+            </div>
+            
+            <div id="chartContainer" class="chart-container" style="height: 400px;"></div>
+            
+            <div class="code-section">
+                <h3><i class="fas fa-code"></i> 生成的代码</h3>
+                <button id="toggleCodeBtn" class="btn btn-primary">隐藏代码</button>
+                <pre id="codeOutput" class="code-output"></pre>
+            </div>
+            
+            <div class="script-section">
+                <h3><i class="fas fa-file-code"></i> 执行脚本</h3>
+                <button id="toggleScriptBtn" class="btn btn-primary">隐藏脚本</button>
+                <pre id="scriptOutput" class="script-output hidden"></pre>
+            </div>
+        </div>
+    </main>
+
+    <!-- Service Worker 注册 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => {
+                console.log('Service Worker 注册失败:', err);
+            });
+        }
+    </script>
+    
+    <!-- 主脚本 -->
+    <script src="script.js"></script>
+</body>
+</html>
