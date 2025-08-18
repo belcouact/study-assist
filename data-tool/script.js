@@ -112,51 +112,8 @@ class DataAnalysisTool {
     onInitializationComplete() {
         console.log('智能数据分析工具初始化完成');
         
-        // 显示欢迎消息（首次使用）
-        if (!localStorage.getItem('hasUsedBefore')) {
-            this.showWelcomeMessage();
-            localStorage.setItem('hasUsedBefore', 'true');
-        }
-        
         // 检查更新
         this.checkForUpdates();
-    }
-    
-    // 显示欢迎消息
-    showWelcomeMessage() {
-        const welcomeCard = document.createElement('div');
-        welcomeCard.className = 'card welcome-card';
-        welcomeCard.innerHTML = `
-            <div class="welcome-content">
-                <div class="welcome-icon">
-                    <i class="fas fa-sparkles"></i>
-                </div>
-                <h3>欢迎使用智能数据分析工具！</h3>
-                <p>这是一个现代化的数据可视化平台，支持多种数据格式，AI驱动的图表生成和分析报告。</p>
-                <div class="welcome-features">
-                    <div class="feature-item">
-                        <i class="fas fa-robot"></i>
-                        <span>AI智能分析</span>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-chart-line"></i>
-                        <span>丰富的图表类型</span>
-                    </div>
-                    <div class="feature-item">
-                        <i class="fas fa-mobile-alt"></i>
-                        <span>响应式设计</span>
-                    </div>
-                </div>
-                <button class="btn btn-primary" onclick="this.parentElement.parentElement.remove()">
-                    开始使用
-                </button>
-            </div>
-        `;
-        
-        const mainContent = document.querySelector('.main-content');
-        if (mainContent) {
-            mainContent.insertBefore(welcomeCard, mainContent.firstChild);
-        }
     }
     
     // 检查更新
@@ -192,44 +149,35 @@ class DataAnalysisTool {
     bindEvents() {
         console.log('绑定事件监听器...');
         
-        // 数据源选择事件 - 增强交互
-        document.querySelectorAll('.data-source-option').forEach(option => {
-            option.addEventListener('click', (e) => {
-                const source = e.target.closest('.data-source-option').dataset.source;
-                this.selectDataSource(source);
+        // 选项卡切换事件
+        document.querySelectorAll('.tab-btn').forEach(tabBtn => {
+            tabBtn.addEventListener('click', (e) => {
+                const tab = e.target.closest('.tab-btn').dataset.tab;
+                this.switchTab(tab);
                 this.addRippleEffect(e.currentTarget, e);
-            });
-            
-            // 添加悬停效果
-            option.addEventListener('mouseenter', () => {
-                this.addHoverEffect(option);
-            });
-            
-            option.addEventListener('mouseleave', () => {
-                this.removeHoverEffect(option);
             });
         });
 
         // 文件上传事件 - 增强拖拽体验
         const fileInput = document.getElementById('fileInput');
-        const fileUpload = document.getElementById('fileUpload');
+        const uploadArea = document.getElementById('uploadArea');
         
         if (fileInput) {
             fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         }
         
-        if (fileUpload) {
-            fileUpload.addEventListener('click', () => fileInput.click());
-            fileUpload.addEventListener('dragover', (e) => this.handleDragOver(e));
-            fileUpload.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-            fileUpload.addEventListener('drop', (e) => this.handleDrop(e));
+        if (uploadArea) {
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', (e) => this.handleDragOver(e));
+            uploadArea.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+            uploadArea.addEventListener('drop', (e) => this.handleDrop(e));
             
             // 添加触摸设备支持
-            fileUpload.addEventListener('touchstart', (e) => {
+            uploadArea.addEventListener('touchstart', (e) => {
                 this.handleTouchStart(e);
             });
             
-            fileUpload.addEventListener('touchend', (e) => {
+            uploadArea.addEventListener('touchend', (e) => {
                 this.handleTouchEnd(e);
             });
         }
@@ -253,12 +201,30 @@ class DataAnalysisTool {
             });
         });
 
-        // 生成按钮事件 - 增强反馈
-        const generateBtn = document.getElementById('generateBtn');
-        if (generateBtn) {
-            generateBtn.addEventListener('click', () => {
+        // 生成配置要求按钮事件
+        const optimizeBtn = document.getElementById('optimizeDescription');
+        if (optimizeBtn) {
+            optimizeBtn.addEventListener('click', () => {
+                this.generateConfigRequirements();
+                this.addButtonPulseEffect(optimizeBtn);
+            });
+        }
+
+        // 生成脚本按钮事件
+        const generateScriptBtn = document.getElementById('generateScript');
+        if (generateScriptBtn) {
+            generateScriptBtn.addEventListener('click', () => {
                 this.generateScript();
-                this.addButtonPulseEffect(generateBtn);
+                this.addButtonPulseEffect(generateScriptBtn);
+            });
+        }
+
+        // 执行脚本按钮事件
+        const executeScriptBtn = document.getElementById('executeScript');
+        if (executeScriptBtn) {
+            executeScriptBtn.addEventListener('click', () => {
+                this.executeGeneratedCode();
+                this.addButtonPulseEffect(executeScriptBtn);
             });
         }
         
@@ -271,19 +237,25 @@ class DataAnalysisTool {
         });
 
         // 分析输入框事件 - 增强交互
-        const analysisInput = document.getElementById('analysisInput');
-        if (analysisInput) {
-            analysisInput.addEventListener('input', () => {
+        const userRequirement = document.getElementById('userRequirement');
+        if (userRequirement) {
+            userRequirement.addEventListener('input', () => {
                 this.updateAnalysisDescription();
-                this.autoResizeTextarea(analysisInput);
+                this.autoResizeTextarea(userRequirement);
+                
+                // 启用/禁用生成配置要求按钮
+                const optimizeBtn = document.getElementById('optimizeDescription');
+                if (optimizeBtn) {
+                    optimizeBtn.disabled = !userRequirement.value.trim();
+                }
             });
             
             // 添加输入建议
-            analysisInput.addEventListener('focus', () => {
-                this.showInputSuggestions(analysisInput);
+            userRequirement.addEventListener('focus', () => {
+                this.showInputSuggestions(userRequirement);
             });
             
-            analysisInput.addEventListener('blur', () => {
+            userRequirement.addEventListener('blur', () => {
                 setTimeout(() => {
                     this.hideInputSuggestions();
                 }, 200);
@@ -480,6 +452,9 @@ class DataAnalysisTool {
     }
 
     async checkEChartsLibrary() {
+        // 等待一小段时间确保ECharts库已加载
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         if (typeof echarts === 'undefined') {
             console.warn('ECharts库未加载，尝试动态加载...');
             try {
@@ -489,6 +464,8 @@ class DataAnalysisTool {
                 console.error('ECharts库加载失败:', error);
                 this.showError('图表库加载失败，请检查网络连接');
             }
+        } else {
+            console.log('ECharts库已加载');
         }
     }
 
@@ -506,16 +483,18 @@ class DataAnalysisTool {
         // 静默检查temp目录，不抛出错误
         try {
             // 检查temp目录是否存在
-            const response = await fetch('./temp/', { method: 'HEAD' }).catch(() => null);
+            const response = await fetch('./temp/', { method: 'HEAD', cache: 'no-cache' }).catch(() => null);
             if (response && response.ok) {
                 console.log('temp目录访问正常');
                 this.loadTempFiles();
             } else {
                 // temp目录不存在，这是正常情况
+                console.log('temp目录不存在，使用默认配置');
                 this.initializeDefaultConfig();
             }
         } catch (error) {
             // 完全忽略任何错误，直接使用默认配置
+            console.log('temp目录访问失败，使用默认配置');
             this.initializeDefaultConfig();
         }
     }
@@ -544,30 +523,30 @@ class DataAnalysisTool {
         }
     }
 
-    selectDataSource(source) {
-        this.selectedDataSource = source;
-        
-        // 更新UI
-        document.querySelectorAll('.data-source-option').forEach(option => {
-            option.classList.remove('selected');
+    switchTab(tab) {
+        // 更新选项卡按钮状态
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
         });
         
-        const selectedOption = document.querySelector(`[data-source="${source}"]`);
-        if (selectedOption) {
-            selectedOption.classList.add('selected');
+        const activeBtn = document.querySelector(`[data-tab="${tab}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
         }
         
-        // 显示/隐藏相应的输入区域
-        const fileSection = document.getElementById('fileSection');
-        const templateSection = document.getElementById('templateSection');
+        // 更新面板状态 - 侧边栏布局，两个面板都显示但有不同的视觉状态
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            panel.classList.remove('active');
+            panel.classList.add('inactive');
+        });
         
-        if (source === 'file') {
-            if (fileSection) fileSection.classList.remove('hidden');
-            if (templateSection) templateSection.classList.add('hidden');
-        } else if (source === 'template') {
-            if (fileSection) fileSection.classList.add('hidden');
-            if (templateSection) templateSection.classList.remove('hidden');
+        const activePanel = document.getElementById(`${tab}-panel`);
+        if (activePanel) {
+            activePanel.classList.remove('inactive');
+            activePanel.classList.add('active');
         }
+        
+        this.selectedDataSource = tab === 'upload' ? 'file' : 'template';
     }
 
     selectTemplate(template) {
@@ -583,25 +562,50 @@ class DataAnalysisTool {
             selectedCard.classList.add('selected');
         }
         
-        // 生成模板数据
-        this.generateTemplateData(template);
+        // 根据模板生成相应的数据
+        switch(template) {
+            case 'sales':
+                this.generateSalesData();
+                break;
+            case 'temperature':
+                this.generateTemperatureData();
+                break;
+            case 'performance':
+                this.generatePerformanceData();
+                break;
+            case 'grades':
+                this.generateGradesData();
+                break;
+            case 'stock':
+                this.generateStockData();
+                break;
+            case 'survey':
+                this.generateSurveyData();
+                break;
+            default:
+                console.warn('未知的模板类型:', template);
+                this.showNotification('未知的模板类型', 'warning');
+            
+            // 生成模板数据
+            this.generateTemplateData(template);
+        }
     }
-
+    
     generateTemplateData(template) {
         let templateData = [];
         
         switch (template) {
-            case 'sales':
+            case 'monthly-sales':
                 templateData = this.generateSalesData();
                 break;
             case 'temperature':
                 templateData = this.generateTemperatureData();
                 break;
-            case 'performance':
-                templateData = this.generatePerformanceData();
+            case 'stock':
+                templateData = this.generateStockData();
                 break;
-            case 'grades':
-                templateData = this.generateGradesData();
+            case 'survey':
+                templateData = this.generateSurveyData();
                 break;
             default:
                 templateData = [];
@@ -610,6 +614,491 @@ class DataAnalysisTool {
         this.data = templateData;
         this.columns = Object.keys(templateData[0] || {});
         this.showDataPreview();
+    }
+    
+    generateStockData() {
+        const dates = [];
+        const baseDate = new Date('2024-01-01');
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(baseDate);
+            date.setDate(baseDate.getDate() + i);
+            dates.push(date.toISOString().split('T')[0]);
+        }
+        
+        const data = [];
+        let price = 100;
+        
+        dates.forEach(date => {
+            price += (Math.random() - 0.5) * 10;
+            const volume = Math.floor(Math.random() * 1000000) + 500000;
+            
+            data.push({
+                date: date,
+                price: Math.round(price * 100) / 100,
+                volume: volume,
+                change: Math.round((Math.random() - 0.5) * 10 * 100) / 100
+            });
+        });
+        
+        return data;
+    }
+    
+    generateSurveyData() {
+        const questions = [
+            '产品质量', '客户服务', '价格合理性', '配送速度', '整体满意度'
+        ];
+        const responses = ['非常满意', '满意', '一般', '不满意', '非常不满意'];
+        const ageGroups = ['18-25', '26-35', '36-45', '46-55', '55+'];
+        
+        const data = [];
+        
+        questions.forEach(question => {
+            ageGroups.forEach(age => {
+                responses.forEach(response => {
+                    data.push({
+                        question: question,
+                        ageGroup: age,
+                        response: response,
+                        count: Math.floor(Math.random() * 100) + 10
+                    });
+                });
+            });
+        });
+        
+        return data;
+    }
+    
+    // 显示加载状态
+    showLoading() {
+        const loading = document.getElementById('loading');
+        const resultCard = document.getElementById('resultCard');
+        
+        if (loading && resultCard) {
+            loading.classList.remove('hidden');
+            resultCard.classList.remove('hidden');
+        }
+    }
+    
+    // 隐藏加载状态
+    hideLoading() {
+        const loading = document.getElementById('loading');
+        
+        if (loading) {
+            loading.classList.add('hidden');
+        }
+    }
+    
+    // 显示错误信息
+    showError(message) {
+        // 可以创建一个错误显示元素或使用通知系统
+        this.showNotification(message, 'error');
+        console.error('错误:', message);
+    }
+    
+    // 隐藏错误信息
+    hideError() {
+        // 隐藏错误显示的逻辑
+        console.log('隐藏错误信息');
+    }
+    
+    // 隐藏图表
+    hideChart() {
+        const chartContainer = document.getElementById('chartContainer');
+        
+        if (chartContainer) {
+            chartContainer.innerHTML = '';
+        }
+    }
+    
+    // 显示结果
+    showResult() {
+        const resultCard = document.getElementById('resultCard');
+        
+        if (resultCard) {
+            resultCard.classList.remove('hidden');
+        }
+    }
+    
+    // 添加触摸设备支持
+    handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.addRippleEffect(e.currentTarget, {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    }
+    
+    handleTouchEnd(e) {
+        e.preventDefault();
+        // 触摸结束处理
+        console.log('触摸结束:', e);
+    }
+    
+    // 文件处理方法
+    handleFileSelect(e) {
+        const files = e.target.files;
+        if (files.length > 0) {
+            this.processFile(files[0]);
+        }
+    }
+    
+    handleDragOver(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add('drag-over');
+    }
+    
+    handleDragLeave(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+    }
+    
+    handleDrop(e) {
+        e.preventDefault();
+        e.currentTarget.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.processFile(files[0]);
+        }
+    }
+    
+    processFile(file) {
+        console.log('处理文件:', file.name);
+        
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                let data;
+                const fileExtension = file.name.split('.').pop().toLowerCase();
+                
+                switch (fileExtension) {
+                    case 'csv':
+                        data = this.parseCSV(e.target.result);
+                        break;
+                    case 'json':
+                        data = JSON.parse(e.target.result);
+                        break;
+                    case 'xlsx':
+                    case 'xls':
+                        data = this.parseExcel(e.target.result);
+                        break;
+                    default:
+                        throw new Error('不支持的文件格式');
+                }
+                
+                this.data = data;
+                this.columns = Object.keys(data[0] || {});
+                this.showDataPreview();
+                this.showNotification('文件加载成功', 'success');
+                
+            } catch (error) {
+                console.error('文件处理错误:', error);
+                this.showError('文件处理失败: ' + error.message);
+            }
+        };
+        
+        reader.onerror = () => {
+            this.showError('文件读取失败');
+        };
+        
+        if (file.name.endsWith('.csv')) {
+            reader.readAsText(file);
+        } else if (file.name.endsWith('.json')) {
+            reader.readAsText(file);
+        } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+            reader.readAsArrayBuffer(file);
+        }
+    }
+    
+    parseCSV(csvText) {
+        const lines = csvText.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        const data = [];
+        
+        for (let i = 1; i < lines.length; i++) {
+            if (lines[i].trim()) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const row = {};
+                headers.forEach((header, index) => {
+                    row[header] = values[index] || '';
+                });
+                data.push(row);
+            }
+        }
+        
+        return data;
+    }
+    
+    parseExcel(arrayBuffer) {
+        // 这里需要XLSX库的支持
+        if (typeof XLSX !== 'undefined') {
+            const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            return XLSX.utils.sheet_to_json(worksheet);
+        } else {
+            throw new Error('Excel处理库未加载');
+        }
+    }
+    
+    showDataPreview() {
+        const preview = document.getElementById('dataPreview');
+        const previewCard = document.getElementById('dataPreviewCard');
+        
+        if (!preview || !previewCard || !this.data || this.data.length === 0) {
+            return;
+        }
+        
+        // 创建表格HTML
+        let tableHTML = '<table><thead><tr>';
+        this.columns.forEach(column => {
+            tableHTML += `<th>${column}</th>`;
+        });
+        tableHTML += '</tr></thead><tbody>';
+        
+        // 只显示前10行数据
+        const previewData = this.data.slice(0, 10);
+        previewData.forEach(row => {
+            tableHTML += '<tr>';
+            this.columns.forEach(column => {
+                tableHTML += `<td>${row[column] || ''}</td>`;
+            });
+            tableHTML += '</tr>';
+        });
+        
+        tableHTML += '</tbody></table>';
+        
+        // 如果数据超过10行，显示提示
+        if (this.data.length > 10) {
+            tableHTML += `<div style="text-align: center; padding: 10px; color: #6c757d; font-size: 0.9rem;">显示前10行数据，共${this.data.length}行</div>`;
+        }
+        
+        preview.innerHTML = tableHTML;
+        previewCard.classList.remove('hidden');
+    }
+    
+    updateAnalysisDescription() {
+        const userRequirement = document.getElementById('userRequirement');
+        const charCount = document.getElementById('charCount');
+        
+        if (userRequirement && charCount) {
+            const count = userRequirement.value.length;
+            charCount.textContent = `${count}/500`;
+            
+            // 更新字符计数颜色
+            if (count > 450) {
+                charCount.style.color = '#dc3545';
+            } else if (count > 400) {
+                charCount.style.color = '#ffc107';
+            } else {
+                charCount.style.color = '#6c757d';
+            }
+        }
+    }
+    
+    generateConfigRequirements() {
+        const userRequirement = document.getElementById('userRequirement');
+        const configRequirements = document.getElementById('configRequirements');
+        
+        if (!userRequirement || !configRequirements) {
+            return;
+        }
+        
+        const requirement = userRequirement.value.trim();
+        if (!requirement) {
+            this.showError('请先输入分析需求');
+            return;
+        }
+        
+        // 生成配置建议
+        const suggestions = this.generateAnalysisSuggestions(requirement);
+        
+        configRequirements.innerHTML = `
+            <div class="config-suggestions">
+                <h4>配置建议</h4>
+                <div class="suggestion-list">
+                    ${suggestions.map(s => `
+                        <div class="suggestion-item">
+                            <i class="fas fa-lightbulb"></i>
+                            <span>${s}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="config-actions">
+                    <button class="btn btn-secondary" onclick="dataTool.hideConfigRequirements()">关闭</button>
+                    <button class="btn btn-primary" onclick="dataTool.applyConfigSuggestions()">应用建议</button>
+                </div>
+            </div>
+        `;
+        
+        configRequirements.classList.remove('hidden');
+    }
+    
+    generateAnalysisSuggestions(requirement) {
+        const suggestions = [];
+        
+        // 根据需求内容生成建议
+        if (requirement.includes('趋势') || requirement.includes('变化')) {
+            suggestions.push('建议使用折线图展示趋势变化');
+        }
+        
+        if (requirement.includes('占比') || requirement.includes('比例')) {
+            suggestions.push('建议使用饼图或环形图展示占比关系');
+        }
+        
+        if (requirement.includes('比较') || requirement.includes('对比')) {
+            suggestions.push('建议使用柱状图进行数据对比');
+        }
+        
+        if (requirement.includes('分布') || requirement.includes('散点')) {
+            suggestions.push('建议使用散点图展示数据分布');
+        }
+        
+        // 添加通用建议
+        suggestions.push('建议添加数据标签以提高可读性');
+        suggestions.push('建议配置适当的颜色方案');
+        suggestions.push('建议添加图表标题和图例');
+        
+        return suggestions;
+    }
+    
+    hideConfigRequirements() {
+        const configRequirements = document.getElementById('configRequirements');
+        if (configRequirements) {
+            configRequirements.classList.add('hidden');
+        }
+    }
+    
+    applyConfigSuggestions() {
+        this.showNotification('配置建议已应用', 'success');
+        this.hideConfigRequirements();
+    }
+    
+    async generateScript() {
+        const userRequirement = document.getElementById('userRequirement');
+        const generatedScript = document.getElementById('generatedScript');
+        
+        if (!userRequirement || !generatedScript) {
+            return;
+        }
+        
+        const requirement = userRequirement.value.trim();
+        if (!requirement) {
+            this.showError('请先输入分析需求');
+            return;
+        }
+        
+        if (!this.data || this.data.length === 0) {
+            this.showError('请先上传数据或选择模板');
+            return;
+        }
+        
+        this.showLoading();
+        
+        try {
+            const script = await this.callDeepSeekAPI(requirement);
+            generatedScript.value = script;
+            this.showResult();
+            this.showNotification('脚本生成成功', 'success');
+        } catch (error) {
+            this.showError('脚本生成失败: ' + error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    async callDeepSeekAPI(requirement) {
+        const prompt = `
+            我有以下数据：
+            ${JSON.stringify(this.data.slice(0, 5))}
+            
+            数据列：${this.columns.join(', ')}
+            
+            用户需求：${requirement}
+            
+            请生成一个使用ECharts的JavaScript代码，用于创建合适的图表来满足用户需求。
+            代码应该包含：
+            1. 完整的ECharts配置选项
+            2. 适合数据类型的图表类型
+            3. 适当的样式和交互功能
+            4. 响应式设计支持
+            
+            请只返回JavaScript代码，不要包含其他解释。
+        `;
+        
+        // 这里是模拟API调用，实际使用时需要真实的API调用
+        const mockResponse = `
+            // 基于用户需求生成的ECharts配置
+            const option = {
+                title: {
+                    text: '${requirement}',
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis'
+                },
+                legend: {
+                    data: ${JSON.stringify(this.columns)},
+                    top: '30px'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: ${JSON.stringify(this.data.map(item => item[this.columns[0]]))}
+                },
+                yAxis: {
+                    type: 'value'
+                },
+                series: ${JSON.stringify(this.columns.slice(1).map(col => ({
+                    name: col,
+                    type: 'line',
+                    data: this.data.map(item => item[col])
+                })))}
+            };
+            
+            // 初始化图表
+            const chartContainer = document.getElementById('chartContainer');
+            if (chartContainer) {
+                const myChart = echarts.init(chartContainer);
+                myChart.setOption(option);
+                
+                // 响应式调整
+                window.addEventListener('resize', function() {
+                    myChart.resize();
+                });
+            }
+        `;
+        
+        return mockResponse;
+    }
+    
+    executeGeneratedCode() {
+        const generatedScript = document.getElementById('generatedScript');
+        
+        if (!generatedScript || !generatedScript.value.trim()) {
+            this.showError('请先生成脚本');
+            return;
+        }
+        
+        try {
+            // 清除之前的图表
+            this.hideChart();
+            
+            // 执行生成的代码
+            eval(generatedScript.value);
+            
+            this.showNotification('图表执行成功', 'success');
+        } catch (error) {
+            console.error('代码执行错误:', error);
+            this.showError('代码执行失败: ' + error.message);
+        }
     }
 
     generateSalesData() {
@@ -833,20 +1322,89 @@ class DataAnalysisTool {
     }
 
     updateAnalysisDescription() {
-        const input = document.getElementById('analysisInput');
-        const description = document.getElementById('analysisDescription');
+        const input = document.getElementById('userRequirement');
         
-        if (input && description) {
+        if (input) {
             const text = input.value.trim();
-            if (text) {
-                description.textContent = `分析需求: ${text}`;
-                description.classList.remove('hidden');
-            } else {
-                description.classList.add('hidden');
-            }
+            // 这里可以添加实时更新分析需求的逻辑
+            console.log('分析需求更新:', text);
         }
     }
 
+    async generateConfigRequirements() {
+        if (!this.data || this.data.length === 0) {
+            this.showError('请先上传数据或选择模板数据');
+            return;
+        }
+        
+        if (!this.columns || this.columns.length === 0) {
+            this.showError('数据列信息不完整');
+            return;
+        }
+        
+        try {
+            this.showLoading();
+            this.updateProgress(1, '分析数据...');
+            
+            // 生成配置要求
+            const configRequirements = this.generateConfigRequirementsInternal();
+            
+            // 显示配置要求
+            this.showConfigRequirements(configRequirements);
+            
+            this.updateProgress(2, '生成配置要求完成');
+            
+        } catch (error) {
+            console.error('生成配置要求失败:', error);
+            this.showError('生成配置要求失败: ' + error.message);
+        } finally {
+            this.hideLoading();
+        }
+    }
+    
+    showConfigRequirements(configRequirements) {
+        const optimizedCard = document.getElementById('optimizedDescription');
+        const optimizedContent = document.getElementById('optimizedContent');
+        const generateScriptBtn = document.getElementById('generateScript');
+        
+        if (optimizedCard && optimizedContent) {
+            // 生成配置要求文本
+            let requirementsText = `图表类型: ${configRequirements.chartType}\n`;
+            requirementsText += `数据列: ${configRequirements.dataColumns.join(', ')}\n\n`;
+            requirementsText += `配置要求:\n`;
+            configRequirements.specialInstructions.forEach(instruction => {
+                requirementsText += `- ${instruction}\n`;
+            });
+            
+            optimizedContent.value = requirementsText;
+            optimizedCard.classList.remove('hidden');
+            
+            if (generateScriptBtn) {
+                generateScriptBtn.disabled = false;
+                generateScriptBtn.classList.remove('hidden');
+            }
+        }
+    }
+    
+    generateConfigRequirementsInternal() {
+        const requirements = {
+            dataColumns: this.columns,
+            dataSample: this.data.slice(0, 3), // 只使用前3行作为样本
+            dataStats: this.getDataStatistics(),
+            analysisGoal: this.getAnalysisGoal(),
+            chartType: this.suggestChartType(),
+            specialInstructions: [
+                '只生成JavaScript代码，不要包含HTML',
+                '代码应该能够根据JSON文件路径和数据列名生成图表',
+                '使用ECharts库进行图表渲染',
+                '确保代码可以直接执行',
+                '添加适当的错误处理'
+            ]
+        };
+        
+        return requirements;
+    }
+    
     async generateScript() {
         if (!this.data || this.data.length === 0) {
             this.showError('请先上传数据或选择模板数据');
@@ -860,23 +1418,35 @@ class DataAnalysisTool {
         
         try {
             this.showLoading();
+            this.updateProgress(3, '配置要求完成');
             this.hideError();
             this.hideChart();
             
-            // 生成配置要求
-            const configRequirements = this.generateConfigRequirements();
+            // 获取优化的配置要求
+            const optimizedContent = document.getElementById('optimizedContent');
+            const analysisGoal = optimizedContent ? optimizedContent.value : this.getAnalysisGoal();
             
             // 构建prompt
+            const configRequirements = this.generateConfigRequirementsInternal();
+            configRequirements.analysisGoal = analysisGoal;
             const prompt = this.buildPrompt(configRequirements);
+            
+            this.updateProgress(4, '生成脚本...');
             
             // 调用API生成脚本
             const generatedScript = await this.callDeepSeekAPI(prompt);
             
-            // 执行生成的脚本
-            this.executeGeneratedCode(generatedScript);
+            // 显示生成的代码
+            this.showGeneratedCode(generatedScript);
             
-            // 显示结果
-            this.showResult();
+            // 启用执行脚本按钮
+            const executeScriptBtn = document.getElementById('executeScript');
+            if (executeScriptBtn) {
+                executeScriptBtn.disabled = false;
+                executeScriptBtn.classList.remove('hidden');
+            }
+            
+            this.updateProgress(5, '执行完成');
             
         } catch (error) {
             console.error('生成脚本失败:', error);
@@ -884,6 +1454,34 @@ class DataAnalysisTool {
         } finally {
             this.hideLoading();
         }
+    }
+    
+    showGeneratedCode(code) {
+        const codeOutput = document.getElementById('codeOutput');
+        const resultCard = document.getElementById('resultCard');
+        
+        if (codeOutput && resultCard) {
+            codeOutput.textContent = code;
+            resultCard.classList.remove('hidden');
+        }
+    }
+    
+    updateProgress(step, status) {
+        const progressStatus = document.getElementById('progressStatus');
+        const steps = document.querySelectorAll('.step');
+        
+        if (progressStatus) {
+            progressStatus.textContent = status;
+        }
+        
+        steps.forEach(stepEl => {
+            const stepNum = parseInt(stepEl.dataset.step);
+            if (stepNum <= step) {
+                stepEl.classList.add('active');
+            } else {
+                stepEl.classList.remove('active');
+            }
+        });
     }
 
     generateConfigRequirements() {
@@ -931,7 +1529,7 @@ class DataAnalysisTool {
     }
 
     getAnalysisGoal() {
-        const input = document.getElementById('analysisInput');
+        const input = document.getElementById('userRequirement');
         return input ? input.value.trim() : '请根据数据特征生成合适的图表';
     }
 
@@ -1442,35 +2040,7 @@ class DataAnalysisTool {
         document.getElementById('progress-status').textContent = status;
     }
 
-    showError(message) {
-        const errorDiv = document.getElementById('error');
-        errorDiv.textContent = message;
-        errorDiv.classList.remove('hidden');
-        
-        // 检查是否已经存在重试按钮
-        let retryButton = errorDiv.querySelector('.retry-button');
-        
-        if (!retryButton) {
-            // 创建重试按钮
-            retryButton = document.createElement('button');
-            retryButton.className = 'retry-button';
-            retryButton.textContent = '重试';
-            retryButton.style.cssText = 'margin-left: 10px; padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
-            
-            // 添加点击事件 - 重新调用generateScript方法
-            retryButton.addEventListener('click', () => {
-                this.hideError();
-                this.generateScript();
-            });
-            
-            // 将按钮添加到错误div中
-            errorDiv.appendChild(retryButton);
-        }
-    }
-
-    hideError() {
-        document.getElementById('error').classList.add('hidden');
-    }
+    // showError方法已在前面定义，使用showNotification系统
 
     hideChart() {
         document.getElementById('chartContainer').classList.add('hidden');
@@ -1788,6 +2358,323 @@ class DataAnalysisTool {
                 document.body.removeChild(announcement);
             }, 1000);
         };
+    }
+
+    // 生成销售数据
+    generateSalesData() {
+        const products = ['产品A', '产品B', '产品C', '产品D', '产品E'];
+        const regions = ['华北', '华东', '华南', '华中', '西北', '西南', '东北'];
+        const data = [];
+        
+        // 生成表头
+        const headers = ['月份', '产品', '地区', '销售额', '数量', '单价'];
+        data.push(headers);
+        
+        // 生成12个月的数据
+        for (let month = 1; month <= 12; month++) {
+            products.forEach(product => {
+                regions.forEach(region => {
+                    const quantity = Math.floor(Math.random() * 1000) + 100;
+                    const price = Math.floor(Math.random() * 500) + 50;
+                    const sales = quantity * price;
+                    
+                    data.push([
+                        `${month}月`,
+                        product,
+                        region,
+                        sales,
+                        quantity,
+                        price
+                    ]);
+                });
+            });
+        }
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('销售数据生成成功', 'success');
+    }
+
+    // 生成温度数据
+    generateTemperatureData() {
+        const cities = ['北京', '上海', '广州', '深圳', '杭州', '南京', '成都', '武汉', '西安', '重庆'];
+        const data = [];
+        
+        // 生成表头
+        const headers = ['日期', '城市', '最高温度', '最低温度', '平均温度', '湿度', '天气状况'];
+        data.push(headers);
+        
+        // 生成30天的数据
+        for (let day = 1; day <= 30; day++) {
+            cities.forEach(city => {
+                const baseTemp = Math.floor(Math.random() * 20) + 10; // 基础温度10-30度
+                const maxTemp = baseTemp + Math.floor(Math.random() * 10);
+                const minTemp = baseTemp - Math.floor(Math.random() * 10);
+                const avgTemp = Math.round((maxTemp + minTemp) / 2);
+                const humidity = Math.floor(Math.random() * 60) + 30; // 湿度30-90%
+                
+                const weatherConditions = ['晴', '多云', '阴', '小雨', '中雨', '雷阵雨'];
+                const weather = weatherConditions[Math.floor(Math.random() * weatherConditions.length)];
+                
+                data.push([
+                    `${day}日`,
+                    city,
+                    maxTemp,
+                    minTemp,
+                    avgTemp,
+                    humidity,
+                    weather
+                ]);
+            });
+        }
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('温度数据生成成功', 'success');
+    }
+
+    // 生成性能数据
+    generatePerformanceData() {
+        const metrics = ['CPU使用率', '内存使用率', '磁盘使用率', '网络延迟', '响应时间'];
+        const servers = ['Server-01', 'Server-02', 'Server-03', 'Server-04', 'Server-05'];
+        const data = [];
+        
+        // 生成表头
+        const headers = ['时间戳', '服务器', '指标', '数值', '状态', '阈值'];
+        data.push(headers);
+        
+        // 生成24小时的数据（每小时一个数据点）
+        for (let hour = 0; hour < 24; hour++) {
+            servers.forEach(server => {
+                metrics.forEach(metric => {
+                    let value, status, threshold;
+                    
+                    switch(metric) {
+                        case 'CPU使用率':
+                            value = Math.floor(Math.random() * 100);
+                            threshold = 80;
+                            status = value > threshold ? '警告' : '正常';
+                            break;
+                        case '内存使用率':
+                            value = Math.floor(Math.random() * 100);
+                            threshold = 85;
+                            status = value > threshold ? '警告' : '正常';
+                            break;
+                        case '磁盘使用率':
+                            value = Math.floor(Math.random() * 100);
+                            threshold = 90;
+                            status = value > threshold ? '警告' : '正常';
+                            break;
+                        case '网络延迟':
+                            value = Math.floor(Math.random() * 200); // 延迟0-200ms
+                            threshold = 100;
+                            status = value > threshold ? '警告' : '正常';
+                            break;
+                        case '响应时间':
+                            value = Math.floor(Math.random() * 1000); // 响应时间0-1000ms
+                            threshold = 500;
+                            status = value > threshold ? '警告' : '正常';
+                            break;
+                    }
+                    
+                    data.push([
+                        `${hour.toString().padStart(2, '0')}:00`,
+                        server,
+                        metric,
+                        value,
+                        status,
+                        threshold
+                    ]);
+                });
+            });
+        }
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('性能数据生成成功', 'success');
+    }
+
+    // 生成成绩数据
+    generateGradesData() {
+        const students = [];
+        const subjects = ['语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治'];
+        const data = [];
+        
+        // 生成学生姓名
+        const surnames = ['张', '李', '王', '刘', '陈', '杨', '赵', '黄', '周', '吴'];
+        const givenNames = ['伟', '芳', '娜', '秀英', '敏', '静', '丽', '强', '磊', '军'];
+        
+        for (let i = 1; i <= 50; i++) {
+            const surname = surnames[Math.floor(Math.random() * surnames.length)];
+            const givenName = givenNames[Math.floor(Math.random() * givenNames.length)];
+            students.push(`${surname}${givenName}${i}`);
+        }
+        
+        // 生成表头
+        const headers = ['学号', '姓名', '班级', '语文', '数学', '英语', '物理', '化学', '生物', '历史', '地理', '政治', '总分', '平均分', '排名'];
+        data.push(headers);
+        
+        // 生成学生成绩数据
+        students.forEach((student, index) => {
+            const studentId = `2024${(index + 1).toString().padStart(4, '0')}`;
+            const className = `${Math.floor(Math.random() * 10) + 1}班`;
+            const grades = {};
+            let totalScore = 0;
+            
+            // 生成各科成绩
+            subjects.forEach(subject => {
+                const score = Math.floor(Math.random() * 41) + 60; // 60-100分
+                grades[subject] = score;
+                totalScore += score;
+            });
+            
+            const averageScore = Math.round(totalScore / subjects.length);
+            
+            data.push([
+                studentId,
+                student,
+                className,
+                grades['语文'],
+                grades['数学'],
+                grades['英语'],
+                grades['物理'],
+                grades['化学'],
+                grades['生物'],
+                grades['历史'],
+                grades['地理'],
+                grades['政治'],
+                totalScore,
+                averageScore,
+                '' // 排名稍后计算
+            ]);
+        });
+        
+        // 计算排名
+        data.sort((a, b) => b[12] - a[12]); // 按总分降序排序
+        data.forEach((row, index) => {
+            if (index > 0) { // 跳过表头
+                row[14] = index; // 设置排名
+            }
+        });
+        
+        // 恢复原始顺序（按学号）
+        data.sort((a, b) => {
+            if (a[0] === '学号') return -1; // 表头保持在最前面
+            if (b[0] === '学号') return 1;
+            return parseInt(a[0]) - parseInt(b[0]);
+        });
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('成绩数据生成成功', 'success');
+    }
+
+    // 生成股票数据
+    generateStockData() {
+        const stocks = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'JNJ', 'V'];
+        const data = [];
+        
+        // 生成表头
+        const headers = ['日期', '股票代码', '开盘价', '最高价', '最低价', '收盘价', '成交量', '涨跌幅', '市值'];
+        data.push(headers);
+        
+        // 生成30天的数据
+        for (let day = 1; day <= 30; day++) {
+            stocks.forEach(stock => {
+                const basePrice = Math.floor(Math.random() * 500) + 50; // 基础价格50-550
+                const openPrice = basePrice;
+                const change = (Math.random() - 0.5) * 20; // 涨跌幅度-10到+10
+                const closePrice = Math.max(1, openPrice + change);
+                const highPrice = Math.max(openPrice, closePrice) + Math.random() * 5;
+                const lowPrice = Math.min(openPrice, closePrice) - Math.random() * 5;
+                const volume = Math.floor(Math.random() * 10000000) + 1000000; // 成交量100万-1100万
+                const changePercent = ((closePrice - openPrice) / openPrice * 100).toFixed(2);
+                const marketCap = Math.floor(closePrice * volume * 0.001); // 简化的市值计算
+                
+                data.push([
+                    `${day}日`,
+                    stock,
+                    openPrice.toFixed(2),
+                    highPrice.toFixed(2),
+                    lowPrice.toFixed(2),
+                    closePrice.toFixed(2),
+                    volume,
+                    `${changePercent}%`,
+                    marketCap
+                ]);
+            });
+        }
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('股票数据生成成功', 'success');
+    }
+
+    // 生成调查数据
+    generateSurveyData() {
+        const questions = [
+            '您对我们的产品满意吗？',
+            '您会推荐我们的产品给朋友吗？',
+            '您认为我们的价格合理吗？',
+            '您对我们的客服满意吗？',
+            '您会再次购买我们的产品吗？'
+        ];
+        
+        const options = [
+            ['非常满意', '满意', '一般', '不满意', '非常不满意'],
+            ['一定会', '可能会', '不确定', '可能不会', '一定不会'],
+            ['非常合理', '合理', '一般', '不合理', '非常不合理'],
+            ['非常满意', '满意', '一般', '不满意', '非常不满意'],
+            ['一定会', '可能会', '不确定', '可能不会', '一定不会']
+        ];
+        
+        const ageGroups = ['18-25', '26-35', '36-45', '46-55', '56+'];
+        const genders = ['男', '女', '其他'];
+        const cities = ['北京', '上海', '广州', '深圳', '杭州', '其他'];
+        const data = [];
+        
+        // 生成表头
+        const headers = ['调查ID', '年龄组', '性别', '城市', '问题', '答案', '评分', '调查时间'];
+        data.push(headers);
+        
+        // 生成200份调查数据
+        for (let i = 1; i <= 200; i++) {
+            const surveyId = `SURV${i.toString().padStart(4, '0')}`;
+            const ageGroup = ageGroups[Math.floor(Math.random() * ageGroups.length)];
+            const gender = genders[Math.floor(Math.random() * genders.length)];
+            const city = cities[Math.floor(Math.random() * cities.length)];
+            
+            // 为每个用户回答所有问题
+            questions.forEach((question, qIndex) => {
+                const answerOptions = options[qIndex];
+                const answer = answerOptions[Math.floor(Math.random() * answerOptions.length)];
+                const score = 5 - answerOptions.indexOf(answer); // 5分制，非常满意=5分
+                const hour = Math.floor(Math.random() * 24);
+                const minute = Math.floor(Math.random() * 60);
+                const surveyTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                
+                data.push([
+                    surveyId,
+                    ageGroup,
+                    gender,
+                    city,
+                    question,
+                    answer,
+                    score,
+                    surveyTime
+                ]);
+            });
+        }
+        
+        this.data = data;
+        this.columns = headers;
+        this.showDataPreview();
+        this.showNotification('调查数据生成成功', 'success');
     }
 }
 
