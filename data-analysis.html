@@ -1931,19 +1931,28 @@
             }
             
             async executeScriptAndShowChart() {
-                if (!this.generatedCode) {
-                    this.showError('没有可用的生成代码，请先生成脚本');
+                const scriptOutput = document.getElementById('scriptOutput');
+                if (!scriptOutput) {
+                    this.showError('找不到脚本输出元素');
+                    return;
+                }
+                
+                // 获取当前脚本内容（可能是用户编辑过的）
+                const currentScript = scriptOutput.value || scriptOutput.textContent;
+                if (!currentScript || currentScript.trim().length === 0) {
+                    this.showError('没有可执行的脚本内容，请先生成脚本');
                     return;
                 }
                 
                 try {
                     console.log('开始执行脚本并显示图表...');
+                    console.log('脚本内容长度:', currentScript.length);
                     this.showLoading();
                     
-                    // Execute the stored code
-                    this.updateProgress(5, '正在执行生成的代码...');
-                    console.log('执行生成的代码...');
-                    this.executeGeneratedCode(this.generatedCode);
+                    // Execute the current code
+                    this.updateProgress(5, '正在执行代码...');
+                    console.log('执行当前代码...');
+                    this.executeGeneratedCode(currentScript);
                     
                     // Show result
                     this.updateProgress(6, '正在渲染图表...');
@@ -2680,38 +2689,71 @@
                     scriptContainer.insertBefore(toggleButton, scriptOutput);
                 }
                 
-                // 设置脚本内容
+                // 检查是否已经创建了图表生成按钮
+                let generateChartButton = scriptContainer.querySelector('.generate-chart-btn');
+                
+                if (!generateChartButton) {
+                    // 创建图表生成按钮
+                    generateChartButton = document.createElement('button');
+                    generateChartButton.className = 'generate-chart-btn';
+                    generateChartButton.textContent = '生成图表';
+                    generateChartButton.style.cssText = 'margin-left: 10px; padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件
+                    generateChartButton.addEventListener('click', () => {
+                        this.executeScriptAndShowChart();
+                    });
+                    
+                    // 在折叠按钮之后插入图表生成按钮
+                    scriptContainer.insertBefore(generateChartButton, scriptOutput);
+                }
+                
+                // 如果scriptOutput是div，将其替换为textarea使其可编辑
+                if (scriptOutput.tagName.toLowerCase() === 'div') {
+                    const textarea = document.createElement('textarea');
+                    textarea.id = 'scriptOutput';
+                    textarea.className = scriptOutput.className;
+                    textarea.value = script;
+                    textarea.style.cssText = 'width: 100%; border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 100px; resize: vertical;';
+                    
+                    // 替换元素
+                    scriptOutput.parentNode.replaceChild(textarea, scriptOutput);
+                } else {
+                    // 如果已经是textarea，直接设置值
+                    scriptOutput.value = script;
+                    scriptOutput.style.cssText = 'width: 100%; border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 100px; resize: vertical;';
+                }
+                
+                // 重新获取scriptOutput引用（可能是新创建的textarea）
+                const newScriptOutput = document.getElementById('scriptOutput');
+                
                 console.log('开始设置脚本内容...');
-                scriptOutput.textContent = script;
-                console.log('脚本内容已设置，textContent长度:', scriptOutput.textContent.length);
-                console.log('设置后脚本内容前100字符:', scriptOutput.textContent.substring(0, 100));
+                console.log('脚本内容已设置，value长度:', newScriptOutput.value.length);
+                console.log('设置后脚本内容前100字符:', newScriptOutput.value.substring(0, 100));
                 
                 // 设置默认展开状态，确保内容可见
                 console.log('设置脚本输出框为展开状态...');
-                scriptOutput.classList.add('expanded');
-                scriptOutput.style.maxHeight = 'none';
-                scriptOutput.style.overflow = 'auto';
-                scriptOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #f8f9fa; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 100px;';
+                newScriptOutput.classList.add('expanded');
+                newScriptOutput.style.maxHeight = 'none';
+                newScriptOutput.style.overflow = 'auto';
                 
                 // 更新按钮文本
                 toggleButton.textContent = '折叠脚本';
                 
                 // 添加调试信息
-                console.log('脚本输出框样式设置完成，实际高度:', scriptOutput.scrollHeight);
-                console.log('脚本输出框当前样式:', scriptOutput.style.cssText);
-                console.log('样式设置后元素位置:', scriptOutput.getBoundingClientRect());
-                
-                // 按钮文本已在上面设置
+                console.log('脚本输出框样式设置完成，实际高度:', newScriptOutput.scrollHeight);
+                console.log('脚本输出框当前样式:', newScriptOutput.style.cssText);
+                console.log('样式设置后元素位置:', newScriptOutput.getBoundingClientRect());
                 
                 // 显示脚本容器
-                console.log('准备移除hidden类，当前类名:', scriptOutput.className);
-                console.log('移除hidden类前显示状态:', window.getComputedStyle(scriptOutput).display);
-                scriptOutput.classList.remove('hidden');
-                console.log('已移除hidden类，最终类名:', scriptOutput.className);
-                console.log('scriptOutput元素当前显示状态:', window.getComputedStyle(scriptOutput).display);
-                console.log('script内容长度:', scriptOutput.textContent.length);
-                console.log('scriptOutput最终位置和尺寸:', scriptOutput.getBoundingClientRect());
-                console.log('scriptOutput父容器显示状态:', window.getComputedStyle(scriptOutput.parentElement).display);
+                console.log('准备移除hidden类，当前类名:', newScriptOutput.className);
+                console.log('移除hidden类前显示状态:', window.getComputedStyle(newScriptOutput).display);
+                newScriptOutput.classList.remove('hidden');
+                console.log('已移除hidden类，最终类名:', newScriptOutput.className);
+                console.log('scriptOutput元素当前显示状态:', window.getComputedStyle(newScriptOutput).display);
+                console.log('script内容长度:', newScriptOutput.value.length);
+                console.log('scriptOutput最终位置和尺寸:', newScriptOutput.getBoundingClientRect());
+                console.log('scriptOutput父容器显示状态:', window.getComputedStyle(newScriptOutput.parentElement).display);
                 
                 // 检查并显示resultCard父容器
                 const resultCard = document.getElementById('resultCard');
@@ -2722,7 +2764,7 @@
                     console.log('resultCard显示状态:', window.getComputedStyle(resultCard).display);
                 }
                 
-                console.log('scriptOutput是否在视口中:', this.isElementInViewport(scriptOutput));
+                console.log('scriptOutput是否在视口中:', this.isElementInViewport(newScriptOutput));
             }
 
             // 检查元素是否在视口中
