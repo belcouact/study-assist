@@ -360,8 +360,3 @@ async function onRequest(context) {
 
 // Export for ES modules (Cloudflare Workers/Vercel)
 export { workerGlmOutput, onRequest };
-
-// Fallback for CommonJS environments
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { workerGlmOutput, onRequest };
-}

@@ -62,10 +62,5 @@ async function workerChatOutput(prompt, env) {
     }
 }
 
-// Export the function - support both CommonJS and ES modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { workerChatOutput };
-} else {
-    // Make it available globally for browser environments
-    self.workerChatOutput = workerChatOutput;
-}
+// Export for ES modules (Cloudflare Workers/Vercel)
+export { workerChatOutput };

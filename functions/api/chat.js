@@ -1,17 +1,5 @@
 // Import the workerChatOutput function
-let workerChatOutput;
-try {
-  // Try CommonJS import first
-  const workerChat = require('./worker-chat.js');
-  workerChatOutput = workerChat.workerChatOutput;
-} catch (e) {
-  // Fallback to global variable if in browser context
-  if (typeof self !== 'undefined' && self.workerChatOutput) {
-    workerChatOutput = self.workerChatOutput;
-  } else {
-    console.error('Failed to import workerChatOutput:', e);
-  }
-}
+import { workerChatOutput } from './worker-chat.js';
 
 // Handle chat requests to DeepSeek API
 export async function onRequestPost(context) {
@@ -183,4 +171,4 @@ export function onRequestGet() {
       "Access-Control-Allow-Headers": "Content-Type, Authorization"
     }
   });
-} 
+}
