@@ -2205,6 +2205,12 @@
             async handleGLMStreamingResponse(response) {
                 console.log('handleGLMStreamingResponse开始执行...');
                 
+                // 记录响应头信息
+                console.log('GLM API响应头:');
+                for (const [key, value] of response.headers.entries()) {
+                    console.log(`  ${key}: ${value}`);
+                }
+                
                 if (!response.ok) {
                     throw new Error(`GLM API返回错误状态: ${response.status}`);
                 }
@@ -2212,6 +2218,7 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullContent = '';
+                let chunkCount = 0;
                 
                 try {
                     console.log('开始读取GLM流数据...');
@@ -2224,31 +2231,42 @@
                             break;
                         }
                         
+                        chunkCount++;
                         const chunk = decoder.decode(value, { stream: true });
-                        console.log('GLM流数据块:', chunk);
+                        console.log(`GLM流数据块 #${chunkCount}:`);
+                        console.log('  长度:', chunk.length);
+                        console.log('  内容:', JSON.stringify(chunk)); // 使用JSON.stringify显示所有字符
+                        console.log('  原始内容预览:', chunk.substring(0, 100));
                         
                         // 直接累积所有内容，不进行复杂解析
                         fullContent += chunk;
                         
                         // 实时更新UI
-                        this.updateStreamingContent(Date.now(), chunk, fullContent);
+                        this.updateStreamingContent(chunkCount, chunk, fullContent);
                     }
                     
                     console.log('GLM流式响应原始内容:', fullContent);
                     
                     // 如果内容为JSON格式，尝试解析
                     let processedContent = fullContent;
+                    
+                    // 先检查内容是否为空
+                    if (!fullContent || fullContent.trim() === '') {
+                        console.error('GLM流式响应返回了空内容');
+                        throw new Error('GLM流式响应返回了空内容');
+                    }
+                    
                     try {
                         const parsed = JSON.parse(fullContent);
                         // 尝试从不同字段提取内容
                         processedContent = parsed.content || parsed.output || parsed.message || parsed.response || fullContent;
                         console.log('GLM解析后内容:', processedContent);
                     } catch (e) {
-                        console.log('GLM响应不是JSON格式，使用原始内容');
-                        // 保持原始内容
+                        console.log('GLM响应不是JSON格式，直接使用原始内容');
+                        processedContent = fullContent; // 直接使用原始文本内容
                     }
                     
-                    if (!processedContent.trim()) {
+                    if (!processedContent || processedContent.trim() === '') {
                         console.error('GLM流式响应返回了空内容');
                         throw new Error('GLM流式响应返回了空内容');
                     }
