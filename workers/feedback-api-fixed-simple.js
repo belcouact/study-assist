@@ -6,7 +6,7 @@ export default {
     
     // CORS 头
     const corsHeaders = {
-      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Origin': 'https://study-llm.me',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
@@ -591,4 +591,4 @@ function safeParseJSON(jsonString, defaultValue = {}) {
     console.warn('JSON 解析失败:', jsonString, error);
     return defaultValue;
   }
-} 
+}

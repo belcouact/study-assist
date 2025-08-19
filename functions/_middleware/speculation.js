@@ -19,7 +19,7 @@ export async function onRequest(context) {
       headers: {
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=3600",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "https://study-llm.me"
       }
     });
   }
@@ -35,4 +35,4 @@ export async function onRequest(context) {
   }
   
   return newResponse;
-} 
+}

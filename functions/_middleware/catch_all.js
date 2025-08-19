@@ -22,7 +22,7 @@ export async function onRequest(context) {
         status: 404,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": "https://study-llm.me",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS, PUT, DELETE",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
@@ -40,4 +40,4 @@ export async function onRequest(context) {
       }
     });
   }
-} 
+}
