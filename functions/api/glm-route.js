@@ -7,14 +7,11 @@ const REQUEST_TIMEOUT = 25000; // 25 seconds (adjusted to be within Cloudflare l
 const requestCache = new Map();
 
 // Simple request queue for rate limiting
-const requestQueue = [];
+let requestQueue = [];
 const MAX_CONCURRENT_REQUESTS = 3;
-const QUEUE_PROCESS_INTERVAL = 100; // Process queue every 100ms
 
-// Start queue processor
-setInterval(processQueue, QUEUE_PROCESS_INTERVAL);
-
-async function processQueue() {
+// Process queue synchronously
+function processQueue() {
   if (requestQueue.length === 0) return;
   
   const activeRequests = requestQueue.filter(req => !req.completed && req.processing).length;
@@ -24,13 +21,27 @@ async function processQueue() {
   if (!nextRequest) return;
   
   nextRequest.processing = true;
-  try {
-    nextRequest.result = await nextRequest.fn();
-    nextRequest.completed = true;
-  } catch (error) {
-    nextRequest.error = error;
-    nextRequest.completed = true;
-  }
+  // Process the request without awaiting in global scope
+  nextRequest.fn()
+    .then(result => {
+      nextRequest.result = result;
+      nextRequest.completed = true;
+      nextRequest.resolve(result);
+    })
+    .catch(error => {
+      nextRequest.error = error;
+      nextRequest.completed = true;
+      nextRequest.reject(error);
+    })
+    .finally(() => {
+      // Remove from queue
+      const index = requestQueue.indexOf(nextRequest);
+      if (index > -1) {
+        requestQueue.splice(index, 1);
+      }
+      // Process next item in queue
+      processQueue();
+    });
 }
 
 async function queueRequest(requestFn) {
@@ -47,22 +58,8 @@ async function queueRequest(requestFn) {
     
     requestQueue.push(queueItem);
     
-    // Check completion periodically
-    const checkCompletion = setInterval(() => {
-      if (queueItem.completed) {
-        clearInterval(checkCompletion);
-        if (queueItem.error) {
-          reject(queueItem.error);
-        } else {
-          resolve(queueItem.result);
-        }
-        // Remove from queue
-        const index = requestQueue.indexOf(queueItem);
-        if (index > -1) {
-          requestQueue.splice(index, 1);
-        }
-      }
-    }, 50);
+    // Start processing the queue
+    processQueue();
   });
 }
 
