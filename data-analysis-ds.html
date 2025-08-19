@@ -1,0 +1,3146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据助手</title>
+    <link rel="icon" href="assets/icons/logo_btrfly.ico" type="image/x-icon">
+    <link rel="stylesheet" href="css/common.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4cc9f0;
+            --success-color: #06ffa5;
+            --warning-color: #ffbe0b;
+            --error-color: #ff006e;
+            --text-primary: #2b2d42;
+            --text-secondary: #8d99ae;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #e9ecef;
+            --shadow-sm: 0 2px 4px rgba(0,0,0,0.1);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+            --border-radius: 8px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .header {
+            background: var(--bg-primary);
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .main-content {
+            margin-top: 2rem;
+        }
+
+        .card {
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-md);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-requirements {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .btn-requirements:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-requirements:disabled {
+            background: #ccc;
+            color: #666;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .button-group .btn {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-select,
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        /* 分析目标选项特殊样式 - 让其更加突出 */
+        .analysis-goal-select {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 2px solid var(--primary-color);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 1rem;
+            box-shadow: var(--shadow-lg);
+            transform: scale(1.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analysis-goal-select::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .analysis-goal-select:hover::before {
+            left: 100%;
+        }
+
+        .analysis-goal-select:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(76, 201, 240, 0.3), var(--shadow-lg);
+            transform: scale(1.05);
+        }
+
+        .analysis-goal-select option {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .analysis-goal-select option[value=""] {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* 分析目标标签增强 */
+        .analysis-goal-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .analysis-goal-label i {
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .form-select:focus,
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+        }
+
+        /* 分析目标卡片样式 */
+        .analysis-goals {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .analysis-goal {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1.2rem;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: var(--transition);
+            text-align: center;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analysis-goal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(67, 97, 238, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .analysis-goal:hover::before {
+            left: 100%;
+        }
+
+        .analysis-goal:hover,
+        .analysis-goal.selected {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.1) 0%, rgba(63, 55, 201, 0.1) 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .analysis-goal i {
+            font-size: 2.2rem;
+            color: var(--primary-color);
+            margin-bottom: 0.8rem;
+            transition: var(--transition);
+        }
+
+        .analysis-goal:hover i {
+            color: var(--secondary-color);
+            transform: scale(1.1);
+        }
+
+        .analysis-goal span {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .analysis-goal.selected span {
+            color: var(--primary-color);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin: 1rem 0;
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-container {
+            width: 100%;
+            max-width: 100%;
+            margin: 1rem 0;
+            padding: 0 1rem;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 60%;
+            width: 80%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 1;
+        }
+
+        .step.active:not(:last-child)::after {
+            background: var(--primary-color);
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: var(--success-color);
+        }
+
+        .step-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 0.5rem;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-icon {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .step.completed .step-icon {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .step-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            transition: color 0.3s ease;
+        }
+
+        .step.active .step-text,
+        .step.completed .step-text {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 4px;
+        }
+
+        .progress-status {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            min-height: 20px;
+        }
+
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Mobile responsive styles */
+        @media (max-width: 768px) {
+            .progress-steps {
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .step {
+                flex: 1 1 calc(50% - 0.5rem);
+                min-width: 120px;
+            }
+            
+            .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .step-text {
+                font-size: 11px;
+            }
+            
+            .step-icon {
+                width: 25px;
+                height: 25px;
+                font-size: 12px;
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: var(--error-color);
+            background: rgba(255, 0, 110, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .success {
+            color: var(--success-color);
+            background: rgba(6, 255, 165, 0.1);
+            padding: 1rem;
+            border-radius: var(--border-radius);
+        }
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .template-card {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .template-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .template-card i {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .template-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .template-card p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 1rem 0;
+        }
+
+        .data-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            margin: 1rem 0;
+        }
+
+        .data-preview table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-preview th,
+        .data-preview td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-preview th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        /* 手动输入表格样式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .data-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .data-table td input {
+            width: 100%;
+            border: none;
+            padding: 0.25rem;
+            background: transparent;
+            font-size: 0.875rem;
+        }
+
+        .data-table td input:focus {
+            outline: 2px solid var(--primary-color);
+            border-radius: 2px;
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .data-table tr:hover {
+            background: rgba(67, 97, 238, 0.02);
+        }
+
+        /* 删除按钮样式 */
+        .delete-row {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: var(--transition);
+        }
+
+        .delete-row:hover {
+            background: #d63447;
+            transform: scale(1.05);
+        }
+
+        /* 响应式表格样式 */
+        @media (max-width: 768px) {
+            .data-table {
+                font-size: 0.8rem;
+            }
+            
+            .data-table th,
+            .data-table td {
+                padding: 0.5rem;
+            }
+            
+            .button-group {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            /* 响应式进度指示器 */
+            .progress-steps {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .step {
+                min-width: 60px;
+                margin-bottom: 0.5rem;
+            }
+            
+            .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .step-text {
+                font-size: 0.7rem;
+            }
+            
+            .step-icon {
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+            }
+        }
+
+        .code-output {
+            background: #ffffff;
+            color: #000000;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+        }
+
+        .script-output {
+            background: #ffffff;
+            color: #000000;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.875rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Tab Styles */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            gap: 0.25rem;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(67, 97, 238, 0.1);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+
+
+        /* Mobile Responsive Styles for New Components */
+        @media (max-width: 768px) {
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            .tab-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+
+            .card {
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            .chart-container {
+                height: 300px;
+            }
+
+            .upload-area {
+                padding: 1.5rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .btn {
+                padding: 0.625rem 1.25rem;
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Tablet Styles */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            /* 图表类型选择已移除 */
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 1025px) {
+            .two-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 2rem;
+            }
+
+            .three-column {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <i class="fas fa-chart-line"></i> 智能数据分析
+                </a>
+                <nav class="main-nav">
+                    <a href="index.html" class="btn btn-secondary">
+                        <i class="fas fa-home"></i> 返回首页
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <!-- 数据源选择 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-database"></i> 数据源选择
+                </h2>
+            </div>
+            
+            <!-- 数据源选项卡 -->
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="upload">
+                    <i class="fas fa-upload"></i> 文件上传
+                </button>
+                <button class="tab-btn" data-tab="templates">
+                    <i class="fas fa-file-alt"></i> 示例数据
+                </button>
+                <button class="tab-btn" data-tab="manual-input">
+                    <i class="fas fa-keyboard"></i> 数据输入
+                </button>
+            </div>
+            
+            <!-- 文件上传面板 -->
+            <div class="tab-panel active" id="upload-panel">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <p>拖拽文件到此处或点击选择文件</p>
+                    <p class="text-muted">支持 Excel (.xlsx, .xls) 和 CSV (.csv) 格式</p>
+                    <input type="file" id="fileInput" class="file-input" accept=".csv,.xlsx,.xls" />
+                </div>
+                <div id="fileInfo" class="hidden">
+                    <div class="success">
+                        <i class="fas fa-check"></i> <span id="fileName"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 示例数据面板 -->
+            <div class="tab-panel" id="templates-panel">
+                <div class="template-grid">
+                    <div class="template-card" data-template="monthly-sales">
+                        <i class="fas fa-chart-line"></i>
+                        <h4>月度销售数据</h4>
+                        <p>包含12个月的销售数据，适合趋势分析</p>
+                    </div>
+                    <div class="template-card" data-template="temperature">
+                        <i class="fas fa-thermometer-half"></i>
+                        <h4>城市温度对比</h4>
+                        <p>多个城市的月度温度数据，适合对比分析</p>
+                    </div>
+                    <div class="template-card" data-template="stock">
+                        <i class="fas fa-chart-area"></i>
+                        <h4>股票价格走势</h4>
+                        <p>股票历史价格数据，适合金融分析</p>
+                    </div>
+                    <div class="template-card" data-template="survey">
+                        <i class="fas fa-poll"></i>
+                        <h4>调查问卷结果</h4>
+                        <p>用户满意度调查数据，适合统计分析</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 手动数据输入面板 -->
+        <div class="tab-panel" id="manual-input-panel">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-table"></i> 手动数据输入
+                    </h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">表格列名（用逗号分隔）</label>
+                    <input type="text" id="columnNames" class="form-input" placeholder="例如：月份,销售额,成本,利润" />
+                </div>
+                <div class="form-group">
+                    <button id="createTable" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 创建表格
+                    </button>
+                    <button id="addRow" class="btn btn-secondary" disabled>
+                        <i class="fas fa-plus"></i> 添加行
+                    </button>
+                    <button id="previewData" class="btn btn-success" disabled>
+                        <i class="fas fa-eye"></i> 预览数据
+                    </button>
+                </div>
+                <div id="manualInputTable" class="data-preview hidden">
+                    <table id="dataTable" class="data-table">
+                        <thead id="tableHead"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+            
+            
+
+        </div>
+
+        <!-- 数据预览 -->
+        <div class="card hidden" id="dataPreviewCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-table"></i> 数据预览
+                </h2>
+            </div>
+            <div id="dataPreview" class="data-preview"></div>
+        </div>
+
+        <!-- 进度指示器 -->
+        <div class="card" id="progressCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-tasks"></i> 处理进度
+                </h2>
+            </div>
+            <div class="progress-container">
+                <div class="progress-steps">
+                    <div class="step active" data-step="1">
+                        <div class="step-icon">1</div>
+                        <div class="step-text">分析数据</div>
+                    </div>
+                    <div class="step" data-step="2">
+                        <div class="step-icon">2</div>
+                        <div class="step-text">生成配置要求</div>
+                    </div>
+                    <div class="step" data-step="3">
+                        <div class="step-icon">3</div>
+                        <div class="step-text">配置要求完成</div>
+                    </div>
+                    <div class="step" data-step="4">
+                        <div class="step-icon">4</div>
+                        <div class="step-text">生成脚本</div>
+                    </div>
+                    <div class="step" data-step="5">
+                        <div class="step-icon">5</div>
+                        <div class="step-text">执行代码</div>
+                    </div>
+                    <div class="step" data-step="6">
+                        <div class="step-icon">6</div>
+                        <div class="step-text">渲染图表</div>
+                    </div>
+                </div>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <div class="progress-status" id="progress-status">正在准备生成图表配置要求...</div>
+            </div>
+        </div>
+
+        <!-- 图表分析需求 -->
+        <div class="card" id="analysisInputCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-bar"></i> 图表分析需求
+                </h2>
+            </div>
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-edit"></i>
+                    请输入您的分析需求
+                </label>
+                <textarea id="userRequirement" class="form-input" rows="6" placeholder="请描述您想要分析的数据和期望的图表类型，例如：我想分析销售数据的月度趋势...系统将为您生成详细的图表配置要求，您可编辑确认后再生成代码"></textarea>
+            </div>
+            <div class="form-group">
+                <button id="optimizeDescription" class="btn btn-requirements" disabled>
+                    <i class="fas fa-magic"></i> 生成图表配置要求
+                </button>
+            </div>
+            <!-- 优化后的图表描述 -->
+            <div class="card hidden" id="optimizedDescription">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clipboard-list"></i> 图表配置要求
+                    </h3>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">图表配置要求（可编辑确认）</label>
+                    <textarea id="optimizedContent" class="form-input" rows="8" placeholder="具体的图表配置要求将显示在这里，包括图表类型、坐标轴、标题等详细配置..."></textarea>
+                </div>
+                <div class="button-group">
+                    <button id="generateScript" class="btn btn-primary hidden" disabled>
+                        <i class="fas fa-code"></i> 生成脚本
+                    </button>
+                    <button id="executeScript" class="btn btn-success" disabled>
+                        <i class="fas fa-play"></i> 执行脚本显示图表
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 生成结果 -->
+        <div class="card hidden" id="resultCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-area"></i> 可视化结果
+                </h2>
+            </div>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+            </div>
+            <div id="error" class="error hidden"></div>
+            <div id="chartContainer" class="chart-container hidden"></div>
+            <div id="codeOutput" class="code-output hidden"></div>
+            <div id="scriptOutput" class="script-output hidden"></div>
+        </div>
+    </main>
+
+    <script>
+        class DataAnalysisTool {
+            constructor() {
+                this.data = null;
+                this.columns = [];
+                this.echartsLoaded = false;
+                this.generatedCode = null;
+                this.init();
+            }
+
+            init() {
+                this.checkEChartsLibrary();
+                this.setupEventListeners();
+                this.setupDragAndDrop();
+                this.setupDataGeneration();
+            }
+            
+            checkEChartsLibrary() {
+                // 检查ECharts库是否已加载
+                if (typeof echarts === 'undefined') {
+                    console.error('ECharts库未加载');
+                    this.showError('ECharts库未加载，请刷新页面重试');
+                    return false;
+                }
+                
+                // 检查ECharts版本
+                const version = echarts.version;
+                console.log(`ECharts版本: ${version}`);
+                
+                // 更宽松的方法检查 - 只检查init方法
+                const requiredMethods = ['init'];
+                const missingMethods = requiredMethods.filter(method => typeof echarts[method] !== 'function');
+                
+                if (missingMethods.length > 0) {
+                    console.error(`ECharts缺少必要方法: ${missingMethods.join(', ')}`);
+                    this.showError(`ECharts库不完整，缺少方法: ${missingMethods.join(', ')}`);
+                    return false;
+                }
+                
+                // 检查echarts对象的基本结构
+                if (typeof echarts.init !== 'function') {
+                    console.error('ECharts init方法不可用');
+                    this.showError('ECharts库初始化方法不可用');
+                    return false;
+                }
+                
+                // 尝试创建一个测试图表实例来验证ECharts是否正常工作
+                try {
+                    const testDiv = document.createElement('div');
+                    testDiv.style.width = '100px';
+                    testDiv.style.height = '100px';
+                    testDiv.style.position = 'absolute';
+                    testDiv.style.left = '-9999px';
+                    document.body.appendChild(testDiv);
+                    
+                    const testChart = echarts.init(testDiv);
+                    if (testChart) {
+                        // 检查图表实例是否有setOption方法
+                        if (typeof testChart.setOption !== 'function') {
+                            console.warn('图表实例缺少setOption方法，但这可能不影响基本功能');
+                        }
+                        testChart.dispose();
+                        document.body.removeChild(testDiv);
+                    }
+                } catch (testError) {
+                    console.warn('ECharts功能测试失败，但继续尝试使用:', testError.message);
+                }
+                
+                this.echartsLoaded = true;
+                console.log('ECharts库检查通过');
+                return true;
+            }
+
+            setupEventListeners() {
+                const fileInput = document.getElementById('fileInput');
+                const uploadArea = document.getElementById('uploadArea');
+                const generateScriptBtn = document.getElementById('generateScript');
+                const executeScriptBtn = document.getElementById('executeScript');
+                const optimizeDescriptionBtn = document.getElementById('optimizeDescription');
+                const userRequirement = document.getElementById('userRequirement');
+
+                if (fileInput) {
+                    fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+                }
+                
+                if (uploadArea) {
+                    uploadArea.addEventListener('click', () => fileInput.click());
+                }
+
+                if (generateScriptBtn) {
+                    generateScriptBtn.addEventListener('click', () => this.generateScript());
+                }
+                
+                if (executeScriptBtn) {
+                    executeScriptBtn.addEventListener('click', () => this.executeScriptAndShowChart());
+                }
+                
+                if (optimizeDescriptionBtn) {
+                    optimizeDescriptionBtn.addEventListener('click', () => this.optimizeChartDescription());
+                }
+
+                // 监听用户输入变化，启用/禁用优化按钮
+                if (userRequirement) {
+                    userRequirement.addEventListener('input', () => {
+                        const hasContent = userRequirement.value.trim().length > 0;
+                        optimizeDescriptionBtn.disabled = !hasContent;
+                    });
+                }
+
+                // 手动数据输入相关事件监听器
+                const createTableBtn = document.getElementById('createTableBtn');
+                const addRowBtn = document.getElementById('addRowBtn');
+                const previewDataBtn = document.getElementById('previewDataBtn');
+                const columnNamesInput = document.getElementById('columnNamesInput');
+
+                if (createTableBtn) {
+                    createTableBtn.addEventListener('click', () => this.createManualInputTable());
+                }
+
+                if (addRowBtn) {
+                    addRowBtn.addEventListener('click', () => this.addTableRow());
+                }
+
+                if (previewDataBtn) {
+                    previewDataBtn.addEventListener('click', () => this.previewManualInputData());
+                }
+
+                if (columnNamesInput) {
+                    columnNamesInput.addEventListener('input', () => {
+                        const hasColumns = columnNamesInput.value.trim().length > 0;
+                        createTableBtn.disabled = !hasColumns;
+                    });
+                    // 初始状态
+                    createTableBtn.disabled = !columnNamesInput.value.trim();
+                }
+            }
+
+            setupDataGeneration() {
+                // Tab switching
+                const tabBtns = document.querySelectorAll('.tab-btn');
+                tabBtns.forEach(btn => {
+                    btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+                });
+
+                // Template cards
+                const templateCards = document.querySelectorAll('.template-card');
+                templateCards.forEach(card => {
+                    card.addEventListener('click', () => this.loadTemplate(card.dataset.template));
+                });
+            }
+
+            switchTab(tabName) {
+                // Hide all panels
+                document.querySelectorAll('.tab-panel').forEach(panel => {
+                    panel.classList.remove('active');
+                });
+
+                // Remove active class from all buttons
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                // Show selected panel
+                const panel = document.getElementById(`${tabName}-panel`);
+                if (panel) {
+                    panel.classList.add('active');
+                }
+
+                // Add active class to selected button
+                const button = document.querySelector(`[data-tab="${tabName}"]`);
+                if (button) {
+                    button.classList.add('active');
+                }
+            }
+
+            loadTemplate(templateType) {
+                let templateData;
+                
+                switch(templateType) {
+                    case 'monthly-sales':
+                        templateData = this.getMonthlySalesTemplate();
+                        break;
+                    case 'temperature':
+                        templateData = this.getTemperatureComparisonTemplate();
+                        break;
+                    case 'stock':
+                        templateData = this.getProductPerformanceTemplate();
+                        break;
+                    case 'survey':
+                        templateData = this.getStudentScoresTemplate();
+                        break;
+                    default:
+                        this.showError('未知的模板类型');
+                        return;
+                }
+                
+                this.data = templateData.data;
+                this.columns = templateData.columns;
+                
+                // 切换到文件上传标签页以显示数据预览
+                this.switchTab('upload');
+                
+                // 显示数据预览
+                this.showFileInfo(`${templateData.name} (示例数据)`);
+                this.showDataPreview();
+                
+                // 启用生成需求按钮
+                const generateRequirementsBtn = document.getElementById('generateRequirements');
+                if (generateRequirementsBtn) {
+                    generateRequirementsBtn.disabled = false;
+                }
+            }
+
+            getMonthlySalesTemplate() {
+                const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                const data = months.map(month => ({
+                    '月份': month,
+                    '销售额': Math.floor(Math.random() * 50000) + 30000,
+                    '成本': Math.floor(Math.random() * 30000) + 20000,
+                    '利润': Math.floor(Math.random() * 20000) + 10000
+                }));
+                
+                return {
+                    name: '月度销售数据',
+                    data: data,
+                    columns: ['月份', '销售额', '成本', '利润']
+                };
+            }
+
+            getTemperatureComparisonTemplate() {
+                const cities = ['北京', '上海', '广州', '深圳', '杭州'];
+                const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                const data = [];
+                
+                cities.forEach(city => {
+                    months.forEach(month => {
+                        data.push({
+                            '城市': city,
+                            '月份': month,
+                            '平均温度': Math.floor(Math.random() * 30) + 5,
+                            '最高温度': Math.floor(Math.random() * 35) + 15,
+                            '最低温度': Math.floor(Math.random() * 20) - 5
+                        });
+                    });
+                });
+                
+                return {
+                    name: '城市温度对比数据',
+                    data: data,
+                    columns: ['城市', '月份', '平均温度', '最高温度', '最低温度']
+                };
+            }
+
+            getProductPerformanceTemplate() {
+                const products = ['产品A', '产品B', '产品C', '产品D', '产品E'];
+                const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+                const data = [];
+                
+                products.forEach(product => {
+                    quarters.forEach(quarter => {
+                        data.push({
+                            '产品': product,
+                            '季度': quarter,
+                            '销量': Math.floor(Math.random() * 1000) + 500,
+                            '收入': Math.floor(Math.random() * 50000) + 30000,
+                            '客户满意度': Math.floor(Math.random() * 30) + 70
+                        });
+                    });
+                });
+                
+                return {
+                    name: '产品性能分析数据',
+                    data: data,
+                    columns: ['产品', '季度', '销量', '收入', '客户满意度']
+                };
+            }
+
+            getStudentScoresTemplate() {
+                const students = ['学生1', '学生2', '学生3', '学生4', '学生5', '学生6', '学生7', '学生8', '学生9', '学生10'];
+                const subjects = ['数学', '语文', '英语', '物理', '化学'];
+                const data = [];
+                
+                students.forEach(student => {
+                    subjects.forEach(subject => {
+                        data.push({
+                            '学生': student,
+                            '科目': subject,
+                            '成绩': Math.floor(Math.random() * 40) + 60,
+                            '班级平均分': Math.floor(Math.random() * 20) + 70
+                        });
+                    });
+                });
+                
+                return {
+                    name: '学生成绩分析数据',
+                    data: data,
+                    columns: ['学生', '科目', '成绩', '班级平均分']
+                };
+            }
+
+
+
+
+
+
+
+
+
+            setupDragAndDrop() {
+                const uploadArea = document.getElementById('uploadArea');
+
+                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    });
+                });
+
+                ['dragenter', 'dragover'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.add('dragover');
+                    });
+                });
+
+                ['dragleave', 'drop'].forEach(eventName => {
+                    uploadArea.addEventListener(eventName, () => {
+                        uploadArea.classList.remove('dragover');
+                    });
+                });
+
+                uploadArea.addEventListener('drop', (e) => {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.processFile(files[0]);
+                    }
+                });
+            }
+
+            async handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    this.processFile(file);
+                }
+            }
+
+            async processFile(file) {
+                try {
+                    this.showLoading();
+                    
+                    const extension = file.name.split('.').pop().toLowerCase();
+                    let data;
+
+                    if (extension === 'csv') {
+                        data = await this.parseCSV(file);
+                    } else if (['xlsx', 'xls'].includes(extension)) {
+                        data = await this.parseExcel(file);
+                    } else {
+                        throw new Error('不支持的文件格式');
+                    }
+
+                    this.data = data;
+                    this.columns = Object.keys(data[0] || {});
+                    
+                    // 数据已准备好用于处理
+                    
+                    // 创建JSON数据结构 - 只保存纯数据
+                    const jsonData = this.data;
+                    
+                    // 数据已准备好用于生成脚本
+                    
+                    this.showFileInfo(file.name);
+                    this.showDataPreview();
+                    
+                    // 启用生成需求按钮
+                    const generateRequirementsBtn = document.getElementById('generateRequirements');
+                    if (generateRequirementsBtn) {
+                        generateRequirementsBtn.disabled = false;
+                    }
+                    
+                } catch (error) {
+                    this.showError('文件处理失败: ' + error.message);
+                } finally {
+                    this.hideLoading();
+                }
+            }
+            
+
+
+            parseCSV(file) {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(file, {
+                        header: true,
+                        dynamicTyping: true,
+                        complete: (results) => resolve(results.data),
+                        error: (error) => reject(error)
+                    });
+                });
+            }
+
+            async parseExcel(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            const sheetName = workbook.SheetNames[0];
+                            const worksheet = workbook.Sheets[sheetName];
+                            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                            resolve(jsonData);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = () => reject(new Error('文件读取失败'));
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+
+            showFileInfo(info) {
+                document.getElementById('fileName').textContent = info;
+                document.getElementById('fileInfo').classList.remove('hidden');
+            }
+
+            showDataPreview() {
+                const preview = document.getElementById('dataPreview');
+                const previewCard = document.getElementById('dataPreviewCard');
+                
+                if (!this.data || this.data.length === 0) {
+                    preview.innerHTML = '<p>无数据</p>';
+                    return;
+                }
+                
+                // 数据已准备好用于预览
+            }
+            
+
+            
+            async checkAvailableData() {
+                try {
+                    // 检查是否有手动输入的数据
+                    if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
+                        console.log('检测到手动输入的数据');
+                        console.log('数据行数:', this.manualInputData.data.length);
+                        console.log('数据列:', this.manualInputData.headers.join(', '));
+                        return true;
+                    }
+                    
+                    // 检查是否有文件上传的数据
+                    if (this.data && this.data.length > 0) {
+                        console.log('检测到文件上传的数据');
+                        console.log('数据行数:', this.data.length);
+                        console.log('数据列:', this.columns.join(', '));
+                        return true;
+                    }
+                    
+                    return false;
+                } catch (error) {
+                    console.error('检查数据源时出错:', error);
+                    return false;
+                }
+            }
+            
+            showDataPreview() {
+                const preview = document.getElementById('dataPreview');
+                const previewCard = document.getElementById('dataPreviewCard');
+                
+                if (!preview || !previewCard) {
+                    console.error('未找到数据预览元素');
+                    return;
+                }
+                
+                // 显示数据预览
+                
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const tbody = document.createElement('tbody');
+
+                // Header
+                const headerRow = document.createElement('tr');
+                this.columns.forEach(col => {
+                    const th = document.createElement('th');
+                    th.textContent = col;
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+
+                // Body (first 5 rows)
+                this.data.slice(0, 5).forEach(row => {
+                    const tr = document.createElement('tr');
+                    this.columns.forEach(col => {
+                        const td = document.createElement('td');
+                        td.textContent = row[col] !== null && row[col] !== undefined ? row[col] : '';
+                        tr.appendChild(td);
+                    });
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+                preview.innerHTML = '';
+                preview.appendChild(table);
+                
+                previewCard.classList.remove('hidden');
+            }
+
+            updateChartTypes() {
+                // 获取当前选择的分析目标（同时支持.active和.selected类）
+                const selectedGoal = document.querySelector('.analysis-goal.active, .analysis-goal.selected');
+                const goal = selectedGoal ? selectedGoal.dataset.goal : '';
+                console.log('当前选中的分析目标:', goal);
+                
+                // 图表类型选择已移除，API将根据用户需求自动推荐图表类型
+            }
+
+            selectAnalysisGoal(element) {
+                console.log('选择分析目标:', element.dataset.goal);
+                // 移除所有分析目标的selected和active类
+                document.querySelectorAll('.analysis-goal').forEach(goal => {
+                    goal.classList.remove('selected', 'active');
+                });
+                // 为当前点击的分析目标添加selected和active类
+                element.classList.add('selected', 'active');
+                console.log('已添加selected和active类');
+                // 更新图表类型和生成按钮状态
+                this.updateChartTypes();
+            }
+
+
+
+            async optimizeChartDescription() {
+                // 前置检查
+                const userRequirement = document.getElementById('userRequirement');
+                const userText = userRequirement ? userRequirement.value.trim() : '';
+                const optimizeDescriptionBtn = document.getElementById('optimizeDescription');
+                
+                if (!userText) {
+                    this.showError('请先输入您的分析需求');
+                    return;
+                }
+
+                try {
+                    console.log('开始生成图表配置要求...');
+                    console.log('用户输入:', userText);
+                    
+                    // 显示加载指示器
+                    this.showLoading();
+                    this.hideError();
+                    
+                    // 禁用优化按钮，防止重复点击
+                    if (optimizeDescriptionBtn) {
+                        optimizeDescriptionBtn.disabled = true;
+                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 优化中...';
+                    }
+                    
+                    // 构建优化需求的prompt
+                    const prompt = this.buildOptimizationPrompt(userText);
+                    console.log('构建的prompt长度:', prompt.length);
+                    
+                    // 调用DeepSeek API优化需求
+                    this.updateProgress(1, '正在生成图表配置要求...');
+                    const optimizedDescription = await this.callDeepSeekAPI(prompt, false);
+                    console.log('生成的配置要求长度:', optimizedDescription ? optimizedDescription.length : 0);
+                    console.log('生成的配置要求内容:', optimizedDescription ? optimizedDescription.substring(0, 200) + '...' : 'null');
+                    
+                    // 显示优化后的描述
+                    if (optimizedDescription && optimizedDescription.trim()) {
+                        this.showOptimizedDescription(optimizedDescription);
+                    } else {
+                        console.error('生成的配置要求为空');
+                        this.showError('生成的配置要求为空，请重试');
+                    }
+                    
+                    // 恢复按钮状态并隐藏loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                        if (optimizeDescriptionBtn) {
+                            optimizeDescriptionBtn.disabled = false;
+                            optimizeDescriptionBtn.innerHTML = '<i class="fas fa-magic"></i> 优化图表描述';
+                        }
+                        console.log('配置要求生成完成');
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('生成配置要求时出错:', error);
+                    console.error('错误堆栈:', error.stack);
+                    this.showError('生成配置要求失败: ' + error.message);
+                    
+                    // 恢复按钮状态并隐藏loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                        if (optimizeDescriptionBtn) {
+                            optimizeDescriptionBtn.disabled = false;
+                            optimizeDescriptionBtn.innerHTML = '<i class="fas fa-magic"></i> 优化图表描述';
+                        }
+                    }, 3000);
+                }
+            }
+
+            buildOptimizationPrompt(userText) {
+                // 获取预览数据的统计信息
+                let dataInfo = '';
+                if (this.data && this.data.length >= 0) {
+                    const dataStats = this.getDataStatistics();
+                    dataInfo = `\n\n**可用数据信息**：\n`;
+                    dataInfo += `- 数据行数：${this.data.length}\n`;
+                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
+                    dataInfo += `- 数据类型分析：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    dataInfo += `- 数据分布：${dataStats.distribution}\n`;
+                    
+                    // 添加数据样本
+                    if (this.data.length > 0) {
+                        dataInfo += `\n**数据样本**（前3行）：\n`;
+                        this.data.slice(0, 3).forEach((row, index) => {
+                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                        });
+                    }
+                }
+                
+                return `你是一个数据可视化专家。请将用户的简单需求优化为详细、具体的图表配置要求描述。
+
+用户的原始需求：${userText}${dataInfo}
+
+请基于用户的需求和实际的数据特征，生成一份详细的图表配置要求描述，包括以下具体内容：
+
+1. **图表类型**：明确推荐使用哪种图表类型（如折线图、柱状图、饼图、散点图等）及选择理由，考虑数据的实际特征
+
+2. **坐标轴配置**：
+   - X轴：应该显示什么数据（如时间、类别、数值等），基于实际数据列推荐
+   - Y轴：应该显示什么数据（如数值、百分比等），基于实际数据列推荐
+   - 坐标轴标题和单位说明，考虑数据的实际单位和范围
+
+3. **图表标题和说明**：
+   - 主标题：简洁明了的图表标题，反映数据的核心特征
+   - 副标题：补充说明（如有需要），包含数据的时间范围或其他重要信息
+   - 图表说明文字
+
+4. **数据系列配置**：
+   - 需要显示哪些数据系列，基于实际可用的数据列
+   - 每个系列的名称和数据类型，考虑数据的实际类型
+   - 系列的颜色和样式建议，考虑数据的数量和分布
+
+5. **图例配置**：
+   - 图例的位置和显示方式
+   - 图例项的命名规范
+
+6. **其他配置要求**：
+   - 是否需要网格线
+   - 是否需要数据标签
+   - 是否需要提示框（tooltip）
+   - 特殊的视觉效果要求
+   - 数据处理建议（如数据聚合、筛选等，基于实际数据特征）
+
+请以结构化的方式组织内容，确保描述清晰具体，用户可以根据这些要求确认和编辑，然后再生成ECharts代码。注意：这一步不要生成任何代码，只生成配置要求的描述。`;
+            }
+
+            getDataStatistics() {
+                if (!this.data || this.data.length === 0 || !this.columns || this.columns.length === 0) {
+                    return {
+                        typeAnalysis: '无数据',
+                        valueRange: '无数据',
+                        distribution: '无数据'
+                    };
+                }
+                
+                const stats = {
+                    typeAnalysis: '',
+                    valueRange: '',
+                    distribution: ''
+                };
+                
+                // 分析每列的数据类型
+                const columnTypes = {};
+                const columnRanges = {};
+                
+                this.columns.forEach(col => {
+                    const values = this.data.map(row => row[col]).filter(val => val !== null && val !== undefined && val !== '');
+                    
+                    if (values.length === 0) {
+                        columnTypes[col] = '空';
+                        return;
+                    }
+                    
+                    // 判断数据类型
+                    const isNumeric = values.every(val => !isNaN(val) && isFinite(val));
+                    const isDate = values.every(val => !isNaN(Date.parse(val)));
+                    const isString = values.every(val => typeof val === 'string');
+                    
+                    if (isNumeric) {
+                        columnTypes[col] = '数值型';
+                        const numericValues = values.map(val => Number(val));
+                        const min = Math.min(...numericValues);
+                        const max = Math.max(...numericValues);
+                        columnRanges[col] = `${min} - ${max}`;
+                    } else if (isDate) {
+                        columnTypes[col] = '日期型';
+                        const dates = values.map(val => new Date(val));
+                        const minDate = new Date(Math.min(...dates));
+                        const maxDate = new Date(Math.max(...dates));
+                        columnRanges[col] = `${minDate.toLocaleDateString()} - ${maxDate.toLocaleDateString()}`;
+                    } else if (isString) {
+                        columnTypes[col] = '文本型';
+                        const uniqueValues = [...new Set(values)];
+                        columnRanges[col] = `${uniqueValues.length} 个唯一值`;
+                    } else {
+                        columnTypes[col] = '混合型';
+                    }
+                });
+                
+                // 生成类型分析描述
+                const numericColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '数值型');
+                const dateColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '日期型');
+                const stringColumns = Object.keys(columnTypes).filter(col => columnTypes[col] === '文本型');
+                
+                stats.typeAnalysis = `数值型列${numericColumns.length}个(${numericColumns.join(', ')})，`;
+                if (dateColumns.length > 0) {
+                    stats.typeAnalysis += `日期型列${dateColumns.length}个(${dateColumns.join(', ')})，`;
+                }
+                stats.typeAnalysis += `文本型列${stringColumns.length}个(${stringColumns.join(', ')})`;
+                
+                // 生成数值范围描述
+                const rangeDescriptions = [];
+                Object.entries(columnRanges).forEach(([col, range]) => {
+                    if (columnTypes[col] === '数值型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    } else if (columnTypes[col] === '日期型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    } else if (columnTypes[col] === '文本型') {
+                        rangeDescriptions.push(`${col}: ${range}`);
+                    }
+                });
+                stats.valueRange = rangeDescriptions.join('；') || '无有效数值范围';
+                
+                // 生成数据分布描述
+                if (numericColumns.length > 0) {
+                    stats.distribution = '包含数值数据，适合进行趋势分析、对比分析等';
+                } else if (dateColumns.length > 0) {
+                    stats.distribution = '包含时间序列数据，适合进行时间趋势分析';
+                } else if (stringColumns.length > 0) {
+                    const avgUniqueValues = stringColumns.reduce((sum, col) => {
+                        const values = this.data.map(row => row[col]).filter(val => val !== null && val !== undefined && val !== '');
+                        return sum + (new Set(values)).size;
+                    }, 0) / stringColumns.length;
+                    
+                    if (avgUniqueValues < 10) {
+                        stats.distribution = '主要包含分类数据，适合进行分类统计和对比';
+                    } else {
+                        stats.distribution = '包含大量文本数据，适合进行数据筛选和分组分析';
+                    }
+                } else {
+                    stats.distribution = '数据分布特征不明显，建议进一步分析';
+                }
+                
+                return stats;
+            }
+            
+            showOptimizedDescription(description) {
+                console.log('showOptimizedDescription 被调用，配置要求内容:', description ? description.substring(0, 100) + '...' : 'null');
+                
+                // 显示优化后的描述在可编辑的文本框中
+                const optimizedContent = document.getElementById('optimizedContent');
+                console.log('optimizedContent 元素:', optimizedContent);
+                
+                if (optimizedContent) {
+                    optimizedContent.value = description;
+                    console.log('配置要求已设置到文本框');
+                    
+                    // 显示优化后的描述区域
+                    const optimizedDescription = document.getElementById('optimizedDescription');
+                    console.log('optimizedDescription 元素:', optimizedDescription);
+                    
+                    if (optimizedDescription) {
+                        optimizedDescription.classList.remove('hidden');
+                        console.log('配置要求区域已显示');
+                        
+                        // 显示并启用生成脚本按钮
+                        const generateScriptBtn = document.getElementById('generateScript');
+                        if (generateScriptBtn) {
+                            generateScriptBtn.disabled = false;
+                            generateScriptBtn.classList.remove('hidden');
+                            console.log('生成脚本按钮已显示并启用');
+                        }
+                    }
+                } else {
+                    console.error('未找到 optimizedContent 元素');
+                }
+            }
+
+            async generateScript() {
+                // 获取生成脚本按钮元素
+                const generateScriptBtn = document.getElementById('generateScript');
+                
+                // 前置检查
+                const optimizedContent = document.getElementById('optimizedContent');
+                const optimizedText = optimizedContent ? optimizedContent.value.trim() : '';
+                
+                // 添加调试信息 - 确认控制台日志正常工作
+                console.log('=== 脚本生成开始 ===');
+                console.log('时间戳:', new Date().toISOString());
+                console.log('配置要求长度:', optimizedText.length);
+                
+                if (!optimizedText) {
+                    this.showError('请先生成图表配置要求');
+                    return;
+                }
+
+                try {
+                    console.log('开始生成图表脚本...');
+                    console.log('配置要求长度:', optimizedText.length);
+                    
+                    // 显示加载指示器
+                    this.showLoading();
+                    this.hideError();
+                    
+                    // 禁用生成脚本按钮，防止重复点击
+                    if (generateScriptBtn) {
+                        generateScriptBtn.disabled = true;
+                        generateScriptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+                    }
+                    
+                    // 检查是否有可用数据
+                    const hasData = await this.checkAvailableData();
+                    console.log('可用数据状态:', hasData);
+                    
+                    // 构建生成脚本的prompt
+                    const prompt = this.buildScriptPrompt(optimizedText, hasData);
+                    console.log('构建的prompt长度:', prompt.length);
+                    
+                    // 调用DeepSeek API生成脚本（单次调用）
+                    this.updateProgress(4, '正在生成图表脚本...');
+                    console.log('尝试生成脚本...');
+                    
+                    const script = await this.callDeepSeekAPI(prompt, true);
+                    
+                    if (!script || !script.trim()) {
+                        throw new Error('无法生成脚本');
+                    }
+                    
+                    console.log('生成的脚本长度:', script.length);
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本长度:`, script.length);
+                    console.log('生成的脚本内容:', script.substring(0, 200) + '...');
+                    console.log(`data-analysis:${new Date().getTime()} 生成的脚本内容:`, script.substring(0, 200) + '...');
+                    
+                    // 保存生成的脚本供后续执行使用
+                    if (script && script.trim()) {
+                        this.generatedCode = script;
+                        console.log('生成的脚本已保存到generatedCode变量');
+                        
+                        // 显示生成的脚本
+                        this.showGeneratedScript(script);
+                        
+                        // 启用执行脚本按钮
+                        const executeScriptBtn = document.getElementById('executeScript');
+                        if (executeScriptBtn) {
+                            executeScriptBtn.disabled = false;
+                            console.log('执行脚本按钮已启用');
+                        }
+                    } else {
+                        console.error('生成的脚本为空');
+                        this.showError('生成的脚本为空，请重试');
+                    }
+                    
+                    // 恢复按钮状态并隐藏loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                        if (generateScriptBtn) {
+                            generateScriptBtn.disabled = false;
+                            generateScriptBtn.innerHTML = '<i class="fas fa-code"></i> 生成脚本';
+                        }
+                        console.log('脚本生成完成');
+                        console.log(`data-analysis:${new Date().getTime()} 脚本生成完成`);
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('生成脚本时出错:', error);
+                    console.error('错误堆栈:', error.stack);
+                    
+                    // 提供更友好的错误信息
+                    let errorMessage = '生成脚本失败';
+                    if (error.message.includes('超时') || error.message.includes('524')) {
+                        errorMessage = '服务器响应超时，请稍后重试。可能是服务器负载过高或网络连接不稳定。';
+                    } else if (error.message.includes('Failed to fetch')) {
+                        errorMessage = '网络连接失败，请检查网络连接后重试。';
+                    } else {
+                        errorMessage += ': ' + error.message;
+                    }
+                    
+                    this.showError(errorMessage);
+                    
+                    // 恢复按钮状态并隐藏loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                        if (generateScriptBtn) {
+                            generateScriptBtn.disabled = false;
+                            generateScriptBtn.innerHTML = '<i class="fas fa-code"></i> 生成脚本';
+                        }
+                    }, 3000);
+                }
+            }
+            
+            async executeScriptAndShowChart() {
+                if (!this.generatedCode) {
+                    this.showError('没有可用的生成代码，请先生成脚本');
+                    return;
+                }
+                
+                try {
+                    console.log('开始执行脚本并显示图表...');
+                    this.showLoading();
+                    
+                    // Execute the stored code
+                    this.updateProgress(5, '正在执行生成的代码...');
+                    console.log('执行生成的代码...');
+                    this.executeGeneratedCode(this.generatedCode);
+                    
+                    // Show result
+                    this.updateProgress(6, '正在渲染图表...');
+                    console.log('渲染图表...');
+                    this.showResult();
+                    
+                    // Hide loading
+                    setTimeout(() => {
+                        this.hideLoading();
+                        console.log('图表生成流程完成');
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('执行脚本时出错:', error);
+                    console.error('错误堆栈:', error.stack);
+                    this.showError('执行脚本失败: ' + error.message);
+                    setTimeout(() => {
+                        this.hideLoading();
+                    }, 3000);
+                }
+            }
+            
+            buildScriptPrompt(optimizedText, hasDataFile = false) {
+                // 获取预览数据的统计信息
+                let dataInfo = '';
+                let useManualData = false;
+                
+                // 优先检查是否有手动输入的数据
+                if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
+                    useManualData = true;
+                    const dataStats = this.getManualDataStatistics();
+                    dataInfo = `\n\n**实际数据特征**：\n`;
+                    dataInfo += `- 数据行数：${this.manualInputData.data.length}\n`;
+                    dataInfo += `- 数据列：${this.manualInputData.headers.join(', ')}\n`;
+                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    
+                    // 使用手动输入的数据
+                    dataInfo += `\n**数据来源**：手动输入数据\n`;
+                    dataInfo += `- 数据已直接输入，无需读取文件\n`;
+                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
+                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
+                    
+                    // 添加完整的数据样本
+                    dataInfo += `\n**完整数据**：\n`;
+                    this.manualInputData.data.forEach((row, index) => {
+                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                    });
+                    
+                    console.log('使用手动输入的数据');
+                } else if (this.data && this.data.length > 0) {
+                    const dataStats = this.getDataStatistics();
+                    dataInfo = `\n\n**实际数据特征**：\n`;
+                    dataInfo += `- 数据行数：${this.data.length}\n`;
+                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
+                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    
+                    // 使用预览数据
+                    dataInfo += `\n**数据来源**：预览数据\n`;
+                    dataInfo += `- 数据已直接提供，无需读取文件\n`;
+                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
+                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
+                    
+                    // 添加完整的数据样本
+                    dataInfo += `\n**完整数据**：\n`;
+                    this.data.forEach((row, index) => {
+                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                    });
+                    
+                    console.log('使用预览数据');
+                }
+                
+                return `你是一个ECharts图表开发专家。请根据以下用户确认的图表配置要求和实际数据特征，生成纯粹的ECharts配置代码。
+
+用户确认的图表配置要求：${optimizedText}${dataInfo}
+
+请根据上述配置要求和实际数据特征，生成完整的ECharts配置代码，要求：
+1. 代码必须是完整的JavaScript对象格式，可以直接用于echarts.setOption()
+2. 严格按照配置要求设置，同时考虑实际数据特征：
+   - 图表类型（type）：根据数据特征选择最合适的图表类型
+   - 标题（title）：基于数据内容生成有意义的标题
+   - 坐标轴（xAxis, yAxis）：根据实际数据列设置合适的坐标轴
+   - 数据系列（series）：使用实际数据生成series数据，确保数据格式正确
+   - 图例（legend）：根据实际数据系列设置图例
+   - 网格线、数据标签、提示框等：根据数据特点配置
+3. 配置合适的颜色方案和样式，考虑数据系列的数量
+4. 添加必要的交互功能，如缩放、提示框等
+5. 确保代码语法正确，可以直接执行
+6. 特别注意：${useManualData ? 
+   `使用手动输入的数据，请生成能够直接使用数据数组的完整JavaScript代码。` + 
+   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
+   `请使用以下代码结构：\n   // 手动输入的数据已直接提供\n   const dataArray = ${JSON.stringify(this.manualInputData.data)};\n   const columns = ${JSON.stringify(this.manualInputData.headers)};\n   const option = {\n     title: { text: '基于手动输入数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);` : 
+   `使用预览数据生成图表，请生成能够直接使用数据数组的完整JavaScript代码。` + 
+   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
+   `请使用以下代码结构：\n   // 预览数据已直接提供\n   const dataArray = ${JSON.stringify(this.data)};\n   const columns = ${JSON.stringify(this.columns)};\n   const option = {\n     title: { text: '基于预览数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);`}
+
+重要：请只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
+            }
+
+            async callDeepSeekAPI(prompt, stream = false) {
+                try {
+                    console.log('开始调用DeepSeek API...');
+                    console.log('Stream mode:', stream);
+                    console.log('Prompt length:', prompt.length);
+                    
+                    // 获取当前选择的分析目标
+                    const selectedGoal = document.querySelector('.analysis-goal.active');
+                    const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
+                    
+                    // 构建系统消息
+                    const systemMessage = `你是一个ECharts图表配置专家。请根据用户的需求生成纯粹的ECharts配置对象代码。只返回JavaScript对象格式的配置代码，不包含任何HTML、初始化代码、注释或解释文字。`;
+                    
+                    console.log('发送请求到DeepSeek API...');
+                    
+                    // 使用DeepSeek API格式
+                    const requestBody = {
+                        messages: [
+                            {
+                                role: "system",
+                                content: systemMessage
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ]
+                    };
+                    
+                    console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
+                    
+                    // 使用单个API端点
+                    console.log('发送API请求到 /api/chat');
+                    console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
+                    
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    console.log('API响应状态:', response.status);
+                    console.log(`data-analysis:${new Date().getTime()} API响应状态:`, response.status);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API调用失败:', response.status, errorText);
+                        throw new Error(`API调用失败: ${response.status} - ${errorText}`);
+                    }
+
+                    console.log('API响应状态:', response.status);
+                    console.log(`data-analysis:${new Date().getTime()} API响应状态:`, response.status);
+                    console.log('响应头Content-Type:', response.headers.get('Content-Type'));
+                    console.log(`data-analysis:${new Date().getTime()} 响应头Content-Type:`, response.headers.get('Content-Type'));
+                    console.log('响应头Transfer-Encoding:', response.headers.get('Transfer-Encoding'));
+                    console.log(`data-analysis:${new Date().getTime()} 响应头Transfer-Encoding:`, response.headers.get('Transfer-Encoding'));
+
+                    // DeepSeek API目前不支持流式响应，直接处理普通响应
+                    console.log('处理DeepSeek API响应...');
+                    console.log(`data-analysis:${new Date().getTime()} 处理DeepSeek API响应...`);
+                    const result = await response.json();
+                    console.log('DeepSeek API响应结果:', result);
+                    console.log(`data-analysis:${new Date().getTime()} DeepSeek API响应结果:`, result);
+                    
+                    // 处理不同的响应格式
+                    let content;
+                    if (result.choices && result.choices[0] && result.choices[0].message) {
+                        // 标准DeepSeek API格式
+                        content = result.choices[0].message.content;
+                    } else if (result.output) {
+                        // Worker-chat格式
+                        content = result.output;
+                    } else if (result.message) {
+                        // 备用格式
+                        content = result.message;
+                    } else if (result.content) {
+                        // 另一种备用格式
+                        content = result.content;
+                    } else {
+                        // 最后尝试直接使用result
+                        content = result;
+                    }
+                    
+                    console.log('提取的内容长度:', content ? content.length : 0);
+                    console.log(`data-analysis:${new Date().getTime()} 提取的内容长度:`, content ? content.length : 0);
+                    console.log('内容预览:', content ? content.substring(0, 200) : 'null');
+                    console.log(`data-analysis:${new Date().getTime()} 内容预览:`, content ? content.substring(0, 200) : 'null');
+                    
+                    if (!content || content.length === 0) {
+                        console.error('API返回了空内容');
+                        throw new Error('API返回了空内容');
+                    }
+                    
+                    return this.extractCodeFromResponse(content);
+                    
+                } catch (error) {
+                    console.error('callDeepSeekAPI错误:', error);
+                    
+                    // 简化的错误处理
+                    let errorMessage = '无法连接到DeepSeek分析服务';
+                    if (error.message.includes('Failed to fetch')) {
+                        errorMessage = '网络连接失败，请检查网络连接后重试。';
+                    } else {
+                        errorMessage += ': ' + error.message;
+                    }
+                    
+                    // 显示用户友好的错误信息
+                    this.showError(errorMessage);
+                    
+                    // 抛出错误以保持原有错误处理逻辑
+                    throw new Error(errorMessage);
+                }
+            }
+            
+            async handleStreamingResponse(response) {
+                console.log('handleStreamingResponse开始执行...');
+                
+                // 先缓存响应内容，以防流处理失败时需要备用处理
+                let responseClone = null;
+                try {
+                    responseClone = response.clone();
+                    console.log('响应克隆成功');
+                } catch (e) {
+                    console.warn('无法克隆响应:', e);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullContent = '';
+                let lineCount = 0;
+                let hasContent = false;
+                
+                return new Promise((resolve, reject) => {
+                    const processStream = async () => {
+                        try {
+                            console.log('开始读取流数据...');
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) {
+                                    console.log('流数据读取完成');
+                                    break;
+                                }
+                                
+                                const chunk = decoder.decode(value, { stream: true });
+                                console.log('收到数据块长度:', chunk.length);
+                                console.log('数据块内容预览:', chunk.substring(0, 200));
+                                
+                                buffer += chunk;
+                                console.log('当前缓冲区长度:', buffer.length);
+                                console.log('缓冲区内容预览:', buffer.substring(0, 200));
+                                
+                                const lines = buffer.split('\n');
+                                buffer = lines.pop(); // Keep the last incomplete line in buffer
+                                
+                                console.log(`处理 ${lines.length} 行数据`);
+                                console.log('剩余缓冲区长度:', buffer.length);
+                                
+                                for (const line of lines) {
+                                    if (line.trim() === '') continue;
+                                    
+                                    console.log(`处理第 ${lineCount + 1} 行原始数据:`, line);
+                                    
+                                    try {
+                                        const data = JSON.parse(line);
+                                        lineCount++;
+                                        
+                                        console.log(`第 ${lineCount} 行解析后数据:`, data);
+                                        
+                                        // Handle different streaming formats
+                                        if (data.content) {
+                                            hasContent = true;
+                                            fullContent += data.content;
+                                            console.log(`累积内容长度: ${fullContent.length}`);
+                                            
+                                            // Update UI with streaming content
+                                            this.updateStreamingContent(lineCount, data.content, fullContent);
+                                        } else if (data.choices && data.choices[0] && data.choices[0].delta && data.choices[0].delta.content) {
+                                            // OpenAI-style streaming format
+                                            hasContent = true;
+                                            const content = data.choices[0].delta.content;
+                                            fullContent += content;
+                                            console.log(`OpenAI格式累积内容长度: ${fullContent.length}`);
+                                            
+                                            // Update UI with streaming content
+                                            this.updateStreamingContent(lineCount, content, fullContent);
+                                        } else if (data.response) {
+                                            // Alternative format
+                                            hasContent = true;
+                                            fullContent += data.response;
+                                            console.log(`响应格式累积内容长度: ${fullContent.length}`);
+                                            
+                                            // Update UI with streaming content
+                                            this.updateStreamingContent(lineCount, data.response, fullContent);
+                                        }
+                                        
+                                        // Check for completion signals in different formats
+                                        if (data.done || (data.choices && data.choices[0] && data.choices[0].finish_reason)) {
+                                            console.log('收到完成信号，开始提取代码...');
+                                            console.log('完整内容长度:', fullContent.length);
+                                            console.log('完整内容预览:', fullContent.substring(0, 200));
+                                            
+                                            const finalCode = this.extractCodeFromResponse(fullContent);
+                                            console.log('提取的代码长度:', finalCode ? finalCode.length : 0);
+                                            console.log('提取的代码预览:', finalCode ? finalCode.substring(0, 200) : 'null');
+                                            
+                                            resolve(finalCode);
+                                            return;
+                                        }
+                                    } catch (e) {
+                                        console.error('解析流数据时出错:', e, '原始行内容:', line);
+                                        // If JSON parsing fails, treat as raw content
+                                        console.log('JSON解析失败，尝试作为原始内容处理');
+                                        hasContent = true;
+                                        fullContent += line + '\n';
+                                        console.log(`原始内容累积长度: ${fullContent.length}`);
+                                        
+                                        // Update UI with streaming content
+                                        this.updateStreamingContent(lineCount, line, fullContent);
+                                    }
+                                }
+                            }
+                            
+                            // If we get here, the stream ended without a done signal
+                            console.log('流结束但没有收到done信号');
+                            console.log('最终内容长度:', fullContent.length);
+                            console.log('是否有内容:', hasContent);
+                            
+                            if (!hasContent && fullContent.length === 0) {
+                                console.warn('警告：流式响应中没有收到任何内容，尝试备用处理方式');
+                                // 尝试使用克隆的响应作为普通文本处理
+                                try {
+                                    let responseText = '';
+                                    if (responseClone) {
+                                        responseText = await responseClone.text();
+                                        console.log('备用处理：使用克隆响应成功');
+                                    } else {
+                                        console.warn('没有可用的响应克隆，尝试原始响应');
+                                        // 最后尝试原始响应，可能会失败
+                                        try {
+                                            responseText = await response.text();
+                                        } catch (e) {
+                                            console.error('原始响应也无法读取:', e);
+                                        }
+                                    }
+                                    console.log('备用处理：响应文本长度:', responseText.length);
+                                    console.log('备用处理：响应文本预览:', responseText.substring(0, 200));
+                                    const fallbackCode = this.extractCodeFromResponse(responseText);
+                                    console.log('备用处理：提取的代码长度:', fallbackCode ? fallbackCode.length : 0);
+                                    resolve(fallbackCode);
+                                    return;
+                                } catch (fallbackError) {
+                                    console.error('备用处理也失败:', fallbackError);
+                                }
+                            }
+                            
+                            const finalCode = this.extractCodeFromResponse(fullContent);
+                            console.log('最终提取的代码长度:', finalCode ? finalCode.length : 0);
+                            resolve(finalCode);
+                        } catch (error) {
+                            console.error('处理流数据时出错:', error);
+                            reject(error);
+                        }
+                    };
+                    
+                    processStream();
+                });
+            }
+            
+            updateStreamingContent(lineNumber, content, fullContent) {
+                // Update the streaming display area
+                const streamingArea = document.getElementById('streamingArea');
+                if (!streamingArea) {
+                    // Create streaming area if it doesn't exist
+                    const container = document.createElement('div');
+                    container.id = 'streamingArea';
+                    container.style.cssText = `
+                        background: #f8f9fa;
+                        border: 1px solid #dee2e6;
+                        border-radius: 8px;
+                        padding: 15px;
+                        margin: 15px 0;
+                        font-family: 'Courier New', monospace;
+                        font-size: 14px;
+                        max-height: 300px;
+                        overflow-y: auto;
+                        white-space: pre-wrap;
+                    `;
+                    
+                    const chartContainer = document.getElementById('chartContainer');
+                    if (chartContainer) {
+                        chartContainer.parentNode.insertBefore(container, chartContainer);
+                    }
+                }
+                
+                // Update the streaming content
+                streamingArea.textContent = fullContent;
+                streamingArea.scrollTop = streamingArea.scrollHeight;
+                
+                // Update progress
+                this.updateProgress(3, `正在生成图表代码... (第 ${lineNumber} 行)`);
+            }
+
+            extractCodeFromResponse(response) {
+                console.log('extractCodeFromResponse被调用...');
+                console.log(`data-analysis:${new Date().getTime()} extractCodeFromResponse被调用...`);
+                console.log('输入响应长度:', response ? response.length : 0);
+                console.log(`data-analysis:${new Date().getTime()} 输入响应长度:`, response ? response.length : 0);
+                console.log('输入响应预览:', response ? response.substring(0, 200) : 'null');
+                console.log(`data-analysis:${new Date().getTime()} 输入响应预览:`, response ? response.substring(0, 200) : 'null');
+                
+                if (!response || response.trim() === '') {
+                    console.warn('警告：响应内容为空');
+                    return '';
+                }
+                
+                // 从响应中提取代码块
+                const codeMatch = response.match(/```javascript\s*([\s\s]*?)\s*```/);
+                if (codeMatch) {
+                    console.log('找到javascript代码块');
+                    console.log('提取的代码长度:', codeMatch[1].length);
+                    return codeMatch[1];
+                }
+                
+                // 尝试其他格式的代码块
+                const codeMatch2 = response.match(/```js\s*([\s\s]*?)\s*```/);
+                if (codeMatch2) {
+                    console.log('找到js代码块');
+                    console.log('提取的代码长度:', codeMatch2[1].length);
+                    return codeMatch2[1];
+                }
+                
+                const codeMatch3 = response.match(/```\s*([\s\s]*?)\s*```/);
+                if (codeMatch3) {
+                    console.log('找到通用代码块');
+                    console.log('提取的代码长度:', codeMatch3[1].length);
+                    return codeMatch3[1];
+                }
+                
+                // 如果没有代码块，尝试清理响应
+                console.log('未找到代码块，尝试清理响应...');
+                const cleanedResponse = response.replace(/^```javascript\s*/, '').replace(/\s*```$/, '')
+                                                    .replace(/^```js\s*/, '').replace(/\s*```$/, '')
+                                                    .replace(/^```\s*/, '').replace(/\s*```$/, '');
+                
+                console.log('清理后的响应长度:', cleanedResponse.length);
+                console.log('清理后的响应预览:', cleanedResponse.substring(0, 200));
+                
+                return cleanedResponse;
+            }
+
+            executeGeneratedCode(code) {
+                try {
+                    console.log('开始执行生成的代码...');
+                    
+                    // 预处理代码，修复常见语法错误
+                    const cleanedCode = this.preprocessCode(code);
+                    console.log('预处理后的代码:', cleanedCode);
+                    
+                    // 验证代码语法
+                    this.validateCodeSyntax(cleanedCode);
+                    console.log('代码语法验证通过');
+                    
+                    // 创建图表容器
+                    const container = document.getElementById('chartContainer');
+                    if (!container) {
+                        throw new Error('找不到图表容器元素');
+                    }
+                    container.innerHTML = '';
+                    
+                    // 创建一个新的div用于图表
+                    const chartDiv = document.createElement('div');
+                    chartDiv.style.width = '100%';
+                    chartDiv.style.height = '100%';
+                    chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
+                    container.appendChild(chartDiv);
+
+                    // 安全的代码执行环境
+                    const safeExecute = () => {
+                        // 限制可用的全局对象
+                        const safeGlobals = {
+                            console: console,
+                            Math: Math,
+                            Date: Date,
+                            Array: Array,
+                            Object: Object,
+                            String: String,
+                            Number: Number,
+                            Boolean: Boolean,
+                            JSON: JSON,
+                            parseInt: parseInt,
+                            parseFloat: parseFloat,
+                            isNaN: isNaN,
+                            isFinite: isFinite,
+                            decodeURI: decodeURI,
+                            decodeURIComponent: decodeURIComponent,
+                            encodeURI: encodeURI,
+                            encodeURIComponent: encodeURIComponent,
+                            echarts: echarts,
+                            fetch: fetch,
+                            Promise: Promise,
+                            setTimeout: setTimeout,
+                            clearTimeout: clearTimeout
+                        };
+                        
+                        // 创建安全的执行上下文
+                        const executeContext = {
+                            data: this.data,
+                            columns: this.columns,
+                            echarts: echarts,
+                            chartContainer: chartDiv,
+                            console: console
+                        };
+                        
+                        // 使用Proxy来限制访问
+                        const safeProxy = new Proxy(executeContext, {
+                            get(target, prop) {
+                                if (prop in target) {
+                                    return target[prop];
+                                }
+                                if (prop in safeGlobals) {
+                                    return safeGlobals[prop];
+                                }
+                                throw new Error(`访问受限: 不允许访问 ${prop}`);
+                            }
+                        });
+                        
+                        // 创建并执行函数
+                        const executeFunction = new Function(
+                            'data', 'columns', 'echarts', 'chartContainer', 'console', 'fetch', 'Promise', 'setTimeout', 'clearTimeout',
+                            cleanedCode
+                        );
+                        
+                        // 在try-catch中执行生成的代码
+                        try {
+                            executeFunction(
+                                safeProxy.data,
+                                safeProxy.columns,
+                                safeProxy.echarts,
+                                safeProxy.chartContainer,
+                                safeProxy.console,
+                                safeProxy.fetch,
+                                safeProxy.Promise,
+                                safeProxy.setTimeout,
+                                safeProxy.clearTimeout
+                            );
+                            console.log('代码执行成功');
+                        } catch (execError) {
+                            console.error('生成的代码执行失败:', execError);
+                            throw new Error(`图表生成失败: ${execError.message}`);
+                        }
+                    };
+                    
+                    // 执行安全代码
+                    safeExecute();
+
+                    // 显示生成的代码（显示原始代码，而不是清理后的代码）
+                    this.showGeneratedCode(code);
+                    
+                    // 显示生成的脚本
+                    this.showGeneratedScript(code);
+                    
+                } catch (error) {
+                    console.error('代码执行错误:', error);
+                    console.error('错误堆栈:', error.stack);
+                    this.showError('图表生成代码执行失败: ' + error.message);
+                    // 重新抛出错误，让上层调用者处理
+                    throw error;
+                }
+            }
+            
+            preprocessCode(code) {
+                // 移除多余的空行和注释
+                let cleaned = code.trim();
+                
+                // 修复常见的语法错误
+                // 移除多余的右括号
+                cleaned = cleaned.replace(/\)\s*\)+/g, ')');
+                
+                // 移除多余的逗号
+                cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+                
+                // 对于包含fetch的代码，不强制添加分号，因为可能是多行代码
+                if (cleaned.includes('fetch') || cleaned.includes('.then') || cleaned.includes('.catch')) {
+                    // 对于异步代码，确保代码块完整
+                    if (!cleaned.endsWith('}') && !cleaned.endsWith(';')) {
+                        // 如果不是完整的代码块，添加分号
+                        cleaned += ';';
+                    }
+                } else {
+                    // 对于普通代码，确保以分号结尾
+                    if (cleaned && !cleaned.endsWith(';') && !cleaned.endsWith('}')) {
+                        cleaned += ';';
+                    }
+                }
+                
+                return cleaned;
+            }
+            
+            validateCodeSyntax(code) {
+                try {
+                    // 检查echarts是否可用
+                    if (typeof echarts === 'undefined') {
+                        throw new Error('ECharts库未加载，请确保已正确引入ECharts');
+                    }
+                    
+                    // 基础语法检查 - 检查常见的语法错误模式
+                    const syntaxErrors = [];
+                    
+                    // 检查括号匹配
+                    const bracketPairs = {
+                        '(': ')',
+                        '[': ']',
+                        '{': '}'
+                    };
+                    
+                    const stack = [];
+                    for (let i = 0; i < code.length; i++) {
+                        const char = code[i];
+                        if (bracketPairs[char]) {
+                            stack.push(char);
+                        } else if (Object.values(bracketPairs).includes(char)) {
+                            const last = stack.pop();
+                            if (bracketPairs[last] !== char) {
+                                syntaxErrors.push(`括号不匹配: 位置 ${i}`);
+                            }
+                        }
+                    }
+                    
+                    if (stack.length > 0) {
+                        syntaxErrors.push(`未闭合的括号: ${stack.join(', ')}`);
+                    }
+                    
+                    // 检查分号使用
+                    const lines = code.split('\n');
+                    lines.forEach((line, index) => {
+                        const trimmed = line.trim();
+                        // 跳过包含fetch、then、catch的异步代码行
+                        if (trimmed.includes('fetch') || trimmed.includes('.then') || trimmed.includes('.catch') || trimmed.includes('.finally')) {
+                            return;
+                        }
+                        
+                        // 跳过对象属性定义（如 color: 'value' 或 lineStyle: { ... }）
+                        if (trimmed.match(/^\w+\s*:/) || trimmed.match(/^\s+\w+\s*:/)) {
+                            return;
+                        }
+                        
+                        if (trimmed && !trimmed.endsWith(';') && !trimmed.endsWith('{') && !trimmed.endsWith('}') && 
+                            !trimmed.endsWith('[') && !trimmed.endsWith(']') && !trimmed.endsWith('(') && !trimmed.endsWith(')') &&
+                            !trimmed.startsWith('//') && !trimmed.startsWith('/*')) {
+                            // 只对特定类型的语句警告
+                            if (trimmed.match(/^(var|let|const|return|throw|break|continue)\s/) ||
+                                trimmed.match(/\w+\s*=/) ||
+                                trimmed.match(/\w+\(.*\)/)) {
+                                syntaxErrors.push(`第 ${index + 1} 行可能缺少分号: ${trimmed}`);
+                            }
+                        }
+                    });
+                    
+                    if (syntaxErrors.length > 0) {
+                        throw new Error(`代码语法问题:\n${syntaxErrors.join('\n')}`);
+                    }
+                    
+                    console.log('代码语法检查通过');
+                } catch (syntaxError) {
+                    // 提供更详细的错误信息
+                    const errorMessage = syntaxError.message;
+                    let detailedError = `代码语法错误: ${errorMessage}`;
+                    
+                    // 尝试定位错误位置
+                    const lineMatch = errorMessage.match(/at position (\d+)/);
+                    if (lineMatch) {
+                        const position = parseInt(lineMatch[1]);
+                        const codeLines = code.split('\n');
+                        let currentPos = 0;
+                        let errorLine = 0;
+                        
+                        for (let i = 0; i < codeLines.length; i++) {
+                            currentPos += codeLines[i].length + 1; // +1 for newline
+                            if (currentPos >= position) {
+                                errorLine = i + 1;
+                                break;
+                            }
+                        }
+                        
+                        if (errorLine > 0 && errorLine <= codeLines.length) {
+                            detailedError += `\n错误可能出现在第 ${errorLine} 行附近：`;
+                            detailedError += `\n${codeLines[errorLine - 1].trim()}`;
+                        }
+                    }
+                    
+                    detailedError += `\n\n请检查生成的代码并重试。`;
+                    throw new Error(detailedError);
+                }
+            }
+
+            showGeneratedCode(code) {
+                const codeOutput = document.getElementById('codeOutput');
+                const codeContainer = codeOutput.parentElement;
+                
+                // 检查是否已经创建了折叠控件
+                let toggleButton = codeContainer.querySelector('.code-toggle');
+                
+                if (!toggleButton) {
+                    // 创建折叠按钮
+                    toggleButton = document.createElement('button');
+                    toggleButton.className = 'code-toggle';
+                    toggleButton.textContent = '展开代码';
+                    toggleButton.style.cssText = 'margin-bottom: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件
+                    toggleButton.addEventListener('click', () => {
+                        const isExpanded = codeOutput.classList.contains('expanded');
+                        if (isExpanded) {
+                            codeOutput.classList.remove('expanded');
+                            codeOutput.style.maxHeight = '100px';
+                            codeOutput.style.overflow = 'hidden';
+                            toggleButton.textContent = '展开代码';
+                        } else {
+                            codeOutput.classList.add('expanded');
+                            codeOutput.style.maxHeight = 'none';
+                            codeOutput.style.overflow = 'auto';
+                            toggleButton.textContent = '折叠代码';
+                        }
+                    });
+                    
+                    // 在代码输出框之前插入按钮
+                    codeContainer.insertBefore(toggleButton, codeOutput);
+                }
+                
+                // 设置代码内容
+                codeOutput.textContent = code;
+                
+                // 设置默认折叠状态
+                codeOutput.classList.remove('expanded');
+                codeOutput.style.maxHeight = '100px';
+                codeOutput.style.overflow = 'hidden';
+                codeOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease;';
+                
+                // 重置按钮文本
+                toggleButton.textContent = '展开代码';
+                
+                // 显示代码容器
+                codeOutput.classList.remove('hidden');
+            }
+
+            isElementInViewport(el) {
+                const rect = el.getBoundingClientRect();
+                return (
+                    rect.top >= 0 &&
+                    rect.left >= 0 &&
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+                );
+            }
+
+            showGeneratedScript(script) {
+                console.log('showGeneratedScript方法被调用，脚本长度:', script ? script.length : 0);
+                console.log('脚本内容前100字符:', script ? script.substring(0, 100) : 'null');
+                const scriptOutput = document.getElementById('scriptOutput');
+                if (!scriptOutput) {
+                    console.error('找不到脚本输出元素');
+                    return;
+                }
+                console.log('找到scriptOutput元素，当前类名:', scriptOutput.className);
+                console.log('scriptOutput元素初始显示状态:', window.getComputedStyle(scriptOutput).display);
+                console.log('scriptOutput元素初始位置:', scriptOutput.getBoundingClientRect());
+                
+                const scriptContainer = scriptOutput.parentElement;
+                
+                // 检查是否已经创建了折叠控件
+                let toggleButton = scriptContainer.querySelector('.script-toggle');
+                
+                if (!toggleButton) {
+                    // 创建折叠按钮
+                    toggleButton = document.createElement('button');
+                    toggleButton.className = 'script-toggle';
+                    toggleButton.textContent = '展开脚本';
+                    toggleButton.style.cssText = 'margin-bottom: 10px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件
+                    toggleButton.addEventListener('click', () => {
+                        const isExpanded = scriptOutput.classList.contains('expanded');
+                        if (isExpanded) {
+                            scriptOutput.classList.remove('expanded');
+                            scriptOutput.style.maxHeight = '100px';
+                            scriptOutput.style.overflow = 'hidden';
+                            toggleButton.textContent = '展开脚本';
+                        } else {
+                            scriptOutput.classList.add('expanded');
+                            scriptOutput.style.maxHeight = 'none';
+                            scriptOutput.style.overflow = 'auto';
+                            toggleButton.textContent = '折叠脚本';
+                        }
+                    });
+                    
+                    // 在脚本输出框之前插入按钮
+                    scriptContainer.insertBefore(toggleButton, scriptOutput);
+                }
+                
+                // 设置脚本内容
+                console.log('开始设置脚本内容...');
+                scriptOutput.textContent = script;
+                console.log('脚本内容已设置，textContent长度:', scriptOutput.textContent.length);
+                console.log('设置后脚本内容前100字符:', scriptOutput.textContent.substring(0, 100));
+                
+                // 设置默认展开状态，确保内容可见
+                console.log('设置脚本输出框为展开状态...');
+                scriptOutput.classList.add('expanded');
+                scriptOutput.style.maxHeight = 'none';
+                scriptOutput.style.overflow = 'auto';
+                scriptOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 100px;';
+                
+                // 更新按钮文本
+                toggleButton.textContent = '折叠脚本';
+                
+                // 添加调试信息
+                console.log('脚本输出框样式设置完成，实际高度:', scriptOutput.scrollHeight);
+                console.log('脚本输出框当前样式:', scriptOutput.style.cssText);
+                console.log('样式设置后元素位置:', scriptOutput.getBoundingClientRect());
+                
+                // 按钮文本已在上面设置
+                
+                // 显示脚本容器和父容器
+                console.log('准备移除hidden类，当前类名:', scriptOutput.className);
+                console.log('移除hidden类前显示状态:', window.getComputedStyle(scriptOutput).display);
+                
+                // 确保父容器也显示
+                scriptContainer.classList.remove('hidden');
+                scriptOutput.classList.remove('hidden');
+                
+                console.log('已移除hidden类，最终类名:', scriptOutput.className);
+                console.log('scriptOutput元素当前显示状态:', window.getComputedStyle(scriptOutput).display);
+                console.log('script内容长度:', scriptOutput.textContent.length);
+                console.log('scriptOutput最终位置和尺寸:', scriptOutput.getBoundingClientRect());
+                console.log('scriptOutput父容器显示状态:', window.getComputedStyle(scriptOutput.parentElement).display);
+                console.log('scriptOutput是否在视口中:', this.isElementInViewport(scriptOutput));
+            }
+
+            showResult() {
+                document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('chartContainer').classList.remove('hidden');
+                // 确保脚本输出容器也显示
+                const scriptOutput = document.getElementById('scriptOutput');
+                if (scriptOutput && scriptOutput.textContent.trim()) {
+                    scriptOutput.parentElement.classList.remove('hidden');
+                }
+            }
+
+            showLoading() {
+                console.log('显示loading指示器...');
+                const loadingElement = document.getElementById('loading');
+                if (loadingElement) {
+                    loadingElement.classList.remove('hidden');
+                    console.log('loading元素已显示');
+                } else {
+                    console.error('找不到loading元素');
+                }
+                this.resetProgress();
+                this.updateProgress(2, '正在分析数据...');
+            }
+
+            hideLoading() {
+                console.log('隐藏loading指示器...');
+                console.log(`data-analysis:${new Date().getTime()} 隐藏loading指示器...`);
+                const loadingElement = document.getElementById('loading');
+                if (loadingElement) {
+                    loadingElement.classList.add('hidden');
+                    console.log('loading元素已隐藏');
+                    console.log(`data-analysis:${new Date().getTime()} loading元素已隐藏`);
+                } else {
+                    console.error('找不到loading元素');
+                }
+            }
+
+            resetProgress() {
+                // Reset all steps
+                document.querySelectorAll('.step').forEach(step => {
+                    step.classList.remove('active', 'completed');
+                });
+                
+                // Reset progress bar
+                document.getElementById('progress-bar').style.width = '0%';
+                
+                // Reset status text
+                document.getElementById('progress-status').textContent = '正在准备生成图表配置要求...';
+            }
+
+            updateProgress(step, status) {
+                // Update steps
+                document.querySelectorAll('.step').forEach((stepEl, index) => {
+                    const stepNum = parseInt(stepEl.dataset.step);
+                    if (stepNum < step) {
+                        stepEl.classList.add('completed');
+                        stepEl.classList.remove('active');
+                    } else if (stepNum === step) {
+                        stepEl.classList.add('active');
+                        stepEl.classList.remove('completed');
+                    } else {
+                        stepEl.classList.remove('active', 'completed');
+                    }
+                });
+                
+                // Update progress bar
+                const progressPercentage = (step / 6) * 100;
+                document.getElementById('progress-bar').style.width = progressPercentage + '%';
+                
+                // Update status text
+                document.getElementById('progress-status').textContent = status;
+            }
+
+            showError(message) {
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = message;
+                errorDiv.classList.remove('hidden');
+                
+                // 检查是否已经存在重试按钮
+                let retryButton = errorDiv.querySelector('.retry-button');
+                
+                if (!retryButton) {
+                    // 创建重试按钮
+                    retryButton = document.createElement('button');
+                    retryButton.className = 'retry-button';
+                    retryButton.textContent = '重试';
+                    retryButton.style.cssText = 'margin-left: 10px; padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件 - 重新调用generateScript方法
+                    retryButton.addEventListener('click', () => {
+                        this.hideError();
+                        this.generateScript();
+                    });
+                    
+                    // 将按钮添加到错误div中
+                    errorDiv.appendChild(retryButton);
+                }
+            }
+
+            hideError() {
+                document.getElementById('error').classList.add('hidden');
+            }
+
+            hideChart() {
+                document.getElementById('chartContainer').classList.add('hidden');
+                document.getElementById('codeOutput').classList.add('hidden');
+            }
+
+            // 手动数据输入相关方法
+            createManualInputTable() {
+                const columnNamesInput = document.getElementById('columnNamesInput');
+                const columnNames = columnNamesInput.value.split(',').map(name => name.trim()).filter(name => name);
+                
+                if (columnNames.length === 0) {
+                    this.showError('请输入列名，用逗号分隔');
+                    return;
+                }
+                
+                const tableContainer = document.getElementById('manualInputTableContainer');
+                tableContainer.innerHTML = '';
+                
+                const table = document.createElement('table');
+                table.className = 'data-table';
+                
+                // 创建表头
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                
+                columnNames.forEach(columnName => {
+                    const th = document.createElement('th');
+                    th.textContent = columnName;
+                    headerRow.appendChild(th);
+                });
+                
+                // 添加操作列
+                const actionTh = document.createElement('th');
+                actionTh.textContent = '操作';
+                headerRow.appendChild(actionTh);
+                
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // 创建表体
+                const tbody = document.createElement('tbody');
+                table.appendChild(tbody);
+                
+                tableContainer.appendChild(table);
+                
+                // 启用添加行和预览按钮
+                document.getElementById('addRowBtn').disabled = false;
+                document.getElementById('previewDataBtn').disabled = true;
+                
+                // 自动添加一行
+                this.addTableRow();
+            }
+            
+            addTableRow() {
+                const table = document.querySelector('#manualInputTableContainer .data-table tbody');
+                if (!table) {
+                    this.showError('请先创建表格');
+                    return;
+                }
+                
+                const columnNamesInput = document.getElementById('columnNamesInput');
+                const columnNames = columnNamesInput.value.split(',').map(name => name.trim()).filter(name => name);
+                
+                const row = document.createElement('tr');
+                
+                // 为每列创建输入框
+                columnNames.forEach(() => {
+                    const td = document.createElement('td');
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'form-input';
+                    input.placeholder = '输入数据';
+                    td.appendChild(input);
+                    row.appendChild(td);
+                });
+                
+                // 添加删除按钮
+                const actionTd = document.createElement('td');
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-row';
+                deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+                deleteBtn.title = '删除行';
+                deleteBtn.addEventListener('click', () => {
+                    row.remove();
+                    this.updatePreviewButtonState();
+                });
+                actionTd.appendChild(deleteBtn);
+                row.appendChild(actionTd);
+                
+                table.appendChild(row);
+                
+                // 启用预览按钮
+                this.updatePreviewButtonState();
+            }
+            
+            updatePreviewButtonState() {
+                const table = document.querySelector('#manualInputTableContainer .data-table tbody');
+                const previewBtn = document.getElementById('previewDataBtn');
+                
+                if (table && table.children.length > 0) {
+                    previewBtn.disabled = false;
+                } else {
+                    previewBtn.disabled = true;
+                }
+            }
+            
+            previewManualInputData() {
+                const table = document.querySelector('#manualInputTableContainer .data-table');
+                if (!table) {
+                    this.showError('请先创建表格并添加数据');
+                    return;
+                }
+                
+                const rows = table.querySelectorAll('tbody tr');
+                if (rows.length === 0) {
+                    this.showError('请至少添加一行数据');
+                    return;
+                }
+                
+                // 收集数据
+                const data = [];
+                const headers = Array.from(table.querySelectorAll('thead th')).slice(0, -1).map(th => th.textContent);
+                
+                rows.forEach(row => {
+                    const rowData = {};
+                    const cells = row.querySelectorAll('td');
+                    
+                    headers.forEach((header, index) => {
+                        const input = cells[index].querySelector('input');
+                        rowData[header] = input ? input.value : '';
+                    });
+                    
+                    data.push(rowData);
+                });
+                
+                // 显示预览
+                this.showDataPreview(data, headers);
+                
+                // 存储数据以供后续使用
+                this.manualInputData = {
+                    headers: headers,
+                    data: data
+                };
+            }
+            
+            getManualDataStatistics() {
+                if (!this.manualInputData || !this.manualInputData.data || this.manualInputData.data.length === 0) {
+                    return {
+                        typeAnalysis: '无数据',
+                        valueRange: '无',
+                        distribution: '无'
+                    };
+                }
+                
+                const data = this.manualInputData.data;
+                const headers = this.manualInputData.headers;
+                
+                // 分析数据类型
+                const types = {};
+                const numericColumns = [];
+                const textColumns = [];
+                
+                headers.forEach(header => {
+                    const values = data.map(row => row[header]).filter(val => val !== '' && val !== null && val !== undefined);
+                    
+                    if (values.length === 0) {
+                        types[header] = '空';
+                    } else {
+                        const numericCount = values.filter(val => !isNaN(parseFloat(val)) && isFinite(val)).length;
+                        if (numericCount === values.length) {
+                            types[header] = '数值';
+                            numericColumns.push(header);
+                        } else {
+                            types[header] = '文本';
+                            textColumns.push(header);
+                        }
+                    }
+                });
+                
+                // 分析数值范围
+                let valueRange = '无数值列';
+                if (numericColumns.length > 0) {
+                    const ranges = numericColumns.map(col => {
+                        const values = data.map(row => parseFloat(row[col])).filter(val => !isNaN(val));
+                        if (values.length === 0) return `${col}: 无有效数值`;
+                        const min = Math.min(...values);
+                        const max = Math.max(...values);
+                        return `${col}: ${min} ~ ${max}`;
+                    });
+                    valueRange = ranges.join('; ');
+                }
+                
+                // 分析数据分布
+                let distribution = '无数据';
+                if (data.length > 0) {
+                    if (data.length <= 10) {
+                        distribution = '少量数据';
+                    } else if (data.length <= 50) {
+                        distribution = '中等数据量';
+                    } else {
+                        distribution = '大量数据';
+                    }
+                }
+                
+                return {
+                    typeAnalysis: Object.entries(types).map(([col, type]) => `${col}: ${type}`).join('; '),
+                    valueRange: valueRange,
+                    distribution: distribution
+                };
+            }
+        }
+
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new DataAnalysisTool();
+        });
+    </script>
+</body>
+</html>
