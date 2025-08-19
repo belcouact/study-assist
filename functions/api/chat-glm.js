@@ -1,17 +1,5 @@
 // Import the workerGlmOutput function
-let workerGlmOutput;
-try {
-  // Try CommonJS import first
-  const workerGlm = require('./worker-glm.js');
-  workerGlmOutput = workerGlm.workerGlmOutput;
-} catch (e) {
-  // Fallback to global variable if in browser context
-  if (typeof self !== 'undefined' && self.workerGlmOutput) {
-    workerGlmOutput = self.workerGlmOutput;
-  } else {
-    console.error('Failed to import workerGlmOutput:', e);
-  }
-}
+import { workerGlmOutput } from './worker-glm.js';
 
 // Handle chat requests to GLM-4.5 API
 export async function onRequestPost(context) {
