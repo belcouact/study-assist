@@ -4,8 +4,8 @@
 const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
 // Performance optimization constants
-const DEFAULT_TIMEOUT = 30000; // 30 seconds timeout
-const MAX_TOKENS = 2000;
+const DEFAULT_TIMEOUT = 60000; // 60 seconds timeout
+const MAX_TOKENS = 10000;
 const TEMPERATURE = 0.7;
 const CACHE_TTL = 300; // 5 minutes cache
 
@@ -111,14 +111,12 @@ async function callGlmAPI(messages, env, stream = false) {
     }
 }
 
-// Optimized function to handle streaming response with better performance
+// Optimized function to handle streaming response with immediate flushing
 async function handleStreamingResponse(response) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8', { stream: true });
     let buffer = '';
     let lineCount = 0;
-    let lastFlushTime = Date.now();
-    const FLUSH_INTERVAL = 50; // Flush every 50ms for better performance
     
     return new ReadableStream({
         async start(controller) {
@@ -127,13 +125,10 @@ async function handleStreamingResponse(response) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     
-                    // Optimized decoding with chunk processing
+                    // Decode the chunk and process immediately
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
                     buffer = lines.pop(); // Keep the last incomplete line in buffer
-                    
-                    const now = Date.now();
-                    const shouldFlush = now - lastFlushTime > FLUSH_INTERVAL;
                     
                     for (const line of lines) {
                         if (line.trim() === '') continue;
@@ -149,18 +144,17 @@ async function handleStreamingResponse(response) {
                                 const parsed = JSON.parse(data);
                                 const content = parsed.choices?.[0]?.delta?.content || '';
                                 
-                                if (content || shouldFlush) {
+                                // Send content immediately when received
+                                if (content) {
                                     lineCount++;
                                     
-                                    // Send optimized streaming response
+                                    // Send streaming response immediately
                                     controller.enqueue(JSON.stringify({
                                         line: lineCount,
                                         content: content,
                                         done: false,
                                         timestamp: Date.now()
                                     }) + '\n');
-                                    
-                                    lastFlushTime = now;
                                 }
                             } catch (e) {
                                 console.error('Error parsing SSE data:', e);
@@ -221,7 +215,7 @@ export default {
             }
 
             // Main GLM API endpoint
-            if (path === '/chat' || path === '/api/chat' || path === '/') {
+            if (path === '/chat' || path === '/api/chat' || path === '/' || path === '/api/glm' || path === '/functions/api/chat-glm') {
                 if (request.method !== 'POST') {
                     return new Response(JSON.stringify({
                         error: 'Method not allowed',
