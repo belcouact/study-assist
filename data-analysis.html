@@ -2183,7 +2183,7 @@
                     console.log('使用预览数据');
                 }
                 
-                return `配置要求：${optimizedText}${dataInfo}\n\n只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
+                return `配置要求：${optimizedText}${dataInfo}\n\n只返回ECharts配置对象，格式如：{title: {text: "示例图表"}, xAxis: {data: ["A", "B"]}, yAxis: {}, series: [{data: [1, 2], type: "bar"}]}。不要包含任何HTML代码、JavaScript初始化代码、注释、解释文字或其他内容。只返回纯粹的ECharts option对象。`;
             }
 
             async callGLMAPI(prompt, stream = false) {
@@ -2669,14 +2669,32 @@
             executeGeneratedCode(code) {
                 try {
                     console.log('开始执行生成的代码...');
+                    console.log('原始代码:', code);
                     
-                    // 预处理代码，修复常见语法错误
-                    const cleanedCode = this.preprocessCode(code);
-                    console.log('预处理后的代码:', cleanedCode);
+                    // 尝试解析为ECharts配置对象
+                    let echartsOption;
+                    try {
+                        // 如果代码看起来像配置对象（以{开头，以}结尾）
+                        const trimmedCode = code.trim();
+                        if (trimmedCode.startsWith('{') && trimmedCode.endsWith('}')) {
+                            echartsOption = JSON.parse(trimmedCode);
+                            console.log('成功解析为ECharts配置对象:', echartsOption);
+                        } else {
+                            // 如果不是配置对象格式，尝试作为JavaScript代码执行
+                            console.log('代码不是配置对象格式，将作为JavaScript代码执行');
+                            this.executeJavaScriptCode(code);
+                            return;
+                        }
+                    } catch (parseError) {
+                        console.log('无法解析为配置对象，将作为JavaScript代码执行:', parseError.message);
+                        this.executeJavaScriptCode(code);
+                        return;
+                    }
                     
-                    // 验证代码语法
-                    this.validateCodeSyntax(cleanedCode);
-                    console.log('代码语法验证通过');
+                    // 验证echarts是否可用
+                    if (typeof echarts === 'undefined') {
+                        throw new Error('ECharts库未加载，请确保已正确引入ECharts');
+                    }
                     
                     // 创建图表容器
                     const container = document.getElementById('chartContainer');
@@ -2691,87 +2709,18 @@
                     chartDiv.style.height = '100%';
                     chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
                     container.appendChild(chartDiv);
-
-                    // 安全的代码执行环境
-                    const safeExecute = () => {
-                        // 限制可用的全局对象
-                        const safeGlobals = {
-                            console: console,
-                            Math: Math,
-                            Date: Date,
-                            Array: Array,
-                            Object: Object,
-                            String: String,
-                            Number: Number,
-                            Boolean: Boolean,
-                            JSON: JSON,
-                            parseInt: parseInt,
-                            parseFloat: parseFloat,
-                            isNaN: isNaN,
-                            isFinite: isFinite,
-                            decodeURI: decodeURI,
-                            decodeURIComponent: decodeURIComponent,
-                            encodeURI: encodeURI,
-                            encodeURIComponent: encodeURIComponent,
-                            echarts: echarts,
-                            fetch: fetch,
-                            Promise: Promise,
-                            setTimeout: setTimeout,
-                            clearTimeout: clearTimeout
-                        };
-                        
-                        // 创建安全的执行上下文
-                        const executeContext = {
-                            data: this.data,
-                            columns: this.columns,
-                            echarts: echarts,
-                            chartContainer: chartDiv,
-                            console: console
-                        };
-                        
-                        // 使用Proxy来限制访问
-                        const safeProxy = new Proxy(executeContext, {
-                            get(target, prop) {
-                                if (prop in target) {
-                                    return target[prop];
-                                }
-                                if (prop in safeGlobals) {
-                                    return safeGlobals[prop];
-                                }
-                                throw new Error(`访问受限: 不允许访问 ${prop}`);
-                            }
-                        });
-                        
-                        // 创建并执行函数
-                        const executeFunction = new Function(
-                            'data', 'columns', 'echarts', 'chartContainer', 'console', 'fetch', 'Promise', 'setTimeout', 'clearTimeout',
-                            cleanedCode
-                        );
-                        
-                        // 在try-catch中执行生成的代码
-                        try {
-                            executeFunction(
-                                safeProxy.data,
-                                safeProxy.columns,
-                                safeProxy.echarts,
-                                safeProxy.chartContainer,
-                                safeProxy.console,
-                                safeProxy.fetch,
-                                safeProxy.Promise,
-                                safeProxy.setTimeout,
-                                safeProxy.clearTimeout
-                            );
-                            console.log('代码执行成功');
-                        } catch (execError) {
-                            console.error('生成的代码执行失败:', execError);
-                            throw new Error(`图表生成失败: ${execError.message}`);
-                        }
-                    };
                     
-                    // 执行安全代码
-                    safeExecute();
-
-                    // 显示生成的代码（显示原始代码，而不是清理后的代码）
+                    // 初始化ECharts实例
+                    const chart = echarts.init(chartDiv);
+                    
+                    // 设置配置项并渲染图表
+                    chart.setOption(echartsOption);
+                    console.log('ECharts图表渲染成功');
+                    
+                    // 保存图表实例引用，以便后续操作
+                    this.currentChart = chart;
+                    
+                    // 显示生成的代码（显示原始代码）
                     this.showGeneratedCode(code);
                     
                     // 显示生成的脚本
@@ -2784,6 +2733,111 @@
                     // 重新抛出错误，让上层调用者处理
                     throw error;
                 }
+            }
+            
+            executeJavaScriptCode(code) {
+                console.log('执行JavaScript代码...');
+                
+                // 预处理代码，修复常见语法错误
+                const cleanedCode = this.preprocessCode(code);
+                console.log('预处理后的代码:', cleanedCode);
+                
+                // 验证代码语法
+                this.validateCodeSyntax(cleanedCode);
+                console.log('代码语法验证通过');
+                
+                // 创建图表容器
+                const container = document.getElementById('chartContainer');
+                if (!container) {
+                    throw new Error('找不到图表容器元素');
+                }
+                container.innerHTML = '';
+                
+                // 创建一个新的div用于图表
+                const chartDiv = document.createElement('div');
+                chartDiv.style.width = '100%';
+                chartDiv.style.height = '100%';
+                chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
+                container.appendChild(chartDiv);
+
+                // 安全的代码执行环境
+                const safeExecute = () => {
+                    // 限制可用的全局对象
+                    const safeGlobals = {
+                        console: console,
+                        Math: Math,
+                        Date: Date,
+                        Array: Array,
+                        Object: Object,
+                        String: String,
+                        Number: Number,
+                        Boolean: Boolean,
+                        JSON: JSON,
+                        parseInt: parseInt,
+                        parseFloat: parseFloat,
+                        isNaN: isNaN,
+                        isFinite: isFinite,
+                        decodeURI: decodeURI,
+                        decodeURIComponent: decodeURIComponent,
+                        encodeURI: encodeURI,
+                        encodeURIComponent: encodeURIComponent,
+                        echarts: echarts,
+                        fetch: fetch,
+                        Promise: Promise,
+                        setTimeout: setTimeout,
+                        clearTimeout: clearTimeout
+                    };
+                    
+                    // 创建安全的执行上下文
+                    const executeContext = {
+                        data: this.data,
+                        columns: this.columns,
+                        echarts: echarts,
+                        chartContainer: chartDiv,
+                        console: console
+                    };
+                    
+                    // 使用Proxy来限制访问
+                    const safeProxy = new Proxy(executeContext, {
+                        get(target, prop) {
+                            if (prop in target) {
+                                return target[prop];
+                            }
+                            if (prop in safeGlobals) {
+                                return safeGlobals[prop];
+                            }
+                            throw new Error(`访问受限: 不允许访问 ${prop}`);
+                        }
+                    });
+                    
+                    // 创建并执行函数
+                    const executeFunction = new Function(
+                        'data', 'columns', 'echarts', 'chartContainer', 'console', 'fetch', 'Promise', 'setTimeout', 'clearTimeout',
+                        cleanedCode
+                    );
+                    
+                    // 在try-catch中执行生成的代码
+                    try {
+                        executeFunction(
+                            safeProxy.data,
+                            safeProxy.columns,
+                            safeProxy.echarts,
+                            safeProxy.chartContainer,
+                            safeProxy.console,
+                            safeProxy.fetch,
+                            safeProxy.Promise,
+                            safeProxy.setTimeout,
+                            safeProxy.clearTimeout
+                        );
+                        console.log('JavaScript代码执行成功');
+                    } catch (execError) {
+                        console.error('生成的JavaScript代码执行失败:', execError);
+                        throw new Error(`图表生成失败: ${execError.message}`);
+                    }
+                };
+                
+                // 执行安全代码
+                safeExecute();
             }
             
             preprocessCode(code) {
@@ -2974,16 +3028,8 @@
             showGeneratedScript(script) {
                 console.log('showGeneratedScript方法被调用，脚本长度:', script ? script.length : 0);
                 console.log('脚本内容前100字符:', script ? script.substring(0, 100) : 'null');
-                const scriptOutput = document.getElementById('scriptOutput');
-                if (!scriptOutput) {
-                    console.error('找不到脚本输出元素');
-                    return;
-                }
-                console.log('找到scriptOutput元素，当前类名:', scriptOutput.className);
-                console.log('scriptOutput元素初始显示状态:', window.getComputedStyle(scriptOutput).display);
-                console.log('scriptOutput元素初始位置:', scriptOutput.getBoundingClientRect());
                 
-                const scriptContainer = scriptOutput.parentElement;
+                const scriptContainer = document.getElementById('scriptOutput').parentElement;
                 
                 // 检查是否已经创建了折叠控件
                 let toggleButton = scriptContainer.querySelector('.script-toggle');
@@ -2997,36 +3043,56 @@
                     
                     // 添加点击事件
                     toggleButton.addEventListener('click', () => {
+                        const scriptOutput = document.getElementById('scriptOutput');
                         const isExpanded = scriptOutput.classList.contains('expanded');
                         if (isExpanded) {
                             scriptOutput.classList.remove('expanded');
                             scriptOutput.style.maxHeight = '100px';
-                            scriptOutput.style.overflow = 'hidden';
                             toggleButton.textContent = '展开脚本';
                         } else {
                             scriptOutput.classList.add('expanded');
                             scriptOutput.style.maxHeight = 'none';
-                            scriptOutput.style.overflow = 'auto';
                             toggleButton.textContent = '折叠脚本';
                         }
                     });
                     
                     // 在脚本输出框之前插入按钮
-                    scriptContainer.insertBefore(toggleButton, scriptOutput);
+                    scriptContainer.insertBefore(toggleButton, scriptContainer.firstChild);
                 }
                 
-                // 设置脚本内容
+                // 获取或创建textarea元素
+                let scriptOutput = document.getElementById('scriptOutput');
+                
+                // 如果当前是div，替换为textarea
+                if (scriptOutput && scriptOutput.tagName !== 'TEXTAREA') {
+                    const newScriptOutput = document.createElement('textarea');
+                    newScriptOutput.id = 'scriptOutput';
+                    newScriptOutput.className = scriptOutput.className;
+                    // 保留原有样式但添加textarea特定样式
+                    newScriptOutput.style.cssText = scriptOutput.style.cssText + 'resize: vertical; min-height: 200px;';
+                    
+                    // 替换元素
+                    scriptOutput.parentNode.replaceChild(newScriptOutput, scriptOutput);
+                    scriptOutput = newScriptOutput;
+                }
+                
+                if (!scriptOutput) {
+                    console.error('找不到脚本输出元素');
+                    return;
+                }
+                
+                // 设置脚本内容到可编辑textarea
                 console.log('开始设置脚本内容...');
-                scriptOutput.textContent = script;
-                console.log('脚本内容已设置，textContent长度:', scriptOutput.textContent.length);
-                console.log('设置后脚本内容前100字符:', scriptOutput.textContent.substring(0, 100));
+                scriptOutput.value = script;
+                console.log('脚本内容已设置，value长度:', scriptOutput.value.length);
+                console.log('设置后脚本内容前100字符:', scriptOutput.value.substring(0, 100));
                 
                 // 设置默认展开状态，确保内容可见
                 console.log('设置脚本输出框为展开状态...');
                 scriptOutput.classList.add('expanded');
                 scriptOutput.style.maxHeight = 'none';
                 scriptOutput.style.overflow = 'auto';
-                scriptOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 100px;';
+                scriptOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 200px; resize: vertical;';
                 
                 // 更新按钮文本
                 toggleButton.textContent = '折叠脚本';
@@ -3035,8 +3101,6 @@
                 console.log('脚本输出框样式设置完成，实际高度:', scriptOutput.scrollHeight);
                 console.log('脚本输出框当前样式:', scriptOutput.style.cssText);
                 console.log('样式设置后元素位置:', scriptOutput.getBoundingClientRect());
-                
-                // 按钮文本已在上面设置
                 
                 // 显示脚本容器和父容器
                 console.log('准备移除hidden类，当前类名:', scriptOutput.className);
@@ -3048,10 +3112,17 @@
                 
                 console.log('已移除hidden类，最终类名:', scriptOutput.className);
                 console.log('scriptOutput元素当前显示状态:', window.getComputedStyle(scriptOutput).display);
-                console.log('script内容长度:', scriptOutput.textContent.length);
+                console.log('script内容长度:', scriptOutput.value.length);
                 console.log('scriptOutput最终位置和尺寸:', scriptOutput.getBoundingClientRect());
                 console.log('scriptOutput父容器显示状态:', window.getComputedStyle(scriptOutput.parentElement).display);
                 console.log('scriptOutput是否在视口中:', this.isElementInViewport(scriptOutput));
+                
+                // 添加实时保存功能
+                scriptOutput.addEventListener('input', () => {
+                    // 更新保存的代码
+                    this.generatedCode = scriptOutput.value;
+                    console.log('脚本内容已更新，新长度:', this.generatedCode.length);
+                });
             }
 
             showResult() {
