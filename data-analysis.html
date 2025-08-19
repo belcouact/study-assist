@@ -2167,107 +2167,23 @@
             }
             
             buildScriptPrompt(optimizedText, hasDataFile = false) {
-                // 获取Luckysheet表格数据的统计信息
+                // 获取数据信息
                 let dataInfo = '';
-                let useLuckysheetData = false;
                 
                 // 优先从Luckysheet表格获取数据
                 const luckysheetData = this.getLuckysheetData();
                 if (luckysheetData && luckysheetData.data && luckysheetData.data.length > 0) {
-                    useLuckysheetData = true;
-                    const dataStats = this.getLuckysheetDataStatistics(luckysheetData);
-                    dataInfo = `\n\n**实际数据特征**：\n`;
-                    dataInfo += `- 数据行数：${luckysheetData.data.length}\n`;
-                    dataInfo += `- 数据列：${luckysheetData.headers.join(', ')}\n`;
-                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
-                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
-                    
-                    // 使用Luckysheet表格数据
-                    dataInfo += `\n**数据来源**：Luckysheet表格数据\n`;
-                    dataInfo += `- 数据已从Luckysheet表格直接获取，无需读取文件\n`;
-                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
-                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
-                    
-                    // 添加完整的数据样本
-                    dataInfo += `\n**完整数据**：\n`;
-                    luckysheetData.data.forEach((row, index) => {
-                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                    });
-                    
+                    dataInfo = `\n\n数据：${JSON.stringify(luckysheetData.data)}\n列名：${JSON.stringify(luckysheetData.headers)}`;
                     console.log('使用Luckysheet表格数据');
                 } else if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
-                    const dataStats = this.getManualDataStatistics();
-                    dataInfo = `\n\n**实际数据特征**：\n`;
-                    dataInfo += `- 数据行数：${this.manualInputData.data.length}\n`;
-                    dataInfo += `- 数据列：${this.manualInputData.headers.join(', ')}\n`;
-                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
-                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
-                    
-                    // 使用手动输入的数据
-                    dataInfo += `\n**数据来源**：手动输入数据\n`;
-                    dataInfo += `- 数据已直接输入，无需读取文件\n`;
-                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
-                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
-                    
-                    // 添加完整的数据样本
-                    dataInfo += `\n**完整数据**：\n`;
-                    this.manualInputData.data.forEach((row, index) => {
-                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                    });
-                    
+                    dataInfo = `\n\n数据：${JSON.stringify(this.manualInputData.data)}\n列名：${JSON.stringify(this.manualInputData.headers)}`;
                     console.log('使用手动输入的数据');
                 } else if (this.data && this.data.length > 0) {
-                    const dataStats = this.getDataStatistics();
-                    dataInfo = `\n\n**实际数据特征**：\n`;
-                    dataInfo += `- 数据行数：${this.data.length}\n`;
-                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
-                    dataInfo += `- 数据类型：${dataStats.typeAnalysis}\n`;
-                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
-                    
-                    // 使用预览数据
-                    dataInfo += `\n**数据来源**：预览数据\n`;
-                    dataInfo += `- 数据已直接提供，无需读取文件\n`;
-                    dataInfo += `- 请在生成代码时直接使用提供的数据数组\n`;
-                    dataInfo += `- 数据结构：数据数组，每个元素是一个数据行对象\n`;
-                    
-                    // 添加完整的数据样本
-                    dataInfo += `\n**完整数据**：\n`;
-                    this.data.forEach((row, index) => {
-                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
-                    });
-                    
+                    dataInfo = `\n\n数据：${JSON.stringify(this.data)}\n列名：${JSON.stringify(this.columns)}`;
                     console.log('使用预览数据');
                 }
                 
-                return `你是一个ECharts图表开发专家。请根据以下用户确认的图表配置要求和实际数据特征，生成纯粹的ECharts配置代码。
-
-用户确认的图表配置要求：${optimizedText}${dataInfo}
-
-请根据上述配置要求和实际数据特征，生成完整的ECharts配置代码，要求：
-1. 代码必须是完整的JavaScript对象格式，可以直接用于echarts.setOption()
-2. 严格按照配置要求设置，同时考虑实际数据特征：
-   - 图表类型（type）：根据数据特征选择最合适的图表类型
-   - 标题（title）：基于数据内容生成有意义的标题
-   - 坐标轴（xAxis, yAxis）：根据实际数据列设置合适的坐标轴
-   - 数据系列（series）：使用实际数据生成series数据，确保数据格式正确
-   - 图例（legend）：根据实际数据系列设置图例
-   - 网格线、数据标签、提示框等：根据数据特点配置
-3. 配置合适的颜色方案和样式，考虑数据系列的数量
-4. 添加必要的交互功能，如缩放、提示框等
-5. 确保代码语法正确，可以直接执行
-6. 特别注意：${useLuckysheetData ? 
-   `使用Luckysheet表格数据，请生成能够直接使用数据数组的完整JavaScript代码。` + 
-   `数据已从Luckysheet表格直接获取，无需读取文件，请直接使用数据数组生成图表。` + 
-   `请使用以下代码结构：\n   // Luckysheet表格数据已直接提供\n   const dataArray = ${JSON.stringify(luckysheetData.data)};\n   const columns = ${JSON.stringify(luckysheetData.headers)};\n   const option = {\n     title: { text: '基于Luckysheet表格数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);` : 
-   (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0 ? 
-   `使用手动输入的数据，请生成能够直接使用数据数组的完整JavaScript代码。` + 
-   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
-   `请使用以下代码结构：\n   // 手动输入的数据已直接提供\n   const dataArray = ${JSON.stringify(this.manualInputData.data)};\n   const columns = ${JSON.stringify(this.manualInputData.headers)};\n   const option = {\n     title: { text: '基于手动输入数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);` : 
-   `使用预览数据生成图表，请生成能够直接使用数据数组的完整JavaScript代码。` + 
-   `数据已直接提供，无需读取文件，请直接使用数据数组生成图表。` + 
-   `请使用以下代码结构：\n   // 预览数据已直接提供\n   const dataArray = ${JSON.stringify(this.data)};\n   const columns = ${JSON.stringify(this.columns)};\n   const option = {\n     title: { text: '基于预览数据的图表' },\n     xAxis: { data: dataArray.map(item => item[columns[0]]) },\n     yAxis: {},\n     series: [{\n       name: columns[1],\n       type: 'line',\n       data: dataArray.map(item => item[columns[1]])\n     }]\n   };\n   myChart.setOption(option);`)}
-
-重要：请只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
+                return `配置要求：${optimizedText}${dataInfo}\n\n只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
             }
 
             async callGLMAPI(prompt, stream = false) {
