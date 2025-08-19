@@ -30,7 +30,7 @@ export async function onRequestPost(context) {
         status: 400,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Origin": "https://study-llm.me",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type, Authorization"
         }
@@ -50,7 +50,7 @@ export async function onRequestPost(context) {
           }), {
             headers: { 
               "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": "https://study-llm.me",
               "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
               "Access-Control-Allow-Headers": "Content-Type, Authorization"
             }
@@ -63,7 +63,7 @@ export async function onRequestPost(context) {
           status: 500,
             headers: { 
               "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "https://study-llm.me"
           }
         });
       }
@@ -104,7 +104,7 @@ export async function onRequestPost(context) {
         return new Response(JSON.stringify(result), {
           headers: { 
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "https://study-llm.me",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization"
           }
@@ -117,7 +117,7 @@ export async function onRequestPost(context) {
           status: 500,
           headers: { 
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
+            "Access-Control-Allow-Origin": "https://study-llm.me"
           }
         });
       }
@@ -128,7 +128,7 @@ export async function onRequestPost(context) {
         status: 400,
         headers: { 
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*"
+          "Access-Control-Allow-Origin": "https://study-llm.me"
         }
       });
     }
@@ -140,7 +140,7 @@ export async function onRequestPost(context) {
       status: 500,
       headers: { 
         "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
+        "Access-Control-Allow-Origin": "https://study-llm.me"
       }
     });
   }
@@ -150,7 +150,7 @@ export async function onRequestPost(context) {
 export function onRequestOptions() {
   return new Response(null, {
     headers: {
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://study-llm.me",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
       "X-Content-Type-Options": "nosniff",
@@ -178,7 +178,7 @@ export function onRequestGet() {
   }), {
     headers: {
       "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": "https://study-llm.me",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type, Authorization"
     }
