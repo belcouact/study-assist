@@ -64,39 +64,77 @@ export async function onRequestPost(context) {
           throw new Error('Neither GLM API key nor DeepSeek API key is configured');
         }
         
+        // Check if this is a streaming request
+        const isStreaming = body.stream === true;
+        
         // Forward to GLM API directly
         const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
         
-        const glmResponse = await fetch(GLM_URL, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${GLM_KEY}`
-          },
-          body: JSON.stringify({
-            model: "glm-4.5",
-            messages: body.messages,
-            temperature: 0.7,
-            max_tokens: 2000
-          })
-        });
-        
-        if (!glmResponse.ok) {
-          const errorData = await glmResponse.json().catch(() => ({}));
-          throw new Error(errorData.error?.message || errorData.message || `GLM API error: ${glmResponse.status}`);
-        }
-        
-        const result = await glmResponse.json();
-        
-        // Return the original GLM response format
-        return new Response(JSON.stringify(result), {
-          headers: { 
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "https://study-llm.me",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization"
+        if (isStreaming) {
+          // Streaming response handling
+          const glmResponse = await fetch(GLM_URL, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${GLM_KEY}`
+            },
+            body: JSON.stringify({
+              model: "glm-4.5",
+              messages: body.messages,
+              temperature: 0.7,
+              max_tokens: 2000,
+              stream: true
+            })
+          });
+          
+          if (!glmResponse.ok) {
+            const errorData = await glmResponse.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || errorData.message || `GLM API error: ${glmResponse.status}`);
           }
-        });
+          
+          // Return streaming response
+          return new Response(glmResponse.body, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "Access-Control-Allow-Origin": "https://study-llm.me",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
+          });
+        } else {
+          // Regular response handling
+          const glmResponse = await fetch(GLM_URL, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${GLM_KEY}`
+            },
+            body: JSON.stringify({
+              model: "glm-4.5",
+              messages: body.messages,
+              temperature: 0.7,
+              max_tokens: 2000
+            })
+          });
+          
+          if (!glmResponse.ok) {
+            const errorData = await glmResponse.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || errorData.message || `GLM API error: ${glmResponse.status}`);
+          }
+          
+          const result = await glmResponse.json();
+          
+          // Return the original GLM response format
+          return new Response(JSON.stringify(result), {
+            headers: { 
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "https://study-llm.me",
+              "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type, Authorization"
+            }
+          });
+        }
     } catch (error) {
         return new Response(JSON.stringify({ 
           error: "Error calling GLM API",

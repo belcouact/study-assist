@@ -2,7 +2,7 @@
 // This file provides the workerGlmOutput function for chat-glm.js
 
 // Performance constants
-const REQUEST_TIMEOUT = 60000; // 60 seconds
+const REQUEST_TIMEOUT = 25000; // 25 seconds (adjusted to be within Cloudflare limits)
 const MAX_TOKENS = 20000;
 const TEMPERATURE = 0.7;
 const CACHE_TTL = 60 * 1000; // 1 minute cache
@@ -17,6 +17,42 @@ function generateCacheKey(prompt) {
 
 // Optimized function to handle GLM API requests
 async function workerGlmOutput(prompt, env) {
+  return await workerGlmOutputWithRetry(prompt, env);
+}
+
+// Retry mechanism for GLM API requests
+async function workerGlmOutputWithRetry(prompt, env, maxRetries = 2) {
+  let lastError;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await workerGlmOutputInternal(prompt, env);
+    } catch (error) {
+      lastError = error;
+      console.warn(`GLM API attempt ${attempt} failed:`, error.message);
+      
+      // If it's a timeout error, retry immediately
+      if (error.message.includes('timeout') && attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        continue;
+      }
+      
+      // If it's a 5xx error, wait and retry
+      if (error.status >= 500 && error.status < 600 && attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+        continue;
+      }
+      
+      // Other errors don't retry
+      break;
+    }
+  }
+  
+  throw lastError;
+}
+
+// Internal function for actual GLM API call
+async function workerGlmOutputInternal(prompt, env) {
   const startTime = Date.now();
   
   try {
@@ -137,6 +173,7 @@ async function workerGlmOutput(prompt, env) {
         console.error('Worker GLM request timeout');
         const error = new Error("Request timeout");
         error.message = "The request to the GLM API timed out";
+        error.status = 408;
         error.troubleshooting_tips = [
           "Try again with a shorter prompt",
           "Check if the GLM API is experiencing high load",

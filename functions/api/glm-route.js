@@ -1,10 +1,70 @@
 // Route handler for /api/glm to forward to /functions/api/chat-glm
 // Performance constants
 const CACHE_TTL = 60 * 1000; // 1 minute cache
-const REQUEST_TIMEOUT = 15000; // 15 seconds
+const REQUEST_TIMEOUT = 25000; // 25 seconds (adjusted to be within Cloudflare limits)
 
 // Simple in-memory cache for identical requests
 const requestCache = new Map();
+
+// Simple request queue for rate limiting
+const requestQueue = [];
+const MAX_CONCURRENT_REQUESTS = 3;
+const QUEUE_PROCESS_INTERVAL = 100; // Process queue every 100ms
+
+// Start queue processor
+setInterval(processQueue, QUEUE_PROCESS_INTERVAL);
+
+async function processQueue() {
+  if (requestQueue.length === 0) return;
+  
+  const activeRequests = requestQueue.filter(req => !req.completed && req.processing).length;
+  if (activeRequests >= MAX_CONCURRENT_REQUESTS) return;
+  
+  const nextRequest = requestQueue.find(req => !req.completed && !req.processing);
+  if (!nextRequest) return;
+  
+  nextRequest.processing = true;
+  try {
+    nextRequest.result = await nextRequest.fn();
+    nextRequest.completed = true;
+  } catch (error) {
+    nextRequest.error = error;
+    nextRequest.completed = true;
+  }
+}
+
+async function queueRequest(requestFn) {
+  return new Promise((resolve, reject) => {
+    const queueItem = {
+      fn: requestFn,
+      processing: false,
+      completed: false,
+      result: null,
+      error: null,
+      resolve,
+      reject
+    };
+    
+    requestQueue.push(queueItem);
+    
+    // Check completion periodically
+    const checkCompletion = setInterval(() => {
+      if (queueItem.completed) {
+        clearInterval(checkCompletion);
+        if (queueItem.error) {
+          reject(queueItem.error);
+        } else {
+          resolve(queueItem.result);
+        }
+        // Remove from queue
+        const index = requestQueue.indexOf(queueItem);
+        if (index > -1) {
+          requestQueue.splice(index, 1);
+        }
+      }
+    }, 50);
+  });
+}
 
 // Generate cache key from request body
 async function generateCacheKey(request) {
@@ -89,8 +149,10 @@ export async function onRequest(context) {
         signal: controller.signal
       });
       
-      // Forward the request
-      const response = await fetch(newRequest);
+      // Forward the request through queue
+      const response = await queueRequest(async () => {
+        return await fetch(newRequest);
+      });
       clearTimeout(timeoutId);
       
       // For non-streaming responses, cache the result
@@ -135,13 +197,15 @@ export async function onRequest(context) {
       if (fetchError.name === 'AbortError') {
         console.error('GLM route request timeout');
         return new Response(JSON.stringify({
-          error: "Request timeout",
-          message: "The request to the GLM API timed out",
-          troubleshooting_tips: [
-            "Try again with a shorter prompt",
-            "Check if the GLM API is experiencing high load",
-            "Reduce the complexity of your request"
-          ]
+          error: "GLM API Timeout",
+          message: "请求处理时间过长，请尝试以下解决方案：",
+          suggestions: [
+            "简化问题，分多次询问",
+            "检查网络连接状态",
+            "稍后重试，服务器可能繁忙",
+            "如果问题持续，请联系管理员"
+          ],
+          error_code: "TIMEOUT_524"
         }), {
           status: 408,
           headers: {

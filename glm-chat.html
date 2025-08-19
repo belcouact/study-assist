@@ -775,6 +775,16 @@
                 opacity: 0.7;
             }
         }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
 
         .chat-input-container {
             padding: 1.5rem;
@@ -1410,6 +1420,20 @@
             }
         }
 
+        async function sendChatMessageWithRetry(message, maxRetries = 2) {
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    return await sendChatMessageInternal(message);
+                } catch (error) {
+                    if (attempt === maxRetries) throw error;
+                    
+                    // Show retry提示
+                    showStatusMessage(`请求超时，正在进行第${attempt}次重试...`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+        }
+
         async function sendChatMessage() {
             const chatInput = document.getElementById('chat-input');
             const message = chatInput.value.trim();
@@ -1432,51 +1456,7 @@
             isTyping = true;
             
             try {
-                let requestBody;
-                if (endpoint === '/functions/api/chat-glm') {
-                    // Use prompt format for chat-glm endpoint
-                    requestBody = { prompt: message };
-                } else {
-                    // Use messages format for glm-route endpoint
-                    requestBody = { messages: chatHistory };
-                }
-                
-                if (streamEnabled) {
-                    await sendChatMessageStream(endpoint, requestBody);
-                } else {
-                    const response = await fetch(`${BASE_URL}${endpoint}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(requestBody)
-                    });
-                    
-                    const result = await response.text();
-                    
-                    hideTypingIndicator();
-                    
-                    if (response.ok) {
-                        let assistantMessage;
-                        try {
-                            const resultJson = JSON.parse(result);
-                            if (endpoint === '/functions/api/chat-glm') {
-                                assistantMessage = resultJson.output || 'No response from GLM';
-                            } else {
-                                assistantMessage = resultJson.choices?.[0]?.message?.content || 'No response from GLM';
-                            }
-                        } catch {
-                            assistantMessage = result;
-                        }
-                        
-                        addChatMessage('assistant', assistantMessage);
-                        chatHistory.push({ role: 'assistant', content: assistantMessage });
-                        updateStatus('chat-box-status', 'success');
-                    } else {
-                        addChatMessage('system', `Error: ${result}`);
-                        updateStatus('chat-box-status', 'error');
-                    }
-                }
+                await sendChatMessageWithRetry(message);
             } catch (error) {
                 hideTypingIndicator();
                 addChatMessage('system', `Network Error: ${error.message}`);
@@ -1487,6 +1467,107 @@
                     isTyping = false;
                 }
             }
+        }
+
+        async function sendChatMessageInternal(message) {
+            const endpoint = '/functions/api/chat-glm';
+            const streamEnabled = false;
+            
+            let requestBody;
+            if (endpoint === '/functions/api/chat-glm') {
+                // Use prompt format for chat-glm endpoint
+                requestBody = { prompt: message };
+            } else {
+                // Use messages format for glm-route endpoint
+                requestBody = { messages: chatHistory };
+            }
+            
+            if (streamEnabled) {
+                await sendChatMessageStream(endpoint, requestBody);
+            } else {
+                const response = await fetch(`${BASE_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const result = await response.text();
+                
+                hideTypingIndicator();
+                
+                if (response.ok) {
+                    let assistantMessage;
+                    try {
+                        const resultJson = JSON.parse(result);
+                        if (endpoint === '/functions/api/chat-glm') {
+                            assistantMessage = resultJson.output || 'No response from GLM';
+                        } else {
+                            assistantMessage = resultJson.choices?.[0]?.message?.content || 'No response from GLM';
+                        }
+                    } catch {
+                        assistantMessage = result;
+                    }
+                    
+                    addChatMessage('assistant', assistantMessage);
+                    chatHistory.push({ role: 'assistant', content: assistantMessage });
+                    updateStatus('chat-box-status', 'success');
+                } else {
+                    // Handle specific error codes
+                    let errorMessage = `Error: ${result}`;
+                    try {
+                        const errorJson = JSON.parse(result);
+                        if (errorJson.error_code === 'TIMEOUT_524') {
+                            errorMessage = '请求超时：问题较复杂，请尝试简化问题或分多次询问。';
+                            if (errorJson.suggestions && Array.isArray(errorJson.suggestions)) {
+                                errorMessage += '\n建议：\n' + errorJson.suggestions.join('\n');
+                            }
+                        } else if (errorJson.message) {
+                            errorMessage = `Error: ${errorJson.message}`;
+                        }
+                    } catch (e) {
+                        // If JSON parsing fails, use the original error message
+                    }
+                    
+                    addChatMessage('system', errorMessage);
+                    updateStatus('chat-box-status', 'error');
+                    throw new Error(errorMessage);
+                }
+            }
+        }
+
+        function showStatusMessage(message) {
+            const chatMessages = document.getElementById('chat-messages');
+            const statusDiv = document.createElement('div');
+            statusDiv.className = 'status-message';
+            statusDiv.textContent = message;
+            statusDiv.style.cssText = `
+                text-align: center;
+                padding: 0.5rem;
+                margin: 0.5rem 0;
+                background: rgba(255, 193, 7, 0.1);
+                border: 1px solid rgba(255, 193, 7, 0.3);
+                border-radius: 0.5rem;
+                color: #856404;
+                font-size: 0.875rem;
+                animation: fadeIn 0.3s ease-in-out;
+            `;
+            
+            chatMessages.appendChild(statusDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.style.animation = 'fadeOut 0.3s ease-in-out';
+                    setTimeout(() => {
+                        if (statusDiv.parentNode) {
+                            statusDiv.parentNode.removeChild(statusDiv);
+                        }
+                    }, 300);
+                }
+            }, 3000);
         }
 
         async function sendChatMessageStream(endpoint, requestBody) {
@@ -1500,7 +1581,25 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    const errorText = await response.text();
+                    let errorMessage = `HTTP ${response.status}`;
+                    
+                    // Handle specific error codes
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error_code === 'TIMEOUT_524') {
+                            errorMessage = '请求超时：问题较复杂，请尝试简化问题或分多次询问。';
+                            if (errorJson.suggestions && Array.isArray(errorJson.suggestions)) {
+                                errorMessage += '\n建议：\n' + errorJson.suggestions.join('\n');
+                            }
+                        } else if (errorJson.message) {
+                            errorMessage = `Error: ${errorJson.message}`;
+                        }
+                    } catch (e) {
+                        // If JSON parsing fails, use the original error message
+                    }
+                    
+                    throw new Error(errorMessage);
                 }
                 
                 hideTypingIndicator();
