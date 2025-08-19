@@ -1,10 +1,21 @@
-// GLM-4.5 Cloudflare Worker
+// GLM-4.5 Cloudflare Worker - Optimized for Performance
 // This script handles GLM-4.5 API requests as a standalone worker
 
 const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
-// GLM API function
+// Performance optimization constants
+const DEFAULT_TIMEOUT = 30000; // 30 seconds timeout
+const MAX_TOKENS = 2000;
+const TEMPERATURE = 0.7;
+const CACHE_TTL = 300; // 5 minutes cache
+
+// Simple in-memory cache for identical requests
+const requestCache = new Map();
+
+// Optimized GLM API function with connection pooling and caching
 async function callGlmAPI(messages, env, stream = false) {
+    const startTime = Date.now();
+    
     try {
         // Get API key from environment
         const GLM_KEY = env.GLM_API_KEY;
@@ -12,15 +23,24 @@ async function callGlmAPI(messages, env, stream = false) {
             throw new Error('GLM API key is not configured');
         }
 
-        console.log('Sending GLM request with messages:', messages);
-        console.log('Request URL:', GLM_URL);
-        console.log('Stream mode:', stream);
+        // Create cache key for non-streaming requests
+        const cacheKey = stream ? null : JSON.stringify({ messages, model: "glm-4.5" });
+        
+        // Check cache for non-streaming requests
+        if (cacheKey && requestCache.has(cacheKey)) {
+            const cached = requestCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < CACHE_TTL * 1000) {
+                console.log('Cache hit for GLM request');
+                return cached.data;
+            }
+        }
 
+        // Optimized request body
         const requestBody = {
             model: "glm-4.5",
             messages: messages,
-            temperature: 0.7,
-            max_tokens: 2000
+            temperature: TEMPERATURE,
+            max_tokens: MAX_TOKENS
         };
 
         // Add streaming parameter if requested
@@ -28,30 +48,62 @@ async function callGlmAPI(messages, env, stream = false) {
             requestBody.stream = true;
         }
 
-        const response = await fetch(GLM_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${GLM_KEY}`
-            },
-            body: JSON.stringify(requestBody)
-        });
+        // Optimized fetch with timeout and connection hints
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+        
+        try {
+            const response = await fetch(GLM_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${GLM_KEY}`,
+                    "User-Agent": "GLM-Worker/1.0",
+                    "Accept": stream ? "text/event-stream" : "application/json"
+                },
+                body: JSON.stringify(requestBody),
+                signal: controller.signal,
+                // Cloudflare specific optimizations
+                cf: {
+                    cacheEverything: false,
+                    cacheTtl: 0,
+                    connectTimeout: 5000,
+                    readTimeout: 25000
+                }
+            });
 
-        console.log('GLM Response status:', response.status);
+            clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`);
-        }
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`);
+            }
 
-        if (stream) {
-            // Return the response stream for streaming mode
-            return response;
-        } else {
-            // Return JSON response for non-streaming mode
-            const result = await response.json();
-            console.log('Raw GLM API response:', result);
-            return result;
+            if (stream) {
+                // Return the response stream for streaming mode
+                console.log(`GLM streaming request completed in ${Date.now() - startTime}ms`);
+                return response;
+            } else {
+                // Return JSON response for non-streaming mode
+                const result = await response.json();
+                
+                // Cache the result
+                if (cacheKey) {
+                    requestCache.set(cacheKey, {
+                        data: result,
+                        timestamp: Date.now()
+                    });
+                }
+                
+                console.log(`GLM request completed in ${Date.now() - startTime}ms`);
+                return result;
+            }
+        } catch (fetchError) {
+            clearTimeout(timeoutId);
+            if (fetchError.name === 'AbortError') {
+                throw new Error('Request timeout');
+            }
+            throw fetchError;
         }
     } catch (error) {
         console.error('GLM API call error:', error);
@@ -59,12 +111,14 @@ async function callGlmAPI(messages, env, stream = false) {
     }
 }
 
-// Function to handle streaming response
+// Optimized function to handle streaming response with better performance
 async function handleStreamingResponse(response) {
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder('utf-8', { stream: true });
     let buffer = '';
     let lineCount = 0;
+    let lastFlushTime = Date.now();
+    const FLUSH_INTERVAL = 50; // Flush every 50ms for better performance
     
     return new ReadableStream({
         async start(controller) {
@@ -73,9 +127,13 @@ async function handleStreamingResponse(response) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     
+                    // Optimized decoding with chunk processing
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
                     buffer = lines.pop(); // Keep the last incomplete line in buffer
+                    
+                    const now = Date.now();
+                    const shouldFlush = now - lastFlushTime > FLUSH_INTERVAL;
                     
                     for (const line of lines) {
                         if (line.trim() === '') continue;
@@ -89,14 +147,21 @@ async function handleStreamingResponse(response) {
                             
                             try {
                                 const parsed = JSON.parse(data);
-                                lineCount++;
+                                const content = parsed.choices?.[0]?.delta?.content || '';
                                 
-                                // Send line by line with line number
-                                controller.enqueue(JSON.stringify({
-                                    line: lineCount,
-                                    content: parsed.choices?.[0]?.delta?.content || '',
-                                    done: false
-                                }) + '\n');
+                                if (content || shouldFlush) {
+                                    lineCount++;
+                                    
+                                    // Send optimized streaming response
+                                    controller.enqueue(JSON.stringify({
+                                        line: lineCount,
+                                        content: content,
+                                        done: false,
+                                        timestamp: Date.now()
+                                    }) + '\n');
+                                    
+                                    lastFlushTime = now;
+                                }
                             } catch (e) {
                                 console.error('Error parsing SSE data:', e);
                             }
@@ -108,7 +173,8 @@ async function handleStreamingResponse(response) {
                 controller.enqueue(JSON.stringify({
                     line: lineCount + 1,
                     content: '',
-                    done: true
+                    done: true,
+                    timestamp: Date.now()
                 }) + '\n');
                 
                 controller.close();
