@@ -2205,48 +2205,62 @@
             async handleGLMStreamingResponse(response) {
                 console.log('handleGLMStreamingResponse开始执行...');
                 
+                if (!response.ok) {
+                    throw new Error(`GLM API返回错误状态: ${response.status}`);
+                }
+                
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullContent = '';
                 
-                return new Promise((resolve, reject) => {
-                    const processStream = async () => {
-                        try {
-                            console.log('开始读取GLM流数据...');
-                            while (true) {
-                                const { done, value } = await reader.read();
-                                if (done) {
-                                    console.log('GLM流数据读取完成');
-                                    break;
-                                }
-                                
-                                const chunk = decoder.decode(value, { stream: true });
-                                console.log('收到GLM数据块长度:', chunk.length);
-                                console.log('GLM数据块内容预览:', chunk.substring(0, 200));
-                                
-                                fullContent += chunk;
-                                console.log(`GLM累积内容长度: ${fullContent.length}`);
-                                
-                                // Update UI with streaming content
-                                this.updateStreamingContent(Date.now(), chunk, fullContent);
-                            }
-                            
-                            if (!fullContent || fullContent.length === 0) {
-                                console.error('GLM流式响应返回了空内容');
-                                throw new Error('GLM流式响应返回了空内容');
-                            }
-                            
-                            const extractedCode = this.extractCodeFromResponse(fullContent);
-                            resolve(extractedCode);
-                            
-                        } catch (error) {
-                            console.error('GLM流式响应处理错误:', error);
-                            reject(error);
-                        }
-                    };
+                try {
+                    console.log('开始读取GLM流数据...');
                     
-                    processStream().catch(reject);
-                });
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        
+                        if (done) {
+                            console.log('GLM流数据读取完成');
+                            break;
+                        }
+                        
+                        const chunk = decoder.decode(value, { stream: true });
+                        console.log('GLM流数据块:', chunk);
+                        
+                        // 直接累积所有内容，不进行复杂解析
+                        fullContent += chunk;
+                        
+                        // 实时更新UI
+                        this.updateStreamingContent(Date.now(), chunk, fullContent);
+                    }
+                    
+                    console.log('GLM流式响应原始内容:', fullContent);
+                    
+                    // 如果内容为JSON格式，尝试解析
+                    let processedContent = fullContent;
+                    try {
+                        const parsed = JSON.parse(fullContent);
+                        // 尝试从不同字段提取内容
+                        processedContent = parsed.content || parsed.output || parsed.message || parsed.response || fullContent;
+                        console.log('GLM解析后内容:', processedContent);
+                    } catch (e) {
+                        console.log('GLM响应不是JSON格式，使用原始内容');
+                        // 保持原始内容
+                    }
+                    
+                    if (!processedContent.trim()) {
+                        console.error('GLM流式响应返回了空内容');
+                        throw new Error('GLM流式响应返回了空内容');
+                    }
+                    
+                    console.log('GLM流式响应处理完成，最终内容长度:', processedContent.length);
+                    const extractedCode = this.extractCodeFromResponse(processedContent);
+                    return extractedCode;
+                    
+                } catch (error) {
+                    console.error('GLM流式响应处理错误:', error);
+                    throw error;
+                }
             }
             
             async handleStreamingResponse(response) {
