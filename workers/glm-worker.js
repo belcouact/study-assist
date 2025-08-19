@@ -292,8 +292,18 @@ export default {
                         // Non-streaming mode
                         const result = await callGlmAPI(messages, env, false);
                         
-                        // Return the response
-                        return new Response(JSON.stringify(result), {
+                        // Return the response in the expected format
+                        let responseData;
+                        if (path === '/functions/api/chat-glm') {
+                            // For chat-glm endpoint, return {output: content} format
+                            const content = result.choices?.[0]?.message?.content || 'No response from GLM';
+                            responseData = { output: content };
+                        } else {
+                            // For other endpoints, return original GLM response
+                            responseData = result;
+                        }
+                        
+                        return new Response(JSON.stringify(responseData), {
                             headers: {
                                 'Content-Type': 'application/json',
                                 ...corsHeaders

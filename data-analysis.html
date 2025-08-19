@@ -1625,9 +1625,9 @@
                     const prompt = this.buildOptimizationPrompt(userText);
                     console.log('构建的prompt长度:', prompt.length);
                     
-                    // 调用DeepSeek API优化需求
+                    // 调用GLM API优化需求
                     this.updateProgress(1, '正在生成图表配置要求...');
-                    const optimizedDescription = await this.callDeepSeekAPI(prompt, false);
+                    const optimizedDescription = await this.callGLMAPI(prompt, false);
                     console.log('生成的配置要求长度:', optimizedDescription ? optimizedDescription.length : 0);
                     console.log('生成的配置要求内容:', optimizedDescription ? optimizedDescription.substring(0, 200) + '...' : 'null');
                     
@@ -1895,11 +1895,11 @@
                     const prompt = this.buildScriptPrompt(optimizedText, hasData);
                     console.log('构建的prompt长度:', prompt.length);
                     
-                    // 调用DeepSeek API生成脚本（单次调用）
+                    // 调用GLM API生成脚本（单次调用）
                     this.updateProgress(4, '正在生成图表脚本...');
                     console.log('尝试生成脚本...');
                     
-                    const script = await this.callDeepSeekAPI(prompt, true);
+                    const script = await this.callGLMAPI(prompt, true);
                     
                     if (!script || !script.trim()) {
                         throw new Error('无法生成脚本');
@@ -2081,9 +2081,9 @@
 重要：请只返回完整的JavaScript代码，不要包含任何HTML代码、解释文字、注释或其他内容。返回的代码应该可以直接执行。`;
             }
 
-            async callDeepSeekAPI(prompt, stream = false) {
+            async callGLMAPI(prompt, stream = false) {
                 try {
-                    console.log('开始调用DeepSeek API...');
+                    console.log('开始调用GLM API...');
                     console.log('Stream mode:', stream);
                     console.log('Prompt length:', prompt.length);
                     
@@ -2091,32 +2091,29 @@
                     const selectedGoal = document.querySelector('.analysis-goal.active');
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
-                    // 构建系统消息
+                    // 构建系统消息并添加到prompt中
                     const systemMessage = `你是一个ECharts图表配置专家。请根据用户的需求生成纯粹的ECharts配置对象代码。只返回JavaScript对象格式的配置代码，不包含任何HTML、初始化代码、注释或解释文字。`;
+                    const fullPrompt = `${systemMessage}\n\n用户需求：${prompt}`;
                     
-                    console.log('发送请求到DeepSeek API...');
+                    console.log('发送请求到GLM API...');
                     
-                    // 使用DeepSeek API格式
+                    // 使用GLM API格式
                     const requestBody = {
-                        messages: [
-                            {
-                                role: "system",
-                                content: systemMessage
-                            },
-                            {
-                                role: "user",
-                                content: prompt
-                            }
-                        ]
+                        prompt: fullPrompt
                     };
                     
+                    if (stream) {
+                        requestBody.stream = true;
+                    }
+                    
                     console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
                     
-                    // 使用单个API端点
-                    console.log('发送API请求到 /api/chat');
+                    // 使用GLM API端点
+                    const GLM_BASE_URL = 'https://glm.study-llm.me';
+                    console.log('发送API请求到 GLM API');
                     console.log('请求体内容:', JSON.stringify(requestBody, null, 2));
                     
-                    const response = await fetch('/api/chat', {
+                    const response = await fetch(`${GLM_BASE_URL}/functions/api/chat-glm`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -2141,49 +2138,56 @@
                     console.log('响应头Transfer-Encoding:', response.headers.get('Transfer-Encoding'));
                     console.log(`data-analysis:${new Date().getTime()} 响应头Transfer-Encoding:`, response.headers.get('Transfer-Encoding'));
 
-                    // DeepSeek API目前不支持流式响应，直接处理普通响应
-                    console.log('处理DeepSeek API响应...');
-                    console.log(`data-analysis:${new Date().getTime()} 处理DeepSeek API响应...`);
-                    const result = await response.json();
-                    console.log('DeepSeek API响应结果:', result);
-                    console.log(`data-analysis:${new Date().getTime()} DeepSeek API响应结果:`, result);
+                    // GLM API处理响应
+                    console.log('处理GLM API响应...');
+                    console.log(`data-analysis:${new Date().getTime()} 处理GLM API响应...`);
                     
-                    // 处理不同的响应格式
-                    let content;
-                    if (result.choices && result.choices[0] && result.choices[0].message) {
-                        // 标准DeepSeek API格式
-                        content = result.choices[0].message.content;
-                    } else if (result.output) {
-                        // Worker-chat格式
-                        content = result.output;
-                    } else if (result.message) {
-                        // 备用格式
-                        content = result.message;
-                    } else if (result.content) {
-                        // 另一种备用格式
-                        content = result.content;
+                    if (stream) {
+                        // 处理流式响应
+                        return await this.handleGLMStreamingResponse(response);
                     } else {
-                        // 最后尝试直接使用result
-                        content = result;
+                        // 处理普通响应
+                        const result = await response.json();
+                        console.log('GLM API响应结果:', result);
+                        console.log(`data-analysis:${new Date().getTime()} GLM API响应结果:`, result);
+                        
+                        // 处理GLM API响应格式
+                        let content;
+                        if (result.output) {
+                            // GLM API标准格式
+                            content = result.output;
+                        } else if (result.choices && result.choices[0] && result.choices[0].message) {
+                            // 备用格式
+                            content = result.choices[0].message.content;
+                        } else if (result.message) {
+                            // 另一种备用格式
+                            content = result.message;
+                        } else if (result.content) {
+                            // 另一种备用格式
+                            content = result.content;
+                        } else {
+                            // 最后尝试直接使用result
+                            content = result;
+                        }
+                        
+                        console.log('提取的内容长度:', content ? content.length : 0);
+                        console.log(`data-analysis:${new Date().getTime()} 提取的内容长度:`, content ? content.length : 0);
+                        console.log('内容预览:', content ? content.substring(0, 200) : 'null');
+                        console.log(`data-analysis:${new Date().getTime()} 内容预览:`, content ? content.substring(0, 200) : 'null');
+                        
+                        if (!content || content.length === 0) {
+                            console.error('API返回了空内容');
+                            throw new Error('API返回了空内容');
+                        }
+                        
+                        return this.extractCodeFromResponse(content);
                     }
-                    
-                    console.log('提取的内容长度:', content ? content.length : 0);
-                    console.log(`data-analysis:${new Date().getTime()} 提取的内容长度:`, content ? content.length : 0);
-                    console.log('内容预览:', content ? content.substring(0, 200) : 'null');
-                    console.log(`data-analysis:${new Date().getTime()} 内容预览:`, content ? content.substring(0, 200) : 'null');
-                    
-                    if (!content || content.length === 0) {
-                        console.error('API返回了空内容');
-                        throw new Error('API返回了空内容');
-                    }
-                    
-                    return this.extractCodeFromResponse(content);
                     
                 } catch (error) {
-                    console.error('callDeepSeekAPI错误:', error);
+                    console.error('callGLMAPI错误:', error);
                     
                     // 简化的错误处理
-                    let errorMessage = '无法连接到DeepSeek分析服务';
+                    let errorMessage = '无法连接到GLM分析服务';
                     if (error.message.includes('Failed to fetch')) {
                         errorMessage = '网络连接失败，请检查网络连接后重试。';
                     } else {
@@ -2196,6 +2200,53 @@
                     // 抛出错误以保持原有错误处理逻辑
                     throw new Error(errorMessage);
                 }
+            }
+            
+            async handleGLMStreamingResponse(response) {
+                console.log('handleGLMStreamingResponse开始执行...');
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                
+                return new Promise((resolve, reject) => {
+                    const processStream = async () => {
+                        try {
+                            console.log('开始读取GLM流数据...');
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) {
+                                    console.log('GLM流数据读取完成');
+                                    break;
+                                }
+                                
+                                const chunk = decoder.decode(value, { stream: true });
+                                console.log('收到GLM数据块长度:', chunk.length);
+                                console.log('GLM数据块内容预览:', chunk.substring(0, 200));
+                                
+                                fullContent += chunk;
+                                console.log(`GLM累积内容长度: ${fullContent.length}`);
+                                
+                                // Update UI with streaming content
+                                this.updateStreamingContent(Date.now(), chunk, fullContent);
+                            }
+                            
+                            if (!fullContent || fullContent.length === 0) {
+                                console.error('GLM流式响应返回了空内容');
+                                throw new Error('GLM流式响应返回了空内容');
+                            }
+                            
+                            const extractedCode = this.extractCodeFromResponse(fullContent);
+                            resolve(extractedCode);
+                            
+                        } catch (error) {
+                            console.error('GLM流式响应处理错误:', error);
+                            reject(error);
+                        }
+                    };
+                    
+                    processStream().catch(reject);
+                });
             }
             
             async handleStreamingResponse(response) {
