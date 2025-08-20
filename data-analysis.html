@@ -987,16 +987,6 @@
     </header>
 
     <main class="container main-content">
-        <!-- Luckysheet表格 -->
-        <div class="card">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-table"></i> 数据表格
-                </h2>
-            </div>
-            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: pan-x pan-y;"></div>
-        </div>
-        
         <!-- 模板数据选择 -->
         <div class="card">
             <div class="card-header">
@@ -1026,6 +1016,16 @@
                     <p>用户满意度调查数据，适合统计分析</p>
                 </div>
             </div>
+        </div>
+        
+        <!-- Luckysheet表格 -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-table"></i> 数据表格
+                </h2>
+            </div>
+            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: pan-x pan-y;"></div>
         </div>
 
         <!-- 数据预览 -->
@@ -1648,29 +1648,77 @@
             async analyzeDataset(dataset) {
                 const { headers, data } = dataset;
                 
-                // 基础统计信息
-                const basicStats = this.calculateBasicStats(data, headers);
+                try {
+                    // 调用GLM API进行数据分析
+                    const analysisReport = await this.performGLMDataAnalysis(data, headers);
+                    return analysisReport;
+                } catch (error) {
+                    console.error('GLM API分析失败，回退到本地分析:', error);
+                    
+                    // 如果GLM API失败，回退到原有的硬编码分析方法
+                    const basicStats = this.calculateBasicStats(data, headers);
+                    const qualityAnalysis = this.analyzeDataQuality(data, headers);
+                    const trendAnalysis = this.analyzeTrends(data, headers);
+                    const correlationAnalysis = this.analyzeCorrelations(data, headers);
+                    
+                    const report = this.generateAnalysisReport({
+                        basicStats,
+                        qualityAnalysis,
+                        trendAnalysis,
+                        correlationAnalysis,
+                        datasetSize: data.length,
+                        columnCount: headers.length
+                    });
+                    
+                    return report;
+                }
+            }
+            
+            // 使用GLM API进行数据分析
+            async performGLMDataAnalysis(data, headers) {
+                // 构建数据分析的prompt，使用完整数据而非样本
+                const dataSummary = {
+                    totalRows: data.length,
+                    totalColumns: headers.length,
+                    columns: headers,
+                    fullData: data // 使用完整数据
+                };
                 
-                // 数据质量分析
-                const qualityAnalysis = this.analyzeDataQuality(data, headers);
+                const analysisPrompt = `请对以下数据集进行专业的数据分析，并提供详细的分析报告：
+
+数据集概况：
+- 总行数：${dataSummary.totalRows}
+- 总列数：${dataSummary.totalColumns}
+- 列名：${dataSummary.columns.join(', ')}
+
+完整数据集：
+${JSON.stringify(dataSummary.fullData, null, 2)}
+
+请提供以下分析内容：
+1. 数据集概况和基本统计信息
+2. 数据质量评估（完整性、一致性、准确性）
+3. 各列的详细统计分析（数值列：均值、中位数、最值、范围；文本列：唯一值数量、最常见值）
+4. 趋势分析（如果包含时间数据）
+5. 相关性分析（数值列之间）
+6. 发现的问题和改进建议
+
+请以markdown格式返回分析报告，使用emoji图标增强可读性。`;
                 
-                // 趋势分析（如果适用）
-                const trendAnalysis = this.analyzeTrends(data, headers);
-                
-                // 相关性分析
-                const correlationAnalysis = this.analyzeCorrelations(data, headers);
-                
-                // 生成分析报告
-                const report = this.generateAnalysisReport({
-                    basicStats,
-                    qualityAnalysis,
-                    trendAnalysis,
-                    correlationAnalysis,
-                    datasetSize: data.length,
-                    columnCount: headers.length
-                });
-                
-                return report;
+                try {
+                    console.log('开始调用GLM API进行数据分析...');
+                    
+                    // 调用GLM API，指定这是数据分析请求
+                    const analysisResult = await this.callGLMAPI(analysisPrompt, false, true);
+                    
+                    console.log('GLM API数据分析完成');
+                    
+                    // 返回GLM API的分析结果
+                    return analysisResult;
+                    
+                } catch (error) {
+                    console.error('GLM API数据分析失败:', error);
+                    throw new Error('GLM API数据分析失败: ' + error.message);
+                }
             }
 
             // 计算基础统计信息
@@ -2013,12 +2061,140 @@
                 const analysisContent = document.getElementById('analysisContent');
                 
                 if (analysisResultCard && analysisContent) {
-                    analysisContent.value = result;
+                    // 检查是否是markdown格式（包含markdown特征）
+                    if (this.isMarkdownContent(result)) {
+                        // 如果是markdown格式，转换为HTML显示
+                        const htmlContent = this.convertMarkdownToHTML(result);
+                        analysisContent.innerHTML = htmlContent;
+                        
+                        // 添加markdown样式
+                        this.addMarkdownStyles();
+                    } else {
+                        // 如果不是markdown格式，保持原样显示
+                        analysisContent.value = result;
+                    }
+                    
                     analysisResultCard.classList.remove('hidden');
                     
                     // 滚动到结果区域
                     analysisResultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 }
+            }
+            
+            // 检查内容是否为markdown格式
+            isMarkdownContent(content) {
+                const markdownPatterns = [
+                    /^#{1,6}\s+/m,  // 标题
+                    /\*\*.*?\*\*/m,  // 粗体
+                    /\*.*?\*/m,      // 斜体
+                    /^[-*+]\s+/m,    // 无序列表
+                    /^\d+\.\s+/m,   // 有序列表
+                    /\[.*?\]\(.*?\)/m, // 链接
+                    /`.*?`/m,        // 代码
+                    /```[\s\S]*?```/m  // 代码块
+                ];
+                
+                return markdownPatterns.some(pattern => pattern.test(content));
+            }
+            
+            // 简单的markdown到HTML转换
+            convertMarkdownToHTML(markdown) {
+                let html = markdown;
+                
+                // 转换标题
+                html = html.replace(/^#{1,6}\s+(.+)$/gm, (match, title) => {
+                    const level = match.match(/^#/)[0].length;
+                    return `<h${level}>${title}</h${level}>`;
+                });
+                
+                // 转换粗体
+                html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                
+                // 转换斜体
+                html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                
+                // 转换无序列表
+                html = html.replace(/^[-*+]\s+(.+)$/gm, '<li>$1</li>');
+                html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+                
+                // 转换有序列表
+                html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+                html = html.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+                
+                // 转换代码
+                html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+                
+                // 转换代码块
+                html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+                
+                // 转换换行
+                html = html.replace(/\n\n/g, '</p><p>');
+                html = html.replace(/\n/g, '<br>');
+                html = '<p>' + html + '</p>';
+                
+                return html;
+            }
+            
+            // 添加markdown样式
+            addMarkdownStyles() {
+                const analysisContent = document.getElementById('analysisContent');
+                if (!analysisContent) return;
+                
+                // 检查是否已经添加了样式
+                if (analysisContent.dataset.markdownStyled) return;
+                
+                // 添加内联样式
+                const styles = `
+                    #analysisContent h1, #analysisContent h2, #analysisContent h3, 
+                    #analysisContent h4, #analysisContent h5, #analysisContent h6 {
+                        color: #333;
+                        margin-top: 1em;
+                        margin-bottom: 0.5em;
+                    }
+                    #analysisContent h1 { font-size: 1.5em; }
+                    #analysisContent h2 { font-size: 1.3em; }
+                    #analysisContent h3 { font-size: 1.1em; }
+                    #analysisContent ul, #analysisContent ol {
+                        margin: 0.5em 0;
+                        padding-left: 1.5em;
+                    }
+                    #analysisContent li {
+                        margin: 0.25em 0;
+                    }
+                    #analysisContent code {
+                        background-color: #f4f4f4;
+                        padding: 2px 4px;
+                        border-radius: 3px;
+                        font-family: monospace;
+                    }
+                    #analysisContent pre {
+                        background-color: #f4f4f4;
+                        padding: 1em;
+                        border-radius: 5px;
+                        overflow-x: auto;
+                        margin: 1em 0;
+                    }
+                    #analysisContent pre code {
+                        background-color: transparent;
+                        padding: 0;
+                    }
+                    #analysisContent strong {
+                        font-weight: bold;
+                    }
+                    #analysisContent em {
+                        font-style: italic;
+                    }
+                    #analysisContent p {
+                        margin: 0.5em 0;
+                    }
+                `;
+                
+                const styleElement = document.createElement('style');
+                styleElement.textContent = styles;
+                document.head.appendChild(styleElement);
+                
+                // 标记已添加样式
+                analysisContent.dataset.markdownStyled = 'true';
             }
 
             // 显示错误信息
@@ -2494,19 +2670,23 @@
 
             
             async executeScriptAndShowChart() {
-                if (!this.generatedCode) {
-                    this.showError('没有可用的生成代码，请先生成代码');
+                // 获取OptimizedContent文本框中的代码
+                const optimizedContent = document.getElementById('optimizedContent');
+                if (!optimizedContent || !optimizedContent.value.trim()) {
+                    this.showError('请先生成图表配置要求');
                     return;
                 }
+                
+                const codeToExecute = optimizedContent.value.trim();
                 
                 try {
                     console.log('开始执行脚本并显示图表...');
                     this.showLoading();
                     
-                    // Execute the stored code
-                    this.updateProgress(5, '正在执行生成的代码...');
-                    console.log('执行生成的代码...');
-                    this.executeGeneratedCode(this.generatedCode);
+                    // Execute the code from OptimizedContent textbox
+                    this.updateProgress(5, '正在执行配置要求...');
+                    console.log('执行配置要求代码...');
+                    this.executeGeneratedCode(codeToExecute);
                     
                     // Show result
                     this.updateProgress(6, '正在渲染图表...');
@@ -2531,18 +2711,25 @@
             
 
 
-            async callGLMAPI(prompt, stream = false) {
+            async callGLMAPI(prompt, stream = false, isDataAnalysis = false) {
                 try {
                     console.log('开始调用GLM API...');
                     console.log('Stream mode:', stream);
                     console.log('Prompt length:', prompt.length);
+                    console.log('Is data analysis:', isDataAnalysis);
                     
                     // 获取当前选择的分析目标
                     const selectedGoal = document.querySelector('.analysis-goal.active');
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
-                    // 构建系统消息并添加到prompt中
-                    const systemMessage = `你是一个HTML图表生成专家。请根据用户的需求生成完整的HTML图表代码，包含HTML文档结构、ECharts库引用、图表容器和初始化代码。只返回完整的HTML代码，不包含任何解释文字或注释。`;
+                    // 根据用途构建不同的系统消息
+                    let systemMessage;
+                    if (isDataAnalysis) {
+                        systemMessage = `你是一个专业的数据分析师。请根据用户提供的数据集进行深入分析，生成详细的分析报告。报告应包含数据概况、质量评估、统计分析、趋势分析和相关性分析等内容。请以markdown格式返回报告，使用emoji图标增强可读性。`;
+                    } else {
+                        systemMessage = `你是一个HTML图表生成专家。请根据用户的需求生成完整的HTML图表代码，包含HTML文档结构、ECharts库引用、图表容器和初始化代码。只返回完整的HTML代码，不包含任何解释文字或注释。`;
+                    }
+                    
                     const fullPrompt = `${systemMessage}\n\n用户需求：${prompt}`;
                     
                     console.log('发送请求到GLM API...');
@@ -2618,7 +2805,14 @@
                             throw new Error('API返回了空内容');
                         }
                         
-                        return this.extractCodeFromResponse(content);
+                        // 根据用途处理响应内容
+                        if (isDataAnalysis) {
+                            // 数据分析直接返回markdown内容
+                            return content;
+                        } else {
+                            // 图表生成需要提取代码
+                            return this.extractCodeFromResponse(content);
+                        }
                     }
                     
                 } catch (error) {
