@@ -1038,44 +1038,30 @@
             <div id="dataPreview" class="data-preview"></div>
         </div>
 
-        <!-- 进度指示器 -->
-        <div class="card" id="progressCard">
+
+
+        <!-- 数据分析 -->
+        <div class="card" id="dataAnalysisCard">
             <div class="card-header">
                 <h2 class="card-title">
-                    <i class="fas fa-tasks"></i> 处理进度
+                    <i class="fas fa-database"></i> 数据分析
                 </h2>
             </div>
-            <div class="progress-container">
-                <div class="progress-steps">
-                    <div class="step active" data-step="1">
-                        <div class="step-icon">1</div>
-                        <div class="step-text">分析数据</div>
-                    </div>
-                    <div class="step" data-step="2">
-                        <div class="step-icon">2</div>
-                        <div class="step-text">生成配置要求</div>
-                    </div>
-                    <div class="step" data-step="3">
-                        <div class="step-icon">3</div>
-                        <div class="step-text">配置要求完成</div>
-                    </div>
-                    <div class="step" data-step="4">
-                        <div class="step-icon">4</div>
-                        <div class="step-text">生成脚本</div>
-                    </div>
-                    <div class="step" data-step="5">
-                        <div class="step-icon">5</div>
-                        <div class="step-text">执行代码</div>
-                    </div>
-                    <div class="step" data-step="6">
-                        <div class="step-icon">6</div>
-                        <div class="step-text">渲染图表</div>
-                    </div>
+            <div class="form-group">
+                <button id="analyzeData" class="btn btn-info">
+                    <i class="fas fa-chart-pie"></i> 数据分析
+                </button>
+            </div>
+            <div class="card hidden" id="analysisResult">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-clipboard-list"></i> 数据分析结果
+                    </h3>
                 </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="progress-bar"></div>
+                <div class="form-group">
+                    <label class="form-label">分析结果</label>
+                    <textarea id="analysisContent" class="form-input" rows="8" readonly placeholder="数据分析结果将显示在这里..."></textarea>
                 </div>
-                <div class="progress-status" id="progress-status">正在准备生成图表配置要求...</div>
             </div>
         </div>
 
@@ -1110,9 +1096,6 @@
                     <textarea id="optimizedContent" class="form-input" rows="8" placeholder="具体的图表配置要求将显示在这里，包括图表类型、坐标轴、标题等详细配置..."></textarea>
                 </div>
                 <div class="button-group">
-                    <button id="generateScript" class="btn btn-primary hidden" disabled>
-                        <i class="fas fa-code"></i> 生成脚本
-                    </button>
                     <button id="executeScript" class="btn btn-success" disabled>
                         <i class="fas fa-play"></i> 执行脚本显示图表
                     </button>
@@ -1213,14 +1196,11 @@
             }
 
             setupEventListeners() {
-                const generateScriptBtn = document.getElementById('generateScript');
                 const executeScriptBtn = document.getElementById('executeScript');
                 const optimizeDescriptionBtn = document.getElementById('optimizeDescription');
                 const userRequirement = document.getElementById('userRequirement');
+                const analyzeDataBtn = document.getElementById('analyzeData');
 
-                if (generateScriptBtn) {
-                    generateScriptBtn.addEventListener('click', () => this.generateScript());
-                }
                 
                 if (executeScriptBtn) {
                     executeScriptBtn.addEventListener('click', () => this.executeScriptAndShowChart());
@@ -1228,6 +1208,11 @@
                 
                 if (optimizeDescriptionBtn) {
                     optimizeDescriptionBtn.addEventListener('click', () => this.optimizeChartDescription());
+                }
+
+                // 添加数据分析按钮事件监听器
+                if (analyzeDataBtn) {
+                    analyzeDataBtn.addEventListener('click', () => this.performDataAnalysis());
                 }
 
                 // 监听用户输入变化，启用/禁用优化按钮
@@ -1605,6 +1590,442 @@
                 };
             }
 
+            // 执行数据分析
+            async performDataAnalysis() {
+                try {
+                    // 显示加载状态
+                    this.showAnalysisLoading();
+                    
+                    // 获取数据
+                    const data = await this.getAnalysisData();
+                    if (!data) {
+                        this.hideAnalysisLoading();
+                        this.showError('没有可用的数据进行分析，请先选择模板或输入数据');
+                        return;
+                    }
+                    
+                    // 执行分析
+                    const analysisResult = await this.analyzeDataset(data);
+                    
+                    // 显示结果
+                    this.displayAnalysisResult(analysisResult);
+                    
+                    // 隐藏加载状态
+                    this.hideAnalysisLoading();
+                    
+                } catch (error) {
+                    console.error('数据分析过程中出错:', error);
+                    this.hideAnalysisLoading();
+                    this.showError('数据分析失败: ' + error.message);
+                }
+            }
+
+            // 获取分析数据
+            async getAnalysisData() {
+                // 优先从Luckysheet获取数据
+                const luckysheetData = this.getLuckysheetData();
+                if (luckysheetData && luckysheetData.data && luckysheetData.data.length > 0) {
+                    return luckysheetData;
+                }
+                
+                // 其次检查预览数据
+                if (this.data && this.data.length > 0) {
+                    return {
+                        headers: this.columns,
+                        data: this.data
+                    };
+                }
+                
+                // 最后检查手动输入数据
+                if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
+                    return this.manualInputData;
+                }
+                
+                return null;
+            }
+
+            // 分析数据集
+            async analyzeDataset(dataset) {
+                const { headers, data } = dataset;
+                
+                // 基础统计信息
+                const basicStats = this.calculateBasicStats(data, headers);
+                
+                // 数据质量分析
+                const qualityAnalysis = this.analyzeDataQuality(data, headers);
+                
+                // 趋势分析（如果适用）
+                const trendAnalysis = this.analyzeTrends(data, headers);
+                
+                // 相关性分析
+                const correlationAnalysis = this.analyzeCorrelations(data, headers);
+                
+                // 生成分析报告
+                const report = this.generateAnalysisReport({
+                    basicStats,
+                    qualityAnalysis,
+                    trendAnalysis,
+                    correlationAnalysis,
+                    datasetSize: data.length,
+                    columnCount: headers.length
+                });
+                
+                return report;
+            }
+
+            // 计算基础统计信息
+            calculateBasicStats(data, headers) {
+                const stats = {
+                    totalRows: data.length,
+                    totalColumns: headers.length,
+                    numericColumns: [],
+                    textColumns: [],
+                    columnStats: {}
+                };
+                
+                headers.forEach(header => {
+                    const values = data.map(row => row[header]);
+                    const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
+                    
+                    if (numericValues.length > values.length / 2) {
+                        // 数值型列
+                        stats.numericColumns.push(header);
+                        
+                        const sum = numericValues.reduce((a, b) => a + b, 0);
+                        const mean = sum / numericValues.length;
+                        const sorted = [...numericValues].sort((a, b) => a - b);
+                        const median = sorted.length % 2 === 0 
+                            ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+                            : sorted[Math.floor(sorted.length / 2)];
+                        
+                        stats.columnStats[header] = {
+                            type: 'numeric',
+                            count: numericValues.length,
+                            mean: mean.toFixed(2),
+                            median: median.toFixed(2),
+                            min: Math.min(...numericValues),
+                            max: Math.max(...numericValues),
+                            range: (Math.max(...numericValues) - Math.min(...numericValues)).toFixed(2)
+                        };
+                    } else {
+                        // 文本型列
+                        stats.textColumns.push(header);
+                        const uniqueValues = [...new Set(values.filter(val => val && val.toString().trim()))];
+                        const valueCounts = {};
+                        values.forEach(val => {
+                            const key = val ? val.toString() : '空值';
+                            valueCounts[key] = (valueCounts[key] || 0) + 1;
+                        });
+                        
+                        stats.columnStats[header] = {
+                            type: 'text',
+                            count: values.length,
+                            uniqueValues: uniqueValues.length,
+                            mostCommon: Object.entries(valueCounts)
+                                .sort((a, b) => b[1] - a[1])[0]?.[0] || '无',
+                            missingCount: values.filter(val => !val || val.toString().trim() === '').length
+                        };
+                    }
+                });
+                
+                return stats;
+            }
+
+            // 分析数据质量
+            analyzeDataQuality(data, headers) {
+                const quality = {
+                    completeness: 0,
+                    consistency: 0,
+                    accuracy: 0,
+                    issues: []
+                };
+                
+                let totalCells = data.length * headers.length;
+                let filledCells = 0;
+                let issues = [];
+                
+                // 检查完整性
+                data.forEach((row, rowIndex) => {
+                    headers.forEach(header => {
+                        const value = row[header];
+                        if (value !== null && value !== undefined && value.toString().trim() !== '') {
+                            filledCells++;
+                        } else {
+                            issues.push(`第${rowIndex + 1}行，${header}列: 缺失值`);
+                        }
+                    });
+                });
+                
+                quality.completeness = totalCells > 0 ? (filledCells / totalCells * 100).toFixed(1) : 0;
+                
+                // 检查一致性（数值列的范围一致性）
+                headers.forEach(header => {
+                    const values = data.map(row => row[header]);
+                    const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
+                    
+                    if (numericValues.length > 0) {
+                        const outliers = this.detectOutliers(numericValues);
+                        if (outliers.length > 0) {
+                            issues.push(`${header}列: 发现${outliers.length}个异常值`);
+                        }
+                    }
+                });
+                
+                quality.consistency = issues.length === 0 ? 100 : Math.max(0, 100 - issues.length * 5);
+                quality.accuracy = Math.min(quality.completeness, quality.consistency);
+                quality.issues = issues.slice(0, 10); // 限制显示的问题数量
+                
+                return quality;
+            }
+
+            // 检测异常值
+            detectOutliers(values) {
+                if (values.length < 4) return [];
+                
+                const sorted = [...values].sort((a, b) => a - b);
+                const q1 = sorted[Math.floor(sorted.length * 0.25)];
+                const q3 = sorted[Math.floor(sorted.length * 0.75)];
+                const iqr = q3 - q1;
+                const lowerBound = q1 - 1.5 * iqr;
+                const upperBound = q3 + 1.5 * iqr;
+                
+                return values.filter(val => val < lowerBound || val > upperBound);
+            }
+
+            // 趋势分析
+            analyzeTrends(data, headers) {
+                const trends = {
+                    hasTimeData: false,
+                    timeColumns: [],
+                    trends: []
+                };
+                
+                // 检测时间列
+                const timeKeywords = ['时间', '日期', '年', '月', '日', 'time', 'date', 'year', 'month', 'day'];
+                headers.forEach(header => {
+                    if (timeKeywords.some(keyword => header.toLowerCase().includes(keyword))) {
+                        trends.timeColumns.push(header);
+                    }
+                });
+                
+                trends.hasTimeData = trends.timeColumns.length > 0;
+                
+                if (trends.hasTimeData) {
+                    // 对数值列进行简单趋势分析
+                    headers.forEach(header => {
+                        const values = data.map(row => row[header]);
+                        const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
+                        
+                        if (numericValues.length > 1) {
+                            const firstHalf = numericValues.slice(0, Math.floor(numericValues.length / 2));
+                            const secondHalf = numericValues.slice(Math.floor(numericValues.length / 2));
+                            
+                            const firstAvg = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
+                            const secondAvg = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
+                            
+                            const trend = secondAvg > firstAvg ? '上升' : secondAvg < firstAvg ? '下降' : '平稳';
+                            const changePercent = ((secondAvg - firstAvg) / firstAvg * 100).toFixed(1);
+                            
+                            trends.trends.push({
+                                column: header,
+                                trend: trend,
+                                changePercent: changePercent,
+                                firstAvg: firstAvg.toFixed(2),
+                                secondAvg: secondAvg.toFixed(2)
+                            });
+                        }
+                    });
+                }
+                
+                return trends;
+            }
+
+            // 相关性分析
+            analyzeCorrelations(data, headers) {
+                const correlations = {
+                    highCorrelations: [],
+                    moderateCorrelations: [],
+                    analysis: '数据集包含数值列较少，无法进行相关性分析'
+                };
+                
+                const numericHeaders = headers.filter(header => {
+                    const values = data.map(row => row[header]);
+                    const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
+                    return numericValues.length > values.length / 2;
+                });
+                
+                if (numericHeaders.length >= 2) {
+                    correlations.analysis = '已进行数值列间的相关性分析';
+                    
+                    for (let i = 0; i < numericHeaders.length; i++) {
+                        for (let j = i + 1; j < numericHeaders.length; j++) {
+                            const col1 = numericHeaders[i];
+                            const col2 = numericHeaders[j];
+                            
+                            const correlation = this.calculateCorrelation(
+                                data.map(row => row[col1]),
+                                data.map(row => row[col2])
+                            );
+                            
+                            const absCorrelation = Math.abs(correlation);
+                            
+                            if (absCorrelation > 0.7) {
+                                correlations.highCorrelations.push({
+                                    columns: [col1, col2],
+                                    correlation: correlation.toFixed(3),
+                                    strength: '强相关'
+                                });
+                            } else if (absCorrelation > 0.4) {
+                                correlations.moderateCorrelations.push({
+                                    columns: [col1, col2],
+                                    correlation: correlation.toFixed(3),
+                                    strength: '中等相关'
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                return correlations;
+            }
+
+            // 计算相关系数
+            calculateCorrelation(x, y) {
+                const n = x.length;
+                if (n !== y.length || n === 0) return 0;
+                
+                const validPairs = x.map((xi, i) => ({
+                    x: typeof xi === 'number' && !isNaN(xi) ? xi : null,
+                    y: typeof y[i] === 'number' && !isNaN(y[i]) ? y[i] : null
+                })).filter(pair => pair.x !== null && pair.y !== null);
+                
+                if (validPairs.length < 2) return 0;
+                
+                const sumX = validPairs.reduce((sum, pair) => sum + pair.x, 0);
+                const sumY = validPairs.reduce((sum, pair) => sum + pair.y, 0);
+                const sumXY = validPairs.reduce((sum, pair) => sum + pair.x * pair.y, 0);
+                const sumX2 = validPairs.reduce((sum, pair) => sum + pair.x * pair.x, 0);
+                const sumY2 = validPairs.reduce((sum, pair) => sum + pair.y * pair.y, 0);
+                
+                const numerator = n * sumXY - sumX * sumY;
+                const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+                
+                return denominator === 0 ? 0 : numerator / denominator;
+            }
+
+            // 生成分析报告
+            generateAnalysisReport(analysis) {
+                const { basicStats, qualityAnalysis, trendAnalysis, correlationAnalysis, datasetSize, columnCount } = analysis;
+                
+                let report = `📊 数据分析报告\n\n`;
+                report += `📈 数据集概况：\n`;
+                report += `- 总行数：${datasetSize}\n`;
+                report += `- 总列数：${columnCount}\n`;
+                report += `- 数值型列：${basicStats.numericColumns.length}个\n`;
+                report += `- 文本型列：${basicStats.textColumns.length}个\n\n`;
+                
+                report += `📋 数据质量评估：\n`;
+                report += `- 完整性：${qualityAnalysis.completeness}%\n`;
+                report += `- 一致性：${qualityAnalysis.consistency}%\n`;
+                report += `- 准确性：${qualityAnalysis.accuracy}%\n\n`;
+                
+                if (qualityAnalysis.issues.length > 0) {
+                    report += `⚠️ 发现的问题：\n`;
+                    qualityAnalysis.issues.forEach(issue => {
+                        report += `- ${issue}\n`;
+                    });
+                    report += `\n`;
+                }
+                
+                report += `📊 列统计信息：\n`;
+                Object.entries(basicStats.columnStats).forEach(([column, stats]) => {
+                    report += `\n${column}：\n`;
+                    report += `- 类型：${stats.type === 'numeric' ? '数值型' : '文本型'}\n`;
+                    
+                    if (stats.type === 'numeric') {
+                        report += `- 平均值：${stats.mean}\n`;
+                        report += `- 中位数：${stats.median}\n`;
+                        report += `- 最小值：${stats.min}\n`;
+                        report += `- 最大值：${stats.max}\n`;
+                        report += `- 范围：${stats.range}\n`;
+                    } else {
+                        report += `- 唯一值数量：${stats.uniqueValues}\n`;
+                        report += `- 最常见值：${stats.mostCommon}\n`;
+                        report += `- 缺失值数量：${stats.missingCount}\n`;
+                    }
+                });
+                
+                if (trendAnalysis.hasTimeData && trendAnalysis.trends.length > 0) {
+                    report += `\n📈 趋势分析：\n`;
+                    trendAnalysis.trends.forEach(trend => {
+                        report += `- ${trend.column}：${trend.trend}趋势 (${trend.changePercent}%变化)\n`;
+                    });
+                    report += `\n`;
+                }
+                
+                if (correlationAnalysis.highCorrelations.length > 0 || correlationAnalysis.moderateCorrelations.length > 0) {
+                    report += `\n🔗 相关性分析：\n`;
+                    correlationAnalysis.highCorrelations.forEach(cor => {
+                        report += `- ${cor.columns.join(' 与 ')}：${cor.strength} (相关系数: ${cor.correlation})\n`;
+                    });
+                    correlationAnalysis.moderateCorrelations.forEach(cor => {
+                        report += `- ${cor.columns.join(' 与 ')}：${cor.strength} (相关系数: ${cor.correlation})\n`;
+                    });
+                    report += `\n`;
+                }
+                
+                report += `\n💡 建议：\n`;
+                if (parseFloat(qualityAnalysis.completeness) < 90) {
+                    report += `- 建议补充缺失数据以提高数据完整性\n`;
+                }
+                if (basicStats.numericColumns.length >= 2 && correlationAnalysis.highCorrelations.length === 0) {
+                    report += `- 数值列间相关性较弱，可能需要更多数据或特征工程\n`;
+                }
+                if (trendAnalysis.hasTimeData) {
+                    report += `- 数据包含时间信息，建议进行时间序列分析\n`;
+                }
+                report += `- 建议根据分析结果选择合适的可视化图表类型\n`;
+                
+                return report;
+            }
+
+            // 显示分析加载状态
+            showAnalysisLoading() {
+                const analyzeBtn = document.getElementById('analyzeData');
+                if (analyzeBtn) {
+                    analyzeBtn.disabled = true;
+                    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 分析中...';
+                }
+            }
+
+            // 隐藏分析加载状态
+            hideAnalysisLoading() {
+                const analyzeBtn = document.getElementById('analyzeData');
+                if (analyzeBtn) {
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.innerHTML = '<i class="fas fa-chart-pie"></i> 数据分析';
+                }
+            }
+
+            // 显示分析结果
+            displayAnalysisResult(result) {
+                const analysisResultCard = document.getElementById('analysisResult');
+                const analysisContent = document.getElementById('analysisContent');
+                
+                if (analysisResultCard && analysisContent) {
+                    analysisContent.value = result;
+                    analysisResultCard.classList.remove('hidden');
+                    
+                    // 滚动到结果区域
+                    analysisResultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            // 显示错误信息
+            showError(message) {
+                this.showMessage(message, 'error');
+            }
+
 
 
 
@@ -1713,12 +2134,6 @@
                     
                     // 显示数据预览
                     this.showDataPreview();
-                    
-                    // 启用生成脚本按钮
-                    const generateScriptBtn = document.getElementById('generateScript');
-                    if (generateScriptBtn) {
-                        generateScriptBtn.disabled = false;
-                    }
                     
                     console.log('Luckysheet数据预览成功，数据行数:', data.length);
                     
@@ -1906,9 +2321,23 @@
             }
 
             buildOptimizationPrompt(userText) {
-                // 获取预览数据的统计信息
+                // 获取Luckysheet数据的统计信息
                 let dataInfo = '';
-                if (this.data && this.data.length >= 0) {
+                const luckysheetData = this.getLuckysheetData();
+                if (luckysheetData && luckysheetData.data && luckysheetData.data.length > 0) {
+                    const dataStats = this.getLuckysheetDataStatistics(luckysheetData);
+                    dataInfo = `\n\n**Luckysheet数据信息**：\n`;
+                    dataInfo += `- 数据行数：${luckysheetData.data.length}\n`;
+                    dataInfo += `- 数据列：${luckysheetData.headers.join(', ')}\n`;
+                    dataInfo += `- 数据类型分析：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    
+                    // 添加数据样本
+                    dataInfo += `\n**数据样本**（前3行）：\n`;
+                    luckysheetData.data.slice(0, 3).forEach((row, index) => {
+                        dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                    });
+                } else if (this.data && this.data.length >= 0) {
                     const dataStats = this.getDataStatistics();
                     dataInfo = `\n\n**可用数据信息**：\n`;
                     dataInfo += `- 数据行数：${this.data.length}\n`;
@@ -2050,12 +2479,11 @@
                         optimizedDescription.classList.remove('hidden');
                         console.log('配置要求区域已显示');
                         
-                        // 显示并启用生成脚本按钮
-                        const generateScriptBtn = document.getElementById('generateScript');
-                        if (generateScriptBtn) {
-                            generateScriptBtn.disabled = false;
-                            generateScriptBtn.classList.remove('hidden');
-                            console.log('生成脚本按钮已显示并启用');
+                        // 直接启用执行脚本按钮
+                        const executeScriptBtn = document.getElementById('executeScript');
+                        if (executeScriptBtn) {
+                            executeScriptBtn.disabled = false;
+                            console.log('执行脚本按钮已启用');
                         }
                     }
                 } else {
@@ -2063,118 +2491,11 @@
                 }
             }
 
-            async generateScript() {
-                // 获取生成脚本按钮元素
-                const generateScriptBtn = document.getElementById('generateScript');
-                
-                // 前置检查
-                const optimizedContent = document.getElementById('optimizedContent');
-                const optimizedText = optimizedContent ? optimizedContent.value.trim() : '';
-                
-                // 添加调试信息 - 确认控制台日志正常工作
-                console.log('=== 脚本生成开始 ===');
-                console.log('时间戳:', new Date().toISOString());
-                console.log('配置要求长度:', optimizedText.length);
-                
-                if (!optimizedText) {
-                    this.showError('请先生成图表配置要求');
-                    return;
-                }
 
-                try {
-                    console.log('开始生成图表脚本...');
-                    console.log('配置要求长度:', optimizedText.length);
-                    
-                    // 显示加载指示器
-                    this.showLoading();
-                    this.hideError();
-                    
-                    // 禁用生成脚本按钮，防止重复点击
-                    if (generateScriptBtn) {
-                        generateScriptBtn.disabled = true;
-                        generateScriptBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
-                    }
-                    
-                    // 检查是否有可用数据
-                    const hasData = await this.checkAvailableData();
-                    console.log('可用数据状态:', hasData);
-                    
-                    // 构建生成脚本的prompt
-                    const prompt = this.buildScriptPrompt(optimizedText, hasData);
-                    console.log('构建的prompt:', prompt);
-                    
-                    // 调用GLM API生成脚本（单次调用）
-                    this.updateProgress(4, '正在生成图表脚本...');
-                    console.log('尝试生成脚本...');
-                    
-                    const script = await this.callGLMAPI(prompt, false);
-                    
-                    if (!script || !script.trim()) {
-                        throw new Error('无法生成脚本');
-                    }
-                    
-                    console.log('生成的脚本长度:', script.length);
-                    console.log('生成的脚本内容:', script.substring(0, 200) + '...');
-                    
-                    // 保存生成的脚本供后续执行使用
-                    if (script && script.trim()) {
-                        this.generatedCode = script;
-                        console.log('生成的脚本已保存到generatedCode变量');
-                        
-                        // 显示生成的脚本
-                        this.showGeneratedScript(script);
-                        
-                        // 启用执行脚本按钮
-                        const executeScriptBtn = document.getElementById('executeScript');
-                        if (executeScriptBtn) {
-                            executeScriptBtn.disabled = false;
-                            console.log('执行脚本按钮已启用');
-                        }
-                    } else {
-                        console.error('生成的脚本为空');
-                        this.showError('生成的脚本为空，请重试');
-                    }
-                    
-                    // 恢复按钮状态并隐藏loading
-                    setTimeout(() => {
-                        this.hideLoading();
-                        if (generateScriptBtn) {
-                            generateScriptBtn.disabled = false;
-                            generateScriptBtn.innerHTML = '<i class="fas fa-code"></i> 生成脚本';
-                        }
-                        console.log('脚本生成完成');
-                    }, 1000);
-                    
-                } catch (error) {
-                    console.error('生成脚本时出错:', error);
-                    console.error('错误堆栈:', error.stack);
-                    
-                    // 提供更友好的错误信息
-                    let errorMessage = '生成脚本失败';
-                    if (error.message.includes('超时') || error.message.includes('524')) {
-                        errorMessage = '服务器响应超时，请稍后重试。可能是服务器负载过高或网络连接不稳定。';
-                    } else if (error.message.includes('Failed to fetch')) {
-                        errorMessage = '网络连接失败，请检查网络连接后重试。';
-                    } else {
-                        errorMessage += ': ' + error.message;
-                    }
-                    
-                    this.showError(errorMessage);
-                    
-                    // 恢复按钮状态并隐藏loading
-                    setTimeout(() => {
-                        this.hideLoading();
-                        if (generateScriptBtn) {
-                            generateScriptBtn.disabled = false;
-                            generateScriptBtn.innerHTML = '<i class="fas fa-code"></i> 生成脚本';
-                        }
-                    }, 3000);
-                }
-            }
             
             async executeScriptAndShowChart() {
                 if (!this.generatedCode) {
-                    this.showError('没有可用的生成代码，请先生成脚本');
+                    this.showError('没有可用的生成代码，请先生成代码');
                     return;
                 }
                 
@@ -2208,25 +2529,7 @@
                 }
             }
             
-            buildScriptPrompt(optimizedText, hasDataFile = false) {
-                // 获取数据信息
-                let dataInfo = '';
-                
-                // 优先从Luckysheet表格获取数据
-                const luckysheetData = this.getLuckysheetData();
-                if (luckysheetData && luckysheetData.data && luckysheetData.data.length > 0) {
-                    dataInfo = `\n\n数据：${JSON.stringify(luckysheetData.data)}\n列名：${JSON.stringify(luckysheetData.headers)}`;
-                    console.log('使用Luckysheet表格数据');
-                } else if (this.manualInputData && this.manualInputData.data && this.manualInputData.data.length > 0) {
-                    dataInfo = `\n\n数据：${JSON.stringify(this.manualInputData.data)}\n列名：${JSON.stringify(this.manualInputData.headers)}`;
-                    console.log('使用手动输入的数据');
-                } else if (this.data && this.data.length > 0) {
-                    dataInfo = `\n\n数据：${JSON.stringify(this.data)}\n列名：${JSON.stringify(this.columns)}`;
-                    console.log('使用预览数据');
-                }
-                
-                return `配置要求：${optimizedText}${dataInfo}\n\n请生成完整的HTML图表代码，包含以下内容：\n1. 完整的HTML文档结构（DOCTYPE, html, head, body）\n2. 引入ECharts库的script标签\n3. 创建图表容器的div元素\n4. 初始化ECharts实例并设置配置的JavaScript代码\n5. 确保图表能够正确显示和响应式布局\n\n生成的HTML代码应该是一个完整的、可独立运行的文件，用户可以直接保存为.html文件并在浏览器中打开查看图表。\n\n请只返回HTML代码，不要包含任何解释文字、注释或其他内容。`;
-            }
+
 
             async callGLMAPI(prompt, stream = false) {
                 try {
@@ -2751,9 +3054,7 @@
                     // 显示生成的代码（显示原始代码）
                     this.showGeneratedCode(cleanedCode);
                     
-                    // 显示生成的脚本
-                    this.showGeneratedScript(cleanedCode);
-                    
+
                 } catch (error) {
                     console.error('HTML图表代码执行错误:', error);
                     console.error('错误堆栈:', error.stack);
@@ -3088,105 +3389,7 @@
                 );
             }
 
-            showGeneratedScript(script) {
-                console.log('showGeneratedScript方法被调用，脚本长度:', script ? script.length : 0);
-                console.log('脚本内容前100字符:', script ? script.substring(0, 100) : 'null');
-                
-                const scriptContainer = document.getElementById('scriptOutput').parentElement;
-                
-                // 检查是否已经创建了折叠控件
-                let toggleButton = scriptContainer.querySelector('.script-toggle');
-                
-                if (!toggleButton) {
-                    // 创建折叠按钮
-                    toggleButton = document.createElement('button');
-                    toggleButton.className = 'script-toggle';
-                    toggleButton.textContent = '展开脚本';
-                    toggleButton.style.cssText = 'margin-bottom: 10px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
-                    
-                    // 添加点击事件
-                    toggleButton.addEventListener('click', () => {
-                        const scriptOutput = document.getElementById('scriptOutput');
-                        const isExpanded = scriptOutput.classList.contains('expanded');
-                        if (isExpanded) {
-                            scriptOutput.classList.remove('expanded');
-                            scriptOutput.style.maxHeight = '100px';
-                            toggleButton.textContent = '展开脚本';
-                        } else {
-                            scriptOutput.classList.add('expanded');
-                            scriptOutput.style.maxHeight = 'none';
-                            toggleButton.textContent = '折叠脚本';
-                        }
-                    });
-                    
-                    // 在脚本输出框之前插入按钮
-                    scriptContainer.insertBefore(toggleButton, scriptContainer.firstChild);
-                }
-                
-                // 获取或创建textarea元素
-                let scriptOutput = document.getElementById('scriptOutput');
-                
-                // 如果当前是div，替换为textarea
-                if (scriptOutput && scriptOutput.tagName !== 'TEXTAREA') {
-                    const newScriptOutput = document.createElement('textarea');
-                    newScriptOutput.id = 'scriptOutput';
-                    newScriptOutput.className = scriptOutput.className;
-                    // 保留原有样式但添加textarea特定样式
-                    newScriptOutput.style.cssText = scriptOutput.style.cssText + 'resize: vertical; min-height: 200px; width: 100%; box-sizing: border-box;';
-                    
-                    // 替换元素
-                    scriptOutput.parentNode.replaceChild(newScriptOutput, scriptOutput);
-                    scriptOutput = newScriptOutput;
-                }
-                
-                if (!scriptOutput) {
-                    console.error('找不到脚本输出元素');
-                    return;
-                }
-                
-                // 设置脚本内容到可编辑textarea
-                console.log('开始设置脚本内容...');
-                scriptOutput.value = script;
-                console.log('脚本内容已设置，value长度:', scriptOutput.value.length);
-                console.log('设置后脚本内容前100字符:', scriptOutput.value.substring(0, 100));
-                
-                // 设置默认展开状态，确保内容可见
-                console.log('设置脚本输出框为展开状态...');
-                scriptOutput.classList.add('expanded');
-                scriptOutput.style.maxHeight = 'none';
-                scriptOutput.style.overflow = 'auto';
-                scriptOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease; min-height: 200px; resize: vertical; width: 100%; box-sizing: border-box;';
-                
-                // 更新按钮文本
-                toggleButton.textContent = '折叠脚本';
-                
-                // 添加调试信息
-                console.log('脚本输出框样式设置完成，实际高度:', scriptOutput.scrollHeight);
-                console.log('脚本输出框当前样式:', scriptOutput.style.cssText);
-                console.log('样式设置后元素位置:', scriptOutput.getBoundingClientRect());
-                
-                // 显示脚本容器和父容器
-                console.log('准备移除hidden类，当前类名:', scriptOutput.className);
-                console.log('移除hidden类前显示状态:', window.getComputedStyle(scriptOutput).display);
-                
-                // 确保父容器也显示
-                scriptContainer.classList.remove('hidden');
-                scriptOutput.classList.remove('hidden');
-                
-                console.log('已移除hidden类，最终类名:', scriptOutput.className);
-                console.log('scriptOutput元素当前显示状态:', window.getComputedStyle(scriptOutput).display);
-                console.log('script内容长度:', scriptOutput.value.length);
-                console.log('scriptOutput最终位置和尺寸:', scriptOutput.getBoundingClientRect());
-                console.log('scriptOutput父容器显示状态:', window.getComputedStyle(scriptOutput.parentElement).display);
-                console.log('scriptOutput是否在视口中:', this.isElementInViewport(scriptOutput));
-                
-                // 添加实时保存功能
-                scriptOutput.addEventListener('input', () => {
-                    // 更新保存的代码
-                    this.generatedCode = scriptOutput.value;
-                    console.log('脚本内容已更新，新长度:', this.generatedCode.length);
-                });
-            }
+
 
             showResult() {
                 document.getElementById('resultCard').classList.remove('hidden');
@@ -3275,10 +3478,9 @@
                     retryButton.textContent = '重试';
                     retryButton.style.cssText = 'margin-left: 10px; padding: 5px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
                     
-                    // 添加点击事件 - 重新调用generateScript方法
+                    // 添加点击事件
                     retryButton.addEventListener('click', () => {
                         this.hideError();
-                        this.generateScript();
                     });
                     
                     // 将按钮添加到错误div中
