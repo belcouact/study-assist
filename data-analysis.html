@@ -51,14 +51,6 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        html {
-            height: 100%;
-            overflow-x: hidden;
-            -webkit-text-size-adjust: 100%;
-            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -66,10 +58,9 @@
             line-height: 1.6;
             color: var(--text-primary);
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            height: 100%;
+            min-height: 100vh;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            position: relative;
         }
 
         .container {
@@ -102,8 +93,6 @@
 
         .main-content {
             margin-top: 2rem;
-            overflow-y: visible;
-            -webkit-overflow-scrolling: touch;
         }
 
         .card {
@@ -882,10 +871,9 @@
             
             /* Fix mobile scrolling */
             .main-content {
-                overflow-y: visible;
+                overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 2rem;
-                height: auto;
             }
             
             /* Ensure Luckysheet container is scrollable on mobile */
@@ -914,36 +902,6 @@
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 0.5rem;
-            }
-            
-            /* Critical fix for Luckysheet touch scrolling isolation */
-            #luckysheetContainer {
-                touch-action: pan-y pinch-zoom;
-                -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                user-select: none;
-                position: relative;
-                z-index: 1;
-            }
-            
-            /* Allow touch scrolling on main content areas */
-            .main-content {
-                touch-action: pan-y;
-                -webkit-overflow-scrolling: touch;
-                position: relative;
-                z-index: 0;
-            }
-            
-            /* Prevent touch event conflicts with Luckysheet */
-            .card:not(:has(#luckysheetContainer)) {
-                touch-action: pan-y;
-            }
-            
-            /* Ensure body can receive touch events for scrolling */
-            body {
-                touch-action: pan-y;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
             }
         }
 
@@ -1275,92 +1233,6 @@
                         optimizeDescriptionBtn.disabled = !hasContent;
                     });
                 }
-                
-                // 添加移动端触摸滚动支持
-                this.setupTouchScrollingSupport();
-            }
-            
-            setupTouchScrollingSupport() {
-                const luckysheetContainer = document.getElementById('luckysheetContainer');
-                const mainContent = document.querySelector('.main-content');
-                
-                if (!luckysheetContainer) return;
-                
-                // 存储触摸开始位置
-                let touchStartY = 0;
-                let touchStartX = 0;
-                let isTouchingLuckysheet = false;
-                
-                // 监听整个页面的触摸开始事件
-                document.addEventListener('touchstart', (e) => {
-                    touchStartY = e.touches[0].clientY;
-                    touchStartX = e.touches[0].clientX;
-                    
-                    // 检查触摸是否在Luckysheet容器内
-                    const touchTarget = e.target;
-                    isTouchingLuckysheet = luckysheetContainer.contains(touchTarget) || 
-                                       touchTarget.closest('#luckysheetContainer') !== null;
-                    
-                    // 如果不在Luckysheet内，允许默认滚动行为
-                    if (!isTouchingLuckysheet) {
-                        return;
-                    }
-                }, { passive: true });
-                
-                // 监听触摸移动事件，处理滚动冲突
-                document.addEventListener('touchmove', (e) => {
-                    const touchY = e.touches[0].clientY;
-                    const touchX = e.touches[0].clientX;
-                    const deltaY = touchY - touchStartY;
-                    const deltaX = touchX - touchStartX;
-                    
-                    // 检查触摸目标
-                    const touchTarget = e.target;
-                    const isInsideLuckysheet = luckysheetContainer.contains(touchTarget) || 
-                                             touchTarget.closest('#luckysheetContainer') !== null;
-                    
-                    // 如果不在Luckysheet内，允许页面滚动
-                    if (!isInsideLuckysheet) {
-                        return;
-                    }
-                    
-                    // 在Luckysheet内，允许垂直滚动但限制水平滚动
-                    if (Math.abs(deltaY) > Math.abs(deltaX)) {
-                        // 垂直滑动，允许滚动
-                        return;
-                    } else {
-                        // 水平滑动，可能用于Luckysheet内部操作，不阻止
-                        return;
-                    }
-                }, { passive: true });
-                
-                // 监听触摸结束事件
-                document.addEventListener('touchend', () => {
-                    isTouchingLuckysheet = false;
-                }, { passive: true });
-                
-                // 为Luckysheet容器添加特定的触摸事件处理
-                luckysheetContainer.addEventListener('touchstart', (e) => {
-                    // 允许Luckysheet处理自己的触摸事件
-                    isTouchingLuckysheet = true;
-                }, { passive: true });
-                
-                // 为其他可滚动区域添加触摸支持
-                const scrollableElements = document.querySelectorAll('.card, .template-grid, .data-preview');
-                scrollableElements.forEach(element => {
-                    if (!luckysheetContainer.contains(element)) {
-                        element.addEventListener('touchstart', (e) => {
-                            isTouchingLuckysheet = false;
-                        }, { passive: true });
-                        
-                        element.addEventListener('touchmove', (e) => {
-                            if (!isTouchingLuckysheet) {
-                                // 允许在这些元素内滚动
-                                return;
-                            }
-                        }, { passive: true });
-                    }
-                });
             }
             
             setupTemplateCards() {
@@ -1765,7 +1637,7 @@
                     return;
                 }
                 
-                // 初始化Luckysheet为空表格，添加移动端触摸滚动支持
+                // 初始化Luckysheet为空表格
                 const options = {
                     container: 'luckysheetContainer', // 设定DOM容器的id
                     title: '数据表格', // 设定表格名称
@@ -1773,57 +1645,6 @@
                     showinfobar: false, // 是否显示顶部信息栏
                     showsheetbar: true, // 是否显示底部sheet页按钮
                     showstatisticBar: false, // 是否显示底部计数栏
-                    allowCopy: true, // 允许复制
-                    allowEdit: true, // 允许编辑
-                    devicePixelRatio: window.devicePixelRatio, // 设备像素比
-                    // 移动端触摸滚动优化配置
-                    cellRightClickConfig: {
-                        copy: true,
-                        copyAs: true,
-                        paste: true,
-                        insertRow: true,
-                        insertColumn: true,
-                        deleteRow: true,
-                        deleteColumn: true,
-                        deleteCell: true,
-                        hideRow: true,
-                        hideColumn: true,
-                        rowHeight: true,
-                        columnWidth: true,
-                        clear: true,
-                        matrix: true,
-                        sort: true,
-                        filter: true,
-                        chart: true,
-                        image: true,
-                        link: true,
-                        data: true,
-                        cellFormat: true
-                    },
-                    // 禁用一些可能影响触摸滚动的功能
-                    showtoolbar: true,
-                    showtoolbarConfig: {
-                        undoRedo: true,
-                        font: true,
-                        alignment: true,
-                        textWrap: true,
-                        textFormat: true,
-                        numberFormat: true,
-                        border: true,
-                        clear: true,
-                        paintFormat: true,
-                        merge: true,
-                        horizontalAlign: true,
-                        verticalAlign: true,
-                        textRotate: true,
-                        image: false, // 禁用图片功能，可能影响触摸
-                        link: false, // 禁用链接功能，可能影响触摸
-                        chart: false, // 禁用图表功能，可能影响触摸
-                        postil: false, // 禁用批注功能，可能影响触摸
-                        pivotTable: false, // 禁用数据透视表，可能影响触摸
-                        protection: false, // 禁用保护功能，可能影响触摸
-                        print: false // 禁用打印功能，可能影响触摸
-                    },
                     data: [
                         {
                             name: 'Sheet1', // 工作表名称
