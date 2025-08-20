@@ -2225,7 +2225,7 @@
                     console.log('使用预览数据');
                 }
                 
-                return `配置要求：${optimizedText}${dataInfo}\n\n只返回ECharts配置对象，格式如：{title: {text: "示例图表"}, xAxis: {data: ["A", "B"]}, yAxis: {}, series: [{data: [1, 2], type: "bar"}]}。不要包含任何HTML代码、JavaScript初始化代码、注释、解释文字或其他内容。只返回纯粹的ECharts option对象。`;
+                return `配置要求：${optimizedText}${dataInfo}\n\n请生成完整的HTML图表代码，包含以下内容：\n1. 完整的HTML文档结构（DOCTYPE, html, head, body）\n2. 引入ECharts库的script标签\n3. 创建图表容器的div元素\n4. 初始化ECharts实例并设置配置的JavaScript代码\n5. 确保图表能够正确显示和响应式布局\n\n生成的HTML代码应该是一个完整的、可独立运行的文件，用户可以直接保存为.html文件并在浏览器中打开查看图表。\n\n请只返回HTML代码，不要包含任何解释文字、注释或其他内容。`;
             }
 
             async callGLMAPI(prompt, stream = false) {
@@ -2239,7 +2239,7 @@
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
                     // 构建系统消息并添加到prompt中
-                    const systemMessage = `你是一个ECharts图表配置专家。请根据用户的需求生成纯粹的ECharts配置对象代码。只返回JavaScript对象格式的配置代码，不包含任何HTML、初始化代码、注释或解释文字。`;
+                    const systemMessage = `你是一个HTML图表生成专家。请根据用户的需求生成完整的HTML图表代码，包含HTML文档结构、ECharts库引用、图表容器和初始化代码。只返回完整的HTML代码，不包含任何解释文字或注释。`;
                     const fullPrompt = `${systemMessage}\n\n用户需求：${prompt}`;
                     
                     console.log('发送请求到GLM API...');
@@ -2710,40 +2710,16 @@
 
             executeGeneratedCode(code) {
                 try {
-                    console.log('开始执行生成的代码...');
-                    console.log('原始代码:', code);
+                    console.log('开始执行生成的HTML图表代码...');
+                    console.log('原始代码长度:', code ? code.length : 0);
                     
-                    // 尝试解析为ECharts配置对象
-                    let echartsOption;
-                    try {
-                        // 如果代码看起来像配置对象（以{开头，以}结尾）
-                        const trimmedCode = code.trim();
-                        if (trimmedCode.startsWith('{') && trimmedCode.endsWith('}')) {
-                            // 检查是否包含函数（包含"function"关键字或箭头函数"=>"）
-                            if (trimmedCode.includes('function') || trimmedCode.includes('=>')) {
-                                console.log('配置对象包含函数，将作为JavaScript代码执行');
-                                this.executeJavaScriptCode(`const option = ${trimmedCode}; const chart = echarts.init(chartContainer); chart.setOption(option);`);
-                                return;
-                            } else {
-                                // 尝试解析为纯JSON配置对象
-                                echartsOption = JSON.parse(trimmedCode);
-                                console.log('成功解析为ECharts配置对象:', echartsOption);
-                            }
-                        } else {
-                            // 如果不是配置对象格式，尝试作为JavaScript代码执行
-                            console.log('代码不是配置对象格式，将作为JavaScript代码执行');
-                            this.executeJavaScriptCode(code);
-                            return;
-                        }
-                    } catch (parseError) {
-                        console.log('无法解析为配置对象，将作为JavaScript代码执行:', parseError.message);
-                        this.executeJavaScriptCode(code);
-                        return;
-                    }
+                    // 清理代码，移除可能的markdown标记
+                    const cleanedCode = this.cleanHTMLCode(code);
+                    console.log('清理后的代码长度:', cleanedCode.length);
                     
-                    // 验证echarts是否可用
-                    if (typeof echarts === 'undefined') {
-                        throw new Error('ECharts库未加载，请确保已正确引入ECharts');
+                    // 验证是否为有效的HTML代码
+                    if (!this.isValidHTML(cleanedCode)) {
+                        throw new Error('生成的代码不是有效的HTML格式');
                     }
                     
                     // 创建图表容器
@@ -2751,38 +2727,75 @@
                     if (!container) {
                         throw new Error('找不到图表容器元素');
                     }
+                    
+                    // 清空容器并创建iframe来显示HTML图表
                     container.innerHTML = '';
                     
-                    // 创建一个新的div用于图表
-                    const chartDiv = document.createElement('div');
-                    chartDiv.style.width = '100%';
-                    chartDiv.style.height = '100%';
-                    chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
-                    container.appendChild(chartDiv);
+                    const iframe = document.createElement('iframe');
+                    iframe.style.width = '100%';
+                    iframe.style.height = '500px';
+                    iframe.style.border = '1px solid #ddd';
+                    iframe.style.borderRadius = '8px';
+                    iframe.id = 'chart-iframe-' + Date.now();
                     
-                    // 初始化ECharts实例
-                    const chart = echarts.init(chartDiv);
+                    container.appendChild(iframe);
                     
-                    // 设置配置项并渲染图表
-                    chart.setOption(echartsOption);
-                    console.log('ECharts图表渲染成功');
+                    // 将HTML代码写入iframe
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    iframeDoc.open();
+                    iframeDoc.write(cleanedCode);
+                    iframeDoc.close();
                     
-                    // 保存图表实例引用，以便后续操作
-                    this.currentChart = chart;
+                    console.log('HTML图表已在iframe中显示');
                     
                     // 显示生成的代码（显示原始代码）
-                    this.showGeneratedCode(code);
+                    this.showGeneratedCode(cleanedCode);
                     
                     // 显示生成的脚本
-                    this.showGeneratedScript(code);
+                    this.showGeneratedScript(cleanedCode);
                     
                 } catch (error) {
-                    console.error('代码执行错误:', error);
+                    console.error('HTML图表代码执行错误:', error);
                     console.error('错误堆栈:', error.stack);
-                    this.showError('图表生成代码执行失败: ' + error.message);
+                    this.showError('HTML图表生成失败: ' + error.message);
                     // 重新抛出错误，让上层调用者处理
                     throw error;
                 }
+            }
+            
+            cleanHTMLCode(code) {
+                if (!code) return '';
+                
+                let cleaned = code.trim();
+                
+                // 移除markdown代码块标记
+                cleaned = cleaned.replace(/^```html\s*/, '').replace(/\s*```$/, '');
+                cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+                
+                // 确保以DOCTYPE声明开头
+                if (!cleaned.startsWith('<!DOCTYPE')) {
+                    // 如果不是完整的HTML文档，尝试提取HTML部分
+                    const htmlMatch = cleaned.match(/<html[\s\S]*?<\/html>/i);
+                    if (htmlMatch) {
+                        cleaned = htmlMatch[0];
+                    }
+                }
+                
+                return cleaned;
+            }
+            
+            isValidHTML(code) {
+                if (!code || typeof code !== 'string') return false;
+                
+                const trimmed = code.trim().toLowerCase();
+                
+                // 检查是否包含基本的HTML结构
+                return (
+                    trimmed.includes('<html') &&
+                    trimmed.includes('<head') &&
+                    trimmed.includes('<body') &&
+                    trimmed.includes('</html>')
+                );
             }
             
             executeJavaScriptCode(code) {
