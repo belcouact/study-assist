@@ -1657,14 +1657,66 @@
                         }
                     }
                     
+                    // 过滤空白列和空白行
+                    const filteredData = this.filterEmptyData(headers, data);
+                    
                     return {
-                        headers: headers,
-                        data: data
+                        headers: filteredData.headers,
+                        data: filteredData.data
                     };
                 } catch (error) {
                     console.error('获取Luckysheet数据时出错:', error);
                     return null;
                 }
+            }
+            
+            // 过滤空白行和空白列
+            filterEmptyData(headers, data) {
+                console.log('过滤前数据:', { headers, data });
+                
+                // 1. 过滤空白列
+                const nonEmptyColumns = [];
+                const columnIndices = [];
+                
+                // 检查每一列是否为空
+                headers.forEach((header, colIndex) => {
+                    const hasNonEmptyValue = data.some(row => {
+                        const value = row[header];
+                        return value !== null && 
+                               value !== undefined && 
+                               value !== '' && 
+                               (typeof value !== 'string' || value.trim() !== '');
+                    });
+                    
+                    if (hasNonEmptyValue) {
+                        nonEmptyColumns.push(header);
+                        columnIndices.push(colIndex);
+                    }
+                });
+                
+                // 2. 过滤空白行
+                const nonEmptyRows = data.filter(row => {
+                    // 检查行中是否有非空值
+                    return nonEmptyColumns.some(header => {
+                        const value = row[header];
+                        return value !== null && 
+                               value !== undefined && 
+                               value !== '' && 
+                               (typeof value !== 'string' || value.trim() !== '');
+                    });
+                });
+                
+                console.log('过滤后数据:', { 
+                    headers: nonEmptyColumns, 
+                    data: nonEmptyRows,
+                    removedColumns: headers.length - nonEmptyColumns.length,
+                    removedRows: data.length - nonEmptyRows.length
+                });
+                
+                return {
+                    headers: nonEmptyColumns,
+                    data: nonEmptyRows
+                };
             }
             
             // 获取Luckysheet数据统计信息
