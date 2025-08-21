@@ -393,12 +393,24 @@
 
         .chart-container {
             width: 100%;
-            height: 500px;
+            height: 600px;
             margin: 1rem 0;
             position: relative;
             z-index: 1;
             clear: both;
             overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* ECharts实例样式 */
+        .echarts-instance {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
         
         /* Fix for chart iframe and div positioning */
@@ -905,8 +917,10 @@
             }
 
             .chart-container {
-                height: 400px;
+                height: 500px;
                 overflow: hidden;
+                border-radius: 6px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
             }
             
             /* Mobile chart iframe and div fixes */
@@ -1767,19 +1781,18 @@
         </div>
 
         <!-- 生成结果 -->
-        <div class="card hidden" id="resultCard">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-chart-area"></i> 可视化结果
-                </h2>
+        <div id="resultCard" class="card hidden">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-area"></i> 可视化结果
+                    </h2>
+                </div>
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                </div>
+                <div id="error" class="error hidden"></div>
+                <div id="scriptOutput" class="script-output hidden"></div>
             </div>
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-            </div>
-            <div id="error" class="error hidden"></div>
-            <div id="chartContainer" class="chart-container hidden"></div>
-            <div id="scriptOutput" class="script-output hidden"></div>
-        </div>
     </main>
 
     <script>
@@ -4171,15 +4184,37 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         throw new Error('生成的代码不是有效的HTML格式');
                     }
                     
-                    // 创建图表容器
-                    const container = document.getElementById('chartContainer');
-                    if (!container) {
-                        throw new Error('找不到图表容器元素');
+                    // 在resultCard中创建图表容器
+                    const resultCard = document.getElementById('resultCard');
+                    if (!resultCard) {
+                        throw new Error('找不到resultCard元素');
                     }
                     
-                    // 清空容器并创建iframe来显示HTML图表
-                    container.innerHTML = '';
+                    // 移除之前的图表容器
+                    const existingChartContainer = resultCard.querySelector('.chart-container');
+                    if (existingChartContainer) {
+                        existingChartContainer.remove();
+                    }
                     
+                    // 创建新的图表容器
+                    const container = document.createElement('div');
+                    container.className = 'chart-container';
+                    container.style.width = '100%';
+                    container.style.height = '500px';
+                    container.style.margin = '1rem 0';
+                    container.style.position = 'relative';
+                    container.style.zIndex = '1';
+                    container.style.clear = 'both';
+                    
+                    // 将容器插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
+                    const scriptOutput = document.getElementById('scriptOutput');
+                    if (scriptOutput) {
+                        resultCard.insertBefore(container, scriptOutput);
+                    } else {
+                        resultCard.appendChild(container);
+                    }
+                    
+                    // 创建iframe来显示HTML图表
                     const iframe = document.createElement('iframe');
                     iframe.style.width = '100%';
                     iframe.style.height = '100%';
@@ -4255,12 +4290,35 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 this.validateCodeSyntax(cleanedCode);
                 console.log('代码语法验证通过');
                 
-                // 创建图表容器
-                const container = document.getElementById('chartContainer');
-                if (!container) {
-                    throw new Error('找不到图表容器元素');
+                // 在resultCard中创建图表容器
+                const resultCard = document.getElementById('resultCard');
+                if (!resultCard) {
+                    throw new Error('找不到resultCard元素');
                 }
-                container.innerHTML = '';
+                
+                // 移除之前的图表容器
+                const existingChartContainer = resultCard.querySelector('.chart-container');
+                if (existingChartContainer) {
+                    existingChartContainer.remove();
+                }
+                
+                // 创建新的图表容器
+                const container = document.createElement('div');
+                container.className = 'chart-container';
+                container.style.width = '100%';
+                container.style.height = '500px';
+                container.style.margin = '1rem 0';
+                container.style.position = 'relative';
+                container.style.zIndex = '1';
+                container.style.clear = 'both';
+                
+                // 将容器插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
+                const scriptOutput = document.getElementById('scriptOutput');
+                if (scriptOutput) {
+                    resultCard.insertBefore(container, scriptOutput);
+                } else {
+                    resultCard.appendChild(container);
+                }
                 
                 // 创建一个新的div用于图表
                 const chartDiv = document.createElement('div');
@@ -4270,6 +4328,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
                 chartDiv.style.zIndex = '1';
+                chartDiv.className = 'echarts-instance';
                 chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
                 container.appendChild(chartDiv);
 
@@ -4494,7 +4553,6 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             showResult() {
                 document.getElementById('resultCard').classList.remove('hidden');
-                document.getElementById('chartContainer').classList.remove('hidden');
                 // 确保脚本输出容器也显示
                 const scriptOutput = document.getElementById('scriptOutput');
                 if (scriptOutput && scriptOutput.textContent.trim()) {
@@ -4644,7 +4702,10 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             hideChart() {
-                document.getElementById('chartContainer').classList.add('hidden');
+                // 移除resultCard中的所有图表元素
+                const resultCard = document.getElementById('resultCard');
+                const chartElements = resultCard.querySelectorAll('.echarts-instance');
+                chartElements.forEach(element => element.remove());
             }
 
             setupInfoIcon() {
