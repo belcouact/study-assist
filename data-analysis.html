@@ -1213,6 +1213,163 @@
                 font-size: 1rem;
             }
         }
+        
+        /* 信息图标和气泡窗口样式 */
+        .info-icon-container {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .info-icon {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 0.5rem;
+            border-radius: 50%;
+            background: rgba(67, 97, 238, 0.1);
+        }
+        
+        .info-icon:hover {
+            color: var(--secondary-color);
+            background: rgba(67, 97, 238, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .info-tooltip {
+            position: absolute;
+            top: 50%;
+            right: calc(100% + 10px);
+            transform: translateY(-50%);
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
+            padding: 1rem;
+            min-width: 300px;
+            max-width: 350px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: var(--transition);
+            pointer-events: none;
+        }
+        
+        .info-tooltip.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+        
+        .tooltip-content {
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .tooltip-content p {
+            margin: 0 0 0.5rem 0;
+            font-weight: 500;
+        }
+        
+        .tooltip-content a {
+            color: var(--primary-color);
+            text-decoration: none;
+            word-break: break-all;
+            display: block;
+            padding: 0.25rem 0;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+        
+        .tooltip-content a:hover {
+            color: var(--secondary-color);
+            background: rgba(67, 97, 238, 0.05);
+            text-decoration: underline;
+        }
+        
+        /* 气泡窗口箭头 */
+        .info-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -8px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid var(--border-color);
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+        
+        .info-tooltip::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -7px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 7px solid var(--bg-primary);
+            border-top: 7px solid transparent;
+            border-bottom: 7px solid transparent;
+            z-index: 1;
+        }
+        
+        /* 移动端样式优化 */
+        @media (max-width: 768px) {
+            .info-icon-container {
+                position: relative;
+                top: auto;
+                right: auto;
+                justify-content: flex-end;
+                margin-top: 0.5rem;
+            }
+            
+            .info-icon {
+                font-size: 1.1rem;
+                padding: 0.4rem;
+            }
+            
+            .info-tooltip {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                right: auto;
+                transform: translate(-50%, -50%);
+                min-width: 280px;
+                max-width: 320px;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            
+            .info-tooltip::after,
+            .info-tooltip::before {
+                display: none;
+            }
+        }
+        
+        /* 确保气泡窗口不被其他元素遮挡 */
+        .card-header {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .info-tooltip {
+            z-index: 1001;
+        }
+        
+        /* 触摸设备优化 */
+        @media (hover: none) {
+            .info-icon:active {
+                background: rgba(67, 97, 238, 0.3);
+                transform: scale(0.95);
+            }
+        }
     </style>
 </head>
 <body>
@@ -1315,6 +1472,17 @@
             <div class="card-header">
                 <h2 class="card-title">
                     <i class="fas fa-chart-bar"></i> 生成图表
+                    <div class="info-icon-container">
+                        <i class="fas fa-info-circle info-icon" id="chartInfoIcon"></i>
+                        <div class="info-tooltip" id="chartInfoTooltip">
+                            <div class="tooltip-content">
+                                <p>您可以访问这个网页获取参考图表：</p>
+                                <a href="https://echarts.apache.org/examples/zh/index.html" target="_blank" rel="noopener noreferrer">
+                                    https://echarts.apache.org/examples/zh/index.html
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </h2>
             </div>
             <div class="form-group">
@@ -1378,6 +1546,7 @@
                 this.checkEChartsLibrary();
                 this.setupEventListeners();
                 this.setupTemplateCards();
+                this.setupInfoIcon();
                 // 页面加载时自动初始化Luckysheet
                 this.createLuckysheet();
             }
@@ -4150,6 +4319,127 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 document.getElementById('chartContainer').classList.add('hidden');
             }
 
+            setupInfoIcon() {
+                const infoIcon = document.getElementById('chartInfoIcon');
+                const tooltip = document.getElementById('chartInfoTooltip');
+                
+                if (!infoIcon || !tooltip) {
+                    console.warn('信息图标或气泡窗口元素未找到');
+                    return;
+                }
+                
+                let isTooltipVisible = false;
+                let hideTimeout;
+                
+                // 检测是否为触摸设备
+                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+                
+                // 显示气泡窗口
+                const showTooltip = () => {
+                    clearTimeout(hideTimeout);
+                    tooltip.classList.add('show');
+                    isTooltipVisible = true;
+                };
+                
+                // 隐藏气泡窗口
+                const hideTooltip = () => {
+                    hideTimeout = setTimeout(() => {
+                        tooltip.classList.remove('show');
+                        isTooltipVisible = false;
+                    }, 100); // 小延迟避免快速切换时的闪烁
+                };
+                
+                // 切换气泡窗口显示状态（用于触摸设备）
+                const toggleTooltip = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (isTooltipVisible) {
+                        hideTooltip();
+                    } else {
+                        showTooltip();
+                    }
+                };
+                
+                if (isTouchDevice) {
+                    // 触摸设备：点击显示/隐藏
+                    infoIcon.addEventListener('click', toggleTooltip);
+                    
+                    // 点击气泡窗口外部区域关闭
+                    document.addEventListener('click', (e) => {
+                        if (isTooltipVisible && 
+                            !infoIcon.contains(e.target) && 
+                            !tooltip.contains(e.target)) {
+                            hideTooltip();
+                        }
+                    });
+                    
+                    // 点击链接时不关闭气泡窗口
+                    const link = tooltip.querySelector('a');
+                    if (link) {
+                        link.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            // 链接会在新窗口打开，然后关闭气泡窗口
+                            setTimeout(hideTooltip, 300);
+                        });
+                    }
+                } else {
+                    // 非触摸设备：鼠标悬停显示
+                    infoIcon.addEventListener('mouseenter', showTooltip);
+                    infoIcon.addEventListener('mouseleave', hideTooltip);
+                    
+                    // 鼠标在气泡窗口上时保持显示
+                    tooltip.addEventListener('mouseenter', showTooltip);
+                    tooltip.addEventListener('mouseleave', hideTooltip);
+                    
+                    // 点击信息图标切换显示状态（可选功能）
+                    infoIcon.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        if (isTooltipVisible) {
+                            hideTooltip();
+                        } else {
+                            showTooltip();
+                        }
+                    });
+                }
+                
+                // 键盘访问支持
+                infoIcon.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleTooltip(e);
+                    }
+                });
+                
+                // ESC键关闭气泡窗口
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && isTooltipVisible) {
+                        hideTooltip();
+                        infoIcon.focus(); // 返回焦点到信息图标
+                    }
+                });
+                
+                // 确保信息图标可以获得焦点
+                infoIcon.setAttribute('tabindex', '0');
+                infoIcon.setAttribute('role', 'button');
+                infoIcon.setAttribute('aria-label', '显示图表参考信息');
+                
+                // 窗口大小改变时重新定位气泡窗口（移动端）
+                window.addEventListener('resize', () => {
+                    if (isTooltipVisible && isTouchDevice) {
+                        // 重新计算位置
+                        const rect = tooltip.getBoundingClientRect();
+                        if (rect.right > window.innerWidth) {
+                            tooltip.style.left = '10px';
+                            tooltip.style.right = 'auto';
+                        }
+                    }
+                });
+                
+                console.log('信息图标交互功能已设置完成');
+            }
 
         }
 
