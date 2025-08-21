@@ -1330,7 +1330,6 @@
                 this.setupEventListeners();
                 this.setupTemplateCards();
                 // 页面加载时自动初始化Luckysheet
-                this.luckysheetInitialized = false;
                 this.createLuckysheet();
             }
             
@@ -1492,8 +1491,9 @@
             
             // 将数据填充到Luckysheet表格中
             populateLuckysheetWithData(templateData) {
-                if (!this.luckysheetInitialized) {
-                    console.error('Luckysheet未初始化');
+                // 检查Luckysheet是否可用
+                if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
+                    console.error('Luckysheet未加载或不可用');
                     return;
                 }
                 
@@ -1590,15 +1590,17 @@
             
             // 从Luckysheet表格获取数据
             getLuckysheetData() {
-                if (!this.luckysheetInitialized) {
-                    console.error('Luckysheet未初始化');
-                    return null;
-                }
-                
                 try {
+                    // 检查Luckysheet是否可用
+                    if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
+                        console.error('Luckysheet不可用');
+                        return null;
+                    }
+                    
                     // 获取Luckysheet的当前数据
                     const luckysheetData = luckysheet.getSheetData();
                     if (!luckysheetData || !luckysheetData.data || luckysheetData.data.length === 0) {
+                        console.log('Luckysheet中没有数据');
                         return null;
                     }
                     
@@ -2484,7 +2486,8 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             
             createLuckysheet() {
-                if (this.luckysheetInitialized) {
+                // 检查Luckysheet是否已经初始化
+                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData && luckysheet.getSheetData()) {
                     console.log('Luckysheet已经初始化');
                     return;
                 }
@@ -2518,7 +2521,6 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 
                 try {
                     luckysheet.create(options);
-                    this.luckysheetInitialized = true;
                     console.log('Luckysheet初始化成功');
                 } catch (error) {
                     console.error('Luckysheet初始化失败:', error);
@@ -2527,8 +2529,9 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
             
             previewLuckysheetData() {
-                if (!this.luckysheetInitialized) {
-                    this.showError('请先创建Luckysheet表格');
+                // 检查Luckysheet是否可用
+                if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
+                    this.showError('Luckysheet未加载或不可用');
                     return;
                 }
                 
@@ -2589,7 +2592,8 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 let data = [];
                 let columns = [];
                 
-                if (this.luckysheetInitialized && window.luckysheet) {
+                // 检查Luckysheet是否可用
+                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData) {
                     try {
                         const sheetData = luckysheet.getSheetData();
                         if (sheetData && sheetData.length > 0) {
