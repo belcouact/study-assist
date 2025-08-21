@@ -1596,19 +1596,16 @@
                     // 显示加载状态
                     this.showAnalysisLoading();
                     
-                    // 获取Luckysheet数据
-                    const luckysheetData = this.getLuckysheetData();
-                    if (!luckysheetData || !luckysheetData.data || luckysheetData.data.length === 0) {
+                    // 获取数据
+                    const data = await this.getAnalysisData();
+                    if (!data) {
                         this.hideAnalysisLoading();
-                        this.showError('Luckysheet中没有可用的数据进行分析，请先选择模板或输入数据');
+                        this.showError('没有可用的数据进行分析，请先选择模板或输入数据');
                         return;
                     }
                     
-                    console.log('基于Luckysheet数据进行数据分析...');
-                    console.log('Luckysheet数据:', luckysheetData);
-                    
-                    // 执行基于Luckysheet的数据分析
-                    const analysisResult = await this.analyzeLuckysheetData(luckysheetData);
+                    // 执行分析
+                    const analysisResult = await this.analyzeDataset(data);
                     
                     // 显示结果
                     this.displayAnalysisResult(analysisResult);
@@ -1617,7 +1614,7 @@
                     this.hideAnalysisLoading();
                     
                 } catch (error) {
-                    console.error('Luckysheet数据分析过程中出错:', error);
+                    console.error('数据分析过程中出错:', error);
                     this.hideAnalysisLoading();
                     this.showError('数据分析失败: ' + error.message);
                 }
@@ -1663,192 +1660,6 @@
                     console.error('GLM数据分析失败，使用本地分析:', error);
                     return await this.performLocalAnalysis(dataset);
                 }
-            }
-            
-            // 基于Luckysheet数据进行专门分析
-            async analyzeLuckysheetData(luckysheetData) {
-                const { headers, data } = luckysheetData;
-                
-                console.log('开始分析Luckysheet数据...');
-                console.log('数据行数:', data.length);
-                console.log('数据列数:', headers.length);
-                console.log('列名:', headers);
-                
-                try {
-                    // 使用GLM API进行智能分析
-                    const glmAnalysis = await this.performGLMLuckysheetAnalysis(luckysheetData);
-                    if (glmAnalysis) {
-                        console.log('GLM API分析成功');
-                        return glmAnalysis;
-                    }
-                    
-                    // GLM API失败时显示错误信息
-                    throw new Error('GLM API分析失败，无法完成数据分析');
-                } catch (error) {
-                    console.error('GLM Luckysheet数据分析失败:', error);
-                    throw error;
-                }
-            }
-            
-            // 使用GLM API进行Luckysheet数据分析
-            async performGLMLuckysheetAnalysis(luckysheetData) {
-                const { headers, data } = luckysheetData;
-                
-                // 获取Luckysheet数据的统计信息
-                const dataStats = this.getLuckysheetDataStatistics(luckysheetData);
-                
-                // 构建针对Luckysheet数据的分析prompt
-                const prompt = `请对以下Luckysheet表格数据进行专业分析，输出格式为Markdown：
-
-## Luckysheet数据概况
-- 行数: ${data.length}
-- 列数: ${headers.length}
-- 列名: ${headers.join(', ')}
-- 数据类型分析: ${dataStats.typeAnalysis}
-- 数值范围: ${dataStats.valueRange}
-
-## 数据样本（前5行）
-${data.slice(0, 5).map((row, i) => `行${i+1}: ${JSON.stringify(row)}`).join('\n')}
-
-请提供以下分析：
-
-### 1. Luckysheet数据概览
-简要描述Luckysheet表格数据的基本特征和结构
-
-### 2. 关键指标
-提取最重要的统计指标和数值特征
-
-### 3. 数据质量评估
-评估Luckysheet数据的完整性、一致性和潜在问题
-
-### 4. 核心发现
-指出Luckysheet数据中的主要模式、趋势或异常
-
-### 5. 实用建议
-基于Luckysheet数据分析结果提供2-3条具体可行的建议
-
-要求：
-- 使用Markdown格式，结构清晰
-- 内容简明扼要，突出重点
-- 专注于Luckysheet表格数据的有价值洞察
-- 避免冗长的技术细节`;
-                
-                try {
-                    // 调用GLM API
-                    const analysisResult = await this.callGLMAPI(prompt, false, true);
-                    return analysisResult;
-                } catch (error) {
-                    console.error('GLM API调用失败:', error);
-                    return null;
-                }
-            }
-            
-
-            
-            // 生成Luckysheet数据分析报告
-            generateLuckysheetAnalysisReport(analysisData) {
-                const { basicStats, qualityAnalysis, trendAnalysis, correlationAnalysis, datasetSize, columnCount, dataStats } = analysisData;
-                
-                let report = `# Luckysheet数据分析报告\n\n`;
-                
-                // 数据概览
-                report += `## 数据概览\n`;
-                report += `- **数据来源**: Luckysheet表格\n`;
-                report += `- **数据行数**: ${datasetSize}\n`;
-                report += `- **数据列数**: ${columnCount}\n`;
-                report += `- **数据类型**: ${dataStats.typeAnalysis}\n`;
-                report += `- **数值范围**: ${dataStats.valueRange}\n\n`;
-                
-                // 关键指标
-                report += `## 关键指标\n`;
-                if (basicStats.numericColumns.length > 0) {
-                    report += `### 数值型列统计\n`;
-                    basicStats.numericColumns.forEach(col => {
-                        const stats = basicStats.columnStats[col];
-                        report += `- **${col}**: 平均值=${stats.mean}, 中位数=${stats.median}, 范围=${stats.min}-${stats.max}\n`;
-                    });
-                    report += `\n`;
-                }
-                
-                if (basicStats.textColumns.length > 0) {
-                    report += `### 文本型列统计\n`;
-                    basicStats.textColumns.forEach(col => {
-                        const stats = basicStats.columnStats[col];
-                        report += `- **${col}**: 唯一值=${stats.uniqueValues}, 最常见值=${stats.mostCommon}\n`;
-                    });
-                    report += `\n`;
-                }
-                
-                // 数据质量
-                report += `## 数据质量评估\n`;
-                report += `- **完整性**: ${qualityAnalysis.completeness}%\n`;
-                report += `- **一致性**: ${qualityAnalysis.consistency}%\n`;
-                report += `- **准确性**: ${qualityAnalysis.accuracy}%\n`;
-                if (qualityAnalysis.issues.length > 0) {
-                    report += `- **发现的问题**: ${qualityAnalysis.issues.slice(0, 3).join('; ')}\n`;
-                }
-                report += `\n`;
-                
-                // 核心发现
-                report += `## 核心发现\n`;
-                if (trendAnalysis.hasTrends) {
-                    report += `- **趋势分析**: ${trendAnalysis.description}\n`;
-                }
-                if (correlationAnalysis.hasCorrelations) {
-                    report += `- **相关性分析**: ${correlationAnalysis.description}\n`;
-                }
-                if (qualityAnalysis.outliers.length > 0) {
-                    report += `- **异常值检测**: 发现${qualityAnalysis.outliers.length}个潜在异常值\n`;
-                }
-                report += `\n`;
-                
-                // 实用建议
-                report += `## 实用建议\n`;
-                report += `1. **数据清洗建议**: 基于数据质量评估结果，建议处理缺失值和异常值\n`;
-                report += `2. **分析方向建议**: 根据数据特征，建议重点关注${basicStats.numericColumns.length > 0 ? '数值型列的统计分析' : '文本型列的分类统计'}\n`;
-                report += `3. **可视化建议**: 推荐使用${trendAnalysis.hasTrends ? '趋势图表' : correlationAnalysis.hasCorrelations ? '相关性热力图' : '基本统计图表'}进行数据可视化\n`;
-                
-                return report;
-            }
-            
-            // 获取Luckysheet数据统计信息
-            getLuckysheetDataStatistics(luckysheetData) {
-                const { headers, data } = luckysheetData;
-                
-                // 分析数据类型
-                const typeAnalysis = headers.map(header => {
-                    const values = data.map(row => row[header]);
-                    const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
-                    return numericValues.length > values.length / 2 ? '数值型' : '文本型';
-                }).join(', ');
-                
-                // 分析数值范围
-                const numericColumns = headers.filter(header => {
-                    const values = data.map(row => row[header]);
-                    const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
-                    return numericValues.length > values.length / 2;
-                });
-                
-                let valueRange = '无数值数据';
-                if (numericColumns.length > 0) {
-                    const allNumericValues = [];
-                    numericColumns.forEach(header => {
-                        const values = data.map(row => row[header]);
-                        const numericValues = values.filter(val => typeof val === 'number' && !isNaN(val));
-                        allNumericValues.push(...numericValues);
-                    });
-                    
-                    if (allNumericValues.length > 0) {
-                        const min = Math.min(...allNumericValues);
-                        const max = Math.max(...allNumericValues);
-                        valueRange = `${min} - ${max}`;
-                    }
-                }
-                
-                return {
-                    typeAnalysis,
-                    valueRange
-                };
             }
             
             // 使用GLM API进行数据分析
@@ -2739,12 +2550,27 @@ ${data.slice(0, 5).map((row, i) => `行${i+1}: ${JSON.stringify(row)}`).join('\n
                     luckysheetData.data.slice(0, 3).forEach((row, index) => {
                         dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
                     });
-                } else {
-                    // 如果没有Luckysheet数据，返回错误提示
-                    return `错误：Luckysheet中没有可用的数据进行分析。请先在Luckysheet中输入或选择数据。`;
+                } else if (this.data && this.data.length >= 0) {
+                    const dataStats = this.getDataStatistics();
+                    dataInfo = `\n\n**可用数据信息**：\n`;
+                    dataInfo += `- 数据行数：${this.data.length}\n`;
+                    dataInfo += `- 数据列：${this.columns.join(', ')}\n`;
+                    dataInfo += `- 数据类型分析：${dataStats.typeAnalysis}\n`;
+                    dataInfo += `- 数值范围：${dataStats.valueRange}\n`;
+                    dataInfo += `- 数据分布：${dataStats.distribution}\n`;
+                    
+                    // 添加数据样本
+                    if (this.data.length > 0) {
+                        dataInfo += `\n**数据样本**（前3行）：\n`;
+                        this.data.slice(0, 3).forEach((row, index) => {
+                            dataInfo += `行${index + 1}：${JSON.stringify(row)}\n`;
+                        });
+                    }
                 }
                 
-                return `根据用户需求推荐图表类型，并简要描述横轴、纵轴、标题等关键元素，不超过80字。\n\n重要：必须仅使用提供的Luckysheet实际数据，严禁使用任何随机或任意数据。\n\n用户需求：${userText}${dataInfo}`;
+                return `根据用户需求推荐图表类型，并简要描述横轴、纵轴、标题等关键元素，不超过80字。
+
+用户需求：${userText}${dataInfo}`;
             }
 
             getDataStatistics() {
@@ -3437,6 +3263,9 @@ ${data.slice(0, 5).map((row, i) => `行${i+1}: ${JSON.stringify(row)}`).join('\n
                     
                     console.log('HTML图表已在iframe中显示');
                     
+                    // 显示生成的代码（显示原始代码）
+                    this.showGeneratedCode(cleanedCode);
+                    
 
                 } catch (error) {
                     console.error('HTML图表代码执行错误:', error);
@@ -3712,7 +3541,55 @@ ${data.slice(0, 5).map((row, i) => `行${i+1}: ${JSON.stringify(row)}`).join('\n
                 }
             }
 
-
+            showGeneratedCode(code) {
+                const codeOutput = document.getElementById('codeOutput');
+                const codeContainer = codeOutput.parentElement;
+                
+                // 检查是否已经创建了折叠控件
+                let toggleButton = codeContainer.querySelector('.code-toggle');
+                
+                if (!toggleButton) {
+                    // 创建折叠按钮
+                    toggleButton = document.createElement('button');
+                    toggleButton.className = 'code-toggle';
+                    toggleButton.textContent = '展开代码';
+                    toggleButton.style.cssText = 'margin-bottom: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;';
+                    
+                    // 添加点击事件
+                    toggleButton.addEventListener('click', () => {
+                        const isExpanded = codeOutput.classList.contains('expanded');
+                        if (isExpanded) {
+                            codeOutput.classList.remove('expanded');
+                            codeOutput.style.maxHeight = '100px';
+                            codeOutput.style.overflow = 'hidden';
+                            toggleButton.textContent = '展开代码';
+                        } else {
+                            codeOutput.classList.add('expanded');
+                            codeOutput.style.maxHeight = 'none';
+                            codeOutput.style.overflow = 'auto';
+                            toggleButton.textContent = '折叠代码';
+                        }
+                    });
+                    
+                    // 在代码输出框之前插入按钮
+                    codeContainer.insertBefore(toggleButton, codeOutput);
+                }
+                
+                // 设置代码内容
+                codeOutput.textContent = code;
+                
+                // 设置默认折叠状态
+                codeOutput.classList.remove('expanded');
+                codeOutput.style.maxHeight = '100px';
+                codeOutput.style.overflow = 'hidden';
+                codeOutput.style.cssText += 'border: 1px solid #ddd; padding: 10px; background: #ffffff; border-radius: 4px; font-family: monospace; white-space: pre-wrap; transition: max-height 0.3s ease;';
+                
+                // 重置按钮文本
+                toggleButton.textContent = '展开代码';
+                
+                // 显示代码容器
+                codeOutput.classList.remove('hidden');
+            }
 
             isElementInViewport(el) {
                 const rect = el.getBoundingClientRect();
