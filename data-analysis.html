@@ -1609,32 +1609,36 @@
                     const data = [];
                     
                     // 获取表头（第一行）
-                    const firstRow = luckysheetData.data[0];
-                    if (firstRow) {
-                        for (let col = 0; col < firstRow.length; col++) {
-                            const cell = firstRow[col];
-                            if (cell && cell.v) {
-                                headers.push(cell.v);
-                            } else {
-                                headers.push(`列${col + 1}`);
+                    if (luckysheetData.data && luckysheetData.data.length > 0) {
+                        const firstRow = luckysheetData.data[0];
+                        if (firstRow && Array.isArray(firstRow)) {
+                            for (let col = 0; col < firstRow.length; col++) {
+                                const cell = firstRow[col];
+                                if (cell && cell.v) {
+                                    headers.push(cell.v);
+                                } else {
+                                    headers.push(`列${col + 1}`);
+                                }
                             }
                         }
                     }
                     
                     // 获取数据行（从第二行开始）
-                    for (let row = 1; row < luckysheetData.data.length; row++) {
-                        const rowData = luckysheetData.data[row];
-                        if (rowData && rowData.length > 0) {
-                            const rowObj = {};
-                            for (let col = 0; col < headers.length; col++) {
-                                const cell = rowData[col];
-                                if (cell && cell.v !== undefined) {
-                                    rowObj[headers[col]] = cell.v;
-                                } else {
-                                    rowObj[headers[col]] = '';
+                    if (luckysheetData.data && luckysheetData.data.length > 1) {
+                        for (let row = 1; row < luckysheetData.data.length; row++) {
+                            const rowData = luckysheetData.data[row];
+                            if (rowData && Array.isArray(rowData) && rowData.length > 0) {
+                                const rowObj = {};
+                                for (let col = 0; col < headers.length; col++) {
+                                    const cell = rowData[col];
+                                    if (cell && cell.v !== undefined) {
+                                        rowObj[headers[col]] = cell.v;
+                                    } else {
+                                        rowObj[headers[col]] = '';
+                                    }
                                 }
+                                data.push(rowObj);
                             }
-                            data.push(rowObj);
                         }
                     }
                     
@@ -2487,9 +2491,17 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             
             createLuckysheet() {
                 // 检查Luckysheet是否已经初始化
-                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData && luckysheet.getSheetData()) {
-                    console.log('Luckysheet已经初始化');
-                    return;
+                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData) {
+                    try {
+                        const sheetData = luckysheet.getSheetData();
+                        if (sheetData && sheetData.length > 0) {
+                            console.log('Luckysheet已经初始化');
+                            return;
+                        }
+                    } catch (error) {
+                        // Luckysheet可能未完全初始化，继续创建新实例
+                        console.log('Luckysheet需要重新初始化');
+                    }
                 }
                 
                 const container = document.getElementById('luckysheetContainer');
@@ -2544,16 +2556,33 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     }
                     
                     // 转换数据格式
-                    const headers = sheetData[0].slice(1); // 第一行作为标题，跳过第一个空单元格
+                    const headers = [];
                     const data = [];
                     
+                    // 检查是否有数据行
+                    if (!sheetData || sheetData.length === 0) {
+                        this.showError('表格中没有数据');
+                        return;
+                    }
+                    
+                    // 获取表头（第一行）
+                    const firstRow = sheetData[0];
+                    if (firstRow && firstRow.length > 0) {
+                        // 跳过第一个空单元格，从第二个开始作为标题
+                        for (let j = 1; j < firstRow.length; j++) {
+                            const cell = firstRow[j];
+                            headers.push(cell ? cell : `列${j}`);
+                        }
+                    }
+                    
+                    // 获取数据行（从第二行开始）
                     for (let i = 1; i < sheetData.length; i++) {
                         const row = sheetData[i];
-                        if (row && row.length > 1) {
+                        if (row && row.length > 0) {
                             const rowData = {};
-                            for (let j = 1; j < row.length && j <= headers.length; j++) {
-                                const header = headers[j - 1] || `列${j}`;
-                                rowData[header] = row[j] || '';
+                            for (let j = 0; j < headers.length; j++) {
+                                const cellValue = row[j + 1]; // 跳过第一个空单元格
+                                rowData[headers[j]] = cellValue !== null && cellValue !== undefined ? cellValue : '';
                             }
                             data.push(rowData);
                         }
@@ -2598,16 +2627,22 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         const sheetData = luckysheet.getSheetData();
                         if (sheetData && sheetData.length > 0) {
                             // 获取第一行作为列名
-                            columns = sheetData[0].filter(cell => cell !== null && cell !== undefined && cell !== '');
-                            
-                            // 获取数据行（跳过标题行）
-                            for (let i = 1; i < sheetData.length; i++) {
-                                const row = {};
-                                for (let j = 0; j < columns.length; j++) {
-                                    const cellValue = sheetData[i][j];
-                                    row[columns[j]] = cellValue !== null && cellValue !== undefined ? cellValue : '';
+                            const firstRow = sheetData[0];
+                            if (firstRow && Array.isArray(firstRow)) {
+                                columns = firstRow.filter(cell => cell !== null && cell !== undefined && cell !== '');
+                                
+                                // 获取数据行（跳过标题行）
+                                for (let i = 1; i < sheetData.length; i++) {
+                                    const rowData = sheetData[i];
+                                    if (rowData && Array.isArray(rowData)) {
+                                        const row = {};
+                                        for (let j = 0; j < columns.length; j++) {
+                                            const cellValue = rowData[j];
+                                            row[columns[j]] = cellValue !== null && cellValue !== undefined ? cellValue : '';
+                                        }
+                                        data.push(row);
+                                    }
                                 }
-                                data.push(row);
                             }
                         }
                     } catch (error) {
