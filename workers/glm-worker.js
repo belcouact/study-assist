@@ -3,6 +3,8 @@
 
 const GLM_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
 
+// Task storage now uses Cloudflare KV instead of in-memory Map
+
 // Performance optimization constants
 const DEFAULT_TIMEOUT = 60000; // 60 seconds timeout
 const MAX_TOKENS = 10000;
@@ -114,20 +116,18 @@ async function callGlmAPI(messages, env, stream = false) {
 // Async task processing function
 async function processAsyncTask(taskId, taskInput, env) {
     try {
-        if (!global.tasks) {
-            console.error('Tasks storage not initialized');
-            return;
-        }
-        
-        const task = global.tasks.get(taskId);
-        if (!task) {
+        // Get task from KV storage
+        const taskData = await env.TASKS_KV.get(taskId);
+        if (!taskData) {
             console.error('Task not found:', taskId);
             return;
         }
         
+        const task = JSON.parse(taskData);
+        
         // Update task status to processing
         task.status = 'processing';
-        global.tasks.set(taskId, task);
+        await env.TASKS_KV.put(taskId, JSON.stringify(task));
         
         // Extract messages from task input
         let messages;
@@ -152,22 +152,24 @@ async function processAsyncTask(taskId, taskInput, env) {
         task.status = 'completed';
         task.result = { output: content };
         task.completedAt = Date.now();
-        global.tasks.set(taskId, task);
+        await env.TASKS_KV.put(taskId, JSON.stringify(task));
         
         console.log('Async task completed:', taskId);
         
     } catch (error) {
         console.error('Async task failed:', taskId, error);
         
-        if (global.tasks && global.tasks.has(taskId)) {
-            const task = global.tasks.get(taskId);
+        // Update task with error
+        const taskData = await env.TASKS_KV.get(taskId);
+        if (taskData) {
+            const task = JSON.parse(taskData);
             task.status = 'failed';
             task.error = {
                 message: error.message,
                 timestamp: Date.now()
             };
             task.completedAt = Date.now();
-            global.tasks.set(taskId, task);
+            await env.TASKS_KV.put(taskId, JSON.stringify(task));
         }
     }
 }
@@ -283,19 +285,17 @@ export default {
                         const body = await request.json();
                         const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                         
-                        // Store task in memory (in production, use KV storage)
-                        if (!global.tasks) {
-                            global.tasks = new Map();
-                        }
-                        
-                        global.tasks.set(taskId, {
+                        // Store task in KV storage
+                        const taskData = {
                             id: taskId,
                             status: 'pending',
                             input: body,
                             createdAt: Date.now(),
                             result: null,
                             error: null
-                        });
+                        };
+                        
+                        await env.TASKS_KV.put(taskId, JSON.stringify(taskData));
                         
                         // Process task asynchronously
                         ctx.waitUntil(processAsyncTask(taskId, body, env));
@@ -338,7 +338,8 @@ export default {
                         });
                     }
                     
-                    if (!global.tasks || !global.tasks.has(taskId)) {
+                    const taskData = await env.TASKS_KV.get(taskId);
+                    if (!taskData) {
                         return new Response(JSON.stringify({
                             error: 'Task not found',
                             message: 'Invalid taskId'
@@ -351,7 +352,7 @@ export default {
                         });
                     }
                     
-                    const task = global.tasks.get(taskId);
+                    const task = JSON.parse(taskData);
                     return new Response(JSON.stringify(task), {
                         headers: {
                             'Content-Type': 'application/json',
