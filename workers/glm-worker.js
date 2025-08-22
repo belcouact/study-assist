@@ -127,7 +127,14 @@ async function processAsyncTask(taskId, taskInput, env) {
         
         // Update task status to processing
         task.status = 'processing';
-        await env.TASKS_KV.put(taskId, JSON.stringify(task));
+        
+        // Save to KV storage if available, otherwise use in-memory storage
+        if (env.TASKS_KV) {
+            await env.TASKS_KV.put(taskId, JSON.stringify(task));
+        } else if (globalThis.tasks) {
+            globalThis.tasks.set(taskId, task);
+            console.warn('KV storage not available, using in-memory fallback for status update');
+        }
         
         // Extract messages from task input
         let messages;
@@ -152,7 +159,14 @@ async function processAsyncTask(taskId, taskInput, env) {
         task.status = 'completed';
         task.result = { output: content };
         task.completedAt = Date.now();
-        await env.TASKS_KV.put(taskId, JSON.stringify(task));
+        
+        // Save to KV storage if available, otherwise use in-memory storage
+        if (env.TASKS_KV) {
+            await env.TASKS_KV.put(taskId, JSON.stringify(task));
+        } else if (globalThis.tasks) {
+            globalThis.tasks.set(taskId, task);
+            console.warn('KV storage not available, using in-memory fallback for result');
+        }
         
         console.log('Async task completed:', taskId);
         
@@ -160,16 +174,36 @@ async function processAsyncTask(taskId, taskInput, env) {
         console.error('Async task failed:', taskId, error);
         
         // Update task with error
-        const taskData = await env.TASKS_KV.get(taskId);
-        if (taskData) {
-            const task = JSON.parse(taskData);
+        let task;
+        
+        // Try to get task from KV storage first
+        if (env.TASKS_KV) {
+            const taskData = await env.TASKS_KV.get(taskId);
+            if (taskData) {
+                task = JSON.parse(taskData);
+            }
+        }
+        
+        // Fallback to in-memory storage
+        if (!task && globalThis.tasks && globalThis.tasks.has(taskId)) {
+            task = globalThis.tasks.get(taskId);
+        }
+        
+        if (task) {
             task.status = 'failed';
             task.error = {
                 message: error.message,
                 timestamp: Date.now()
             };
             task.completedAt = Date.now();
-            await env.TASKS_KV.put(taskId, JSON.stringify(task));
+            
+            // Save to KV storage if available, otherwise use in-memory storage
+            if (env.TASKS_KV) {
+                await env.TASKS_KV.put(taskId, JSON.stringify(task));
+            } else if (globalThis.tasks) {
+                globalThis.tasks.set(taskId, task);
+                console.warn('KV storage not available, using in-memory fallback for error');
+            }
         }
     }
 }
@@ -285,7 +319,7 @@ export default {
                         const body = await request.json();
                         const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                         
-                        // Store task in KV storage
+                        // Store task in KV storage with fallback
                         const taskData = {
                             id: taskId,
                             status: 'pending',
@@ -295,7 +329,17 @@ export default {
                             error: null
                         };
                         
-                        await env.TASKS_KV.put(taskId, JSON.stringify(taskData));
+                        // Check if KV storage is available
+                        if (env.TASKS_KV) {
+                            await env.TASKS_KV.put(taskId, JSON.stringify(taskData));
+                        } else {
+                            // Fallback to in-memory storage if KV is not available
+                            if (!globalThis.tasks) {
+                                globalThis.tasks = new Map();
+                            }
+                            globalThis.tasks.set(taskId, taskData);
+                            console.warn('KV storage not available, using in-memory fallback');
+                        }
                         
                         // Process task asynchronously
                         ctx.waitUntil(processAsyncTask(taskId, body, env));
@@ -338,8 +382,23 @@ export default {
                         });
                     }
                     
-                    const taskData = await env.TASKS_KV.get(taskId);
-                    if (!taskData) {
+                    let task;
+                    
+                    // Try to get task from KV storage first
+                    if (env.TASKS_KV) {
+                        const taskData = await env.TASKS_KV.get(taskId);
+                        if (taskData) {
+                            task = JSON.parse(taskData);
+                        }
+                    }
+                    
+                    // Fallback to in-memory storage if KV is not available or task not found
+                    if (!task && globalThis.tasks && globalThis.tasks.has(taskId)) {
+                        task = globalThis.tasks.get(taskId);
+                        console.warn('KV storage not available or task not found, using in-memory fallback');
+                    }
+                    
+                    if (!task) {
                         return new Response(JSON.stringify({
                             error: 'Task not found',
                             message: 'Invalid taskId'
@@ -351,8 +410,6 @@ export default {
                             }
                         });
                     }
-                    
-                    const task = JSON.parse(taskData);
                     return new Response(JSON.stringify(task), {
                         headers: {
                             'Content-Type': 'application/json',
