@@ -111,6 +111,67 @@ async function callGlmAPI(messages, env, stream = false) {
     }
 }
 
+// Async task processing function
+async function processAsyncTask(taskId, taskInput, env) {
+    try {
+        if (!global.tasks) {
+            console.error('Tasks storage not initialized');
+            return;
+        }
+        
+        const task = global.tasks.get(taskId);
+        if (!task) {
+            console.error('Task not found:', taskId);
+            return;
+        }
+        
+        // Update task status to processing
+        task.status = 'processing';
+        global.tasks.set(taskId, task);
+        
+        // Extract messages from task input
+        let messages;
+        if (taskInput.prompt) {
+            messages = [{
+                role: "user",
+                content: taskInput.prompt.trim()
+            }];
+        } else if (taskInput.messages && Array.isArray(taskInput.messages)) {
+            messages = taskInput.messages;
+        } else {
+            throw new Error('Invalid task input format');
+        }
+        
+        // Call GLM API
+        const result = await callGlmAPI(messages, env, false);
+        
+        // Extract content from GLM response
+        const content = result.choices?.[0]?.message?.content || 'No response from GLM';
+        
+        // Update task with result
+        task.status = 'completed';
+        task.result = { output: content };
+        task.completedAt = Date.now();
+        global.tasks.set(taskId, task);
+        
+        console.log('Async task completed:', taskId);
+        
+    } catch (error) {
+        console.error('Async task failed:', taskId, error);
+        
+        if (global.tasks && global.tasks.has(taskId)) {
+            const task = global.tasks.get(taskId);
+            task.status = 'failed';
+            task.error = {
+                message: error.message,
+                timestamp: Date.now()
+            };
+            task.completedAt = Date.now();
+            global.tasks.set(taskId, task);
+        }
+    }
+}
+
 // Optimized function to handle streaming response with immediate flushing
 async function handleStreamingResponse(response) {
     const reader = response.body.getReader();
@@ -214,6 +275,103 @@ export default {
                 });
             }
 
+            // Async task endpoint
+            if (path === '/api/async-task' || path === '/functions/api/async-task') {
+                if (request.method === 'POST') {
+                    // Submit new task
+                    try {
+                        const body = await request.json();
+                        const taskId = 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                        
+                        // Store task in memory (in production, use KV storage)
+                        if (!global.tasks) {
+                            global.tasks = new Map();
+                        }
+                        
+                        global.tasks.set(taskId, {
+                            id: taskId,
+                            status: 'pending',
+                            input: body,
+                            createdAt: Date.now(),
+                            result: null,
+                            error: null
+                        });
+                        
+                        // Process task asynchronously
+                        ctx.waitUntil(processAsyncTask(taskId, body, env));
+                        
+                        return new Response(JSON.stringify({
+                            taskId: taskId,
+                            status: 'pending',
+                            message: 'Task submitted successfully'
+                        }), {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    } catch (error) {
+                        return new Response(JSON.stringify({
+                            error: 'Invalid request',
+                            message: error.message
+                        }), {
+                            status: 400,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
+                } else if (request.method === 'GET') {
+                    // Get task status
+                    const taskId = url.searchParams.get('taskId');
+                    if (!taskId) {
+                        return new Response(JSON.stringify({
+                            error: 'Missing taskId',
+                            message: 'taskId parameter is required'
+                        }), {
+                            status: 400,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
+                    
+                    if (!global.tasks || !global.tasks.has(taskId)) {
+                        return new Response(JSON.stringify({
+                            error: 'Task not found',
+                            message: 'Invalid taskId'
+                        }), {
+                            status: 404,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
+                    
+                    const task = global.tasks.get(taskId);
+                    return new Response(JSON.stringify(task), {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...corsHeaders
+                        }
+                    });
+                } else {
+                    return new Response(JSON.stringify({
+                        error: 'Method not allowed',
+                        message: 'Only GET and POST requests are supported'
+                    }), {
+                        status: 405,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...corsHeaders
+                        }
+                    });
+                }
+            }
+            
             // Main GLM API endpoint
             if (path === '/chat' || path === '/api/chat' || path === '/' || path === '/api/glm' || path === '/functions/api/chat-glm') {
                 if (request.method !== 'POST') {
