@@ -676,6 +676,126 @@ export default {
                 }
             }
             
+            // Direct KV operations endpoint
+            if (path === '/api/kv') {
+                if (request.method !== 'POST') {
+                    return new Response(JSON.stringify({
+                        error: 'Method not allowed',
+                        message: 'Only POST requests are supported for KV operations'
+                    }), {
+                        status: 405,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...corsHeaders
+                        }
+                    });
+                }
+
+                try {
+                    if (!env || !env.TASKS_KV) {
+                        return new Response(JSON.stringify({
+                            error: 'KV storage not available',
+                            message: 'KV存储不可用'
+                        }), {
+                            status: 500,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
+                    
+                    const body = await request.json();
+                    const operation = body.operation;
+                    
+                    let result;
+                    
+                    switch (operation) {
+                        case 'write':
+                            if (!body.key || body.value === undefined) {
+                                throw new Error('Key and value are required for write operation');
+                            }
+                            await env.TASKS_KV.put(body.key, JSON.stringify(body.value));
+                            result = {
+                                success: true,
+                                message: 'KV write completed successfully',
+                                key: body.key,
+                                value: body.value
+                            };
+                            break;
+                            
+                        case 'read':
+                            if (!body.key) {
+                                throw new Error('Key is required for read operation');
+                            }
+                            const value = await env.TASKS_KV.get(body.key);
+                            if (value) {
+                                try {
+                                    result = {
+                                        success: true,
+                                        message: 'KV read completed successfully',
+                                        key: body.key,
+                                        found: true,
+                                        value: JSON.parse(value)
+                                    };
+                                } catch (e) {
+                                    result = {
+                                        success: true,
+                                        message: 'KV read completed successfully',
+                                        key: body.key,
+                                        found: true,
+                                        value: value
+                                    };
+                                }
+                            } else {
+                                result = {
+                                    success: true,
+                                    message: 'Key not found',
+                                    key: body.key,
+                                    found: false,
+                                    value: null
+                                };
+                            }
+                            break;
+                            
+                        case 'delete':
+                            if (!body.key) {
+                                throw new Error('Key is required for delete operation');
+                            }
+                            await env.TASKS_KV.delete(body.key);
+                            result = {
+                                success: true,
+                                message: 'KV delete completed successfully',
+                                key: body.key
+                            };
+                            break;
+                            
+                        default:
+                            throw new Error('Invalid operation');
+                    }
+                    
+                    return new Response(JSON.stringify(result), {
+                        status: 200,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...corsHeaders
+                        }
+                    });
+                    
+                } catch (error) {
+                    return new Response(JSON.stringify({
+                        error: 'KV operation failed',
+                        message: error.message
+                    }), {
+                        status: 500,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...corsHeaders
+                        }
+                    });
+                }
+            }
+            
             // Main GLM API endpoint
             if (path === '/chat' || path === '/api/chat' || path === '/' || path === '/api/glm' || path === '/functions/api/chat-glm') {
                 if (request.method !== 'POST') {

@@ -20,7 +20,7 @@ function generateTaskId() {
 }
 
 // Process async task
-async function processAsyncTask(taskData) {
+async function processAsyncTask(taskData, env) {
   const taskId = generateTaskId();
   
   // Store task with initial status
@@ -34,13 +34,13 @@ async function processAsyncTask(taskData) {
   });
   
   // Start processing in background
-  processTaskInBackground(taskId);
+  processTaskInBackground(taskId, env);
   
   return taskId;
 }
 
 // Background task processor
-async function processTaskInBackground(taskId) {
+async function processTaskInBackground(taskId, env) {
   const task = taskStorage.get(taskId);
   if (!task) return;
   
@@ -53,15 +53,15 @@ async function processTaskInBackground(taskId) {
     
     switch (taskType) {
       case 'kv_test':
-        task.result = await processKVTest(task.data);
+        task.result = await processKVTest(task.data, env);
         break;
         
       case 'kv_write':
-        task.result = await processKVWrite(task.data);
+        task.result = await processKVWrite(task.data, env);
         break;
         
       case 'kv_read':
-        task.result = await processKVRead(task.data);
+        task.result = await processKVRead(task.data, env);
         break;
         
       case 'glm':
@@ -94,56 +94,127 @@ async function processTaskInBackground(taskId) {
 }
 
 // Process KV test task
-async function processKVTest(data) {
-  // Simulate KV test operations
+async function processKVTest(data, env) {
+  if (!env || !env.TASKS_KV) {
+    throw new Error('KV storage not available');
+  }
+  
   const testKey = data.key || 'test_key_' + Date.now();
   const testValue = data.value || { test: 'data', timestamp: Date.now() };
   
-  // Simulate KV operations (in real implementation, these would use actual KV storage)
-  return {
-    success: true,
-    message: 'KV test completed successfully',
-    operations: ['write', 'read', 'delete'],
-    testKey: testKey
-  };
+  try {
+    // Write test
+    await env.TASKS_KV.put(testKey, JSON.stringify(testValue));
+    
+    // Read test
+    const readValue = await env.TASKS_KV.get(testKey);
+    const parsedValue = readValue ? JSON.parse(readValue) : null;
+    
+    // Delete test
+    await env.TASKS_KV.delete(testKey);
+    
+    return {
+      success: true,
+      message: 'KV test completed successfully',
+      operations: ['write', 'read', 'delete'],
+      testKey: testKey,
+      testValue: parsedValue
+    };
+  } catch (error) {
+    console.error('KV test failed:', error);
+    throw new Error(`KV test failed: ${error.message}`);
+  }
 }
 
 // Process KV write task
-async function processKVWrite(data) {
+async function processKVWrite(data, env) {
+  if (!env || !env.TASKS_KV) {
+    throw new Error('KV storage not available');
+  }
+  
   if (!data.key || data.value === undefined) {
     throw new Error('Key and value are required for KV write operation');
   }
   
-  // Simulate KV write (in real implementation, this would use actual KV storage)
-  return {
-    success: true,
-    message: 'KV write completed successfully',
-    key: data.key,
-    value: data.value
-  };
+  try {
+    // Store the data in KV
+    await env.TASKS_KV.put(data.key, JSON.stringify(data.value));
+    
+    // Update index for tracking keys
+    await updateKVIndex(env, data.key);
+    
+    return {
+      success: true,
+      message: 'KV write completed successfully',
+      key: data.key,
+      value: data.value
+    };
+  } catch (error) {
+    console.error('KV write failed:', error);
+    throw new Error(`KV write failed: ${error.message}`);
+  }
 }
 
 // Process KV read task
-async function processKVRead(data) {
+async function processKVRead(data, env) {
+  if (!env || !env.TASKS_KV) {
+    throw new Error('KV storage not available');
+  }
+  
   if (!data.key) {
     throw new Error('Key is required for KV read operation');
   }
   
-  // Simulate KV read (in real implementation, this would use actual KV storage)
-  // For demo purposes, return a mock response
-  const mockData = {
-    'test_key_': { message: 'Hello KV Storage!', timestamp: new Date().toISOString() }
-  };
-  
-  const value = mockData[data.key] || null;
-  
-  return {
-    success: true,
-    message: value ? 'KV read completed successfully' : 'Key not found',
-    key: data.key,
-    found: !!value,
-    value: value
-  };
+  try {
+    // Read the data from KV
+    const value = await env.TASKS_KV.get(data.key);
+    
+    if (value) {
+      const parsedValue = JSON.parse(value);
+      return {
+        success: true,
+        message: 'KV read completed successfully',
+        key: data.key,
+        found: true,
+        value: parsedValue
+      };
+    } else {
+      return {
+        success: true,
+        message: 'Key not found',
+        key: data.key,
+        found: false,
+        value: null
+      };
+    }
+  } catch (error) {
+    console.error('KV read failed:', error);
+    throw new Error(`KV read failed: ${error.message}`);
+  }
+}
+
+// Update KV index
+async function updateKVIndex(env, key) {
+  try {
+    const indexData = await env.TASKS_KV.get('kv_index');
+    let keys = indexData ? JSON.parse(indexData) : [];
+    
+    // Add new key to index if not already present
+    if (!keys.includes(key)) {
+      keys.unshift(key); // Add to beginning for newest first
+    }
+    
+    // Limit index size (keep latest 1000 keys)
+    if (keys.length > 1000) {
+      keys = keys.slice(0, 1000);
+    }
+    
+    await env.TASKS_KV.put('kv_index', JSON.stringify(keys));
+    console.log('KV index updated, total keys:', keys.length);
+  } catch (error) {
+    console.error('Failed to update KV index:', error);
+    // Don't throw error to avoid breaking main functionality
+  }
 }
 
 // Get task status and result
@@ -206,7 +277,7 @@ export async function onRequest(context) {
       }
       
       // Create and process async task
-      const taskId = await processAsyncTask(body);
+      const taskId = await processAsyncTask(body, env);
       
       return new Response(JSON.stringify({
         taskId: taskId,
@@ -223,8 +294,117 @@ export async function onRequest(context) {
       });
     }
     
+    // Handle direct KV operations (POST)
+    if (request.method === 'POST' && pathname === '/api/kv') {
+      if (!env || !env.TASKS_KV) {
+        return new Response(JSON.stringify({
+          error: 'KV storage not available',
+          message: 'KV存储不可用'
+        }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      }
+      
+      const body = await request.json();
+      const operation = body.operation;
+      
+      try {
+        let result;
+        
+        switch (operation) {
+          case 'write':
+            if (!body.key || body.value === undefined) {
+              throw new Error('Key and value are required for write operation');
+            }
+            await env.TASKS_KV.put(body.key, JSON.stringify(body.value));
+            await updateKVIndex(env, body.key);
+            result = {
+              success: true,
+              message: 'KV write completed successfully',
+              key: body.key,
+              value: body.value
+            };
+            break;
+            
+          case 'read':
+            if (!body.key) {
+              throw new Error('Key is required for read operation');
+            }
+            const value = await env.TASKS_KV.get(body.key);
+            if (value) {
+              result = {
+                success: true,
+                message: 'KV read completed successfully',
+                key: body.key,
+                found: true,
+                value: JSON.parse(value)
+              };
+            } else {
+              result = {
+                success: true,
+                message: 'Key not found',
+                key: body.key,
+                found: false,
+                value: null
+              };
+            }
+            break;
+            
+          case 'delete':
+            if (!body.key) {
+              throw new Error('Key is required for delete operation');
+            }
+            await env.TASKS_KV.delete(body.key);
+            result = {
+              success: true,
+              message: 'KV delete completed successfully',
+              key: body.key
+            };
+            break;
+            
+          case 'list':
+            const indexData = await env.TASKS_KV.get('kv_index');
+            const keys = indexData ? JSON.parse(indexData) : [];
+            result = {
+              success: true,
+              message: 'KV list completed successfully',
+              keys: keys,
+              count: keys.length
+            };
+            break;
+            
+          default:
+            throw new Error('Invalid operation');
+        }
+        
+        return new Response(JSON.stringify(result), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+        
+      } catch (error) {
+        return new Response(JSON.stringify({
+          error: 'KV operation failed',
+          message: error.message
+        }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      }
+    }
+    
     // Handle task status query (GET)
-if (request.method === 'GET' && pathname.startsWith('/functions/api/async-task/')) {
+    if (request.method === 'GET' && pathname.startsWith('/functions/api/async-task/')) {
   const taskId = pathname.split('/').pop();
   
   if (!taskId || taskId === 'async-task') {
