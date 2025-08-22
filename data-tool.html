@@ -4757,61 +4757,90 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             preventLuckysheetScroll() {
-                // 监听整个页面的滚动事件，防止luckysheet操作导致的页面滚动
                 let isLuckysheetInteraction = false;
+                let savedScrollPosition = 0;
                 let scrollTimeout;
                 
+                // 为luckysheet容器添加CSS样式，防止内部滚动影响页面
+                const luckysheetContainer = document.getElementById('luckysheetContainer');
+                if (luckysheetContainer) {
+                    luckysheetContainer.style.overflow = 'hidden';
+                    luckysheetContainer.style.position = 'relative';
+                }
+                
                 // 检测luckysheet交互开始
-                document.addEventListener('mousedown', (e) => {
+                const handleInteractionStart = (e) => {
                     if (e.target.closest('#luckysheetContainer') || 
                         e.target.closest('.luckysheet-cell-main') || 
                         e.target.closest('.luckysheet-cell-selected') ||
                         e.target.closest('.luckysheet-cell-selected-extend') ||
                         e.target.closest('.luckysheet-cell-selected-move')) {
-                        isLuckysheetInteraction = true;
                         
-                        // 保存当前滚动位置
-                        const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                        
-                        // 延迟检查并恢复滚动位置
-                        clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(() => {
-                            if (isLuckysheetInteraction) {
-                                window.scrollTo(0, currentScrollTop);
-                            }
-                        }, 100);
-                    }
-                }, true);
-                
-                // 检测luckysheet交互结束
-                document.addEventListener('mouseup', () => {
-                    if (isLuckysheetInteraction) {
-                        clearTimeout(scrollTimeout);
-                        setTimeout(() => {
-                            isLuckysheetInteraction = false;
-                        }, 50);
-                    }
-                }, true);
-                
-                // 阻止页面滚动，但允许luckysheet内部正常操作
-                const originalScrollTo = window.scrollTo;
-                window.scrollTo = function(x, y) {
-                    if (!isLuckysheetInteraction) {
-                        originalScrollTo.call(window, x, y);
+                        if (!isLuckysheetInteraction) {
+                            isLuckysheetInteraction = true;
+                            savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                            
+                            // 立即阻止默认滚动行为
+                            e.preventDefault();
+                            
+                            // 为body添加overflow:hidden来阻止滚动
+                            document.body.style.overflow = 'hidden';
+                            document.body.style.position = 'fixed';
+                            document.body.style.top = `-${savedScrollPosition}px`;
+                            document.body.style.width = '100%';
+                        }
                     }
                 };
                 
-                // 监听滚动事件并恢复位置
-                window.addEventListener('scroll', () => {
+                // 检测luckysheet交互结束
+                const handleInteractionEnd = () => {
+                    if (isLuckysheetInteraction) {
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            isLuckysheetInteraction = false;
+                            
+                            // 恢复body的滚动能力
+                            document.body.style.overflow = '';
+                            document.body.style.position = '';
+                            document.body.style.top = '';
+                            document.body.style.width = '';
+                            
+                            // 确保滚动位置正确
+                            window.scrollTo(0, savedScrollPosition);
+                        }, 150); // 增加延迟确保交互完全结束
+                    }
+                };
+                
+                // 添加事件监听器
+                document.addEventListener('mousedown', handleInteractionStart, true);
+                document.addEventListener('touchstart', handleInteractionStart, true);
+                document.addEventListener('mouseup', handleInteractionEnd, true);
+                document.addEventListener('touchend', handleInteractionEnd, true);
+                
+                // 额外的安全措施：监听滚动事件并在需要时恢复位置
+                const handleScroll = () => {
                     if (isLuckysheetInteraction) {
                         const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                        if (currentScrollTop !== 0) {
-                            window.scrollTo(0, 0);
+                        if (Math.abs(currentScrollTop - savedScrollPosition) > 5) {
+                            // 使用requestAnimationFrame确保平滑恢复
+                            requestAnimationFrame(() => {
+                                window.scrollTo(0, savedScrollPosition);
+                            });
                         }
                     }
-                }, true);
+                };
                 
-                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
+                window.addEventListener('scroll', handleScroll, true);
+                
+                // 清理函数（在页面卸载时调用）
+                window.addEventListener('beforeunload', () => {
+                    document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.width = '';
+                });
+                
+                console.log('Luckysheet防滚动事件监听器已设置（优化版）');
             }
             
             setupInfoIcon() {
