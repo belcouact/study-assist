@@ -27,53 +27,6 @@
     <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/css/luckysheet.css' />
     <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/assets/iconfont/iconfont.css' />
     <script src="https://cdn.jsdelivr.net/npm/luckysheet@latest/dist/luckysheet.umd.js"></script>
-    
-    <!-- 移动端Luckysheet加载检查 -->
-    <script>
-    // 确保Luckysheet在移动端正确加载
-    function checkLuckysheetLoaded(callback, maxAttempts = 20) {
-        let attempts = 0;
-        
-        function check() {
-            attempts++;
-            
-            // 检查window.luckysheet是否可用
-            if (typeof window.luckysheet !== 'undefined' && window.luckysheet.create) {
-                console.log('Luckysheet加载成功，尝试:', attempts);
-                if (callback) callback();
-                return;
-            }
-            
-            if (attempts < maxAttempts) {
-                console.log('Luckysheet未加载，等待中...尝试:', attempts);
-                setTimeout(check, 300); // 300ms后再次检查
-            } else {
-                console.error('Luckysheet加载失败，最大尝试次数:', maxAttempts);
-                // 显示错误信息
-                const errorMsg = document.createElement('div');
-                errorMsg.className = 'message error';
-                errorMsg.textContent = '表格组件加载失败，请刷新页面重试';
-                document.body.appendChild(errorMsg);
-                
-                // 5秒后自动移除错误信息
-                setTimeout(() => {
-                    if (errorMsg.parentNode) {
-                        errorMsg.parentNode.removeChild(errorMsg);
-                    }
-                }, 5000);
-            }
-        }
-        
-        check();
-    }
-    
-    // 页面加载完成后检查Luckysheet
-    document.addEventListener('DOMContentLoaded', function() {
-        checkLuckysheetLoaded(function() {
-            console.log('Luckysheet已准备好，可以进行初始化');
-        });
-    });
-    </script>
     <style>
         :root {
             --primary-color: #4361ee;
@@ -108,7 +61,7 @@
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            touch-action: auto;
+            touch-action: manipulation;
         }
 
         .container {
@@ -141,8 +94,7 @@
 
         .main-content {
             margin-top: 2rem;
-            touch-action: auto;
-            overflow-y: visible;
+            touch-action: pan-y;
         }
 
         .card {
@@ -441,24 +393,12 @@
 
         .chart-container {
             width: 100%;
-            height: 600px;
+            height: 500px;
             margin: 1rem 0;
             position: relative;
             z-index: 1;
             clear: both;
             overflow: hidden;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        /* ECharts实例样式 */
-        .echarts-instance {
-            width: 100%;
-            height: 100%;
-            min-height: 500px;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 1;
         }
         
         /* Fix for chart iframe and div positioning */
@@ -957,20 +897,16 @@
         @media (max-width: 768px) {
             .container {
                 padding: 0.5rem;
-                overflow-y: visible;
             }
 
             .card {
                 padding: 1rem;
                 margin-bottom: 1rem;
-                overflow: visible;
             }
 
             .chart-container {
-                height: 500px;
-                overflow: visible;
-                border-radius: 6px;
-                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+                height: 400px;
+                overflow: hidden;
             }
             
             /* Mobile chart iframe and div fixes */
@@ -978,7 +914,6 @@
             .chart-container div[id^="echarts-chart-"] {
                 min-height: 400px !important;
                 max-width: 100% !important;
-                overflow: visible;
             }
             
             /* Ensure resultCard works well on mobile */
@@ -991,15 +926,13 @@
 
             .upload-area {
                 padding: 1.5rem;
-                overflow: visible;
             }
             
             /* Fix mobile scrolling */
             .main-content {
-                overflow-y: visible;
+                overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 2rem;
-                touch-action: auto;
             }
             
             /* Ensure Luckysheet container is scrollable on mobile */
@@ -1007,7 +940,7 @@
                 height: 300px;
                 overflow: auto;
                 -webkit-overflow-scrolling: touch;
-                touch-action: auto;
+                touch-action: pan-x pan-y;
                 position: relative;
                 z-index: 1;
                 clear: both;
@@ -1032,19 +965,6 @@
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 0.5rem;
-            }
-            
-            /* Ensure body allows scrolling */
-            body {
-                overflow-y: visible !important;
-                touch-action: auto !important;
-                position: relative;
-            }
-            
-            /* Ensure html allows scrolling */
-            html {
-                overflow-y: visible !important;
-                touch-action: auto !important;
             }
         }
 
@@ -1824,7 +1744,7 @@
             </div>
             <div class="form-group">
                 <button id="optimizeDescription" class="btn btn-requirements" disabled>
-                    <i class="fas fa-magic"></i> 生成图表代码
+                    <i class="fas fa-magic"></i> 生成图表配置要求
                 </button>
             </div>
             <!-- 优化后的图表描述 -->
@@ -1847,18 +1767,19 @@
         </div>
 
         <!-- 生成结果 -->
-        <div id="resultCard" class="card hidden">
-                <div class="card-header">
-                    <h2 class="card-title">
-                        <i class="fas fa-chart-area"></i> 可视化结果
-                    </h2>
-                </div>
-                <div id="loading" class="loading hidden">
-                    <div class="spinner"></div>
-                </div>
-                <div id="error" class="error hidden"></div>
-                <div id="scriptOutput" class="script-output hidden"></div>
+        <div class="card hidden" id="resultCard">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-chart-area"></i> 可视化结果
+                </h2>
             </div>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+            </div>
+            <div id="error" class="error hidden"></div>
+            <div id="chartContainer" class="chart-container hidden"></div>
+            <div id="scriptOutput" class="script-output hidden"></div>
+        </div>
     </main>
 
     <script>
@@ -2039,7 +1960,7 @@
             // 将数据填充到Luckysheet表格中
             populateLuckysheetWithData(templateData) {
                 // 检查Luckysheet是否可用
-                    if (typeof window.luckysheet === 'undefined' || !window.luckysheet.getSheetData) {
+                if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
                     console.error('Luckysheet未加载或不可用');
                     return;
                 }
@@ -2111,54 +2032,11 @@
                         });
                         
                         console.log('模板数据已成功填充到Luckysheet表格');
-                        
-                        // 添加事件监听器阻止Luckysheet单元格点击时的自动滚动行为
-                        this.preventLuckysheetAutoScroll();
                     }, 100); // 100ms延迟确保DOM准备就绪
                 } catch (error) {
                     console.error('填充数据到Luckysheet时出错:', error);
                     this.showError('填充数据到表格失败');
                 }
-            }
-            
-            // 阻止Luckysheet单元格点击时的自动滚动行为
-            preventLuckysheetAutoScroll() {
-                const container = document.getElementById('luckysheetContainer');
-                if (!container) return;
-                
-                // 保存当前滚动位置
-                let currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-                
-                // 监听Luckysheet容器内的点击事件
-                container.addEventListener('click', (e) => {
-                    // 保存点击前的滚动位置
-                    currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-                    
-                    // 延迟检查并恢复滚动位置
-                    setTimeout(() => {
-                        const newPosition = window.pageYOffset || document.documentElement.scrollTop;
-                        if (newPosition !== currentScrollPosition) {
-                            // 如果位置发生了变化，恢复到原来的位置
-                            window.scrollTo(0, currentScrollPosition);
-                            console.log('阻止了Luckysheet的自动滚动行为');
-                        }
-                    }, 50); // 50ms延迟，让Luckysheet的滚动行为先执行
-                }, true); // 使用捕获阶段确保事件被捕获
-                
-                // 监听所有可能的滚动事件
-                const scrollHandler = () => {
-                    // 如果是Luckysheet内部操作导致的滚动，阻止它
-                    if (document.activeElement && container.contains(document.activeElement)) {
-                        setTimeout(() => {
-                            window.scrollTo(0, currentScrollPosition);
-                        }, 10);
-                    }
-                };
-                
-                window.addEventListener('scroll', scrollHandler, { passive: false });
-                
-                // 存储滚动处理器以便后续清理
-                this._scrollHandler = scrollHandler;
             }
             
             // 显示消息
@@ -2182,13 +2060,13 @@
             getLuckysheetData() {
                 try {
                     // 检查Luckysheet是否可用
-                    if (typeof window.luckysheet === 'undefined' || !window.luckysheet.getSheetData) {
+                    if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
                         console.error('Luckysheet不可用');
                         return null;
                     }
                     
                     // 获取Luckysheet的当前数据
-                    const luckysheetData = window.luckysheet.getSheetData();
+                    const luckysheetData = luckysheet.getSheetData();
                     console.log('Luckysheet原始数据:', luckysheetData);
                     
                     // 检查数据结构 - 处理不同的数据格式
@@ -3147,153 +3025,144 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             
             createLuckysheet() {
-                // 使用加载检查函数等待Luckysheet完全加载
-                checkLuckysheetLoaded(() => {
-                    // 检查Luckysheet是否已经初始化
-                    if (typeof window.luckysheet !== 'undefined' && window.luckysheet.getSheetData) {
-                        try {
-                            const sheetData = window.luckysheet.getSheetData();
-                            if (sheetData && sheetData.length > 0) {
-                                console.log('Luckysheet已经初始化');
-                                return;
-                            }
-                        } catch (error) {
-                            // Luckysheet可能未完全初始化，继续创建新实例
-                            console.log('Luckysheet需要重新初始化');
-                        }
-                    }
-                    
-                    const container = document.getElementById('luckysheetContainer');
-                    if (!container) {
-                        console.error('未找到Luckysheet容器');
-                        return;
-                    }
-                    
-                    // 初始化Luckysheet为空表格
-                    const options = {
-                        container: 'luckysheetContainer', // 设定DOM容器的id
-                        title: '数据表格', // 设定表格名称
-                        lang: 'zh', // 设定表格语言
-                        showinfobar: false, // 是否显示顶部信息栏
-                        showsheetbar: true, // 是否显示底部sheet页按钮
-                        showstatisticBar: false, // 是否显示底部计数栏
-                        showtoolbar: true,
-                        allowEdit: true,
-                        data: [
-                            {
-                                name: 'Sheet1', // 工作表名称
-                                color: '', // 工作表颜色
-                                status: 1, // 激活状态
-                                order: 0, // 工作表索引
-                                data: [], // 空表格数据
-                                config: {},
-                                index: 0,
-                            }
-                        ]
-                    };
-                    
+                // 检查Luckysheet是否已经初始化
+                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData) {
                     try {
-                        window.luckysheet.create(options);
-                        console.log('Luckysheet初始化成功');
-                        
-                        // 添加事件监听器阻止Luckysheet单元格点击时的自动滚动行为
-                        this.preventLuckysheetAutoScroll();
+                        const sheetData = luckysheet.getSheetData();
+                        if (sheetData && sheetData.length > 0) {
+                            console.log('Luckysheet已经初始化');
+                            return;
+                        }
                     } catch (error) {
-                        console.error('Luckysheet初始化失败:', error);
-                        this.showError('Luckysheet初始化失败: ' + error.message);
+                        // Luckysheet可能未完全初始化，继续创建新实例
+                        console.log('Luckysheet需要重新初始化');
                     }
-                }, () => {
-                    // Luckysheet加载失败的处理
-                    console.error('Luckysheet加载超时或失败');
-                    this.showError('Luckysheet加载失败，请刷新页面重试');
-                });
+                }
+                
+                const container = document.getElementById('luckysheetContainer');
+                if (!container) {
+                    console.error('未找到Luckysheet容器');
+                    return;
+                }
+                
+                // 初始化Luckysheet为空表格
+                const options = {
+                    container: 'luckysheetContainer', // 设定DOM容器的id
+                    title: '数据表格', // 设定表格语言
+                    lang: 'zh', // 设定表格语言
+                    showinfobar: false, // 是否显示顶部信息栏
+                    showsheetbar: true, // 是否显示底部sheet页按钮
+                    showstatisticBar: false, // 是否显示底部计数栏
+                    autoScroll: false, // 禁用自动滚动
+                    scrollBarShow: false, // 隐藏滚动条
+                    cellRightClick: false, // 禁用右键菜单
+                    rowHeaderWidth: 46, // 行标题宽度
+                    columnHeaderHeight: 20, // 列标题高度
+                    defaultRowHeight: 25, // 默认行高
+                    defaultColWidth: 73, // 默认列宽
+                    data: [
+                        {
+                            name: 'Sheet1', // 工作表名称
+                            color: '', // 工作表颜色
+                            status: 1, // 激活状态
+                            order: 0, // 工作表索引
+                            data: [], // 空表格数据
+                            config: {},
+                            index: 0,
+                        }
+                    ]
+                };
+                
+                try {
+                    luckysheet.create(options);
+                    console.log('Luckysheet初始化成功');
+                } catch (error) {
+                    console.error('Luckysheet初始化失败:', error);
+                    this.showError('Luckysheet初始化失败: ' + error.message);
+                }
             }
             
             previewLuckysheetData() {
-                // 使用加载检查函数等待Luckysheet完全加载
-                checkLuckysheetLoaded(() => {
-                    // 检查Luckysheet是否可用
-                    if (typeof window.luckysheet === 'undefined' || !window.luckysheet.getSheetData) {
-                        this.showError('Luckysheet未加载或不可用');
+                // 检查Luckysheet是否可用
+                if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
+                    this.showError('Luckysheet未加载或不可用');
+                    return;
+                }
+                
+                try {
+                    // 获取Luckysheet数据
+                    const luckysheetData = luckysheet.getSheetData();
+                    console.log('预览Luckysheet原始数据:', luckysheetData);
+                    
+                    // 检查数据结构 - 处理不同的数据格式
+                    let sheetData = null;
+                    if (luckysheetData) {
+                        // 模板数据格式: { data: [...] }
+                        if (luckysheetData.data && Array.isArray(luckysheetData.data) && luckysheetData.data.length > 0) {
+                            sheetData = luckysheetData.data;
+                        } 
+                        // 手动输入数据格式: 直接是数组
+                        else if (Array.isArray(luckysheetData) && luckysheetData.length > 0) {
+                            sheetData = luckysheetData;
+                        }
+                    }
+                    
+                    if (!sheetData || sheetData.length === 0) {
+                        this.showError('表格中没有数据');
                         return;
                     }
                     
-                    try {
-                        // 获取Luckysheet数据
-                        const luckysheetData = window.luckysheet.getSheetData();
-                        console.log('预览Luckysheet原始数据:', luckysheetData);
-                        
-                        // 检查数据结构 - 处理不同的数据格式
-                        let sheetData = null;
-                        if (luckysheetData) {
-                            // 模板数据格式: { data: [...] }
-                            if (luckysheetData.data && Array.isArray(luckysheetData.data) && luckysheetData.data.length > 0) {
-                                sheetData = luckysheetData.data;
-                            } 
-                            // 手动输入数据格式: 直接是数组
-                            else if (Array.isArray(luckysheetData) && luckysheetData.length > 0) {
-                                sheetData = luckysheetData;
-                            }
-                        }
-                        
-                        if (!sheetData || sheetData.length === 0) {
-                            this.showError('表格中没有数据');
-                            return;
-                        }
-                        
-                        // 转换数据格式
-                        const headers = [];
-                        const data = [];
-                        
-                        // 检查是否有数据行
-                        if (!sheetData || sheetData.length === 0) {
-                            this.showError('表格中没有数据');
-                            return;
-                        }
-                        
-                        // 获取表头（第一行）
-                        const firstRow = sheetData[0];
-                        if (firstRow && firstRow.length > 0) {
-                            // 跳过第一个空单元格，从第二个开始作为标题
-                            for (let j = 1; j < firstRow.length; j++) {
-                                const cell = firstRow[j];
-                                headers.push(cell ? cell : `列${j}`);
-                            }
-                        }
-                        
-                        // 获取数据行（从第二行开始）
-                        for (let i = 1; i < sheetData.length; i++) {
-                            const row = sheetData[i];
-                            if (row && row.length > 0) {
-                                const rowData = {};
-                                for (let j = 0; j < headers.length; j++) {
-                                    const cellValue = row[j + 1]; // 跳过第一个空单元格
-                                    rowData[headers[j]] = cellValue !== null && cellValue !== undefined ? cellValue : '';
-                                }
-                                data.push(rowData);
-                            }
-                        }
-                        
-                        if (data.length === 0) {
-                            this.showError('没有有效的数据行');
-                            return;
-                        }
-                        
-                        // 设置数据
-                        this.data = data;
-                        this.columns = headers;
-                        
-                        // 显示数据预览
-                        this.showDataPreview();
-                    } catch (error) {
-                        console.error('预览Luckysheet数据失败:', error);
-                        this.showError('预览数据失败: ' + error.message);
+                    // 转换数据格式
+                    const headers = [];
+                    const data = [];
+                    
+                    // 检查是否有数据行
+                    if (!sheetData || sheetData.length === 0) {
+                        this.showError('表格中没有数据');
+                        return;
                     }
-                }, () => {
-                    // Luckysheet加载失败的处理
-                    console.error('Luckysheet加载超时或失败');
-                    this.showError('Luckysheet加载失败，请刷新页面重试');
-                });
+                    
+                    // 获取表头（第一行）
+                    const firstRow = sheetData[0];
+                    if (firstRow && firstRow.length > 0) {
+                        // 跳过第一个空单元格，从第二个开始作为标题
+                        for (let j = 1; j < firstRow.length; j++) {
+                            const cell = firstRow[j];
+                            headers.push(cell ? cell : `列${j}`);
+                        }
+                    }
+                    
+                    // 获取数据行（从第二行开始）
+                    for (let i = 1; i < sheetData.length; i++) {
+                        const row = sheetData[i];
+                        if (row && row.length > 0) {
+                            const rowData = {};
+                            for (let j = 0; j < headers.length; j++) {
+                                const cellValue = row[j + 1]; // 跳过第一个空单元格
+                                rowData[headers[j]] = cellValue !== null && cellValue !== undefined ? cellValue : '';
+                            }
+                            data.push(rowData);
+                        }
+                    }
+                    
+                    if (data.length === 0) {
+                        this.showError('没有有效的数据行');
+                        return;
+                    }
+                    
+                    // 设置数据
+                    this.data = data;
+                    this.columns = headers;
+                    
+                    // 显示数据预览
+                    this.showDataPreview();
+                    
+                    console.log('Luckysheet数据预览成功，数据行数:', data.length);
+                    
+                } catch (error) {
+                    console.error('预览Luckysheet数据失败:', error);
+                    this.showError('预览数据失败: ' + error.message);
+                }
             }
             
             showDataPreview() {
@@ -3310,9 +3179,9 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 let columns = [];
                 
                 // 检查Luckysheet是否可用
-                if (typeof window.luckysheet !== 'undefined' && window.luckysheet.getSheetData) {
+                if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData) {
                     try {
-                        const luckysheetData = window.luckysheet.getSheetData();
+                        const luckysheetData = luckysheet.getSheetData();
                         console.log('显示数据预览原始数据:', luckysheetData);
                         
                         // 检查数据结构 - 处理不同的数据格式
@@ -3438,7 +3307,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 }
 
                 try {
-                    console.log('开始生成图表代码...');
+                    console.log('开始生成图表配置要求...');
                     console.log('用户输入:', userText);
                     
                     // 显示加载指示器
@@ -3671,12 +3540,6 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                             executeScriptBtn.disabled = false;
                             console.log('执行脚本按钮已启用');
                         }
-                        
-                        // 自动执行生成图表
-                        console.log('自动执行生成图表...');
-                        setTimeout(() => {
-                            this.executeScriptAndShowChart();
-                        }, 500);
                     }
                 } else {
                     console.error('未找到 optimizedContent 元素');
@@ -3689,7 +3552,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 获取OptimizedContent文本框中的代码
                 const optimizedContent = document.getElementById('optimizedContent');
                 if (!optimizedContent || !optimizedContent.value.trim()) {
-                    this.showError('请先生成图表代码');
+                    this.showError('请先生成图表配置要求');
                     return;
                 }
                 
@@ -4315,37 +4178,15 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         throw new Error('生成的代码不是有效的HTML格式');
                     }
                     
-                    // 在resultCard中创建图表容器
-                    const resultCard = document.getElementById('resultCard');
-                    if (!resultCard) {
-                        throw new Error('找不到resultCard元素');
+                    // 创建图表容器
+                    const container = document.getElementById('chartContainer');
+                    if (!container) {
+                        throw new Error('找不到图表容器元素');
                     }
                     
-                    // 移除之前的图表容器
-                    const existingChartContainer = resultCard.querySelector('.chart-container');
-                    if (existingChartContainer) {
-                        existingChartContainer.remove();
-                    }
+                    // 清空容器并创建iframe来显示HTML图表
+                    container.innerHTML = '';
                     
-                    // 创建新的图表容器
-                    const container = document.createElement('div');
-                    container.className = 'chart-container';
-                    container.style.width = '100%';
-                    container.style.height = '500px';
-                    container.style.margin = '1rem 0';
-                    container.style.position = 'relative';
-                    container.style.zIndex = '1';
-                    container.style.clear = 'both';
-                    
-                    // 将容器插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
-                    const scriptOutput = document.getElementById('scriptOutput');
-                    if (scriptOutput) {
-                        resultCard.insertBefore(container, scriptOutput);
-                    } else {
-                        resultCard.appendChild(container);
-                    }
-                    
-                    // 创建iframe来显示HTML图表
                     const iframe = document.createElement('iframe');
                     iframe.style.width = '100%';
                     iframe.style.height = '100%';
@@ -4421,35 +4262,12 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 this.validateCodeSyntax(cleanedCode);
                 console.log('代码语法验证通过');
                 
-                // 在resultCard中创建图表容器
-                const resultCard = document.getElementById('resultCard');
-                if (!resultCard) {
-                    throw new Error('找不到resultCard元素');
+                // 创建图表容器
+                const container = document.getElementById('chartContainer');
+                if (!container) {
+                    throw new Error('找不到图表容器元素');
                 }
-                
-                // 移除之前的图表容器
-                const existingChartContainer = resultCard.querySelector('.chart-container');
-                if (existingChartContainer) {
-                    existingChartContainer.remove();
-                }
-                
-                // 创建新的图表容器
-                const container = document.createElement('div');
-                container.className = 'chart-container';
-                container.style.width = '100%';
-                container.style.height = '500px';
-                container.style.margin = '1rem 0';
-                container.style.position = 'relative';
-                container.style.zIndex = '1';
-                container.style.clear = 'both';
-                
-                // 将容器插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
-                const scriptOutput = document.getElementById('scriptOutput');
-                if (scriptOutput) {
-                    resultCard.insertBefore(container, scriptOutput);
-                } else {
-                    resultCard.appendChild(container);
-                }
+                container.innerHTML = '';
                 
                 // 创建一个新的div用于图表
                 const chartDiv = document.createElement('div');
@@ -4459,7 +4277,6 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
                 chartDiv.style.zIndex = '1';
-                chartDiv.className = 'echarts-instance';
                 chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
                 container.appendChild(chartDiv);
 
@@ -4684,6 +4501,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             showResult() {
                 document.getElementById('resultCard').classList.remove('hidden');
+                document.getElementById('chartContainer').classList.remove('hidden');
                 // 确保脚本输出容器也显示
                 const scriptOutput = document.getElementById('scriptOutput');
                 if (scriptOutput && scriptOutput.textContent.trim()) {
@@ -4833,10 +4651,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             hideChart() {
-                // 移除resultCard中的所有图表元素
-                const resultCard = document.getElementById('resultCard');
-                const chartElements = resultCard.querySelectorAll('.echarts-instance');
-                chartElements.forEach(element => element.remove());
+                document.getElementById('chartContainer').classList.add('hidden');
             }
 
             setupInfoIcon() {
