@@ -4757,55 +4757,61 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             preventLuckysheetScroll() {
-                const luckysheetContainer = document.getElementById('luckysheetContainer');
-                if (!luckysheetContainer) {
-                    console.warn('Luckysheet容器未找到');
-                    return;
-                }
+                // 监听整个页面的滚动事件，防止luckysheet操作导致的页面滚动
+                let isLuckysheetInteraction = false;
+                let scrollTimeout;
                 
-                // 阻止luckysheet容器内的点击事件冒泡，防止页面滚动
-                luckysheetContainer.addEventListener('click', (e) => {
-                    // 只阻止单元格点击事件的默认滚动行为
-                    if (e.target.closest('.luckysheet-cell-main') || 
+                // 检测luckysheet交互开始
+                document.addEventListener('mousedown', (e) => {
+                    if (e.target.closest('#luckysheetContainer') || 
+                        e.target.closest('.luckysheet-cell-main') || 
                         e.target.closest('.luckysheet-cell-selected') ||
                         e.target.closest('.luckysheet-cell-selected-extend') ||
                         e.target.closest('.luckysheet-cell-selected-move')) {
-                        e.preventDefault();
-                        e.stopPropagation();
+                        isLuckysheetInteraction = true;
                         
                         // 保存当前滚动位置
                         const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
                         
-                        // 延迟恢复滚动位置，防止luckysheet内部滚动影响
+                        // 延迟检查并恢复滚动位置
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            if (isLuckysheetInteraction) {
+                                window.scrollTo(0, currentScrollTop);
+                            }
+                        }, 100);
+                    }
+                }, true);
+                
+                // 检测luckysheet交互结束
+                document.addEventListener('mouseup', () => {
+                    if (isLuckysheetInteraction) {
+                        clearTimeout(scrollTimeout);
                         setTimeout(() => {
-                            window.scrollTo(0, currentScrollTop);
-                        }, 0);
-                    }
-                }, true); // 使用捕获阶段
-                
-                // 阻止mousedown事件，防止focus导致的滚动
-                luckysheetContainer.addEventListener('mousedown', (e) => {
-                    if (e.target.closest('.luckysheet-cell-main') || 
-                        e.target.closest('.luckysheet-cell-selected') ||
-                        e.target.closest('.luckysheet-cell-selected-extend') ||
-                        e.target.closest('.luckysheet-cell-selected-move')) {
-                        e.preventDefault();
-                        e.stopPropagation();
+                            isLuckysheetInteraction = false;
+                        }, 50);
                     }
                 }, true);
                 
-                // 阻止focus事件，防止focus导致的滚动
-                luckysheetContainer.addEventListener('focus', (e) => {
-                    if (e.target.closest('.luckysheet-cell-main') || 
-                        e.target.closest('.luckysheet-cell-selected') ||
-                        e.target.closest('.luckysheet-cell-selected-extend') ||
-                        e.target.closest('.luckysheet-cell-selected-move')) {
-                        e.preventDefault();
-                        e.stopPropagation();
+                // 阻止页面滚动，但允许luckysheet内部正常操作
+                const originalScrollTo = window.scrollTo;
+                window.scrollTo = function(x, y) {
+                    if (!isLuckysheetInteraction) {
+                        originalScrollTo.call(window, x, y);
+                    }
+                };
+                
+                // 监听滚动事件并恢复位置
+                window.addEventListener('scroll', () => {
+                    if (isLuckysheetInteraction) {
+                        const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        if (currentScrollTop !== 0) {
+                            window.scrollTo(0, 0);
+                        }
                     }
                 }, true);
                 
-                console.log('Luckysheet防滚动事件监听器已设置');
+                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
             }
             
             setupInfoIcon() {
