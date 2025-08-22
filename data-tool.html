@@ -4760,6 +4760,8 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 let isLuckysheetInteraction = false;
                 let savedScrollPosition = 0;
                 let scrollTimeout;
+                let scrollRestorationAttempts = 0;
+                const maxRestorationAttempts = 3;
                 
                 // 为luckysheet容器添加CSS样式，防止内部滚动影响页面
                 const luckysheetContainer = document.getElementById('luckysheetContainer');
@@ -4779,15 +4781,20 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         if (!isLuckysheetInteraction) {
                             isLuckysheetInteraction = true;
                             savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                            scrollRestorationAttempts = 0;
                             
-                            // 立即阻止默认滚动行为
-                            e.preventDefault();
+                            // 保存原始的scrollRestoration设置
+                            const originalScrollRestoration = history.scrollRestoration;
+                            history.scrollRestoration = 'manual';
                             
-                            // 为body添加overflow:hidden来阻止滚动
+                            // 使用更轻量的方式阻止滚动
+                            document.documentElement.style.overflow = 'hidden';
                             document.body.style.overflow = 'hidden';
-                            document.body.style.position = 'fixed';
-                            document.body.style.top = `-${savedScrollPosition}px`;
-                            document.body.style.width = '100%';
+                            
+                            // 恢复scrollRestoration设置
+                            setTimeout(() => {
+                                history.scrollRestoration = originalScrollRestoration;
+                            }, 100);
                         }
                     }
                 };
@@ -4799,48 +4806,77 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         scrollTimeout = setTimeout(() => {
                             isLuckysheetInteraction = false;
                             
-                            // 恢复body的滚动能力
+                            // 恢复滚动能力
+                            document.documentElement.style.overflow = '';
                             document.body.style.overflow = '';
-                            document.body.style.position = '';
-                            document.body.style.top = '';
-                            document.body.style.width = '';
                             
-                            // 确保滚动位置正确
+                            // 多次尝试恢复滚动位置，确保成功
+                            const restoreScrollPosition = () => {
+                                const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                if (Math.abs(currentScrollTop - savedScrollPosition) > 5 && scrollRestorationAttempts < maxRestorationAttempts) {
+                                    scrollRestorationAttempts++;
+                                    window.scrollTo(0, savedScrollPosition);
+                                    
+                                    // 递归尝试，但增加延迟
+                                    setTimeout(restoreScrollPosition, 200 * scrollRestorationAttempts);
+                                }
+                            };
+                            
+                            // 立即尝试恢复滚动位置
                             window.scrollTo(0, savedScrollPosition);
-                        }, 150); // 增加延迟确保交互完全结束
+                            
+                            // 延迟检查并恢复
+                            setTimeout(restoreScrollPosition, 300);
+                        }, 200); // 增加延迟确保交互完全结束
                     }
                 };
                 
-                // 添加事件监听器
-                document.addEventListener('mousedown', handleInteractionStart, true);
-                document.addEventListener('touchstart', handleInteractionStart, true);
-                document.addEventListener('mouseup', handleInteractionEnd, true);
-                document.addEventListener('touchend', handleInteractionEnd, true);
+                // 添加事件监听器（使用冒泡阶段，避免与其他事件冲突）
+                document.addEventListener('mousedown', handleInteractionStart, false);
+                document.addEventListener('touchstart', handleInteractionStart, false);
+                document.addEventListener('mouseup', handleInteractionEnd, false);
+                document.addEventListener('touchend', handleInteractionEnd, false);
                 
                 // 额外的安全措施：监听滚动事件并在需要时恢复位置
-                const handleScroll = () => {
+                const handleScroll = (e) => {
                     if (isLuckysheetInteraction) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
                         const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
                         if (Math.abs(currentScrollTop - savedScrollPosition) > 5) {
-                            // 使用requestAnimationFrame确保平滑恢复
-                            requestAnimationFrame(() => {
-                                window.scrollTo(0, savedScrollPosition);
-                            });
+                            // 立即恢复滚动位置
+                            window.scrollTo(0, savedScrollPosition);
                         }
+                        return false;
                     }
                 };
                 
-                window.addEventListener('scroll', handleScroll, true);
+                // 使用被动监听器提高性能
+                window.addEventListener('scroll', handleScroll, { passive: false, capture: true });
+                
+                // 阻止wheel事件在交互期间
+                const handleWheel = (e) => {
+                    if (isLuckysheetInteraction && e.target.closest('#luckysheetContainer')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                };
+                
+                window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
                 
                 // 清理函数（在页面卸载时调用）
-                window.addEventListener('beforeunload', () => {
+                const cleanup = () => {
+                    document.documentElement.style.overflow = '';
                     document.body.style.overflow = '';
-                    document.body.style.position = '';
-                    document.body.style.top = '';
-                    document.body.style.width = '';
-                });
+                    window.removeEventListener('scroll', handleScroll, true);
+                    window.removeEventListener('wheel', handleWheel, true);
+                };
                 
-                console.log('Luckysheet防滚动事件监听器已设置（优化版）');
+                window.addEventListener('beforeunload', cleanup);
+                
+                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
             }
             
             setupInfoIcon() {
