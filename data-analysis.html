@@ -1824,7 +1824,7 @@
             </div>
             <div class="form-group">
                 <button id="optimizeDescription" class="btn btn-requirements" disabled>
-                    <i class="fas fa-magic"></i> 生成图表配置要求
+                    <i class="fas fa-magic"></i> 生成图表代码
                 </button>
             </div>
             <!-- 优化后的图表描述 -->
@@ -2111,11 +2111,54 @@
                         });
                         
                         console.log('模板数据已成功填充到Luckysheet表格');
+                        
+                        // 添加事件监听器阻止Luckysheet单元格点击时的自动滚动行为
+                        this.preventLuckysheetAutoScroll();
                     }, 100); // 100ms延迟确保DOM准备就绪
                 } catch (error) {
                     console.error('填充数据到Luckysheet时出错:', error);
                     this.showError('填充数据到表格失败');
                 }
+            }
+            
+            // 阻止Luckysheet单元格点击时的自动滚动行为
+            preventLuckysheetAutoScroll() {
+                const container = document.getElementById('luckysheetContainer');
+                if (!container) return;
+                
+                // 保存当前滚动位置
+                let currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                
+                // 监听Luckysheet容器内的点击事件
+                container.addEventListener('click', (e) => {
+                    // 保存点击前的滚动位置
+                    currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    // 延迟检查并恢复滚动位置
+                    setTimeout(() => {
+                        const newPosition = window.pageYOffset || document.documentElement.scrollTop;
+                        if (newPosition !== currentScrollPosition) {
+                            // 如果位置发生了变化，恢复到原来的位置
+                            window.scrollTo(0, currentScrollPosition);
+                            console.log('阻止了Luckysheet的自动滚动行为');
+                        }
+                    }, 50); // 50ms延迟，让Luckysheet的滚动行为先执行
+                }, true); // 使用捕获阶段确保事件被捕获
+                
+                // 监听所有可能的滚动事件
+                const scrollHandler = () => {
+                    // 如果是Luckysheet内部操作导致的滚动，阻止它
+                    if (document.activeElement && container.contains(document.activeElement)) {
+                        setTimeout(() => {
+                            window.scrollTo(0, currentScrollPosition);
+                        }, 10);
+                    }
+                };
+                
+                window.addEventListener('scroll', scrollHandler, { passive: false });
+                
+                // 存储滚动处理器以便后续清理
+                this._scrollHandler = scrollHandler;
             }
             
             // 显示消息
@@ -3134,6 +3177,8 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         showinfobar: false, // 是否显示顶部信息栏
                         showsheetbar: true, // 是否显示底部sheet页按钮
                         showstatisticBar: false, // 是否显示底部计数栏
+                        showtoolbar: true,
+                        allowEdit: true,
                         data: [
                             {
                                 name: 'Sheet1', // 工作表名称
@@ -3150,6 +3195,9 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     try {
                         window.luckysheet.create(options);
                         console.log('Luckysheet初始化成功');
+                        
+                        // 添加事件监听器阻止Luckysheet单元格点击时的自动滚动行为
+                        this.preventLuckysheetAutoScroll();
                     } catch (error) {
                         console.error('Luckysheet初始化失败:', error);
                         this.showError('Luckysheet初始化失败: ' + error.message);
@@ -3390,7 +3438,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 }
 
                 try {
-                    console.log('开始生成图表配置要求...');
+                    console.log('开始生成图表代码...');
                     console.log('用户输入:', userText);
                     
                     // 显示加载指示器
@@ -3641,7 +3689,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 获取OptimizedContent文本框中的代码
                 const optimizedContent = document.getElementById('optimizedContent');
                 if (!optimizedContent || !optimizedContent.value.trim()) {
-                    this.showError('请先生成图表配置要求');
+                    this.showError('请先生成图表代码');
                     return;
                 }
                 
