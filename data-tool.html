@@ -4762,6 +4762,11 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 let scrollTimeout;
                 let scrollRestorationAttempts = 0;
                 const maxRestorationAttempts = 3;
+                let touchStartY = 0;
+                let isScrolling = false;
+                
+                // 检测是否为触摸设备
+                const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
                 
                 // 为luckysheet容器添加CSS样式，防止内部滚动影响页面
                 const luckysheetContainer = document.getElementById('luckysheetContainer');
@@ -4770,13 +4775,14 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     luckysheetContainer.style.position = 'relative';
                 }
                 
-                // 检测luckysheet交互开始
+                // 检测luckysheet交互开始（仅适用于单元格选择）
                 const handleInteractionStart = (e) => {
-                    if (e.target.closest('#luckysheetContainer') || 
-                        e.target.closest('.luckysheet-cell-main') || 
+                    // 只处理luckysheet单元格相关的交互
+                    if (e.target.closest('.luckysheet-cell-main') || 
                         e.target.closest('.luckysheet-cell-selected') ||
                         e.target.closest('.luckysheet-cell-selected-extend') ||
-                        e.target.closest('.luckysheet-cell-selected-move')) {
+                        e.target.closest('.luckysheet-cell-selected-move') ||
+                        e.target.closest('.luckysheet-cell-selected-highlight')) {
                         
                         if (!isLuckysheetInteraction) {
                             isLuckysheetInteraction = true;
@@ -4787,9 +4793,11 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                             const originalScrollRestoration = history.scrollRestoration;
                             history.scrollRestoration = 'manual';
                             
-                            // 使用更轻量的方式阻止滚动
-                            document.documentElement.style.overflow = 'hidden';
-                            document.body.style.overflow = 'hidden';
+                            // 只在PC端或非触摸设备上阻止滚动
+                            if (!isTouchDevice) {
+                                document.documentElement.style.overflow = 'hidden';
+                                document.body.style.overflow = 'hidden';
+                            }
                             
                             // 恢复scrollRestoration设置
                             setTimeout(() => {
@@ -4831,15 +4839,86 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     }
                 };
                 
-                // 添加事件监听器（使用冒泡阶段，避免与其他事件冲突）
+                // 处理触摸开始事件，用于区分滑动和点击
+                const handleTouchStart = (e) => {
+                    touchStartY = e.touches[0].clientY;
+                    isScrolling = false;
+                    
+                    // 检查是否在luckysheet单元格内
+                    const isInLuckysheetCell = e.target.closest('.luckysheet-cell-main') || 
+                                             e.target.closest('.luckysheet-cell-selected') ||
+                                             e.target.closest('.luckysheet-cell-selected-extend') ||
+                                             e.target.closest('.luckysheet-cell-selected-move') ||
+                                             e.target.closest('.luckysheet-cell-selected-highlight');
+                    
+                    // 如果在luckysheet单元格内，调用交互开始处理
+                    if (isInLuckysheetCell) {
+                        handleInteractionStart(e);
+                    }
+                };
+                
+                // 处理触摸移动事件，区分滑动和点击
+                const handleTouchMove = (e) => {
+                    if (!isTouchDevice) return;
+                    
+                    const touchY = e.touches[0].clientY;
+                    const deltaY = Math.abs(touchY - touchStartY);
+                    
+                    // 如果移动距离超过阈值，认为是滑动操作
+                    if (deltaY > 10) {
+                        isScrolling = true;
+                        
+                        // 如果在luckysheet容器外，允许正常滑动
+                        const isInLuckysheetContainer = e.target.closest('#luckysheetContainer');
+                        if (!isInLuckysheetContainer) {
+                            // 允许正常页面滑动
+                            return;
+                        }
+                        
+                        // 在luckysheet容器内但不在单元格中，也允许滑动
+                        const isInLuckysheetCell = e.target.closest('.luckysheet-cell-main') || 
+                                                 e.target.closest('.luckysheet-cell-selected') ||
+                                                 e.target.closest('.luckysheet-cell-selected-extend') ||
+                                                 e.target.closest('.luckysheet-cell-selected-move') ||
+                                                 e.target.closest('.luckysheet-cell-selected-highlight');
+                        
+                        if (!isInLuckysheetCell) {
+                            // 允许在luckysheet容器内但不在单元格中的滑动
+                            return;
+                        }
+                    }
+                };
+                
+                // 处理触摸结束事件
+                const handleTouchEnd = (e) => {
+                    // 如果是滑动操作，不触发单元格选择
+                    if (isScrolling) {
+                        isScrolling = false;
+                        return;
+                    }
+                    
+                    // 如果是点击操作，调用交互结束处理
+                    handleInteractionEnd();
+                };
+                
+                // 添加事件监听器
                 document.addEventListener('mousedown', handleInteractionStart, false);
-                document.addEventListener('touchstart', handleInteractionStart, false);
                 document.addEventListener('mouseup', handleInteractionEnd, false);
-                document.addEventListener('touchend', handleInteractionEnd, false);
+                
+                // 为触摸设备添加专门的事件监听器
+                if (isTouchDevice) {
+                    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+                    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+                    document.addEventListener('touchend', handleTouchEnd, false);
+                } else {
+                    // 非触摸设备使用原来的处理方式
+                    document.addEventListener('touchstart', handleInteractionStart, false);
+                    document.addEventListener('touchend', handleInteractionEnd, false);
+                }
                 
                 // 额外的安全措施：监听滚动事件并在需要时恢复位置
                 const handleScroll = (e) => {
-                    if (isLuckysheetInteraction) {
+                    if (isLuckysheetInteraction && !isTouchDevice) {
                         e.preventDefault();
                         e.stopPropagation();
                         
@@ -4855,9 +4934,9 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 使用被动监听器提高性能
                 window.addEventListener('scroll', handleScroll, { passive: false, capture: true });
                 
-                // 阻止wheel事件在交互期间
+                // 阻止wheel事件在交互期间（仅PC端）
                 const handleWheel = (e) => {
-                    if (isLuckysheetInteraction && e.target.closest('#luckysheetContainer')) {
+                    if (isLuckysheetInteraction && !isTouchDevice && e.target.closest('#luckysheetContainer')) {
                         e.preventDefault();
                         e.stopPropagation();
                         return false;
@@ -4872,11 +4951,20 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     document.body.style.overflow = '';
                     window.removeEventListener('scroll', handleScroll, true);
                     window.removeEventListener('wheel', handleWheel, true);
+                    
+                    if (isTouchDevice) {
+                        document.removeEventListener('touchstart', handleTouchStart, true);
+                        document.removeEventListener('touchmove', handleTouchMove, true);
+                        document.removeEventListener('touchend', handleTouchEnd, true);
+                    } else {
+                        document.removeEventListener('touchstart', handleInteractionStart, true);
+                        document.removeEventListener('touchend', handleInteractionEnd, true);
+                    }
                 };
                 
                 window.addEventListener('beforeunload', cleanup);
                 
-                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
+                console.log('Luckysheet防滚动事件监听器已设置（移动端优化版）');
             }
             
             setupInfoIcon() {
