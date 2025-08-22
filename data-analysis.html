@@ -61,8 +61,10 @@
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            touch-action: auto;
+            touch-action: manipulation;
             position: relative;
+            /* 防止iOS上的橡皮筋效果 */
+            overscroll-behavior: none;
         }
 
         .container {
@@ -941,34 +943,18 @@
                 height: 300px;
                 overflow: auto;
                 -webkit-overflow-scrolling: touch;
-                touch-action: auto;
+                touch-action: manipulation;
                 position: relative;
                 z-index: 1;
                 clear: both;
-                /* 防止页面抖动 */
-                transform: translateZ(0);
-                will-change: transform;
-                backface-visibility: hidden;
                 /* 移动端优化 */
                 -webkit-tap-highlight-color: transparent;
                 -webkit-touch-callout: none;
-                -webkit-user-select: none;
-                user-select: none;
             }
             
             /* Luckysheet内部元素触摸优化 */
             #luckysheetContainer * {
                 -webkit-tap-highlight-color: transparent;
-                -webkit-touch-callout: none;
-            }
-            
-            /* 防止页面抖动的全局设置 */
-            .luckysheet-grid-window,
-            .luckysheet-cell-main,
-            .luckysheet-cell-selected {
-                transform: translateZ(0);
-                will-change: transform;
-                backface-visibility: hidden;
             }
             
             /* Fix template grid scrolling */
@@ -3093,6 +3079,32 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     enableAddCol: true, // 允许添加列
                     userInfo: false, // 隐藏用户信息
                     devicePixelRatio: window.devicePixelRatio || 1, // 适配设备像素比
+                    // 移动端优化配置
+                    moveCellType: 'move', // 移动单元格类型
+                    resize: true, // 允许调整大小
+                    editMode: true, // 允许编辑
+                    beforeCreateDom: function() {
+                        // 在创建DOM之前的回调，可以在这里进行额外的优化
+                        return true;
+                    },
+                    hook: {
+                        // 钩子函数，用于处理各种事件
+                        cellUpdateBefore: function() {
+                            // 单元格更新前的处理
+                            return true;
+                        },
+                        cellUpdateAfter: function() {
+                            // 单元格更新后的处理
+                            // 防止页面抖动
+                            setTimeout(() => {
+                                window.scrollTo({
+                                    top: window.pageYOffset,
+                                    left: window.pageXOffset,
+                                    behavior: 'instant'
+                                });
+                            }, 0);
+                        }
+                    },
                     data: [
                         {
                             name: 'Sheet1', // 工作表名称
@@ -3122,53 +3134,30 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 const container = document.getElementById('luckysheetContainer');
                 if (!container) return;
                 
-                let isTouching = false;
-                let touchStartTime = 0;
-                let touchStartY = 0;
+                // 使用更简单的触摸事件处理
+                // 只在必要时阻止默认行为，使用passive: true提高性能
                 
-                // 处理触摸开始事件
+                // 监听触摸开始事件，但不阻止默认行为
                 container.addEventListener('touchstart', (e) => {
-                    isTouching = true;
-                    touchStartTime = Date.now();
-                    touchStartY = e.touches[0].clientY;
-                    
-                    // 只在Luckysheet单元格区域内阻止默认行为
-                    const target = e.target;
-                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
+                    // 记录触摸开始位置，用于后续判断
+                    const touch = e.touches[0];
+                    container.dataset.touchStartX = touch.clientX;
+                    container.dataset.touchStartY = touch.clientY;
+                    container.dataset.touchStartTime = Date.now();
+                }, { passive: true });
                 
-                // 处理触摸移动事件
+                // 监听触摸移动事件，智能判断是否需要阻止默认行为
                 container.addEventListener('touchmove', (e) => {
-                    if (!isTouching) return;
+                    const startX = parseFloat(container.dataset.touchStartX || 0);
+                    const startY = parseFloat(container.dataset.touchStartY || 0);
+                    const currentX = e.touches[0].clientX;
+                    const currentY = e.touches[0].clientY;
                     
-                    const touchY = e.touches[0].clientY;
-                    const deltaY = Math.abs(touchY - touchStartY);
+                    const deltaX = Math.abs(currentX - startX);
+                    const deltaY = Math.abs(currentY - startY);
                     
-                    // 如果垂直移动距离较大，允许页面滚动
-                    if (deltaY > 10) {
-                        isTouching = false;
-                        return;
-                    }
-                    
-                    // 只在Luckysheet单元格区域内阻止默认行为
-                    const target = e.target;
-                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
-                        e.preventDefault();
-                    }
-                }, { passive: false });
-                
-                // 处理触摸结束事件
-                container.addEventListener('touchend', (e) => {
-                    isTouching = false;
-                    
-                    const touchDuration = Date.now() - touchStartTime;
-                    const touchY = e.changedTouches[0].clientY;
-                    const deltaY = Math.abs(touchY - touchStartY);
-                    
-                    // 如果是快速点击且移动距离小，阻止默认行为
-                    if (touchDuration < 200 && deltaY < 5) {
+                    // 如果是水平移动为主，且在Luckysheet单元格区域内，阻止页面滚动
+                    if (deltaX > deltaY && deltaX > 5) {
                         const target = e.target;
                         if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
                             e.preventDefault();
@@ -3176,11 +3165,28 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     }
                 }, { passive: false });
                 
-                // 防止Luckysheet内部的事件冒泡
+                // 监听触摸结束事件
+                container.addEventListener('touchend', (e) => {
+                    // 清理触摸数据
+                    delete container.dataset.touchStartX;
+                    delete container.dataset.touchStartY;
+                    delete container.dataset.touchStartTime;
+                }, { passive: true });
+                
+                // 优化点击事件，防止页面抖动
                 container.addEventListener('click', (e) => {
+                    // 只在Luckysheet单元格区域内阻止事件冒泡
                     const target = e.target;
                     if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
-                        e.stopPropagation();
+                        // 延迟处理，避免与Luckysheet原生事件冲突
+                        setTimeout(() => {
+                            // 确保页面不会因为点击而跳动
+                            window.scrollTo({
+                                top: window.pageYOffset,
+                                left: window.pageXOffset,
+                                behavior: 'instant'
+                            });
+                        }, 10);
                     }
                 }, true);
                 
