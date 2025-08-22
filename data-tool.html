@@ -62,9 +62,6 @@
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             touch-action: manipulation;
-            position: relative;
-            /* 防止iOS上的橡皮筋效果 */
-            overscroll-behavior: none;
         }
 
         .container {
@@ -394,19 +391,44 @@
             color: var(--primary-color);
         }
 
-        .chart-container {
+        /* 图表容器样式已移除，直接应用到图表元素 */
+        
+        /* 直接应用到iframe图表的样式 */
+        #resultCard iframe {
             width: 100%;
-            height: 500px;
+            height: 600px;
+            margin: 1rem 0;
+            position: relative;
+            z-index: 1;
+            clear: both;
+        }
+        
+        /* 直接应用到echarts图表的样式 */
+        #resultCard .echarts-instance {
+            width: 100%;
+            height: 600px;
             margin: 1rem 0;
             position: relative;
             z-index: 1;
             clear: both;
             overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* ECharts实例样式 */
+        .echarts-instance {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
         
         /* Fix for chart iframe and div positioning */
-        .chart-container iframe,
-        .chart-container div[id^="echarts-chart-"] {
+        #resultCard iframe,
+        #resultCard .echarts-instance {
             width: 100% !important;
             height: 100% !important;
             min-height: 500px;
@@ -907,14 +929,25 @@
                 margin-bottom: 1rem;
             }
 
-            .chart-container {
-                height: 400px;
+            /* 移动端iframe图表样式 */
+            #resultCard iframe {
+                height: 500px;
                 overflow: hidden;
+                border-radius: 6px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            }
+            
+            /* 移动端echarts图表样式 */
+            #resultCard .echarts-instance {
+                height: 500px;
+                overflow: hidden;
+                border-radius: 6px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
             }
             
             /* Mobile chart iframe and div fixes */
-            .chart-container iframe,
-            .chart-container div[id^="echarts-chart-"] {
+            #resultCard iframe,
+            #resultCard .echarts-instance {
                 min-height: 400px !important;
                 max-width: 100% !important;
             }
@@ -943,18 +976,10 @@
                 height: 300px;
                 overflow: auto;
                 -webkit-overflow-scrolling: touch;
-                touch-action: manipulation;
+                touch-action: pan-x pan-y;
                 position: relative;
                 z-index: 1;
                 clear: both;
-                /* 移动端优化 */
-                -webkit-tap-highlight-color: transparent;
-                -webkit-touch-callout: none;
-            }
-            
-            /* Luckysheet内部元素触摸优化 */
-            #luckysheetContainer * {
-                -webkit-tap-highlight-color: transparent;
             }
             
             /* Fix template grid scrolling */
@@ -1364,7 +1389,7 @@
             }
         }
         
-        /* 确保气泡窗口不被其他元素遮挡 **/
+        /* 确保气泡窗口不被其他元素遮挡 */
         .card-header {
             position: relative;
             z-index: 1;
@@ -1688,7 +1713,7 @@
                     <i class="fas fa-table"></i> 数据表格
                 </h2>
             </div>
-            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: auto;"></div>
+            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: pan-x pan-y;"></div>
         </div>
 
         <!-- 数据预览 -->
@@ -1778,19 +1803,18 @@
         </div>
 
         <!-- 生成结果 -->
-        <div class="card hidden" id="resultCard">
-            <div class="card-header">
-                <h2 class="card-title">
-                    <i class="fas fa-chart-area"></i> 可视化结果
-                </h2>
+        <div id="resultCard" class="card hidden">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-area"></i> 可视化结果
+                    </h2>
+                </div>
+                <div id="loading" class="loading hidden">
+                    <div class="spinner"></div>
+                </div>
+                <div id="error" class="error hidden"></div>
+                <div id="scriptOutput" class="script-output hidden"></div>
             </div>
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-            </div>
-            <div id="error" class="error hidden"></div>
-            <div id="chartContainer" class="chart-container hidden"></div>
-            <div id="scriptOutput" class="script-output hidden"></div>
-        </div>
     </main>
 
     <script>
@@ -1810,6 +1834,8 @@
                 this.setupInfoIcon();
                 // 页面加载时自动初始化Luckysheet
                 this.createLuckysheet();
+                // 添加事件监听器防止luckysheet单元格点击时页面滚动
+                this.preventLuckysheetScroll();
             }
             
             checkEChartsLibrary() {
@@ -2039,6 +2065,15 @@
                             showstatisticBar: false,
                             showtoolbar: true,
                             allowEdit: true,
+                            enableAddRow: false, // 禁用添加行功能
+                            enableAddCol: false, // 禁用添加列功能
+                            rowHeaderWidth: 46, // 行标题宽度
+                            columnHeaderHeight: 20, // 列标题高度
+                            defaultRowHeight: 25, // 默认行高
+                            defaultColWidth: 73, // 默认列宽
+                            cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
+                                copy: true,
+                            },
                             data: [luckysheetData]
                         });
                         
@@ -3059,51 +3094,19 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 初始化Luckysheet为空表格
                 const options = {
                     container: 'luckysheetContainer', // 设定DOM容器的id
-                    title: '数据表格', // 设定表格语言
+                    title: '数据表格', // 设定表格名称
                     lang: 'zh', // 设定表格语言
                     showinfobar: false, // 是否显示顶部信息栏
                     showsheetbar: true, // 是否显示底部sheet页按钮
                     showstatisticBar: false, // 是否显示底部计数栏
-                    autoScroll: false, // 禁用自动滚动
-                    scrollBarShow: false, // 隐藏滚动条
-                    cellRightClick: false, // 禁用右键菜单
+                    enableAddRow: false, // 禁用添加行功能
+                    enableAddCol: false, // 禁用添加列功能
                     rowHeaderWidth: 46, // 行标题宽度
                     columnHeaderHeight: 20, // 列标题高度
                     defaultRowHeight: 25, // 默认行高
                     defaultColWidth: 73, // 默认列宽
-                    enablePage: false, // 禁用分页
-                    showGridLines: true, // 显示网格线
-                    showToolbar: false, // 隐藏工具栏
-                    allowCopy: true, // 允许复制
-                    enableAddRow: true, // 允许添加行
-                    enableAddCol: true, // 允许添加列
-                    userInfo: false, // 隐藏用户信息
-                    devicePixelRatio: window.devicePixelRatio || 1, // 适配设备像素比
-                    // 移动端优化配置
-                    moveCellType: 'move', // 移动单元格类型
-                    resize: true, // 允许调整大小
-                    editMode: true, // 允许编辑
-                    beforeCreateDom: function() {
-                        // 在创建DOM之前的回调，可以在这里进行额外的优化
-                        return true;
-                    },
-                    hook: {
-                        // 钩子函数，用于处理各种事件
-                        cellUpdateBefore: function() {
-                            // 单元格更新前的处理
-                            return true;
-                        },
-                        cellUpdateAfter: function() {
-                            // 单元格更新后的处理
-                            // 防止页面抖动
-                            setTimeout(() => {
-                                window.scrollTo({
-                                    top: window.pageYOffset,
-                                    left: window.pageXOffset,
-                                    behavior: 'instant'
-                                });
-                            }, 0);
-                        }
+                    cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
+                        copy: true,
                     },
                     data: [
                         {
@@ -3121,76 +3124,10 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 try {
                     luckysheet.create(options);
                     console.log('Luckysheet初始化成功');
-                    
-                    // 初始化后添加触摸事件优化
-                    this.optimizeLuckysheetTouchEvents();
                 } catch (error) {
                     console.error('Luckysheet初始化失败:', error);
                     this.showError('Luckysheet初始化失败: ' + error.message);
                 }
-            }
-            
-            optimizeLuckysheetTouchEvents() {
-                const container = document.getElementById('luckysheetContainer');
-                if (!container) return;
-                
-                // 使用更简单的触摸事件处理
-                // 只在必要时阻止默认行为，使用passive: true提高性能
-                
-                // 监听触摸开始事件，但不阻止默认行为
-                container.addEventListener('touchstart', (e) => {
-                    // 记录触摸开始位置，用于后续判断
-                    const touch = e.touches[0];
-                    container.dataset.touchStartX = touch.clientX;
-                    container.dataset.touchStartY = touch.clientY;
-                    container.dataset.touchStartTime = Date.now();
-                }, { passive: true });
-                
-                // 监听触摸移动事件，智能判断是否需要阻止默认行为
-                container.addEventListener('touchmove', (e) => {
-                    const startX = parseFloat(container.dataset.touchStartX || 0);
-                    const startY = parseFloat(container.dataset.touchStartY || 0);
-                    const currentX = e.touches[0].clientX;
-                    const currentY = e.touches[0].clientY;
-                    
-                    const deltaX = Math.abs(currentX - startX);
-                    const deltaY = Math.abs(currentY - startY);
-                    
-                    // 如果是水平移动为主，且在Luckysheet单元格区域内，阻止页面滚动
-                    if (deltaX > deltaY && deltaX > 5) {
-                        const target = e.target;
-                        if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
-                            e.preventDefault();
-                        }
-                    }
-                }, { passive: false });
-                
-                // 监听触摸结束事件
-                container.addEventListener('touchend', (e) => {
-                    // 清理触摸数据
-                    delete container.dataset.touchStartX;
-                    delete container.dataset.touchStartY;
-                    delete container.dataset.touchStartTime;
-                }, { passive: true });
-                
-                // 优化点击事件，防止页面抖动
-                container.addEventListener('click', (e) => {
-                    // 只在Luckysheet单元格区域内阻止事件冒泡
-                    const target = e.target;
-                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
-                        // 延迟处理，避免与Luckysheet原生事件冲突
-                        setTimeout(() => {
-                            // 确保页面不会因为点击而跳动
-                            window.scrollTo({
-                                top: window.pageYOffset,
-                                left: window.pageXOffset,
-                                behavior: 'instant'
-                            });
-                        }, 10);
-                    }
-                }, true);
-                
-                console.log('Luckysheet触摸事件优化完成');
             }
             
             previewLuckysheetData() {
@@ -3428,7 +3365,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     // 禁用优化按钮，防止重复点击
                     if (optimizeDescriptionBtn) {
                         optimizeDescriptionBtn.disabled = true;
-                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 优化中...';
+                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 代码生成中...';
                     }
                     
                     // 构建优化需求的prompt
@@ -3651,6 +3588,12 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                             executeScriptBtn.disabled = false;
                             console.log('执行脚本按钮已启用');
                         }
+                        
+                        // 自动执行生成图表
+                        console.log('自动执行生成图表...');
+                        setTimeout(() => {
+                            this.executeScriptAndShowChart();
+                        }, 500);
                     }
                 } else {
                     console.error('未找到 optimizedContent 元素');
@@ -3809,10 +3752,22 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     const analysisGoal = selectedGoal ? selectedGoal.dataset.goal : '';
                     
                     // 构建系统消息并添加到prompt中
-                    const systemMessage = `你是一个HTML图表生成专家。请根据用户的需求生成完整的HTML图表代码，包含HTML文档结构、ECharts库引用、图表容器和初始化代码。只返回完整的HTML代码，不包含任何解释文字或注释。`;
+                    const systemMessage = `你是一个HTML图表生成专家。请根据用户的需求生成完整的HTML图表代码，包含HTML文档结构、ECharts库引用、图表容器和初始化代码。重要要求：
+1. 图表容器必须使用全屏显示，设置width: 100%, height: 100%
+2. 图表容器样式应包含position: absolute, top: 0, left: 0, right: 0, bottom: 0
+3. 确保图表能够充分利用整个显示区域，不要被任何容器限制
+4. 图表初始化代码中设置responsive: true以支持响应式布局
+5. 如果用户需要生成多个图表，请按照需求输出多个图表，而非仅仅一个。多个图表时，请合理布局，确保每个图表都有足够的显示空间
+6. 只返回完整的HTML代码，不包含任何解释文字或注释。`;
                     const fullPrompt = `${systemMessage}\n\n用户需求：${prompt}`;
                     
                     console.log('发送请求到GLM API...');
+                    
+                    // 使用提交-轮询模式处理复杂任务
+                    if (this.isComplexTask(prompt)) {
+                        console.log('检测到复杂任务，使用异步处理模式');
+                        return await this.callGLMAPIAsync(fullPrompt, stream);
+                    }
                     
                     // 使用GLM API格式
                     const requestBody = {
@@ -3904,6 +3859,202 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     
                     // 抛出错误以保持原有错误处理逻辑
                     throw new Error(errorMessage);
+                }
+            }
+            
+            // 判断是否为复杂任务
+            isComplexTask(prompt) {
+                // 定义复杂任务的判断标准
+                const complexKeywords = [
+                    '多个图表', '多图表', '多个', '多种', '对比', '比较',
+                    '分析', '统计', '报告', '总结', '趋势',
+                    '数据量', '大数据', '复杂', '详细', '全面'
+                ];
+                
+                const promptLower = prompt.toLowerCase();
+                return complexKeywords.some(keyword => promptLower.includes(keyword)) || 
+                       prompt.length > 500; // 长文本也认为是复杂任务
+            }
+            
+            // 异步任务处理方法
+            async callGLMAPIAsync(prompt, stream = false) {
+                try {
+                    console.log('开始异步任务处理...');
+                    
+                    // 第一步：提交任务
+                    const GLM_BASE_URL = 'https://glm.study-llm.me';
+                    const taskResponse = await fetch(`${GLM_BASE_URL}/api/async-task`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            stream: stream,
+                            model: "glm-4.5"
+                        })
+                    });
+                    
+                    if (!taskResponse.ok) {
+                        const errorText = await taskResponse.text();
+                        console.error('任务提交失败:', taskResponse.status, errorText);
+                        throw new Error(`任务提交失败: ${taskResponse.status} - ${errorText}`);
+                    }
+                    
+                    const taskData = await taskResponse.json();
+                    console.log('任务提交响应:', taskData);
+                    
+                    if (!taskData.taskId) {
+                        throw new Error('任务提交成功但未返回taskId');
+                    }
+                    
+                    const taskId = taskData.taskId;
+                    console.log('任务ID:', taskId);
+                    
+                    // 第二步：轮询结果
+                    return await this.pollTaskResult(taskId);
+                    
+                } catch (error) {
+                    console.error('callGLMAPIAsync错误:', error);
+                    
+                    // 如果异步处理失败，回退到同步处理
+                    console.log('异步处理失败，回退到同步处理...');
+                    return await this.callGLMAPISync(prompt, stream);
+                }
+            }
+            
+            // 轮询任务结果
+            async pollTaskResult(taskId, maxAttempts = 30, interval = 3000) {
+                console.log(`开始轮询任务结果，任务ID: ${taskId}`);
+                
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        console.log(`轮询第 ${attempt}/${maxAttempts} 次...`);
+                        
+                        const GLM_BASE_URL = 'https://glm.study-llm.me';
+                        const resultResponse = await fetch(`${GLM_BASE_URL}/api/async-task?taskId=${taskId}`);
+                        
+                        if (!resultResponse.ok) {
+                            console.error('轮询失败:', resultResponse.status);
+                            if (attempt === maxAttempts) {
+                                throw new Error(`轮询失败: ${resultResponse.status}`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, interval));
+                            continue;
+                        }
+                        
+                        const resultData = await resultResponse.json();
+                        console.log(`第 ${attempt} 次轮询结果:`, resultData);
+                        
+                        if (resultData.status === 'completed') {
+                            console.log('任务已完成');
+                            
+                            // 处理完成的任务结果
+                            let content;
+                            if (resultData.result && resultData.result.output) {
+                                content = resultData.result.output;
+                            } else if (resultData.result && resultData.result.content) {
+                                content = resultData.result.content;
+                            } else if (resultData.result) {
+                                content = resultData.result;
+                            } else {
+                                throw new Error('任务已完成但结果格式不正确');
+                            }
+                            
+                            if (!content || content.length === 0) {
+                                throw new Error('任务已完成但返回空内容');
+                            }
+                            
+                            return this.extractCodeFromResponse(content);
+                        }
+                        
+                        if (resultData.status === 'failed') {
+                            let errorMessage = '未知错误';
+                            if (resultData.error) {
+                                if (typeof resultData.error === 'string') {
+                                    errorMessage = resultData.error;
+                                } else if (resultData.error.message) {
+                                    errorMessage = resultData.error.message;
+                                } else {
+                                    errorMessage = JSON.stringify(resultData.error);
+                                }
+                            }
+                            throw new Error(`任务执行失败: ${errorMessage}`);
+                        }
+                        
+                        // 任务仍在进行中，继续等待
+                        console.log(`任务状态: ${resultData.status}，继续等待...`);
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                        
+                    } catch (error) {
+                        console.error(`第 ${attempt} 次轮询出错:`, error);
+                        
+                        if (attempt === maxAttempts) {
+                            throw new Error(`任务轮询超时: ${error.message}`);
+                        }
+                        
+                        // 等待后继续尝试
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                    }
+                }
+                
+                throw new Error('任务未在预期时间内完成');
+            }
+            
+            // 同步处理方法（作为异步处理的回退方案）
+            async callGLMAPISync(prompt, stream = false) {
+                console.log('使用同步处理模式...');
+                
+                // 使用GLM API格式
+                const requestBody = {
+                    prompt: prompt
+                };
+                
+                if (stream) {
+                    requestBody.stream = true;
+                }
+                
+                // 使用GLM API端点
+                const GLM_BASE_URL = 'https://glm.study-llm.me';
+                
+                const response = await fetch(`${GLM_BASE_URL}/functions/api/chat-glm`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`同步处理失败: ${response.status} - ${errorText}`);
+                }
+                
+                if (stream) {
+                    return await this.handleGLMStreamingResponse(response);
+                } else {
+                    const result = await response.json();
+                    
+                    let content;
+                    if (result.output) {
+                        content = result.output;
+                    } else if (result.choices && result.choices[0] && result.choices[0].message) {
+                        content = result.choices[0].message.content;
+                    } else if (result.message) {
+                        content = result.message;
+                    } else if (result.content) {
+                        content = result.content;
+                    } else {
+                        content = result;
+                    }
+                    
+                    if (!content || content.length === 0) {
+                        throw new Error('同步处理返回空内容');
+                    }
+                    
+                    return this.extractCodeFromResponse(content);
                 }
             }
             
@@ -4289,25 +4440,45 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         throw new Error('生成的代码不是有效的HTML格式');
                     }
                     
-                    // 创建图表容器
-                    const container = document.getElementById('chartContainer');
-                    if (!container) {
-                        throw new Error('找不到图表容器元素');
+                    // 在resultCard中直接创建图表
+                    const resultCard = document.getElementById('resultCard');
+                    if (!resultCard) {
+                        throw new Error('找不到resultCard元素');
                     }
                     
-                    // 清空容器并创建iframe来显示HTML图表
-                    container.innerHTML = '';
+                    // 移除之前的图表元素
+                    const existingChartContainer = resultCard.querySelector('.echarts-instance');
+                    if (existingChartContainer) {
+                        existingChartContainer.remove();
+                    }
                     
+                    // 移除之前的iframe
+                    const existingIframe = resultCard.querySelector('iframe');
+                    if (existingIframe) {
+                        existingIframe.remove();
+                    }
+                    
+                    // 直接创建iframe来显示HTML图表
                     const iframe = document.createElement('iframe');
                     iframe.style.width = '100%';
-                    iframe.style.height = '100%';
+                    iframe.style.height = '500px';
                     iframe.style.minHeight = '500px';
+                    iframe.style.margin = '1rem 0';
                     iframe.style.border = 'none';
                     iframe.style.borderRadius = '0';
                     iframe.style.boxSizing = 'border-box';
+                    iframe.style.position = 'relative';
+                    iframe.style.zIndex = '1';
+                    iframe.style.clear = 'both';
                     iframe.id = 'chart-iframe-' + Date.now();
                     
-                    container.appendChild(iframe);
+                    // 将iframe插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
+                    const scriptOutput = document.getElementById('scriptOutput');
+                    if (scriptOutput) {
+                        resultCard.insertBefore(iframe, scriptOutput);
+                    } else {
+                        resultCard.appendChild(iframe);
+                    }
                     
                     // 将HTML代码写入iframe
                     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -4373,23 +4544,44 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 this.validateCodeSyntax(cleanedCode);
                 console.log('代码语法验证通过');
                 
-                // 创建图表容器
-                const container = document.getElementById('chartContainer');
-                if (!container) {
-                    throw new Error('找不到图表容器元素');
+                // 在resultCard中直接创建图表
+                const resultCard = document.getElementById('resultCard');
+                if (!resultCard) {
+                    throw new Error('找不到resultCard元素');
                 }
-                container.innerHTML = '';
                 
-                // 创建一个新的div用于图表
+                // 移除之前的图表容器
+                const existingChartContainer = resultCard.querySelector('.echarts-instance');
+                if (existingChartContainer) {
+                    existingChartContainer.remove();
+                }
+                
+                // 移除之前的echarts图表
+                const existingChart = resultCard.querySelector('.echarts-instance');
+                if (existingChart) {
+                    existingChart.remove();
+                }
+                
+                // 直接创建一个新的div用于图表
                 const chartDiv = document.createElement('div');
                 chartDiv.style.width = '100%';
-                chartDiv.style.height = '100%';
+                chartDiv.style.height = '500px';
                 chartDiv.style.minHeight = '500px';
+                chartDiv.style.margin = '1rem 0';
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
                 chartDiv.style.zIndex = '1';
+                chartDiv.style.clear = 'both';
+                chartDiv.className = 'echarts-instance';
                 chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
-                container.appendChild(chartDiv);
+                
+                // 将图表div插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
+                const scriptOutput = document.getElementById('scriptOutput');
+                if (scriptOutput) {
+                    resultCard.insertBefore(chartDiv, scriptOutput);
+                } else {
+                    resultCard.appendChild(chartDiv);
+                }
 
                 // 安全的代码执行环境
                 const safeExecute = () => {
@@ -4612,7 +4804,6 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             showResult() {
                 document.getElementById('resultCard').classList.remove('hidden');
-                document.getElementById('chartContainer').classList.remove('hidden');
                 // 确保脚本输出容器也显示
                 const scriptOutput = document.getElementById('scriptOutput');
                 if (scriptOutput && scriptOutput.textContent.trim()) {
@@ -4762,9 +4953,135 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             hideChart() {
-                document.getElementById('chartContainer').classList.add('hidden');
+                // 移除resultCard中的所有图表元素
+                const resultCard = document.getElementById('resultCard');
+                const chartElements = resultCard.querySelectorAll('.echarts-instance');
+                chartElements.forEach(element => element.remove());
             }
 
+            preventLuckysheetScroll() {
+                let isLuckysheetInteraction = false;
+                let savedScrollPosition = 0;
+                let scrollTimeout;
+                let scrollRestorationAttempts = 0;
+                const maxRestorationAttempts = 3;
+                
+                // 为luckysheet容器添加CSS样式，防止内部滚动影响页面
+                const luckysheetContainer = document.getElementById('luckysheetContainer');
+                if (luckysheetContainer) {
+                    luckysheetContainer.style.overflow = 'hidden';
+                    luckysheetContainer.style.position = 'relative';
+                }
+                
+                // 检测luckysheet交互开始
+                const handleInteractionStart = (e) => {
+                    if (e.target.closest('#luckysheetContainer') || 
+                        e.target.closest('.luckysheet-cell-main') || 
+                        e.target.closest('.luckysheet-cell-selected') ||
+                        e.target.closest('.luckysheet-cell-selected-extend') ||
+                        e.target.closest('.luckysheet-cell-selected-move')) {
+                        
+                        if (!isLuckysheetInteraction) {
+                            isLuckysheetInteraction = true;
+                            savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                            scrollRestorationAttempts = 0;
+                            
+                            // 保存原始的scrollRestoration设置
+                            const originalScrollRestoration = history.scrollRestoration;
+                            history.scrollRestoration = 'manual';
+                            
+                            // 使用更轻量的方式阻止滚动
+                            document.documentElement.style.overflow = 'hidden';
+                            document.body.style.overflow = 'hidden';
+                            
+                            // 恢复scrollRestoration设置
+                            setTimeout(() => {
+                                history.scrollRestoration = originalScrollRestoration;
+                            }, 100);
+                        }
+                    }
+                };
+                
+                // 检测luckysheet交互结束
+                const handleInteractionEnd = () => {
+                    if (isLuckysheetInteraction) {
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            isLuckysheetInteraction = false;
+                            
+                            // 恢复滚动能力
+                            document.documentElement.style.overflow = '';
+                            document.body.style.overflow = '';
+                            
+                            // 多次尝试恢复滚动位置，确保成功
+                            const restoreScrollPosition = () => {
+                                const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                                if (Math.abs(currentScrollTop - savedScrollPosition) > 5 && scrollRestorationAttempts < maxRestorationAttempts) {
+                                    scrollRestorationAttempts++;
+                                    window.scrollTo(0, savedScrollPosition);
+                                    
+                                    // 递归尝试，但增加延迟
+                                    setTimeout(restoreScrollPosition, 200 * scrollRestorationAttempts);
+                                }
+                            };
+                            
+                            // 立即尝试恢复滚动位置
+                            window.scrollTo(0, savedScrollPosition);
+                            
+                            // 延迟检查并恢复
+                            setTimeout(restoreScrollPosition, 300);
+                        }, 200); // 增加延迟确保交互完全结束
+                    }
+                };
+                
+                // 添加事件监听器（使用冒泡阶段，避免与其他事件冲突）
+                document.addEventListener('mousedown', handleInteractionStart, false);
+                document.addEventListener('touchstart', handleInteractionStart, false);
+                document.addEventListener('mouseup', handleInteractionEnd, false);
+                document.addEventListener('touchend', handleInteractionEnd, false);
+                
+                // 额外的安全措施：监听滚动事件并在需要时恢复位置
+                const handleScroll = (e) => {
+                    if (isLuckysheetInteraction) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                        if (Math.abs(currentScrollTop - savedScrollPosition) > 5) {
+                            // 立即恢复滚动位置
+                            window.scrollTo(0, savedScrollPosition);
+                        }
+                        return false;
+                    }
+                };
+                
+                // 使用被动监听器提高性能
+                window.addEventListener('scroll', handleScroll, { passive: false, capture: true });
+                
+                // 阻止wheel事件在交互期间
+                const handleWheel = (e) => {
+                    if (isLuckysheetInteraction && e.target.closest('#luckysheetContainer')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }
+                };
+                
+                window.addEventListener('wheel', handleWheel, { passive: false, capture: true });
+                
+                // 清理函数（在页面卸载时调用）
+                const cleanup = () => {
+                    document.documentElement.style.overflow = '';
+                    document.body.style.overflow = '';
+                    window.removeEventListener('scroll', handleScroll, true);
+                    window.removeEventListener('wheel', handleWheel, true);
+                };
+                
+                window.addEventListener('beforeunload', cleanup);
+                
+                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
+            }
+            
             setupInfoIcon() {
                 const infoIcon = document.getElementById('chartInfoIcon');
                 const tooltip = document.getElementById('chartInfoTooltip');
