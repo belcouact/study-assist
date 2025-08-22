@@ -3365,7 +3365,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     // 禁用优化按钮，防止重复点击
                     if (optimizeDescriptionBtn) {
                         optimizeDescriptionBtn.disabled = true;
-                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 优化中...';
+                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 代码生成中...';
                     }
                     
                     // 构建优化需求的prompt
@@ -3763,6 +3763,12 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     
                     console.log('发送请求到GLM API...');
                     
+                    // 使用提交-轮询模式处理复杂任务
+                    if (this.isComplexTask(prompt)) {
+                        console.log('检测到复杂任务，使用异步处理模式');
+                        return await this.callGLMAPIAsync(fullPrompt, stream);
+                    }
+                    
                     // 使用GLM API格式
                     const requestBody = {
                         prompt: fullPrompt
@@ -3853,6 +3859,192 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     
                     // 抛出错误以保持原有错误处理逻辑
                     throw new Error(errorMessage);
+                }
+            }
+            
+            // 判断是否为复杂任务
+            isComplexTask(prompt) {
+                // 定义复杂任务的判断标准
+                const complexKeywords = [
+                    '多个图表', '多图表', '多个', '多种', '对比', '比较',
+                    '分析', '统计', '报告', '总结', '趋势',
+                    '数据量', '大数据', '复杂', '详细', '全面'
+                ];
+                
+                const promptLower = prompt.toLowerCase();
+                return complexKeywords.some(keyword => promptLower.includes(keyword)) || 
+                       prompt.length > 500; // 长文本也认为是复杂任务
+            }
+            
+            // 异步任务处理方法
+            async callGLMAPIAsync(prompt, stream = false) {
+                try {
+                    console.log('开始异步任务处理...');
+                    
+                    // 第一步：提交任务
+                    const GLM_BASE_URL = 'https://glm.study-llm.me';
+                    const taskResponse = await fetch(`${GLM_BASE_URL}/functions/api/async-task`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            stream: stream,
+                            model: "glm-4.5"
+                        })
+                    });
+                    
+                    if (!taskResponse.ok) {
+                        const errorText = await taskResponse.text();
+                        console.error('任务提交失败:', taskResponse.status, errorText);
+                        throw new Error(`任务提交失败: ${taskResponse.status} - ${errorText}`);
+                    }
+                    
+                    const taskData = await taskResponse.json();
+                    console.log('任务提交响应:', taskData);
+                    
+                    if (!taskData.task_id) {
+                        throw new Error('任务提交成功但未返回task_id');
+                    }
+                    
+                    const taskId = taskData.task_id;
+                    console.log('任务ID:', taskId);
+                    
+                    // 第二步：轮询结果
+                    return await this.pollTaskResult(taskId);
+                    
+                } catch (error) {
+                    console.error('callGLMAPIAsync错误:', error);
+                    
+                    // 如果异步处理失败，回退到同步处理
+                    console.log('异步处理失败，回退到同步处理...');
+                    return await this.callGLMAPISync(prompt, stream);
+                }
+            }
+            
+            // 轮询任务结果
+            async pollTaskResult(taskId, maxAttempts = 30, interval = 3000) {
+                console.log(`开始轮询任务结果，任务ID: ${taskId}`);
+                
+                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                    try {
+                        console.log(`轮询第 ${attempt}/${maxAttempts} 次...`);
+                        
+                        const GLM_BASE_URL = 'https://glm.study-llm.me';
+                        const resultResponse = await fetch(`${GLM_BASE_URL}/functions/api/async-task/${taskId}`);
+                        
+                        if (!resultResponse.ok) {
+                            console.error('轮询失败:', resultResponse.status);
+                            if (attempt === maxAttempts) {
+                                throw new Error(`轮询失败: ${resultResponse.status}`);
+                            }
+                            await new Promise(resolve => setTimeout(resolve, interval));
+                            continue;
+                        }
+                        
+                        const resultData = await resultResponse.json();
+                        console.log(`第 ${attempt} 次轮询结果:`, resultData);
+                        
+                        if (resultData.status === 'completed') {
+                            console.log('任务已完成');
+                            
+                            // 处理完成的任务结果
+                            let content;
+                            if (resultData.result && resultData.result.output) {
+                                content = resultData.result.output;
+                            } else if (resultData.result && resultData.result.content) {
+                                content = resultData.result.content;
+                            } else if (resultData.result) {
+                                content = resultData.result;
+                            } else {
+                                throw new Error('任务已完成但结果格式不正确');
+                            }
+                            
+                            if (!content || content.length === 0) {
+                                throw new Error('任务已完成但返回空内容');
+                            }
+                            
+                            return this.extractCodeFromResponse(content);
+                        }
+                        
+                        if (resultData.status === 'failed') {
+                            throw new Error(`任务执行失败: ${resultData.error || '未知错误'}`);
+                        }
+                        
+                        // 任务仍在进行中，继续等待
+                        console.log(`任务状态: ${resultData.status}，继续等待...`);
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                        
+                    } catch (error) {
+                        console.error(`第 ${attempt} 次轮询出错:`, error);
+                        
+                        if (attempt === maxAttempts) {
+                            throw new Error(`任务轮询超时: ${error.message}`);
+                        }
+                        
+                        // 等待后继续尝试
+                        await new Promise(resolve => setTimeout(resolve, interval));
+                    }
+                }
+                
+                throw new Error('任务未在预期时间内完成');
+            }
+            
+            // 同步处理方法（作为异步处理的回退方案）
+            async callGLMAPISync(prompt, stream = false) {
+                console.log('使用同步处理模式...');
+                
+                // 使用GLM API格式
+                const requestBody = {
+                    prompt: prompt
+                };
+                
+                if (stream) {
+                    requestBody.stream = true;
+                }
+                
+                // 使用GLM API端点
+                const GLM_BASE_URL = 'https://glm.study-llm.me';
+                
+                const response = await fetch(`${GLM_BASE_URL}/functions/api/chat-glm`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`同步处理失败: ${response.status} - ${errorText}`);
+                }
+                
+                if (stream) {
+                    return await this.handleGLMStreamingResponse(response);
+                } else {
+                    const result = await response.json();
+                    
+                    let content;
+                    if (result.output) {
+                        content = result.output;
+                    } else if (result.choices && result.choices[0] && result.choices[0].message) {
+                        content = result.choices[0].message.content;
+                    } else if (result.message) {
+                        content = result.message;
+                    } else if (result.content) {
+                        content = result.content;
+                    } else {
+                        content = result;
+                    }
+                    
+                    if (!content || content.length === 0) {
+                        throw new Error('同步处理返回空内容');
+                    }
+                    
+                    return this.extractCodeFromResponse(content);
                 }
             }
             
