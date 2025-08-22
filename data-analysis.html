@@ -61,7 +61,8 @@
             min-height: 100vh;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
-            touch-action: manipulation;
+            touch-action: auto;
+            position: relative;
         }
 
         .container {
@@ -940,10 +941,34 @@
                 height: 300px;
                 overflow: auto;
                 -webkit-overflow-scrolling: touch;
-                touch-action: pan-x pan-y;
+                touch-action: auto;
                 position: relative;
                 z-index: 1;
                 clear: both;
+                /* 防止页面抖动 */
+                transform: translateZ(0);
+                will-change: transform;
+                backface-visibility: hidden;
+                /* 移动端优化 */
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+                user-select: none;
+            }
+            
+            /* Luckysheet内部元素触摸优化 */
+            #luckysheetContainer * {
+                -webkit-tap-highlight-color: transparent;
+                -webkit-touch-callout: none;
+            }
+            
+            /* 防止页面抖动的全局设置 */
+            .luckysheet-grid-window,
+            .luckysheet-cell-main,
+            .luckysheet-cell-selected {
+                transform: translateZ(0);
+                will-change: transform;
+                backface-visibility: hidden;
             }
             
             /* Fix template grid scrolling */
@@ -1353,7 +1378,7 @@
             }
         }
         
-        /* 确保气泡窗口不被其他元素遮挡 */
+        /* 确保气泡窗口不被其他元素遮挡 **/
         .card-header {
             position: relative;
             z-index: 1;
@@ -1677,7 +1702,7 @@
                     <i class="fas fa-table"></i> 数据表格
                 </h2>
             </div>
-            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: pan-x pan-y;"></div>
+            <div id="luckysheetContainer" style="margin: 0px; padding: 0px; position: relative; width: 100%; height: 400px; touch-action: auto;"></div>
         </div>
 
         <!-- 数据预览 -->
@@ -3060,6 +3085,14 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     columnHeaderHeight: 20, // 列标题高度
                     defaultRowHeight: 25, // 默认行高
                     defaultColWidth: 73, // 默认列宽
+                    enablePage: false, // 禁用分页
+                    showGridLines: true, // 显示网格线
+                    showToolbar: false, // 隐藏工具栏
+                    allowCopy: true, // 允许复制
+                    enableAddRow: true, // 允许添加行
+                    enableAddCol: true, // 允许添加列
+                    userInfo: false, // 隐藏用户信息
+                    devicePixelRatio: window.devicePixelRatio || 1, // 适配设备像素比
                     data: [
                         {
                             name: 'Sheet1', // 工作表名称
@@ -3076,10 +3109,82 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 try {
                     luckysheet.create(options);
                     console.log('Luckysheet初始化成功');
+                    
+                    // 初始化后添加触摸事件优化
+                    this.optimizeLuckysheetTouchEvents();
                 } catch (error) {
                     console.error('Luckysheet初始化失败:', error);
                     this.showError('Luckysheet初始化失败: ' + error.message);
                 }
+            }
+            
+            optimizeLuckysheetTouchEvents() {
+                const container = document.getElementById('luckysheetContainer');
+                if (!container) return;
+                
+                let isTouching = false;
+                let touchStartTime = 0;
+                let touchStartY = 0;
+                
+                // 处理触摸开始事件
+                container.addEventListener('touchstart', (e) => {
+                    isTouching = true;
+                    touchStartTime = Date.now();
+                    touchStartY = e.touches[0].clientY;
+                    
+                    // 只在Luckysheet单元格区域内阻止默认行为
+                    const target = e.target;
+                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // 处理触摸移动事件
+                container.addEventListener('touchmove', (e) => {
+                    if (!isTouching) return;
+                    
+                    const touchY = e.touches[0].clientY;
+                    const deltaY = Math.abs(touchY - touchStartY);
+                    
+                    // 如果垂直移动距离较大，允许页面滚动
+                    if (deltaY > 10) {
+                        isTouching = false;
+                        return;
+                    }
+                    
+                    // 只在Luckysheet单元格区域内阻止默认行为
+                    const target = e.target;
+                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+                
+                // 处理触摸结束事件
+                container.addEventListener('touchend', (e) => {
+                    isTouching = false;
+                    
+                    const touchDuration = Date.now() - touchStartTime;
+                    const touchY = e.changedTouches[0].clientY;
+                    const deltaY = Math.abs(touchY - touchStartY);
+                    
+                    // 如果是快速点击且移动距离小，阻止默认行为
+                    if (touchDuration < 200 && deltaY < 5) {
+                        const target = e.target;
+                        if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
+                            e.preventDefault();
+                        }
+                    }
+                }, { passive: false });
+                
+                // 防止Luckysheet内部的事件冒泡
+                container.addEventListener('click', (e) => {
+                    const target = e.target;
+                    if (target.closest('.luckysheet-cell-main, .luckysheet-grid-window')) {
+                        e.stopPropagation();
+                    }
+                }, true);
+                
+                console.log('Luckysheet触摸事件优化完成');
             }
             
             previewLuckysheetData() {
