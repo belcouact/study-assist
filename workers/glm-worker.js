@@ -17,22 +17,29 @@ const requestCache = new Map();
 // Optimized GLM API function with connection pooling and caching
 async function callGlmAPI(messages, env, stream = false) {
     const startTime = Date.now();
+    console.log('GLM API call initiated:', 'Messages count:', messages.length, 'Streaming:', stream);
     
     try {
         // Get API key from environment
         const GLM_KEY = env.GLM_API_KEY;
         if (!GLM_KEY) {
+            console.error('GLM API key is missing');
             throw new Error('GLM API key is not configured');
         }
+        console.log('GLM API key is available, preparing request');
 
         // Create cache key for non-streaming requests
         const cacheKey = stream ? null : JSON.stringify({ messages, model: "glm-4.5" });
+        console.log('Cache key generated:', 'Length:', cacheKey ? cacheKey.length : 0, 'Will cache:', !stream);
         
         // Check cache for non-streaming requests
         if (cacheKey && requestCache.has(cacheKey)) {
             const cached = requestCache.get(cacheKey);
-            if (Date.now() - cached.timestamp < CACHE_TTL * 1000) {
-                console.log('Cache hit for GLM request');
+            const cacheAge = Date.now() - cached.timestamp;
+            console.log('Cache entry found:', 'Age (ms):', cacheAge, 'Max age (ms):', CACHE_TTL * 1000);
+            
+            if (cacheAge < CACHE_TTL * 1000) {
+                console.log('Cache hit for GLM request, returning cached data');
                 return cached.data;
             }
         }
@@ -49,12 +56,17 @@ async function callGlmAPI(messages, env, stream = false) {
         if (stream) {
             requestBody.stream = true;
         }
+        console.log('GLM API request body prepared:', JSON.stringify(requestBody));
 
         // Optimized fetch with timeout and connection hints
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT);
+        const timeoutId = setTimeout(() => {
+            console.error('GLM API call timeout after', DEFAULT_TIMEOUT, 'ms');
+            controller.abort();
+        }, DEFAULT_TIMEOUT);
         
         try {
+            console.log('Sending request to GLM API:', GLM_URL);
             const response = await fetch(GLM_URL, {
                 method: "POST",
                 headers: {
@@ -75,19 +87,28 @@ async function callGlmAPI(messages, env, stream = false) {
             });
 
             clearTimeout(timeoutId);
+            console.log('GLM API response received:', 'Status:', response.status, 'OK:', response.ok);
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`);
+                const errorData = await response.json().catch(() => {
+                    console.warn('Failed to parse error response as JSON');
+                    return {};
+                });
+                const errorMessage = errorData.error?.message || errorData.message || `HTTP error! Status: ${response.status}`;
+                console.error('GLM API error:', 'Status:', response.status, 'Message:', errorMessage, 'Error data:', JSON.stringify(errorData));
+                throw new Error(errorMessage);
             }
 
             if (stream) {
                 // Return the response stream for streaming mode
-                console.log(`GLM streaming request completed in ${Date.now() - startTime}ms`);
+                const duration = Date.now() - startTime;
+                console.log(`GLM streaming request completed in ${duration}ms`);
                 return response;
             } else {
                 // Return JSON response for non-streaming mode
+                console.log('Parsing GLM API JSON response');
                 const result = await response.json();
+                console.log('GLM API response parsed successfully:', 'Has choices:', !!result.choices, 'Choices count:', result.choices?.length || 0);
                 
                 // Cache the result
                 if (cacheKey) {
@@ -95,45 +116,68 @@ async function callGlmAPI(messages, env, stream = false) {
                         data: result,
                         timestamp: Date.now()
                     });
+                    console.log('GLM API response cached');
                 }
                 
-                console.log(`GLM request completed in ${Date.now() - startTime}ms`);
+                const duration = Date.now() - startTime;
+                console.log(`GLM request completed in ${duration}ms`);
                 return result;
             }
         } catch (fetchError) {
             clearTimeout(timeoutId);
             if (fetchError.name === 'AbortError') {
+                console.error('GLM API call aborted due to timeout');
                 throw new Error('Request timeout');
             }
+            console.error('GLM API fetch error:', 'Name:', fetchError.name, 'Message:', fetchError.message, 'Stack:', fetchError.stack);
             throw fetchError;
         }
     } catch (error) {
-        console.error('GLM API call error:', error);
+        console.error('GLM API call error:', 'Error:', error.message, 'Stack:', error.stack);
         throw error;
     }
 }
 
 // Async task processing function
 async function processAsyncTask(taskId, taskInput, env) {
+    console.log('Starting async task processing:', taskId, 'Input:', JSON.stringify(taskInput));
+    
     try {
         // Get task from KV storage
-        const taskData = await env.TASKS_KV.get(taskId);
+        let taskData;
+        if (env.TASKS_KV) {
+            taskData = await env.TASKS_KV.get(taskId);
+            console.log('KV storage access result for task:', taskId, 'Data found:', !!taskData);
+        } else {
+            console.warn('KV storage not available for task:', taskId);
+        }
+        
         if (!taskData) {
-            console.error('Task not found:', taskId);
-            return;
+            console.error('Task not found in KV storage:', taskId);
+            // Try fallback to in-memory storage
+            if (globalThis.tasks && globalThis.tasks.has(taskId)) {
+                taskData = JSON.stringify(globalThis.tasks.get(taskId));
+                console.log('Found task in in-memory storage:', taskId);
+            } else {
+                console.error('Task not found in any storage:', taskId);
+                return;
+            }
         }
         
         const task = JSON.parse(taskData);
+        console.log('Task parsed successfully:', taskId, 'Current status:', task.status);
         
         // Update task status to processing
         task.status = 'processing';
+        console.log('Updating task status to processing:', taskId);
         
         // Save to KV storage if available, otherwise use in-memory storage
         if (env.TASKS_KV) {
             await env.TASKS_KV.put(taskId, JSON.stringify(task));
+            console.log('Task status updated in KV storage:', taskId);
         } else if (globalThis.tasks) {
             globalThis.tasks.set(taskId, task);
-            console.warn('KV storage not available, using in-memory fallback for status update');
+            console.warn('KV storage not available, using in-memory fallback for status update:', taskId);
         }
         
         // Extract messages from task input
@@ -143,35 +187,50 @@ async function processAsyncTask(taskId, taskInput, env) {
                 role: "user",
                 content: taskInput.prompt.trim()
             }];
+            console.log('Using prompt format for messages:', taskId, 'Prompt length:', taskInput.prompt.length);
         } else if (taskInput.messages && Array.isArray(taskInput.messages)) {
             messages = taskInput.messages;
+            console.log('Using messages array format:', taskId, 'Messages count:', messages.length);
         } else {
+            console.error('Invalid task input format:', taskId, 'Input:', JSON.stringify(taskInput));
             throw new Error('Invalid task input format');
         }
         
+        // Check GLM API key
+        if (!env.GLM_API_KEY) {
+            console.error('GLM API key not configured:', taskId);
+            throw new Error('GLM API key is not configured');
+        }
+        console.log('GLM API key is configured:', taskId);
+        
         // Call GLM API
+        console.log('Calling GLM API for task:', taskId);
         const result = await callGlmAPI(messages, env, false);
+        console.log('GLM API call successful for task:', taskId, 'Result keys:', Object.keys(result));
         
         // Extract content from GLM response
         const content = result.choices?.[0]?.message?.content || 'No response from GLM';
+        console.log('Content extracted for task:', taskId, 'Content length:', content.length);
         
         // Update task with result
         task.status = 'completed';
         task.result = { output: content };
         task.completedAt = Date.now();
+        console.log('Task result updated:', taskId, 'New status:', task.status);
         
         // Save to KV storage if available, otherwise use in-memory storage
         if (env.TASKS_KV) {
             await env.TASKS_KV.put(taskId, JSON.stringify(task));
+            console.log('Task result saved to KV storage:', taskId);
         } else if (globalThis.tasks) {
             globalThis.tasks.set(taskId, task);
-            console.warn('KV storage not available, using in-memory fallback for result');
+            console.warn('KV storage not available, using in-memory fallback for result:', taskId);
         }
         
-        console.log('Async task completed:', taskId);
+        console.log('Async task completed successfully:', taskId);
         
     } catch (error) {
-        console.error('Async task failed:', taskId, error);
+        console.error('Async task failed:', taskId, 'Error:', error.message, 'Stack:', error.stack);
         
         // Update task with error
         let task;
@@ -181,29 +240,36 @@ async function processAsyncTask(taskId, taskInput, env) {
             const taskData = await env.TASKS_KV.get(taskId);
             if (taskData) {
                 task = JSON.parse(taskData);
+                console.log('Retrieved task from KV storage for error handling:', taskId);
             }
         }
         
         // Fallback to in-memory storage
         if (!task && globalThis.tasks && globalThis.tasks.has(taskId)) {
             task = globalThis.tasks.get(taskId);
+            console.log('Retrieved task from in-memory storage for error handling:', taskId);
         }
         
         if (task) {
             task.status = 'failed';
             task.error = {
                 message: error.message,
+                stack: error.stack,
                 timestamp: Date.now()
             };
             task.completedAt = Date.now();
+            console.log('Task error status updated:', taskId, 'Error:', error.message);
             
             // Save to KV storage if available, otherwise use in-memory storage
             if (env.TASKS_KV) {
                 await env.TASKS_KV.put(taskId, JSON.stringify(task));
+                console.log('Task error saved to KV storage:', taskId);
             } else if (globalThis.tasks) {
                 globalThis.tasks.set(taskId, task);
-                console.warn('KV storage not available, using in-memory fallback for error');
+                console.warn('KV storage not available, using in-memory fallback for error:', taskId);
             }
+        } else {
+            console.error('Could not find task to update with error:', taskId);
         }
     }
 }
