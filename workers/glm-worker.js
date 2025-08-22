@@ -692,10 +692,25 @@ export default {
                 }
 
                 try {
+                    console.log('KV endpoint called, env:', !!env, 'TASKS_KV:', !!env?.TASKS_KV);
+                    console.log('Environment details:', {
+                        hasEnv: !!env,
+                        envType: typeof env,
+                        hasTASKS_KV: !!env?.TASKS_KV,
+                        tasksKVType: env?.TASKS_KV ? typeof env.TASKS_KV : 'undefined',
+                        tasksKVMethods: env?.TASKS_KV ? Object.getOwnPropertyNames(env.TASKS_KV) : []
+                    });
+                    
                     if (!env || !env.TASKS_KV) {
+                        console.error('KV storage not available - env:', env, 'TASKS_KV:', env?.TASKS_KV);
                         return new Response(JSON.stringify({
                             error: 'KV storage not available',
-                            message: 'KV存储不可用'
+                            message: 'KV存储不可用 - 请检查KV命名空间绑定配置',
+                            details: {
+                                envAvailable: !!env,
+                                kvAvailable: !!env?.TASKS_KV,
+                                suggestion: '请确保在Cloudflare Workers中正确配置了TASKS_KV命名空间绑定，并重新部署worker'
+                            }
                         }), {
                             status: 500,
                             headers: {
@@ -705,8 +720,26 @@ export default {
                         });
                     }
                     
-                    const body = await request.json();
+                    let body;
+                    try {
+                        body = await request.json();
+                        console.log('KV request body parsed successfully:', body);
+                    } catch (jsonError) {
+                        console.error('Failed to parse KV request JSON:', jsonError);
+                        return new Response(JSON.stringify({
+                            error: 'Invalid JSON',
+                            message: 'Request body must be valid JSON'
+                        }), {
+                            status: 400,
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...corsHeaders
+                            }
+                        });
+                    }
+                    
                     const operation = body.operation;
+                    console.log('KV operation:', operation);
                     
                     let result;
                     
