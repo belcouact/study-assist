@@ -180,41 +180,40 @@ async function processAsyncTask(taskId, taskInput, env) {
             console.warn('KV storage not available, using in-memory fallback for status update:', taskId);
         }
         
-        // Extract messages from task input
-        let messages;
-        if (taskInput.prompt) {
-            messages = [{
-                role: "user",
-                content: taskInput.prompt.trim()
-            }];
-            console.log('Using prompt format for messages:', taskId, 'Prompt length:', taskInput.prompt.length);
-        } else if (taskInput.messages && Array.isArray(taskInput.messages)) {
-            messages = taskInput.messages;
-            console.log('Using messages array format:', taskId, 'Messages count:', messages.length);
-        } else {
-            console.error('Invalid task input format:', taskId, 'Input:', JSON.stringify(taskInput));
-            throw new Error('Invalid task input format');
+        // Handle different task types
+        const taskType = taskInput.type || 'glm';
+        console.log('Processing task type:', taskType, 'for task:', taskId);
+        
+        let result;
+        
+        switch (taskType) {
+            case 'kv_test':
+                console.log('Processing KV test task:', taskId);
+                result = await processKVTest(taskId, taskInput, env);
+                break;
+                
+            case 'kv_write':
+                console.log('Processing KV write task:', taskId);
+                result = await processKVWrite(taskId, taskInput, env);
+                break;
+                
+            case 'kv_read':
+                console.log('Processing KV read task:', taskId);
+                result = await processKVRead(taskId, taskInput, env);
+                break;
+                
+            case 'glm':
+            default:
+                console.log('Processing GLM task:', taskId);
+                result = await processGLMTask(taskId, taskInput, env);
+                break;
         }
         
-        // Check GLM API key
-        if (!env.GLM_API_KEY) {
-            console.error('GLM API key not configured:', taskId);
-            throw new Error('GLM API key is not configured');
-        }
-        console.log('GLM API key is configured:', taskId);
-        
-        // Call GLM API
-        console.log('Calling GLM API for task:', taskId);
-        const result = await callGlmAPI(messages, env, false);
-        console.log('GLM API call successful for task:', taskId, 'Result keys:', Object.keys(result));
-        
-        // Extract content from GLM response
-        const content = result.choices?.[0]?.message?.content || 'No response from GLM';
-        console.log('Content extracted for task:', taskId, 'Content length:', content.length);
+        console.log('Task processing completed:', taskId, 'Result type:', typeof result);
         
         // Update task with result
         task.status = 'completed';
-        task.result = { output: content };
+        task.result = result;
         task.completedAt = Date.now();
         console.log('Task result updated:', taskId, 'New status:', task.status);
         
@@ -271,6 +270,187 @@ async function processAsyncTask(taskId, taskInput, env) {
         } else {
             console.error('Could not find task to update with error:', taskId);
         }
+    }
+}
+
+// Function to process KV test tasks
+async function processKVTest(taskId, taskInput, env) {
+    console.log('Processing KV test task:', taskId);
+    
+    try {
+        // Test KV storage availability
+        if (!env.TASKS_KV) {
+            throw new Error('KV storage not available');
+        }
+        
+        // Test write operation
+        const testKey = `test_${taskId}_${Date.now()}`;
+        const testValue = JSON.stringify({
+            taskId,
+            timestamp: Date.now(),
+            message: 'KV test value'
+        });
+        
+        await env.TASKS_KV.put(testKey, testValue);
+        console.log('KV write test successful:', testKey);
+        
+        // Test read operation
+        const retrievedValue = await env.TASKS_KV.get(testKey);
+        if (!retrievedValue) {
+            throw new Error('Failed to retrieve test value from KV');
+        }
+        
+        console.log('KV read test successful:', testKey);
+        
+        // Test delete operation
+        await env.TASKS_KV.delete(testKey);
+        console.log('KV delete test successful:', testKey);
+        
+        // Verify deletion
+        const deletedValue = await env.TASKS_KV.get(testKey);
+        if (deletedValue) {
+            throw new Error('Failed to delete test value from KV');
+        }
+        
+        console.log('KV deletion verification successful:', testKey);
+        
+        return {
+            success: true,
+            message: 'KV test completed successfully',
+            operations: ['write', 'read', 'delete', 'verify']
+        };
+    } catch (error) {
+        console.error('KV test failed:', taskId, 'Error:', error.message);
+        throw error;
+    }
+}
+
+// Function to process KV write tasks
+async function processKVWrite(taskId, taskInput, env) {
+    console.log('Processing KV write task:', taskId);
+    
+    try {
+        if (!env.TASKS_KV) {
+            throw new Error('KV storage not available');
+        }
+        
+        const { key, value, ttl } = taskInput;
+        
+        if (!key || value === undefined) {
+            throw new Error('Key and value are required for KV write operation');
+        }
+        
+        const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        
+        if (ttl) {
+            await env.TASKS_KV.put(key, stringValue, { expirationTtl: ttl });
+            console.log('KV write with TTL successful:', key, 'TTL:', ttl);
+        } else {
+            await env.TASKS_KV.put(key, stringValue);
+            console.log('KV write successful:', key);
+        }
+        
+        return {
+            success: true,
+            message: 'KV write completed successfully',
+            key,
+            ttl: ttl || null
+        };
+    } catch (error) {
+        console.error('KV write failed:', taskId, 'Error:', error.message);
+        throw error;
+    }
+}
+
+// Function to process KV read tasks
+async function processKVRead(taskId, taskInput, env) {
+    console.log('Processing KV read task:', taskId);
+    
+    try {
+        if (!env.TASKS_KV) {
+            throw new Error('KV storage not available');
+        }
+        
+        const { key } = taskInput;
+        
+        if (!key) {
+            throw new Error('Key is required for KV read operation');
+        }
+        
+        const value = await env.TASKS_KV.get(key);
+        
+        if (value === null) {
+            return {
+                success: true,
+                message: 'Key not found in KV storage',
+                key,
+                found: false
+            };
+        }
+        
+        // Try to parse as JSON, fall back to string if not valid JSON
+        let parsedValue;
+        try {
+            parsedValue = JSON.parse(value);
+        } catch (e) {
+            parsedValue = value;
+        }
+        
+        console.log('KV read successful:', key);
+        
+        return {
+            success: true,
+            message: 'KV read completed successfully',
+            key,
+            found: true,
+            value: parsedValue
+        };
+    } catch (error) {
+        console.error('KV read failed:', taskId, 'Error:', error.message);
+        throw error;
+    }
+}
+
+// Function to process GLM tasks
+async function processGLMTask(taskId, taskInput, env) {
+    console.log('Processing GLM task:', taskId);
+    
+    try {
+        const { messages, stream } = taskInput;
+        
+        if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            throw new Error('Valid messages array is required for GLM task');
+        }
+        
+        // Call GLM API
+        const result = await callGlmAPI(messages, env, stream || false);
+        
+        if (stream) {
+            // For streaming, we can't return the stream directly in an async task
+            // Instead, we'll return a success message and the streaming will be handled separately
+            return {
+                success: true,
+                message: 'GLM streaming task initiated',
+                taskId,
+                streaming: true
+            };
+        } else {
+            // For non-streaming, return the result
+            const content = result.choices?.[0]?.message?.content || 'No response from GLM';
+            
+            console.log('GLM task completed successfully:', taskId);
+            
+            return {
+                success: true,
+                message: 'GLM task completed successfully',
+                taskId,
+                content,
+                usage: result.usage || null
+            };
+        }
+    } catch (error) {
+        console.error('GLM task failed:', taskId, 'Error:', error.message);
+        throw error;
     }
 }
 

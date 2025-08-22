@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TASKS_KV 存储测试</title>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #06ffa5;
+            --error-color: #ff006e;
+            --text-primary: #2b2d42;
+            --text-secondary: #8d99ae;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #e9ecef;
+            --border-radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--bg-primary);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+        }
+
+        .test-section h3 {
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .result.success {
+            background: rgba(6, 255, 165, 0.1);
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+        }
+
+        .result.error {
+            background: rgba(255, 0, 110, 0.1);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+        }
+
+        .result.info {
+            background: rgba(67, 97, 238, 0.1);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.success {
+            background: var(--success-color);
+        }
+
+        .status-indicator.error {
+            background: var(--error-color);
+        }
+
+        .status-indicator.pending {
+            background: var(--text-secondary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .btn {
+                width: 100%;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>TASKS_KV 存储测试</h1>
+            <p>测试 Cloudflare KV 存储的读写功能</p>
+        </div>
+
+        <!-- KV 存储状态 -->
+        <div class="test-section">
+            <h3>KV 存储状态</h3>
+            <button class="btn btn-primary" onclick="checkKVStatus()">检查 KV 状态</button>
+            <div id="kvStatus"></div>
+        </div>
+
+        <!-- 写入测试 -->
+        <div class="test-section">
+            <h3>写入测试</h3>
+            <div class="form-group">
+                <label for="testKey">测试键名:</label>
+                <input type="text" id="testKey" value="test_key_" placeholder="输入测试键名">
+            </div>
+            <div class="form-group">
+                <label for="testValue">测试值 (JSON格式):</label>
+                <textarea id="testValue" placeholder="输入测试值，建议使用JSON格式">{
+  "message": "Hello KV Storage!",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "testId": "test_001"
+}</textarea>
+            </div>
+            <button class="btn btn-primary" onclick="writeToKV()">写入 KV</button>
+            <button class="btn btn-secondary" onclick="generateRandomData()">生成随机数据</button>
+            <div id="writeResult"></div>
+        </div>
+
+        <!-- 读取测试 -->
+        <div class="test-section">
+            <h3>读取测试</h3>
+            <div class="form-group">
+                <label for="readKey">读取键名:</label>
+                <input type="text" id="readKey" value="test_key_" placeholder="输入要读取的键名">
+            </div>
+            <button class="btn btn-primary" onclick="readFromKV()">读取 KV</button>
+            <button class="btn btn-secondary" onclick="clearResults()">清除结果</button>
+            <div id="readResult"></div>
+        </div>
+
+        <!-- 异步任务测试 -->
+        <div class="test-section">
+            <h3>异步任务测试</h3>
+            <div class="form-group">
+                <label for="taskMessage">任务消息:</label>
+                <input type="text" id="taskMessage" value="测试异步任务" placeholder="输入任务消息">
+            </div>
+            <button class="btn btn-primary" onclick="testAsyncTask()">提交异步任务</button>
+            <div id="taskResult"></div>
+        </div>
+    </div>
+
+    <script>
+        // API 基础URL
+        const GLM_BASE_URL = 'http://localhost:8000';
+        
+        // 显示结果函数
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${message}</div>`;
+        }
+        
+        // 显示状态指示器
+        function showStatus(elementId, status, text = '') {
+            const element = document.getElementById(elementId);
+            const statusClass = status === 'success' ? 'success' : 
+                              status === 'error' ? 'error' : 'pending';
+            element.innerHTML = `<span class="status-indicator ${statusClass}"></span>${text}`;
+        }
+        
+        // 检查 KV 状态
+        async function checkKVStatus() {
+            showStatus('kvStatus', 'pending', '正在检查 KV 状态...');
+            
+            try {
+                // 尝试写入一个测试键来检查 KV 是否工作
+                const testKey = 'kv_status_check_' + Date.now();
+                const testValue = { status: 'ok', timestamp: new Date().toISOString() };
+                
+                // 写入测试
+                const writeResponse = await fetch(`${GLM_BASE_URL}/functions/api/async-task`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'kv_test',
+                        key: testKey,
+                        value: testValue
+                    })
+                });
+                
+                if (!writeResponse.ok) {
+                    throw new Error(`写入测试失败: ${writeResponse.status}`);
+                }
+                
+                const writeResult = await writeResponse.json();
+                
+                if (writeResult.success) {
+                    showStatus('kvStatus', 'success', 'KV 存储状态正常');
+                    showResult('kvStatus', `KV 存储工作正常\n测试键: ${testKey}\n响应: ${JSON.stringify(writeResult, null, 2)}`, 'success');
+                } else {
+                    showStatus('kvStatus', 'error', 'KV 存储异常');
+                    showResult('kvStatus', `KV 存储可能存在问题\n错误: ${writeResult.error || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showStatus('kvStatus', 'error', 'KV 存储连接失败');
+                showResult('kvStatus', `无法连接到 KV 存储\n错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 写入 KV
+        async function writeToKV() {
+            const key = document.getElementById('testKey').value.trim();
+            const valueText = document.getElementById('testValue').value.trim();
+            
+            if (!key) {
+                showResult('writeResult', '请输入键名', 'error');
+                return;
+            }
+            
+            if (!valueText) {
+                showResult('writeResult', '请输入值', 'error');
+                return;
+            }
+            
+            showResult('writeResult', '正在写入 KV...', 'info');
+            
+            try {
+                let value;
+                try {
+                    value = JSON.parse(valueText);
+                } catch (e) {
+                    value = { raw_value: valueText };
+                }
+                
+                const response = await fetch(`${GLM_BASE_URL}/functions/api/async-task`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'kv_write',
+                        key: key,
+                        value: value
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`写入失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('writeResult', `写入成功\n键: ${key}\n值: ${JSON.stringify(value, null, 2)}`, 'success');
+                } else {
+                    showResult('writeResult', `写入失败\n错误: ${result.error || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showResult('writeResult', `写入异常\n错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 读取 KV
+        async function readFromKV() {
+            const key = document.getElementById('readKey').value.trim();
+            
+            if (!key) {
+                showResult('readResult', '请输入要读取的键名', 'error');
+                return;
+            }
+            
+            showResult('readResult', '正在读取 KV...', 'info');
+            
+            try {
+                const response = await fetch(`${GLM_BASE_URL}/functions/api/async-task`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'kv_read',
+                        key: key
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`读取失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('readResult', `读取成功\n键: ${key}\n值: ${JSON.stringify(result.data, null, 2)}`, 'success');
+                } else {
+                    showResult('readResult', `读取失败\n错误: ${result.error || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                showResult('readResult', `读取异常\n错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试异步任务
+        async function testAsyncTask() {
+            const message = document.getElementById('taskMessage').value.trim();
+            
+            if (!message) {
+                showResult('taskResult', '请输入任务消息', 'error');
+                return;
+            }
+            
+            showResult('taskResult', '正在提交异步任务...', 'info');
+            
+            try {
+                // 提交任务
+                const submitResponse = await fetch(`${GLM_BASE_URL}/functions/api/async-task`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: 'glm',
+                        prompt: message
+                    })
+                });
+                
+                if (!submitResponse.ok) {
+                    throw new Error(`任务提交失败: ${submitResponse.status}`);
+                }
+                
+                const submitResult = await submitResponse.json();
+                
+                if (!submitResult.success || !submitResult.taskId) {
+                    throw new Error(`任务提交失败: ${submitResult.error || '未获取到任务ID'}`);
+                }
+                
+                const taskId = submitResult.taskId;
+                showResult('taskResult', `任务提交成功\n任务ID: ${taskId}\n正在轮询任务状态...`, 'info');
+                
+                // 轮询任务状态
+                await pollTaskStatus(taskId);
+            } catch (error) {
+                showResult('taskResult', `异步任务异常\n错误: ${error.message}`, 'error');
+            }
+        }
+        
+        // 轮询任务状态
+        async function pollTaskStatus(taskId, maxAttempts = 30, interval = 3000) {
+            let attempts = 0;
+            
+            const poll = async () => {
+                attempts++;
+                
+                try {
+                    const response = await fetch(`${GLM_BASE_URL}/functions/api/async-task/${taskId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`状态查询失败: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'completed') {
+                        showResult('taskResult', `任务完成\n任务ID: ${taskId}\n结果: ${JSON.stringify(result.result, null, 2)}`, 'success');
+                        return true;
+                    } else if (result.status === 'failed') {
+                        showResult('taskResult', `任务失败\n任务ID: ${taskId}\n错误: ${result.error || '未知错误'}`, 'error');
+                        return true;
+                    } else if (result.status === 'pending' || result.status === 'running') {
+                        showResult('taskResult', `任务进行中\n任务ID: ${taskId}\n状态: ${result.status}\n尝试: ${attempts}/${maxAttempts}`, 'info');
+                        
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, interval);
+                        } else {
+                            showResult('taskResult', `任务超时\n任务ID: ${taskId}\n最大尝试次数: ${maxAttempts}`, 'error');
+                        }
+                        return false;
+                    } else {
+                        throw new Error(`未知任务状态: ${result.status}`);
+                    }
+                } catch (error) {
+                    showResult('taskResult', `轮询异常\n任务ID: ${taskId}\n错误: ${error.message}`, 'error');
+                    return true;
+                }
+            };
+            
+            await poll();
+        }
+        
+        // 生成随机数据
+        function generateRandomData() {
+            const randomId = Math.random().toString(36).substr(2, 9);
+            const randomData = {
+                id: randomId,
+                timestamp: new Date().toISOString(),
+                random_value: Math.floor(Math.random() * 10000),
+                message: '随机测试数据',
+                metadata: {
+                    source: 'test-kv.html',
+                    version: '1.0'
+                }
+            };
+            
+            document.getElementById('testKey').value = `test_key_${randomId}`;
+            document.getElementById('testValue').value = JSON.stringify(randomData, null, 2);
+        }
+        
+        // 清除结果
+        function clearResults() {
+            document.getElementById('writeResult').innerHTML = '';
+            document.getElementById('readResult').innerHTML = '';
+            document.getElementById('taskResult').innerHTML = '';
+        }
+        
+        // 页面加载时自动检查 KV 状态
+        window.addEventListener('load', function() {
+            setTimeout(checkKVStatus, 1000);
+        });
+    </script>
+</body>
+</html>
