@@ -106,7 +106,7 @@
             position: relative;
             z-index: 1;
             clear: both;
-            overflow: visible;
+            overflow: hidden;
         }
 
         .card-header {
@@ -393,14 +393,51 @@
 
         /* 图表容器样式已移除，直接应用到图表元素 */
         
-        /* 删除重复的ECharts实例样式，使用下面的统一样式 */
+        /* 直接应用到iframe图表的样式 */
+        #resultCard iframe {
+            width: 100%;
+            height: 600px;
+            margin: 1rem 0;
+            position: relative;
+            z-index: 1;
+            clear: both;
+        }
+        
+        /* 直接应用到echarts图表的样式 */
+        #resultCard .echarts-instance {
+            width: 100%;
+            height: 600px;
+            margin: 2rem 0;
+            position: relative;
+            z-index: 1;
+            clear: both;
+            overflow: hidden;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            /* 确保图表容器有足够的内边距防止元素重叠 */
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        
+        /* ECharts实例样式 */
+        .echarts-instance {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 1;
+            /* 防止图表内部元素重叠 */
+            display: flex;
+            flex-direction: column;
+        }
         
         /* Fix for chart iframe and div positioning */
         #resultCard iframe,
         #resultCard .echarts-instance {
             width: 100% !important;
-            height: 700px !important;
-            min-height: 600px;
+            height: 600px !important;
+            min-height: 500px;
             border: none !important;
             position: relative !important;
             z-index: 1;
@@ -408,19 +445,6 @@
             /* 增加外边距防止与其他元素重叠 */
             margin: 2rem 0;
             padding: 10px;
-            /* 确保高度不被压缩 */
-            flex-shrink: 0;
-            /* 防止内容溢出 */
-            overflow: hidden;
-            /* 确保每个图表独占一行 */
-            display: block;
-            /* 清除浮动 */
-            clear: both;
-            /* 添加背景色防止透明重叠 */
-            background: white;
-            /* 添加边框更好地区分图表 */
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
         }
         
         /* Ensure resultCard has proper spacing */
@@ -433,16 +457,7 @@
             /* 确保内容区域有足够的空间 */
             display: flex;
             flex-direction: column;
-            gap: 2rem;
-            /* 防止子元素高度被压缩 */
-            align-items: flex-start;
-            /* 允许内容自然扩展 */
-            height: auto;
-            /* 确保子元素垂直排列不重叠 */
-            align-content: flex-start;
-            /* 添加背景色更好地区分区域 */
-            background: #f8f9fa;
-            border-radius: 8px;
+            gap: 1rem;
         }
         
         /* 图表标题样式优化 */
@@ -957,7 +972,20 @@
                 box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
             }
             
-            /* 移动端图表样式已统一，避免高度冲突 */
+            /* 移动端echarts图表样式 */
+            #resultCard .echarts-instance {
+                height: 500px;
+                overflow: hidden;
+                border-radius: 6px;
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            }
+            
+            /* Mobile chart iframe and div fixes */
+            #resultCard iframe,
+            #resultCard .echarts-instance {
+                min-height: 400px !important;
+                max-width: 100% !important;
+            }
             
             /* Ensure resultCard works well on mobile */
             #resultCard {
@@ -3372,7 +3400,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     // 禁用优化按钮，防止重复点击
                     if (optimizeDescriptionBtn) {
                         optimizeDescriptionBtn.disabled = true;
-                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 图表代码生成中...';
+                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 优化中...';
                     }
                     
                     // 构建优化需求的prompt
@@ -3764,17 +3792,14 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 2. 图表容器样式应包含position: absolute, top: 0, left: 0, right: 0, bottom: 0
 3. 确保图表能够充分利用整个显示区域，不要被任何容器限制
 4. 图表初始化代码中设置responsive: true以支持响应式布局
-5. 如果用户需要生成多个图表，请按照需求输出多个图表，而非仅仅一个。多个图表时，每行只显示一个图表，确保每个图表都有足够的显示空间和清晰度
+5. 如果用户需要生成多个图表，请按照需求输出多个图表，而非仅仅一个。多个图表时，请合理布局，确保每个图表都有足够的显示空间
 6. 只返回完整的HTML代码，不包含任何解释文字或注释。`;
                     const fullPrompt = `${systemMessage}\n\n用户需求：${prompt}`;
                     
                     console.log('发送请求到GLM API...');
                     
-                    // 使用提交-轮询模式处理复杂任务
-                    if (this.isComplexTask(prompt)) {
-                        console.log('检测到复杂任务，使用异步处理模式');
-                        return await this.callGLMAPIAsync(fullPrompt, stream);
-                    }
+                    // 直接使用同步处理模式
+                    console.log('使用同步处理模式');
                     
                     // 使用GLM API格式
                     const requestBody = {
@@ -3869,201 +3894,13 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 }
             }
             
-            // 判断是否为复杂任务
-            isComplexTask(prompt) {
-                // 定义复杂任务的判断标准
-                const complexKeywords = [
-                    '多个图表', '多图表', '多个', '多种', '对比', '比较',
-                    '分析', '统计', '报告', '总结', '趋势',
-                    '数据量', '大数据', '复杂', '详细', '全面'
-                ];
-                
-                const promptLower = prompt.toLowerCase();
-                return complexKeywords.some(keyword => promptLower.includes(keyword)) || 
-                       prompt.length > 500; // 长文本也认为是复杂任务
-            }
+
             
-            // 异步任务处理方法
-            async callGLMAPIAsync(prompt, stream = false) {
-                try {
-                    console.log('开始异步任务处理...');
-                    
-                    // 第一步：提交任务
-                    const GLM_BASE_URL = 'https://glm.study-llm.me';
-                    const taskResponse = await fetch(`${GLM_BASE_URL}/api/async-task`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            prompt: prompt,
-                            stream: stream,
-                            model: "glm-4.5"
-                        })
-                    });
-                    
-                    if (!taskResponse.ok) {
-                        const errorText = await taskResponse.text();
-                        console.error('任务提交失败:', taskResponse.status, errorText);
-                        throw new Error(`任务提交失败: ${taskResponse.status} - ${errorText}`);
-                    }
-                    
-                    const taskData = await taskResponse.json();
-                    console.log('任务提交响应:', taskData);
-                    
-                    if (!taskData.taskId) {
-                        throw new Error('任务提交成功但未返回taskId');
-                    }
-                    
-                    const taskId = taskData.taskId;
-                    console.log('任务ID:', taskId);
-                    
-                    // 第二步：轮询结果
-                    return await this.pollTaskResult(taskId);
-                    
-                } catch (error) {
-                    console.error('callGLMAPIAsync错误:', error);
-                    
-                    // 如果异步处理失败，回退到同步处理
-                    console.log('异步处理失败，回退到同步处理...');
-                    return await this.callGLMAPISync(prompt, stream);
-                }
-            }
+
             
-            // 轮询任务结果
-            async pollTaskResult(taskId, maxAttempts = 30, interval = 3000) {
-                console.log(`开始轮询任务结果，任务ID: ${taskId}`);
-                
-                for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                    try {
-                        console.log(`轮询第 ${attempt}/${maxAttempts} 次...`);
-                        
-                        const GLM_BASE_URL = 'https://glm.study-llm.me';
-                        const resultResponse = await fetch(`${GLM_BASE_URL}/api/async-task?taskId=${taskId}`);
-                        
-                        if (!resultResponse.ok) {
-                            console.error('轮询失败:', resultResponse.status);
-                            if (attempt === maxAttempts) {
-                                throw new Error(`轮询失败: ${resultResponse.status}`);
-                            }
-                            await new Promise(resolve => setTimeout(resolve, interval));
-                            continue;
-                        }
-                        
-                        const resultData = await resultResponse.json();
-                        console.log(`第 ${attempt} 次轮询结果:`, resultData);
-                        
-                        if (resultData.status === 'completed') {
-                            console.log('任务已完成');
-                            
-                            // 处理完成的任务结果
-                            let content;
-                            if (resultData.result && resultData.result.output) {
-                                content = resultData.result.output;
-                            } else if (resultData.result && resultData.result.content) {
-                                content = resultData.result.content;
-                            } else if (resultData.result) {
-                                content = resultData.result;
-                            } else {
-                                throw new Error('任务已完成但结果格式不正确');
-                            }
-                            
-                            if (!content || content.length === 0) {
-                                throw new Error('任务已完成但返回空内容');
-                            }
-                            
-                            return this.extractCodeFromResponse(content);
-                        }
-                        
-                        if (resultData.status === 'failed') {
-                            let errorMessage = '未知错误';
-                            if (resultData.error) {
-                                if (typeof resultData.error === 'string') {
-                                    errorMessage = resultData.error;
-                                } else if (resultData.error.message) {
-                                    errorMessage = resultData.error.message;
-                                } else {
-                                    errorMessage = JSON.stringify(resultData.error);
-                                }
-                            }
-                            throw new Error(`任务执行失败: ${errorMessage}`);
-                        }
-                        
-                        // 任务仍在进行中，继续等待
-                        console.log(`任务状态: ${resultData.status}，继续等待...`);
-                        await new Promise(resolve => setTimeout(resolve, interval));
-                        
-                    } catch (error) {
-                        console.error(`第 ${attempt} 次轮询出错:`, error);
-                        
-                        if (attempt === maxAttempts) {
-                            throw new Error(`任务轮询超时: ${error.message}`);
-                        }
-                        
-                        // 等待后继续尝试
-                        await new Promise(resolve => setTimeout(resolve, interval));
-                    }
-                }
-                
-                throw new Error('任务未在预期时间内完成');
-            }
+
             
-            // 同步处理方法（作为异步处理的回退方案）
-            async callGLMAPISync(prompt, stream = false) {
-                console.log('使用同步处理模式...');
-                
-                // 使用GLM API格式
-                const requestBody = {
-                    prompt: prompt
-                };
-                
-                if (stream) {
-                    requestBody.stream = true;
-                }
-                
-                // 使用GLM API端点
-                const GLM_BASE_URL = 'https://glm.study-llm.me';
-                
-                const response = await fetch(`${GLM_BASE_URL}/functions/api/chat-glm`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`同步处理失败: ${response.status} - ${errorText}`);
-                }
-                
-                if (stream) {
-                    return await this.handleGLMStreamingResponse(response);
-                } else {
-                    const result = await response.json();
-                    
-                    let content;
-                    if (result.output) {
-                        content = result.output;
-                    } else if (result.choices && result.choices[0] && result.choices[0].message) {
-                        content = result.choices[0].message.content;
-                    } else if (result.message) {
-                        content = result.message;
-                    } else if (result.content) {
-                        content = result.content;
-                    } else {
-                        content = result;
-                    }
-                    
-                    if (!content || content.length === 0) {
-                        throw new Error('同步处理返回空内容');
-                    }
-                    
-                    return this.extractCodeFromResponse(content);
-                }
-            }
+
             
             async handleGLMStreamingResponse(response) {
                 console.log('handleGLMStreamingResponse开始执行...');
@@ -4453,32 +4290,30 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         throw new Error('找不到resultCard元素');
                     }
                     
-                    // 移除所有之前的图表元素
-                    const existingChartContainers = resultCard.querySelectorAll('.echarts-instance');
-                    existingChartContainers.forEach(container => {
-                        container.remove();
-                    });
+                    // 移除之前的图表元素
+                    const existingChartContainer = resultCard.querySelector('.echarts-instance');
+                    if (existingChartContainer) {
+                        existingChartContainer.remove();
+                    }
                     
-                    // 移除所有之前的iframe
-                    const existingIframes = resultCard.querySelectorAll('iframe');
-                    existingIframes.forEach(iframe => {
-                        iframe.remove();
-                    });
+                    // 移除之前的iframe
+                    const existingIframe = resultCard.querySelector('iframe');
+                    if (existingIframe) {
+                        existingIframe.remove();
+                    }
                     
                     // 直接创建iframe来显示HTML图表
                     const iframe = document.createElement('iframe');
                     iframe.style.width = '100%';
-                    iframe.style.height = '700px';
-                    iframe.style.minHeight = '600px';
-                    iframe.style.margin = '2rem 0';
+                    iframe.style.height = '500px';
+                    iframe.style.minHeight = '500px';
+                    iframe.style.margin = '1rem 0';
                     iframe.style.border = 'none';
                     iframe.style.borderRadius = '0';
                     iframe.style.boxSizing = 'border-box';
                     iframe.style.position = 'relative';
                     iframe.style.zIndex = '1';
                     iframe.style.clear = 'both';
-                    iframe.style.flexShrink = '0';
-                    iframe.style.overflow = 'visible';
                     iframe.id = 'chart-iframe-' + Date.now();
                     
                     // 将iframe插入到resultCard中的合适位置（在loading和error之后，scriptOutput之前）
@@ -4559,32 +4394,31 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     throw new Error('找不到resultCard元素');
                 }
                 
-                // 移除所有之前的图表容器
-                const existingChartContainers = resultCard.querySelectorAll('.echarts-instance');
-                existingChartContainers.forEach(container => {
-                    container.remove();
-                });
+                // 移除之前的图表容器
+                const existingChartContainer = resultCard.querySelector('.echarts-instance');
+                if (existingChartContainer) {
+                    existingChartContainer.remove();
+                }
                 
-                // 移除所有之前的iframe图表
-                const existingIframes = resultCard.querySelectorAll('iframe');
-                existingIframes.forEach(iframe => {
-                    iframe.remove();
-                });
+                // 移除之前的echarts图表
+                const existingChart = resultCard.querySelector('.echarts-instance');
+                if (existingChart) {
+                    existingChart.remove();
+                }
                 
                 // 直接创建一个新的div用于图表
                 const chartDiv = document.createElement('div');
                 chartDiv.style.width = '100%';
-                chartDiv.style.height = '700px';
-                chartDiv.style.minHeight = '600px';
+                chartDiv.style.height = '600px';
+                chartDiv.style.minHeight = '500px';
                 chartDiv.style.margin = '2rem 0';
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
                 chartDiv.style.zIndex = '1';
                 chartDiv.style.clear = 'both';
                 chartDiv.style.padding = '10px';
-                // 移除flex相关样式，让CSS控制显示方式
-                chartDiv.style.flexShrink = '0';
-                chartDiv.style.overflow = 'visible';
+                chartDiv.style.display = 'flex';
+                chartDiv.style.flexDirection = 'column';
                 chartDiv.className = 'echarts-instance';
                 chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
                 
