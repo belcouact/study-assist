@@ -1149,10 +1149,110 @@
                 margin-bottom: 0.5rem;
             }
         }
+        
+        /* 移动设备Luckysheet特定样式 */
+        .mobile-luckysheet {
+            /* 确保在移动设备上正确显示 */
+            position: relative;
+            z-index: 1;
+            
+            /* 优化触摸滚动 */
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x pan-y;
+            
+            /* 防止iOS上的橡皮筋效果 */
+            overscroll-behavior: contain;
+            
+            /* 确保在移动设备上可见 */
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+        
+        /* 移动设备Luckysheet加载指示器样式 */
+        #luckysheet-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        /* 移动设备特定的表格样式优化 */
+        @media (max-width: 768px) {
+            .mobile-luckysheet {
+                /* 减少边距以最大化空间利用 */
+                margin: 5px 0;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+            }
+            
+            /* 优化移动设备上的表格字体 */
+            .mobile-luckysheet .luckysheet-cell-main,
+            .mobile-luckysheet .luckysheet-cell-input {
+                font-size: 14px !important;
+                line-height: 1.4 !important;
+            }
+            
+            /* 优化移动设备上的滚动条 */
+            .mobile-luckysheet ::-webkit-scrollbar {
+                width: 6px;
+                height: 6px;
+            }
+            
+            .mobile-luckysheet ::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 3px;
+            }
+            
+            .mobile-luckysheet ::-webkit-scrollbar-thumb {
+                background: #888;
+                border-radius: 3px;
+            }
+            
+            .mobile-luckysheet ::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+            
+            /* 防止移动设备上的意外缩放 */
+            .mobile-luckysheet,
+            .mobile-luckysheet * {
+                touch-action: manipulation;
+            }
+            
+            /* 优化移动设备上的按钮和交互元素 */
+            .mobile-luckysheet .luckysheet-toolbar-button,
+            .mobile-luckysheet .luckysheet-toolbar-menu-button {
+                min-width: 44px !important;
+                min-height: 44px !important;
+                padding: 8px !important;
+            }
+            
+            /* 优化移动设备上的输入框 */
+            .mobile-luckysheet input,
+            .mobile-luckysheet textarea {
+                font-size: 16px !important; /* 防止iOS缩放 */
+                padding: 8px !important;
+            }
+        }
 
         /* Tablet Styles */
         @media (min-width: 769px) and (max-width: 1024px) {
             /* 图表类型选择已移除 */
+            
+            /* 平板设备Luckysheet适配 */
+            #luckysheetContainer {
+                height: 350px;
+            }
+            
+            .mobile-luckysheet {
+                height: 350px !important;
+            }
         }
 
         /* Desktop Styles */
@@ -4470,6 +4570,12 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
             
             createLuckysheet() {
+                // 检测是否为移动设备
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                              window.innerWidth <= 768;
+                
+                console.log('初始化Luckysheet，设备类型:', isMobile ? '移动设备' : '桌面设备');
+                
                 // 检查Luckysheet是否已经初始化
                 if (typeof luckysheet !== 'undefined' && luckysheet.getSheetData) {
                     try {
@@ -4487,26 +4593,104 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 const container = document.getElementById('luckysheetContainer');
                 if (!container) {
                     console.error('未找到Luckysheet容器');
+                    this.showError('未找到表格容器，请刷新页面重试');
                     return;
                 }
                 
-                // 初始化Luckysheet为空表格
+                // 移动设备特定的容器优化
+                if (isMobile) {
+                    console.log('应用移动设备容器优化');
+                    // 确保容器有正确的触摸设置
+                    container.style.touchAction = 'pan-x pan-y';
+                    container.style.webkitOverflowScrolling = 'touch';
+                    container.style.overflow = 'auto';
+                    
+                    // 调整容器高度以适应移动设备
+                    const viewportHeight = window.innerHeight;
+                    const containerHeight = Math.max(250, Math.min(400, viewportHeight * 0.4));
+                    container.style.height = containerHeight + 'px';
+                    
+                    // 添加移动设备特定的CSS类
+                    container.classList.add('mobile-luckysheet');
+                }
+                
+                // 检查Luckysheet库是否可用
+                if (typeof luckysheet === 'undefined') {
+                    console.error('Luckysheet库未加载');
+                    this.showError('表格库未加载，请检查网络连接后刷新页面');
+                    return;
+                }
+                
+                // 检查Luckysheet关键方法是否存在
+                if (typeof luckysheet.create !== 'function') {
+                    console.error('Luckysheet库不完整，缺少create方法');
+                    this.showError('表格库加载不完整，请刷新页面重试');
+                    return;
+                }
+                
+                // 移动设备特定的初始化前准备
+                if (isMobile) {
+                    // 确保容器可见
+                    container.style.display = 'block';
+                    container.style.visibility = 'visible';
+                    
+                    // 添加加载指示器
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.id = 'luckysheet-loading';
+                    loadingDiv.innerHTML = '<div style="text-align: center; padding: 20px;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 10px; color: #666; font-size: 14px;">正在初始化表格...</p></div>';
+                    container.appendChild(loadingDiv);
+                    
+                    // 添加CSS动画
+                    if (!document.getElementById('luckysheet-loading-style')) {
+                        const style = document.createElement('style');
+                        style.id = 'luckysheet-loading-style';
+                        style.textContent = '@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }';
+                        document.head.appendChild(style);
+                    }
+                }
+                
+                // 初始化Luckysheet为空表格 - 移动设备优化版
                 const options = {
                     container: 'luckysheetContainer', // 设定DOM容器的id
                     title: '数据表格', // 设定表格名称
                     lang: 'zh', // 设定表格语言
                     showinfobar: false, // 是否显示顶部信息栏
-                    showsheetbar: true, // 是否显示底部sheet页按钮
+                    showsheetbar: !isMobile, // 移动设备隐藏底部sheet页按钮以节省空间
                     showstatisticBar: false, // 是否显示底部计数栏
-                    enableAddRow: false, // 禁用添加行功能
-                    enableAddCol: false, // 禁用添加列功能
-                    rowHeaderWidth: 46, // 行标题宽度
-                    columnHeaderHeight: 20, // 列标题高度
-                    defaultRowHeight: 25, // 默认行高
-                    defaultColWidth: 73, // 默认列宽
+                    enableAddRow: !isMobile, // 移动设备禁用添加行功能
+                    enableAddCol: !isMobile, // 移动设备禁用添加列功能
+                    allowCopy: !isMobile, // 移动设备禁用拷贝以避免触摸冲突
+                    rowHeaderWidth: isMobile ? 60 : 46, // 移动设备增加行标题宽度以便触摸
+                    columnHeaderHeight: isMobile ? 35 : 20, // 移动设备增加列标题高度以便触摸
+                    defaultRowHeight: isMobile ? 35 : 25, // 移动设备增加默认行高
+                    defaultColWidth: isMobile ? 90 : 73, // 移动设备增加默认列宽
                     cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
-                        copy: true,
+                        copy: !isMobile, // 移动设备禁用右键拷贝
                     },
+                    // 移动设备特定的钩子函数
+                    hook: {
+                        cellUpdateBefore: function(r, c, value, isRefresh) {
+                            // 移动设备延迟处理以避免触摸冲突
+                            if (isMobile) {
+                                setTimeout(() => {}, 100);
+                            }
+                            return true;
+                        },
+                        cellUpdateAfter: function(r, c, oldValue, newValue) {
+                            // 移动设备添加触觉反馈（如果支持）
+                            if (isMobile && 'vibrate' in navigator) {
+                                navigator.vibrate(50);
+                            }
+                            return true;
+                        }
+                    },
+                    // 移动设备特定的性能优化
+                    editMode: isMobile, // 移动设备启用编辑模式
+                    devicePixelRatio: window.devicePixelRatio || 1, // 适应高DPI屏幕
+                    // 移动设备特定的滚动设置
+                    scrollBarWidth: isMobile ? 8 : 10, // 移动设备使用更窄的滚动条
+                    // 移动设备特定的字体设置
+                    defaultFontSize: isMobile ? 14 : 12, // 移动设备使用更大的字体
                     data: [
                         {
                             name: 'Sheet1', // 工作表名称
@@ -4521,11 +4705,63 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 };
                 
                 try {
+                    console.log('开始创建Luckysheet实例');
                     luckysheet.create(options);
                     console.log('Luckysheet初始化成功');
+                    
+                    // 移动设备特定的初始化后处理
+                    if (isMobile) {
+                        // 移除加载指示器
+                        setTimeout(() => {
+                            const loadingDiv = document.getElementById('luckysheet-loading');
+                            if (loadingDiv) {
+                                loadingDiv.remove();
+                            }
+                            
+                            // 检查初始化是否真正成功
+                            if (typeof luckysheet.getSheetData === 'function') {
+                                try {
+                                    const testData = luckysheet.getSheetData();
+                                    if (testData) {
+                                        console.log('移动设备Luckysheet功能验证成功');
+                                    } else {
+                                        console.warn('移动设备Luckysheet功能验证失败');
+                                    }
+                                } catch (testError) {
+                                    console.warn('移动设备Luckysheet功能验证异常:', testError);
+                                }
+                            } else {
+                                console.warn('移动设备Luckysheet功能验证失败，getSheetData方法不存在');
+                            }
+                        }, 2000); // 给移动设备更多时间完成初始化
+                    }
+                    
                 } catch (error) {
                     console.error('Luckysheet初始化失败:', error);
-                    this.showError('Luckysheet初始化失败: ' + error.message);
+                    
+                    // 移动设备特定的错误处理
+                    if (isMobile) {
+                        // 移除加载指示器
+                        const loadingDiv = document.getElementById('luckysheet-loading');
+                        if (loadingDiv) {
+                            loadingDiv.remove();
+                        }
+                        
+                        // 尝试重新初始化（移动设备网络可能不稳定）
+                        if (!this.mobileRetryCount) this.mobileRetryCount = 0;
+                        if (this.mobileRetryCount < 3) {
+                            this.mobileRetryCount++;
+                            console.log(`移动设备初始化失败，第${this.mobileRetryCount}次重试`);
+                            setTimeout(() => this.createLuckysheet(), 2000 * this.mobileRetryCount);
+                            return;
+                        }
+                    }
+                    
+                    // 显示错误信息
+                    const errorMessage = isMobile ? 
+                        '移动设备表格初始化失败，请检查网络连接后重试' : 
+                        'Luckysheet初始化失败: ' + (error.message || '未知错误');
+                    this.showError(errorMessage);
                 }
             }
             
@@ -6517,9 +6753,67 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 
         }
 
-        // 初始化应用
+        // 初始化应用 - 增强版，支持移动设备重试机制
         document.addEventListener('DOMContentLoaded', () => {
-            new DataAnalysisTool();
+            // 检测是否为移动设备
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                          window.innerWidth <= 768;
+            
+            // 延迟初始化函数，支持重试机制
+            const initializeApp = (retryCount = 0) => {
+                try {
+                    // 检查Luckysheet库是否已加载
+                    if (typeof luckysheet === 'undefined') {
+                        if (retryCount < 10) { // 最多重试10次
+                            const delay = isMobile ? (retryCount + 1) * 500 : (retryCount + 1) * 200; // 移动设备使用更长的延迟
+                            console.log(`Luckysheet库未加载，${delay}ms后重试 (第${retryCount + 1}次)`);
+                            setTimeout(() => initializeApp(retryCount + 1), delay);
+                            return;
+                        } else {
+                            console.error('Luckysheet库加载超时');
+                            // 即使Luckysheet未加载，也初始化应用，但显示警告
+                            const app = new DataAnalysisTool();
+                            app.showError('Luckysheet库加载失败，部分功能可能不可用');
+                            return;
+                        }
+                    }
+                    
+                    // Luckysheet库已加载，初始化应用
+                    console.log('Luckysheet库已加载，初始化应用');
+                    const app = new DataAnalysisTool();
+                    
+                    // 移动设备额外检查Luckysheet初始化状态
+                    if (isMobile) {
+                        setTimeout(() => {
+                            if (typeof luckysheet.getSheetData !== 'function') {
+                                console.warn('移动设备：Luckysheet初始化可能不完整，尝试重新初始化');
+                                app.createLuckysheet();
+                            }
+                        }, 2000); // 2秒后检查
+                    }
+                    
+                } catch (error) {
+                    console.error('应用初始化失败:', error);
+                    if (retryCount < 3) {
+                        const delay = isMobile ? 1000 : 500;
+                        console.log(`初始化失败，${delay}ms后重试 (第${retryCount + 1}次)`);
+                        setTimeout(() => initializeApp(retryCount + 1), delay);
+                    } else {
+                        console.error('应用初始化最终失败');
+                        // 显示错误信息但继续尝试初始化
+                        try {
+                            new DataAnalysisTool();
+                        } catch (finalError) {
+                            console.error('最终初始化失败:', finalError);
+                        }
+                    }
+                }
+            };
+            
+            // 移动设备使用更长延迟，确保资源完全加载
+            const initialDelay = isMobile ? 1000 : 100;
+            console.log(`${isMobile ? '移动设备' : '桌面设备'}：${initialDelay}ms后开始初始化`);
+            setTimeout(initializeApp, initialDelay);
         });
     </script>
 </body>
