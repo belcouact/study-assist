@@ -407,13 +407,16 @@
         #resultCard .echarts-instance {
             width: 100%;
             height: 600px;
-            margin: 1rem 0;
+            margin: 2rem 0;
             position: relative;
             z-index: 1;
             clear: both;
             overflow: hidden;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            /* 确保图表容器有足够的内边距防止元素重叠 */
+            padding: 10px;
+            box-sizing: border-box;
         }
         
         /* ECharts实例样式 */
@@ -424,18 +427,24 @@
             box-sizing: border-box;
             position: relative;
             z-index: 1;
+            /* 防止图表内部元素重叠 */
+            display: flex;
+            flex-direction: column;
         }
         
         /* Fix for chart iframe and div positioning */
         #resultCard iframe,
         #resultCard .echarts-instance {
             width: 100% !important;
-            height: 100% !important;
+            height: 600px !important;
             min-height: 500px;
             border: none !important;
             position: relative !important;
             z-index: 1;
             box-sizing: border-box;
+            /* 增加外边距防止与其他元素重叠 */
+            margin: 2rem 0;
+            padding: 10px;
         }
         
         /* Ensure resultCard has proper spacing */
@@ -443,8 +452,34 @@
             overflow: visible;
             position: relative;
             z-index: 2;
-            min-height: 600px;
-            padding-bottom: 2rem;
+            min-height: 700px;
+            padding: 2rem;
+            /* 确保内容区域有足够的空间 */
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        /* 图表标题样式优化 */
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: var(--text-primary);
+        }
+        
+        /* 图表图例样式优化 */
+        .chart-legend {
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        /* 图表轴标签样式优化 */
+        .chart-axis-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin: 0.5rem 0;
         }
         
         /* Script output container styling */
@@ -3365,7 +3400,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     // 禁用优化按钮，防止重复点击
                     if (optimizeDescriptionBtn) {
                         optimizeDescriptionBtn.disabled = true;
-                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 优化中...';
+                        optimizeDescriptionBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 图表代码生成中...';
                     }
                     
                     // 构建优化需求的prompt
@@ -4363,13 +4398,16 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 直接创建一个新的div用于图表
                 const chartDiv = document.createElement('div');
                 chartDiv.style.width = '100%';
-                chartDiv.style.height = '500px';
+                chartDiv.style.height = '600px';
                 chartDiv.style.minHeight = '500px';
-                chartDiv.style.margin = '1rem 0';
+                chartDiv.style.margin = '2rem 0';
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
                 chartDiv.style.zIndex = '1';
                 chartDiv.style.clear = 'both';
+                chartDiv.style.padding = '10px';
+                chartDiv.style.display = 'flex';
+                chartDiv.style.flexDirection = 'column';
                 chartDiv.className = 'echarts-instance';
                 chartDiv.id = 'echarts-chart-' + Date.now(); // 唯一ID
                 
@@ -4409,11 +4447,103 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                         clearTimeout: clearTimeout
                     };
                     
+                    // 优化ECharts配置以防止元素重叠
+                    const optimizeEChartsConfig = (originalECharts) => {
+                        return {
+                            ...originalECharts,
+                            init: function(dom, theme, opts) {
+                                const chart = originalECharts.init(dom, theme, opts);
+                                const originalSetOption = chart.setOption;
+                                
+                                // 重写setOption方法以添加防重叠配置
+                                chart.setOption = function(option, opts) {
+                                    const optimizedOption = {
+                                        ...option,
+                                        // 添加默认的grid配置以防止元素重叠
+                                        grid: option.grid || {
+                                            left: '10%',
+                                            right: '10%',
+                                            bottom: '15%',
+                                            top: '15%',
+                                            containLabel: true
+                                        },
+                                        // 优化标题配置
+                                        title: option.title ? {
+                                            ...option.title,
+                                            padding: option.title.padding || [20, 10],
+                                            top: option.title.top || '5%',
+                                            left: option.title.left || 'center'
+                                        } : undefined,
+                                        // 优化图例配置
+                                        legend: option.legend ? {
+                                            ...option.legend,
+                                            padding: option.legend.padding || 15,
+                                            itemGap: option.legend.itemGap || 20,
+                                            top: option.legend.top || 'bottom',
+                                            left: option.legend.left || 'center'
+                                        } : undefined,
+                                        // 优化X轴配置
+                                        xAxis: option.xAxis ? (Array.isArray(option.xAxis) ? option.xAxis.map(axis => ({
+                                            ...axis,
+                                            axisLabel: {
+                                                ...axis.axisLabel,
+                                                margin: axis.axisLabel?.margin || 15
+                                            },
+                                            nameTextStyle: {
+                                                ...axis.nameTextStyle,
+                                                padding: axis.nameTextStyle?.padding || [10, 0, 0, 0]
+                                            }
+                                        })) : {
+                                            ...option.xAxis,
+                                            axisLabel: {
+                                                ...option.xAxis.axisLabel,
+                                                margin: option.xAxis.axisLabel?.margin || 15
+                                            },
+                                            nameTextStyle: {
+                                                ...option.xAxis.nameTextStyle,
+                                                padding: option.xAxis.nameTextStyle?.padding || [10, 0, 0, 0]
+                                            }
+                                        }) : undefined,
+                                        // 优化Y轴配置
+                                        yAxis: option.yAxis ? (Array.isArray(option.yAxis) ? option.yAxis.map(axis => ({
+                                            ...axis,
+                                            axisLabel: {
+                                                ...axis.axisLabel,
+                                                margin: axis.axisLabel?.margin || 15
+                                            },
+                                            nameTextStyle: {
+                                                ...axis.nameTextStyle,
+                                                padding: axis.nameTextStyle?.padding || [0, 0, 10, 0]
+                                            }
+                                        })) : {
+                                            ...option.yAxis,
+                                            axisLabel: {
+                                                ...option.yAxis.axisLabel,
+                                                margin: option.yAxis.axisLabel?.margin || 15
+                                            },
+                                            nameTextStyle: {
+                                                ...option.yAxis.nameTextStyle,
+                                                padding: option.yAxis.nameTextStyle?.padding || [0, 0, 10, 0]
+                                            }
+                                        }) : undefined
+                                    };
+                                    
+                                    return originalSetOption.call(this, optimizedOption, opts);
+                                };
+                                
+                                return chart;
+                            }
+                        };
+                    };
+                    
+                    // 使用优化后的ECharts对象
+                    const optimizedECharts = optimizeEChartsConfig(echarts);
+                    
                     // 创建安全的执行上下文
                     const executeContext = {
                         data: this.data,
                         columns: this.columns,
-                        echarts: echarts,
+                        echarts: optimizedECharts,
                         chartContainer: chartDiv,
                         console: console
                     };
@@ -4425,6 +4555,10 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                                 return target[prop];
                             }
                             if (prop in safeGlobals) {
+                                // 如果请求的是echarts，返回优化后的版本
+                                if (prop === 'echarts') {
+                                    return optimizedECharts;
+                                }
                                 return safeGlobals[prop];
                             }
                             throw new Error(`访问受限: 不允许访问 ${prop}`);
