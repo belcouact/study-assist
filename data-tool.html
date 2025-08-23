@@ -1945,6 +1945,12 @@
                 this.createLuckysheet();
                 // 添加事件监听器防止luckysheet单元格点击时页面滚动
                 this.preventLuckysheetScroll();
+                // 初始化窗口大小改变监听器
+                this.setupResizeListener();
+                // 初始化ECharts实例存储
+                if (!window.echartsInstances) {
+                    window.echartsInstances = {};
+                }
             }
             
             checkEChartsLibrary() {
@@ -3867,7 +3873,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
 3. 确保图表能够正常显示，不要被任何容器限制，保持正常的长宽比
 4. 图表初始化代码中设置responsive: true以支持响应式布局
 5. 如果用户需要生成多个图表，请确保每个图表独立成行显示，一行只显示一个图表
-6. 多个图表时，请为每个图表创建独立的容器，确保每个图表都有足够的显示空间，正常的长宽比，避免彼此覆盖或显示不全
+6. 多个图表时，请为每个图表创建独立的容器，确保每个图表都有足够的显示空间，避免彼此覆盖或显示不全
 7. 添加响应式设计，适配不同设备：移动端(300-500px)、平板端(350-550px)、桌面端(400-600px)
 8. 为图表容器添加圆角边框和阴影效果：borderRadius: 8px, boxShadow: 0 2px 8px rgba(0,0,0,0.1)
 9. 只返回完整的HTML代码，不包含任何解释文字或注释。`;
@@ -4347,6 +4353,81 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 return cleanedResponse;
             }
 
+            // 计算动态图表高度的方法
+            calculateDynamicChartHeight() {
+                const resultCard = document.getElementById('resultCard');
+                if (!resultCard) return 500;
+                
+                // 获取当前已存在的图表数量（包括echarts-instance和iframe）
+                const existingCharts = resultCard.querySelectorAll('.echarts-instance, iframe[id^="chart-iframe-"]');
+                const chartCount = existingCharts.length;
+                
+                // 获取视口高度
+                const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+                
+                // 计算resultCard的可用高度（减去padding、margin等）
+                const resultCardRect = resultCard.getBoundingClientRect();
+                const availableHeight = viewportHeight - resultCardRect.top - 100; // 留出100px的底部空间
+                
+                // 根据图表数量动态计算每个图表的高度
+                let chartHeight;
+                if (chartCount === 0) {
+                    chartHeight = 500; // 单个图表的默认高度
+                } else if (chartCount === 1) {
+                    chartHeight = Math.min(600, Math.max(400, availableHeight * 0.8)); // 一个图表占用80%可用高度
+                } else {
+                    // 多个图表时，平均分配可用高度，但设置最小和最大限制
+                    chartHeight = Math.min(550, Math.max(350, availableHeight / (chartCount + 1)));
+                }
+                
+                console.log(`图表数量: ${chartCount}, 可用高度: ${availableHeight}, 计算出的图表高度: ${chartHeight}`);
+                return Math.round(chartHeight);
+            }
+            
+            // 调整所有现有图表高度的方法
+            adjustAllChartsHeight() {
+                const resultCard = document.getElementById('resultCard');
+                if (!resultCard) return;
+                
+                const newHeight = this.calculateDynamicChartHeight();
+                const charts = resultCard.querySelectorAll('.echarts-instance, iframe[id^="chart-iframe-"]');
+                
+                charts.forEach(chart => {
+                    chart.style.height = newHeight + 'px';
+                    
+                    // 如果是ECharts实例，需要重新调整大小
+                    if (chart.classList.contains('echarts-instance')) {
+                        const chartId = chart.id;
+                        if (window.echartsInstances && window.echartsInstances[chartId]) {
+                            try {
+                                window.echartsInstances[chartId].resize();
+                            } catch (error) {
+                                console.warn('调整ECharts大小时出错:', error);
+                            }
+                        }
+                    }
+                });
+                
+                console.log(`已调整 ${charts.length} 个图表的高度为 ${newHeight}px`);
+            }
+            
+            // 设置窗口大小改变监听器
+            setupResizeListener() {
+                // 使用防抖函数避免频繁调整
+                let resizeTimeout;
+                const handleResize = () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        this.adjustAllChartsHeight();
+                    }, 250); // 250ms防抖延迟
+                };
+                
+                window.addEventListener('resize', handleResize);
+                
+                // 保存监听器引用以便后续清理
+                this.resizeListener = handleResize;
+            }
+            
             executeGeneratedCode(code) {
                 try {
                     console.log('开始执行生成的HTML图表代码...');
@@ -4379,12 +4460,15 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     //     existingIframe.remove();
                     // }
                     
+                    // 计算动态图表高度
+                    const dynamicHeight = this.calculateDynamicChartHeight();
+                    
                     // 创建iframe来显示HTML图表，每个图表独立显示在一行中
                     const iframe = document.createElement('iframe');
                     iframe.style.width = '100%';
-                    iframe.style.height = '500px';
-                    iframe.style.minHeight = '400px';
-                    iframe.style.maxHeight = '600px';
+                    iframe.style.height = dynamicHeight + 'px';
+                    iframe.style.minHeight = '300px';
+                    iframe.style.maxHeight = '700px';
                     iframe.style.margin = '1rem 0';
                     iframe.style.border = 'none';
                     iframe.style.borderRadius = '8px';
@@ -4486,12 +4570,15 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 //     existingChart.remove();
                 // }
                 
+                // 计算动态图表高度
+                const dynamicHeight = this.calculateDynamicChartHeight();
+                
                 // 创建一个新的div用于图表，每个图表独立显示在一行中
                 const chartDiv = document.createElement('div');
                 chartDiv.style.width = '100%';
-                chartDiv.style.height = '500px';
-                chartDiv.style.minHeight = '400px';
-                chartDiv.style.maxHeight = '600px';
+                chartDiv.style.height = dynamicHeight + 'px';
+                chartDiv.style.minHeight = '300px';
+                chartDiv.style.maxHeight = '700px';
                 chartDiv.style.margin = '1rem 0';
                 chartDiv.style.boxSizing = 'border-box';
                 chartDiv.style.position = 'relative';
@@ -4627,6 +4714,15 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                                     
                                     return originalSetOption.call(this, optimizedOption, opts);
                                 };
+                                
+                                // 保存ECharts实例引用以便后续调整大小
+                                if (chartDiv && chartDiv.id) {
+                                    if (!window.echartsInstances) {
+                                        window.echartsInstances = {};
+                                    }
+                                    window.echartsInstances[chartDiv.id] = chart;
+                                    console.log(`已保存ECharts实例引用: ${chartDiv.id}`);
+                                }
                                 
                                 return chart;
                             }
