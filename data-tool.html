@@ -3026,13 +3026,25 @@
                             confirmBtn.disabled = true;
                         }
                         
-                        // 处理选中的sheet
+                        // 处理选中的sheet - 收集所有数据后一次性创建
                         let processedCount = 0;
+                        const allSheetData = [];
+                        
+                        // 先收集所有工作表数据
                         selectedSheets.forEach(sheetName => {
-                            console.log('开始处理工作表:', sheetName);
-                            self.processExcelSheet(workbook, sheetName);
-                            processedCount++;
+                            console.log('收集工作表数据:', sheetName);
+                            const sheetData = self.collectExcelSheetData(workbook, sheetName);
+                            if (sheetData) {
+                                allSheetData.push(sheetData);
+                                processedCount++;
+                            }
                         });
+                        
+                        // 一次性创建所有工作表
+                        if (allSheetData.length > 0) {
+                            console.log('一次性创建所有工作表，数量:', allSheetData.length);
+                            self.populateLuckysheetWithMultipleSheets(allSheetData);
+                        }
                         
                         // 延迟关闭对话框，让用户看到处理状态
                         setTimeout(() => {
@@ -3102,6 +3114,158 @@
                 // 填充到Luckysheet，使用sheet名称作为sheet名称
                 const self = this;
                 self.populateLuckysheetWithData(templateData, sheetName);
+            }
+            
+            // 收集Excel工作表数据（不直接创建Luckysheet）
+            collectExcelSheetData(workbook, sheetName) {
+                console.log('收集Excel工作表数据:', sheetName);
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                console.log('工作表数据行数:', jsonData.length);
+                
+                if (jsonData.length === 0) {
+                    console.warn(`工作表 "${sheetName}" 没有数据`);
+                    return null;
+                }
+                
+                // 获取表头
+                const headers = jsonData[0] || [];
+                console.log('表头数据:', headers);
+                
+                // 转换数据格式
+                const data = [];
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    const rowData = {};
+                    
+                    headers.forEach((header, index) => {
+                        if (header) {
+                            rowData[header] = row[index] || '';
+                        }
+                    });
+                    
+                    data.push(rowData);
+                }
+                console.log('转换后的数据行数:', data.length);
+                
+                // 构建Luckysheet数据格式
+                const sheetData = [];
+                
+                // 添加表头行
+                if (headers && headers.length > 0) {
+                    const headerRow = [];
+                    for (let col = 0; col < headers.length; col++) {
+                        headerRow.push({
+                            v: headers[col],
+                            ct: { fa: 'General', t: 'g' }
+                        });
+                    }
+                    sheetData.push(headerRow);
+                }
+                
+                // 添加数据行
+                if (data && data.length > 0) {
+                    for (let row = 0; row < data.length; row++) {
+                        const rowData = data[row];
+                        const luckysheetRow = [];
+                        for (let col = 0; col < headers.length; col++) {
+                            const columnName = headers[col];
+                            const value = rowData[columnName];
+                            luckysheetRow.push({
+                                v: value,
+                                ct: { fa: 'General', t: typeof value === 'number' ? 'n' : 'g' }
+                            });
+                        }
+                        sheetData.push(luckysheetRow);
+                    }
+                }
+                
+                // 返回完整的Luckysheet数据对象
+                return {
+                    name: sheetName,
+                    color: '',
+                    status: 1,
+                    order: 0,
+                    data: sheetData,
+                    config: {},
+                    index: 0,
+                    chart: [],
+                    visibledatarow: [],
+                    visibledatacolumn: []
+                };
+            }
+            
+            // 一次性填充多个工作表到Luckysheet
+            populateLuckysheetWithMultipleSheets(sheetDataArray) {
+                console.log('populateLuckysheetWithMultipleSheets called with', sheetDataArray.length, 'sheets');
+                console.log('Luckysheet available:', typeof luckysheet !== 'undefined');
+                
+                // 检查Luckysheet是否可用
+                if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
+                    console.error('Luckysheet未加载或不可用');
+                    return;
+                }
+                
+                // 为每个工作表设置正确的索引和顺序
+                sheetDataArray.forEach((sheetData, index) => {
+                    sheetData.index = index;
+                    sheetData.order = index;
+                    // 为每个工作表生成不同的颜色
+                    const colors = ['#f44336', '#2196f3', '#4caf50', '#ff9800', '#9c27b0', '#00bcd4'];
+                    sheetData.color = colors[index % colors.length];
+                });
+                
+                // 更新Luckysheet数据 - 使用destroy和create方法
+                try {
+                    console.log('开始销毁现有Luckysheet实例');
+                    // 销毁现有的Luckysheet实例
+                    if (window.luckysheet && window.luckysheet.destroy) {
+                        window.luckysheet.destroy();
+                        console.log('Luckysheet实例销毁成功');
+                    } else {
+                        console.log('Luckysheet实例不存在或destroy方法不可用');
+                    }
+                    
+                    // 添加延迟确保DOM完全准备好
+                    const self = this;
+                    setTimeout(() => {
+                        console.log('开始重新创建Luckysheet实例');
+                        console.log('Luckysheet对象状态:', { luckysheet: typeof window.luckysheet, create: typeof window.luckysheet?.create });
+                        
+                        // 重新创建Luckysheet实例并传入所有工作表数据
+                        if (window.luckysheet && window.luckysheet.create) {
+                            window.luckysheet.create({
+                                container: 'luckysheetContainer', // 使用正确的容器ID
+                                title: '数据表格',
+                                lang: 'zh',
+                                showinfobar: false,
+                                showsheetbar: true,
+                                showstatisticBar: false,
+                                showtoolbar: true,
+                                allowEdit: true,
+                                enableAddRow: false, // 禁用添加行功能
+                                enableAddCol: false, // 禁用添加列功能
+                                rowHeaderWidth: 46, // 行标题宽度
+                                columnHeaderHeight: 20, // 列标题高度
+                                defaultRowHeight: 25, // 默认行高
+                                defaultColWidth: 73, // 默认列宽
+                                cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
+                                    copy: true,
+                                },
+                                data: sheetDataArray // 传入所有工作表数据
+                            });
+                            
+                            console.log('Luckysheet创建调用完成，工作表数量:', sheetDataArray.length);
+                            console.log('所有工作表数据已成功填充到Luckysheet表格');
+                        } else {
+                            console.error('Luckysheet对象或create方法不可用');
+                        }
+                    }, 100); // 100ms延迟确保DOM准备就绪
+                } catch (error) {
+                    console.error('填充多个工作表到Luckysheet时出错:', error);
+                    // 使用console.error替代this.showError
+                    console.error('填充工作表到表格失败: ' + error.message);
+                }
             }
 
             // 全屏显示图表
