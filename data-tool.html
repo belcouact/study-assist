@@ -2611,11 +2611,13 @@
 
             // 处理CSV文件
             async processCSVFile(file) {
+                console.log('Processing CSV file:', file.name);
                 return new Promise((resolve, reject) => {
                     Papa.parse(file, {
                         header: true,
                         complete: (results) => {
                             try {
+                                console.log('CSV parsing complete:', results);
                                 if (results.errors.length > 0) {
                                     console.warn('CSV解析警告:', results.errors);
                                 }
@@ -2623,21 +2625,26 @@
                                 const data = results.data;
                                 const columns = results.meta.fields || [];
                                 
+                                console.log('CSV data extracted:', { data, columns });
+                                
                                 // 创建数据对象
                                 const templateData = {
                                     data: data,
                                     columns: columns
                                 };
                                 
+                                console.log('About to call populateLuckysheetWithData with CSV data');
                                 // 填充到Luckysheet
                                 this.populateLuckysheetWithData(templateData, file.name.replace('.csv', ''));
                                 
                                 resolve();
                             } catch (error) {
+                                console.error('Error processing CSV:', error);
                                 reject(error);
                             }
                         },
                         error: (error) => {
+                            console.error('CSV parsing error:', error);
                             reject(new Error('CSV文件解析失败: ' + error.message));
                         }
                     });
@@ -2646,16 +2653,19 @@
 
             // 处理Excel文件
             async processExcelFile(file) {
+                console.log('开始处理Excel文件:', file.name);
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     
                     reader.onload = (e) => {
                         try {
+                            console.log('Excel文件读取完成');
                             const data = new Uint8Array(e.target.result);
                             const workbook = XLSX.read(data, { type: 'array' });
                             
                             // 获取所有sheet名称
                             const sheetNames = workbook.SheetNames;
+                            console.log('Excel工作表名称列表:', sheetNames);
                             
                             if (sheetNames.length === 0) {
                                 throw new Error('Excel文件中没有找到任何工作表');
@@ -2663,20 +2673,24 @@
                             
                             // 如果只有一个sheet，直接处理
                             if (sheetNames.length === 1) {
+                                console.log('处理单个工作表:', sheetNames[0]);
                                 this.processExcelSheet(workbook, sheetNames[0]);
                                 resolve();
                                 return;
                             }
                             
                             // 多个sheet，显示选择对话框
+                            console.log('显示工作表选择对话框');
                             this.showSheetSelectionDialog(sheetNames, workbook);
                             resolve();
                         } catch (error) {
+                            console.error('处理Excel文件失败:', error);
                             reject(error);
                         }
                     };
                     
                     reader.onerror = () => {
+                        console.error('Excel文件读取失败');
                         reject(new Error('文件读取失败'));
                     };
                     
@@ -2686,6 +2700,7 @@
 
             // 显示sheet选择对话框
             showSheetSelectionDialog(sheetNames, workbook) {
+                console.log('显示工作表选择对话框，工作表列表:', sheetNames);
                 // 创建对话框HTML
                 const dialogHTML = `
                     <div class="modal-overlay" id="sheetSelectionModal">
@@ -2715,6 +2730,7 @@
                 
                 // 添加对话框到页面
                 document.body.insertAdjacentHTML('beforeend', dialogHTML);
+                console.log('对话框HTML已添加到页面');
                 
                 // 获取对话框元素
                 const modal = document.getElementById('sheetSelectionModal');
@@ -2722,10 +2738,13 @@
                 const cancelBtn = document.getElementById('cancelSelection');
                 const confirmBtn = document.getElementById('confirmSelection');
                 
+                console.log('对话框元素获取结果:', { modal: !!modal, closeBtn: !!closeBtn, cancelBtn: !!cancelBtn, confirmBtn: !!confirmBtn });
+                
                 // 关闭对话框函数
                 const closeModal = () => {
                     if (modal) {
                         modal.remove();
+                        console.log('对话框已关闭');
                     }
                 };
                 
@@ -2736,6 +2755,7 @@
                 // 确认选择
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
+                        console.log('确认按钮被点击');
                         const selectedSheets = [];
                         sheetNames.forEach((name, index) => {
                             const checkbox = document.getElementById(`sheet_${index}`);
@@ -2744,18 +2764,24 @@
                             }
                         });
                         
+                        console.log('选中的工作表:', selectedSheets);
+                        
                         if (selectedSheets.length === 0) {
-                            this.showError('请至少选择一个工作表');
+                            console.error('没有选择任何工作表');
+                            // 使用console.error替代this.showError
+                            console.error('请至少选择一个工作表');
                             return;
                         }
                         
                         // 处理选中的sheet
                         selectedSheets.forEach(sheetName => {
+                            console.log('开始处理工作表:', sheetName);
                             this.processExcelSheet(workbook, sheetName);
                         });
                         
                         closeModal();
-                        this.showMessage(`成功导入 ${selectedSheets.length} 个工作表`, 'success');
+                        // 使用console.log替代this.showMessage
+                        console.log(`成功导入 ${selectedSheets.length} 个工作表`);
                     });
                 }
                 
@@ -2765,12 +2791,16 @@
                         closeModal();
                     }
                 });
+                
+                console.log('工作表选择对话框设置完成');
             }
 
             // 处理Excel工作表
             processExcelSheet(workbook, sheetName) {
+                console.log('开始处理Excel工作表:', sheetName);
                 const worksheet = workbook.Sheets[sheetName];
                 const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                console.log('工作表数据行数:', jsonData.length);
                 
                 if (jsonData.length === 0) {
                     console.warn(`工作表 "${sheetName}" 没有数据`);
@@ -2779,6 +2809,7 @@
                 
                 // 获取表头
                 const headers = jsonData[0] || [];
+                console.log('表头数据:', headers);
                 
                 // 转换数据格式
                 const data = [];
@@ -2794,12 +2825,14 @@
                     
                     data.push(rowData);
                 }
+                console.log('转换后的数据行数:', data.length);
                 
                 // 创建数据对象
                 const templateData = {
                     data: data,
                     columns: headers
                 };
+                console.log('准备调用populateLuckysheetWithData，数据对象:', templateData);
                 
                 // 填充到Luckysheet，使用sheet名称作为sheet名称
                 this.populateLuckysheetWithData(templateData, sheetName);
@@ -2912,6 +2945,9 @@
             
             // 将数据填充到Luckysheet表格中
             populateLuckysheetWithData(templateData, sheetName = 'Sheet1') {
+                console.log('populateLuckysheetWithData called with:', { templateData, sheetName });
+                console.log('Luckysheet available:', typeof luckysheet !== 'undefined');
+                
                 // 检查Luckysheet是否可用
                 if (typeof luckysheet === 'undefined' || !luckysheet.getSheetData) {
                     console.error('Luckysheet未加载或不可用');
@@ -2966,38 +3002,53 @@
                 
                 // 更新Luckysheet数据 - 使用destroy和create方法
                 try {
+                    console.log('开始销毁现有Luckysheet实例');
                     // 销毁现有的Luckysheet实例
-                    window.luckysheet.destroy();
+                    if (window.luckysheet && window.luckysheet.destroy) {
+                        window.luckysheet.destroy();
+                        console.log('Luckysheet实例销毁成功');
+                    } else {
+                        console.log('Luckysheet实例不存在或destroy方法不可用');
+                    }
                     
                     // 添加延迟确保DOM完全准备好
                     setTimeout(() => {
-                        // 重新创建Luckysheet实例并传入新数据
-                        window.luckysheet.create({
-                            container: 'luckysheetContainer', // 使用正确的容器ID
-                            title: '数据表格',
-                            lang: 'zh',
-                            showinfobar: false,
-                            showsheetbar: true,
-                            showstatisticBar: false,
-                            showtoolbar: true,
-                            allowEdit: true,
-                            enableAddRow: false, // 禁用添加行功能
-                            enableAddCol: false, // 禁用添加列功能
-                            rowHeaderWidth: 46, // 行标题宽度
-                            columnHeaderHeight: 20, // 列标题高度
-                            defaultRowHeight: 25, // 默认行高
-                            defaultColWidth: 73, // 默认列宽
-                            cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
-                                copy: true,
-                            },
-                            data: [luckysheetData]
-                        });
+                        console.log('开始重新创建Luckysheet实例');
+                        console.log('Luckysheet对象状态:', { luckysheet: typeof window.luckysheet, create: typeof window.luckysheet?.create });
                         
-                        console.log('模板数据已成功填充到Luckysheet表格');
+                        // 重新创建Luckysheet实例并传入新数据
+                        if (window.luckysheet && window.luckysheet.create) {
+                            window.luckysheet.create({
+                                container: 'luckysheetContainer', // 使用正确的容器ID
+                                title: '数据表格',
+                                lang: 'zh',
+                                showinfobar: false,
+                                showsheetbar: true,
+                                showstatisticBar: false,
+                                showtoolbar: true,
+                                allowEdit: true,
+                                enableAddRow: false, // 禁用添加行功能
+                                enableAddCol: false, // 禁用添加列功能
+                                rowHeaderWidth: 46, // 行标题宽度
+                                columnHeaderHeight: 20, // 列标题高度
+                                defaultRowHeight: 25, // 默认行高
+                                defaultColWidth: 73, // 默认列宽
+                                cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
+                                    copy: true,
+                                },
+                                data: [luckysheetData]
+                            });
+                            
+                            console.log('Luckysheet创建调用完成，数据对象:', luckysheetData);
+                            console.log('模板数据已成功填充到Luckysheet表格');
+                        } else {
+                            console.error('Luckysheet对象或create方法不可用');
+                        }
                     }, 100); // 100ms延迟确保DOM准备就绪
                 } catch (error) {
                     console.error('填充数据到Luckysheet时出错:', error);
-                    this.showError('填充数据到表格失败');
+                    // 使用console.error替代this.showError
+                    console.error('填充数据到表格失败: ' + error.message);
                 }
             }
             
