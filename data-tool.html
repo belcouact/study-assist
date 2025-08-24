@@ -139,26 +139,6 @@
             background: rgba(67, 97, 238, 0.05);
         }
 
-        .upload-text-container {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-            margin-bottom: 1.5rem;
-        }
-
-        .upload-text-container p {
-            margin: 0;
-            font-size: 1rem;
-        }
-
-        .upload-text-container .upload-hint {
-            color: var(--text-secondary);
-            font-style: italic;
-        }
-
         .upload-icon {
             font-size: 3rem;
             color: var(--text-secondary);
@@ -1088,6 +1068,54 @@
 
             .upload-area {
                 padding: 1.5rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 1rem;
+            }
+            
+            .upload-text-container {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                flex-wrap: wrap;
+            }
+            
+            .upload-text-container p {
+                margin: 0;
+                font-size: 0.9rem;
+                color: #666;
+            }
+            
+            .upload-icon {
+                margin-bottom: 0.5rem;
+            }
+            
+            /* 移动设备适配 */
+            @media (max-width: 480px) {
+                .upload-area {
+                    gap: 0.75rem;
+                    padding: 1rem;
+                }
+                
+                .upload-text-container {
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+                
+                .upload-text-container p {
+                    font-size: 0.8rem;
+                }
+                
+                .upload-icon {
+                    margin-bottom: 0.25rem;
+                }
+                
+                #selectFileBtn {
+                    margin-top: 0.5rem;
+                }
             }
             
             /* Fix mobile scrolling */
@@ -2476,6 +2504,21 @@
                             <h4>调查问卷结果</h4>
                             <p>用户满意度调查数据，适合统计分析</p>
                         </div>
+                        <div class="template-card" data-template="quality-control">
+                            <i class="fas fa-shield-alt"></i>
+                            <h4>质量控制分析</h4>
+                            <p>产品合格率、缺陷数量等质量数据，适合质量管理分析</p>
+                        </div>
+                        <div class="template-card" data-template="delivery-management">
+                            <i class="fas fa-truck"></i>
+                            <h4>交期管理分析</h4>
+                            <p>订单交期达成率、延迟天数等交期数据，适合供应链管理</p>
+                        </div>
+                        <div class="template-card" data-template="financial-analysis">
+                            <i class="fas fa-chart-pie"></i>
+                            <h4>财务分析数据</h4>
+                            <p>月度收支、预算执行率等财务数据，适合财务分析</p>
+                        </div>
                     </div>
                 </div>
                 
@@ -2496,9 +2539,7 @@
                         <div class="file-list" id="fileList" style="display: none;">
                             <h4>已选择文件：</h4>
                             <ul id="selectedFiles"></ul>
-                            <button class="btn btn-success" id="processFilesBtn" style="margin-top: 1rem;">
-                                <i class="fas fa-cogs"></i> 处理文件
-                            </button>
+                            <!-- 处理文件按钮已隐藏，现在选择文件后自动处理 -->
                         </div>
                     </div>
                 </div>
@@ -2805,16 +2846,11 @@
                     });
                 }
 
-                if (processFilesBtn) {
-                    const self = this;
-                    processFilesBtn.addEventListener('click', () => {
-                        self.processSelectedFiles();
-                    });
-                }
+                // 处理文件按钮已移除，现在选择文件后自动处理
             }
 
             // 处理文件选择
-            handleFileSelection(files) {
+            async handleFileSelection(files) {
                 const fileList = document.getElementById('fileList');
                 const selectedFiles = document.getElementById('selectedFiles');
                 
@@ -2835,6 +2871,27 @@
                         li.textContent = `${file.name} (${this.formatFileSize(file.size)})`;
                         selectedFiles.appendChild(li);
                     });
+                    
+                    // 自动处理文件
+                    try {
+                        // 处理每个文件
+                        for (const file of this.selectedFiles) {
+                            await this.processFile(file);
+                        }
+                        
+                        this.showMessage('文件处理完成', 'success');
+                        
+                        // 清空文件列表
+                        setTimeout(() => {
+                            document.getElementById('fileList').style.display = 'none';
+                            document.getElementById('selectedFiles').innerHTML = '';
+                            document.getElementById('fileInput').value = '';
+                            this.selectedFiles = [];
+                        }, 2000);
+                    } catch (error) {
+                        console.error('文件处理失败:', error);
+                        this.showError('文件处理失败: ' + error.message);
+                    }
                 } else {
                     fileList.style.display = 'none';
                 }
@@ -3480,6 +3537,15 @@
                     case 'survey':
                         templateData = this.getStudentScoresTemplate();
                         break;
+                    case 'quality-control':
+                        templateData = this.getQualityControlTemplate();
+                        break;
+                    case 'delivery-management':
+                        templateData = this.getDeliveryManagementTemplate();
+                        break;
+                    case 'financial-analysis':
+                        templateData = this.getFinancialAnalysisTemplate();
+                        break;
                     default:
                         this.showError('未知的模板类型');
                         return;
@@ -3889,6 +3955,91 @@
                     name: '学生成绩分析数据',
                     data: data,
                     columns: ['学生', '科目', '成绩', '班级平均分']
+                };
+            }
+
+            getQualityControlTemplate() {
+                const products = ['产品A', '产品B', '产品C', '产品D'];
+                const batches = ['批次001', '批次002', '批次003', '批次004', '批次005'];
+                const data = [];
+                
+                products.forEach(product => {
+                    batches.forEach(batch => {
+                        data.push({
+                            '产品': product,
+                            '批次': batch,
+                            '合格率': Math.floor(Math.random() * 15) + 85,
+                            '缺陷数量': Math.floor(Math.random() * 20),
+                            '质检评分': Math.floor(Math.random() * 30) + 70,
+                            '客户投诉': Math.floor(Math.random() * 5)
+                        });
+                    });
+                });
+                
+                return {
+                    name: '质量控制分析数据',
+                    data: data,
+                    columns: ['产品', '批次', '合格率', '缺陷数量', '质检评分', '客户投诉']
+                };
+            }
+
+            getDeliveryManagementTemplate() {
+                const orders = ['订单001', '订单002', '订单003', '订单004', '订单005', '订单006'];
+                const products = ['产品A', '产品B', '产品C'];
+                const data = [];
+                
+                orders.forEach(order => {
+                    products.forEach(product => {
+                        const plannedDays = Math.floor(Math.random() * 10) + 5;
+                        const actualDays = plannedDays + Math.floor(Math.random() * 6) - 3;
+                        data.push({
+                            '订单号': order,
+                            '产品': product,
+                            '计划交期(天)': plannedDays,
+                            '实际交期(天)': actualDays,
+                            '交期达成率': actualDays <= plannedDays ? 100 : Math.floor(Math.random() * 20) + 80,
+                            '延迟天数': Math.max(0, actualDays - plannedDays),
+                            '客户满意度': Math.floor(Math.random() * 30) + 70
+                        });
+                    });
+                });
+                
+                return {
+                    name: '交期管理分析数据',
+                    data: data,
+                    columns: ['订单号', '产品', '计划交期(天)', '实际交期(天)', '交期达成率', '延迟天数', '客户满意度']
+                };
+            }
+
+            getFinancialAnalysisTemplate() {
+                const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+                const categories = ['营业收入', '营业成本', '销售费用', '管理费用', '财务费用'];
+                const data = [];
+                
+                months.forEach(month => {
+                    categories.forEach(category => {
+                        let amount;
+                        if (category === '营业收入') {
+                            amount = Math.floor(Math.random() * 200000) + 300000;
+                        } else if (category === '营业成本') {
+                            amount = Math.floor(Math.random() * 120000) + 180000;
+                        } else {
+                            amount = Math.floor(Math.random() * 50000) + 20000;
+                        }
+                        data.push({
+                            '月份': month,
+                            '费用类别': category,
+                            '金额': amount,
+                            '预算金额': Math.floor(amount * (1 + (Math.random() * 0.2 - 0.1))),
+                            '预算执行率': Math.floor(Math.random() * 30) + 85
+                        });
+                    });
+                });
+                
+                return {
+                    name: '财务分析数据',
+                    data: data,
+                    columns: ['月份', '费用类别', '金额', '预算金额', '预算执行率']
                 };
             }
 
