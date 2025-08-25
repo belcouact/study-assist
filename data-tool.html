@@ -1186,14 +1186,14 @@
             
             /* Ensure Luckysheet container is scrollable on mobile */
             #luckysheetContainer {
-                height: 300px;
-                overflow: visible;
+                height: 400px;
+                overflow: auto !important;
                 -webkit-overflow-scrolling: touch;
                 touch-action: auto;
                 position: relative;
                 z-index: 1;
                 clear: both;
-                min-height: 300px;
+                min-height: 400px;
                 max-height: none;
             }
             
@@ -1236,7 +1236,9 @@
             }
             
             #luckysheetContainer {
-                height: 250px;
+                height: 350px;
+                overflow: auto !important;
+                min-height: 350px;
             }
             
             .template-card {
@@ -1268,6 +1270,7 @@
             /* 优化触摸滚动 - 允许正常滚动 */
             -webkit-overflow-scrolling: touch;
             touch-action: auto;
+            overflow: auto !important;
             
             /* 允许正常的滚动行为 */
             overscroll-behavior: auto;
@@ -1275,6 +1278,10 @@
             /* 确保在移动设备上可见 */
             opacity: 1 !important;
             visibility: visible !important;
+            
+            /* 确保有足够的高度用于滚动 */
+            min-height: 400px !important;
+            height: auto !important;
         }
         
         /* 移动设备Luckysheet加载指示器样式 */
@@ -3714,11 +3721,21 @@
                             container.style.overflow = 'visible';
                             container.style.overscrollBehavior = 'auto';
                             
-                            // 调整容器高度以适应移动设备
-                            const viewportHeight = window.innerHeight;
-                            const containerHeight = Math.max(300, Math.min(500, viewportHeight * 0.5));
-                            container.style.height = containerHeight + 'px';
-                            container.style.maxHeight = 'none';
+                            // 调整容器高度以适应移动设备 - 使用CSS设置的高度，不覆盖
+                            // const viewportHeight = window.innerHeight;
+                            // const containerHeight = Math.max(300, Math.min(500, viewportHeight * 0.5));
+                            // container.style.height = containerHeight + 'px';
+                            // container.style.maxHeight = 'none';
+                            
+                            // 确保CSS设置的高度生效，不进行JavaScript覆盖
+                            container.style.height = '';
+                            container.style.maxHeight = '';
+                            
+                            // 确保滚动设置不被覆盖
+                            container.style.overflow = '';
+                            container.style.touchAction = 'auto';
+                            container.style.webkitOverflowScrolling = 'touch';
+                            container.style.overscrollBehavior = 'auto';
                             
                             // 添加移动设备特定的CSS类
                             container.classList.add('mobile-luckysheet');
@@ -3756,6 +3773,23 @@
                                 defaultColWidth: isMobile ? 90 : 73, // 移动设备增加默认列宽
                                 cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
                                     copy: true,
+                                },
+                                // 移动设备特定的钩子函数 - 重要：防止触摸事件冲突
+                                hook: {
+                                    cellUpdateBefore: function(r, c, value, isRefresh) {
+                                        // 移动设备延迟处理以避免触摸冲突
+                                        if (isMobile) {
+                                            setTimeout(() => {}, 100);
+                                        }
+                                        return true;
+                                    },
+                                    cellUpdateAfter: function(r, c, oldValue, newValue) {
+                                        // 移动设备添加触觉反馈（如果支持）
+                                        if (isMobile && 'vibrate' in navigator) {
+                                            navigator.vibrate(50);
+                                        }
+                                        return true;
+                                    }
                                 },
                                 // 移动设备特定的性能优化
                                 editMode: isMobile, // 移动设备启用编辑模式
