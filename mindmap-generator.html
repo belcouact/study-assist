@@ -684,10 +684,12 @@
                             思维导图风格
                         </label>
                         <select id="styleSelect" class="select-field">
-                            <option value="structured">结构化</option>
-                            <option value="creative" selected>创意型</option>
-                            <option value="academic">学术型</option>
-                            <option value="business">商业型</option>
+                            <option value="tree" selected>树状思维导图</option>
+                            <option value="radial">放射状思维导图</option>
+                            <option value="circular">环形思维导图</option>
+                            <option value="hierarchical">层次思维导图</option>
+                            <option value="organic">有机思维导图</option>
+                            <option value="mindmap">经典思维导图</option>
                         </select>
                     </div>
 
@@ -1163,8 +1165,374 @@
             return root;
         }
 
-        // 简单的SVG思维导图渲染
-        function renderSimpleSVGMindmap(markdown, svg) {
+        // 根据风格渲染不同类型的思维导图
+        function renderMindmapByStyle(markdown, svg, style) {
+            switch(style) {
+                case 'tree':
+                    renderTreeMindmap(markdown, svg);
+                    break;
+                case 'radial':
+                    renderRadialMindmap(markdown, svg);
+                    break;
+                case 'circular':
+                    renderCircularMindmap(markdown, svg);
+                    break;
+                case 'hierarchical':
+                    renderHierarchicalMindmap(markdown, svg);
+                    break;
+                case 'organic':
+                    renderOrganicMindmap(markdown, svg);
+                    break;
+                case 'mindmap':
+                default:
+                    renderClassicMindmap(markdown, svg);
+                    break;
+            }
+        }
+
+        // 树状思维导图
+        function renderTreeMindmap(markdown, svg) {
+            renderSimpleSVGMindmap(markdown, svg, 'tree');
+        }
+
+        // 放射状思维导图
+        function renderRadialMindmap(markdown, svg) {
+            try {
+                const root = parseMarkdownToRoot(markdown);
+                svg.selectAll('*').remove();
+                
+                const container = document.getElementById('mindmapContainer');
+                const containerRect = container.getBoundingClientRect();
+                const isMobile = window.innerWidth < 768;
+                
+                let width = containerRect.width || 800;
+                let height = containerRect.height || 600;
+                const minSize = isMobile ? 320 : 600;
+                width = Math.max(minSize, Math.min(1200, width));
+                height = Math.max(minSize, Math.min(1200, height));
+                
+                svg.attr('width', width)
+                   .attr('height', height)
+                   .attr('viewBox', `0 0 ${width} ${height}`)
+                   .style('width', '100%')
+                   .style('height', '100%');
+                
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) * 0.35;
+                
+                const g = svg.append('g')
+                    .attr('transform', `translate(${centerX},${centerY})`);
+                
+                const hierarchy = d3.hierarchy(root);
+                const nodes = hierarchy.descendants();
+                const links = hierarchy.links();
+                
+                // 计算放射状布局
+                const angleStep = (2 * Math.PI) / Math.max(nodes.length - 1, 1);
+                
+                nodes.forEach((node, i) => {
+                    if (i === 0) {
+                        // 根节点在中心
+                        node.x = 0;
+                        node.y = 0;
+                    } else {
+                        const angle = (i - 1) * angleStep;
+                        const r = radius * (1 + node.depth * 0.3);
+                        node.x = r * Math.cos(angle);
+                        node.y = r * Math.sin(angle);
+                    }
+                });
+                
+                // 绘制连接线
+                g.selectAll('.link')
+                    .data(links)
+                    .enter().append('line')
+                    .attr('class', 'link')
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y)
+                    .style('stroke', '#ccc')
+                    .style('stroke-width', isMobile ? 1 : 2);
+                
+                // 绘制节点
+                const node = g.selectAll('.node')
+                    .data(nodes)
+                    .enter().append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                
+                const circleRadius = isMobile ? 6 : 8;
+                node.append('circle')
+                    .attr('r', d => d.depth === 0 ? circleRadius * 1.5 : circleRadius)
+                    .style('fill', d => {
+                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                        return colors[d.depth % colors.length];
+                    })
+                    .style('stroke', '#fff')
+                    .style('stroke-width', 2);
+                
+                const fontSize = isMobile ? '10px' : '12px';
+                node.append('text')
+                    .attr('dy', 4)
+                    .style('text-anchor', 'middle')
+                    .style('font-size', fontSize)
+                    .style('font-family', 'Arial, sans-serif')
+                    .style('fill', '#333')
+                    .text(d => {
+                        const content = d.data.content || '';
+                        const maxLength = isMobile ? 12 : 20;
+                        return content.length > maxLength ? 
+                            content.substring(0, maxLength) + '...' : 
+                            content;
+                    });
+                
+                // 添加缩放功能
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 3])
+                    .on('zoom', function(event) {
+                        g.attr('transform', `translate(${centerX + event.transform.x},${centerY + event.transform.y}) scale(${event.transform.k})`);
+                    });
+                
+                svg.call(zoom);
+                
+            } catch (error) {
+                console.error('放射状思维导图渲染失败:', error);
+                renderSimpleSVGMindmap(markdown, svg, 'tree');
+            }
+        }
+
+        // 环形思维导图
+        function renderCircularMindmap(markdown, svg) {
+            try {
+                const root = parseMarkdownToRoot(markdown);
+                svg.selectAll('*').remove();
+                
+                const container = document.getElementById('mindmapContainer');
+                const containerRect = container.getBoundingClientRect();
+                const isMobile = window.innerWidth < 768;
+                
+                let width = containerRect.width || 800;
+                let height = containerRect.height || 600;
+                const minSize = isMobile ? 320 : 600;
+                width = Math.max(minSize, Math.min(1200, width));
+                height = Math.max(minSize, Math.min(1200, height));
+                
+                svg.attr('width', width)
+                   .attr('height', height)
+                   .attr('viewBox', `0 0 ${width} ${height}`)
+                   .style('width', '100%')
+                   .style('height', '100%');
+                
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) * 0.3;
+                
+                const g = svg.append('g')
+                    .attr('transform', `translate(${centerX},${centerY})`);
+                
+                const hierarchy = d3.hierarchy(root);
+                const nodes = hierarchy.descendants();
+                const links = hierarchy.links();
+                
+                // 计算环形布局
+                const levelRadius = [0, radius * 0.5, radius * 0.8, radius];
+                
+                nodes.forEach((node, i) => {
+                    const levelNodes = nodes.filter(n => n.depth === node.depth);
+                    const levelIndex = levelNodes.indexOf(node);
+                    const angle = (levelIndex / levelNodes.length) * 2 * Math.PI;
+                    
+                    node.x = levelRadius[node.depth] * Math.cos(angle);
+                    node.y = levelRadius[node.depth] * Math.sin(angle);
+                });
+                
+                // 绘制环形连接线
+                g.selectAll('.link')
+                    .data(links)
+                    .enter().append('path')
+                    .attr('class', 'link')
+                    .attr('d', d => {
+                        return `M ${d.source.x} ${d.source.y} Q ${(d.source.x + d.target.x) / 2} ${(d.source.y + d.target.y) / 2} ${d.target.x} ${d.target.y}`;
+                    })
+                    .style('fill', 'none')
+                    .style('stroke', '#ccc')
+                    .style('stroke-width', isMobile ? 1 : 2);
+                
+                // 绘制节点
+                const node = g.selectAll('.node')
+                    .data(nodes)
+                    .enter().append('g')
+                    .attr('class', 'node')
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                
+                const circleRadius = isMobile ? 6 : 8;
+                node.append('circle')
+                    .attr('r', d => d.depth === 0 ? circleRadius * 1.5 : circleRadius)
+                    .style('fill', d => {
+                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                        return colors[d.depth % colors.length];
+                    })
+                    .style('stroke', '#fff')
+                    .style('stroke-width', 2);
+                
+                const fontSize = isMobile ? '10px' : '12px';
+                node.append('text')
+                    .attr('dy', 4)
+                    .style('text-anchor', 'middle')
+                    .style('font-size', fontSize)
+                    .style('font-family', 'Arial, sans-serif')
+                    .style('fill', '#333')
+                    .text(d => {
+                        const content = d.data.content || '';
+                        const maxLength = isMobile ? 12 : 20;
+                        return content.length > maxLength ? 
+                            content.substring(0, maxLength) + '...' : 
+                            content;
+                    });
+                
+                // 添加缩放功能
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 3])
+                    .on('zoom', function(event) {
+                        g.attr('transform', `translate(${centerX + event.transform.x},${centerY + event.transform.y}) scale(${event.transform.k})`);
+                    });
+                
+                svg.call(zoom);
+                
+            } catch (error) {
+                console.error('环形思维导图渲染失败:', error);
+                renderSimpleSVGMindmap(markdown, svg, 'tree');
+            }
+        }
+
+        // 层次思维导图
+        function renderHierarchicalMindmap(markdown, svg) {
+            renderSimpleSVGMindmap(markdown, svg, 'hierarchical');
+        }
+
+        // 有机思维导图
+        function renderOrganicMindmap(markdown, svg) {
+            try {
+                const root = parseMarkdownToRoot(markdown);
+                svg.selectAll('*').remove();
+                
+                const container = document.getElementById('mindmapContainer');
+                const containerRect = container.getBoundingClientRect();
+                const isMobile = window.innerWidth < 768;
+                
+                let width = containerRect.width || 800;
+                let height = containerRect.height || 600;
+                const minSize = isMobile ? 320 : 600;
+                width = Math.max(minSize, Math.min(1200, width));
+                height = Math.max(minSize, Math.min(1200, height));
+                
+                svg.attr('width', width)
+                   .attr('height', height)
+                   .attr('viewBox', `0 0 ${width} ${height}`)
+                   .style('width', '100%')
+                   .style('height', '100%');
+                
+                const margin = isMobile ? 
+                    { top: 30, right: 20, bottom: 30, left: 20 } :
+                    { top: 50, right: 50, bottom: 50, left: 50 };
+                
+                const g = svg.append('g')
+                    .attr('transform', `translate(${margin.left},${margin.top})`);
+                
+                const availableWidth = width - margin.left - margin.right;
+                const availableHeight = height - margin.top - margin.bottom;
+                
+                // 使用力导向布局创建有机效果
+                const simulation = d3.forceSimulation()
+                    .force('link', d3.forceLink().id(d => d.id).distance(d => 80 + d.target.depth * 20))
+                    .force('charge', d3.forceManyBody().strength(-300))
+                    .force('center', d3.forceCenter(availableWidth / 2, availableHeight / 2))
+                    .force('collision', d3.forceCollide().radius(30));
+                
+                const hierarchy = d3.hierarchy(root);
+                const nodes = hierarchy.descendants().map((d, i) => ({...d, id: i}));
+                const links = hierarchy.links();
+                
+                simulation.nodes(nodes);
+                simulation.force('link').links(links);
+                
+                // 绘制连接线
+                const link = g.selectAll('.link')
+                    .data(links)
+                    .enter().append('path')
+                    .attr('class', 'link')
+                    .style('fill', 'none')
+                    .style('stroke', '#ccc')
+                    .style('stroke-width', isMobile ? 1 : 2);
+                
+                // 绘制节点
+                const node = g.selectAll('.node')
+                    .data(nodes)
+                    .enter().append('g')
+                    .attr('class', 'node');
+                
+                const circleRadius = isMobile ? 6 : 8;
+                node.append('circle')
+                    .attr('r', d => d.depth === 0 ? circleRadius * 1.5 : circleRadius)
+                    .style('fill', d => {
+                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                        return colors[d.depth % colors.length];
+                    })
+                    .style('stroke', '#fff')
+                    .style('stroke-width', 2);
+                
+                const fontSize = isMobile ? '10px' : '12px';
+                node.append('text')
+                    .attr('dy', 4)
+                    .attr('x', d => d.children ? -circleRadius - 4 : circleRadius + 4)
+                    .style('text-anchor', d => d.children ? 'end' : 'start')
+                    .style('font-size', fontSize)
+                    .style('font-family', 'Arial, sans-serif')
+                    .style('fill', '#333')
+                    .text(d => {
+                        const content = d.data.content || '';
+                        const maxLength = isMobile ? 15 : 25;
+                        return content.length > maxLength ? 
+                            content.substring(0, maxLength) + '...' : 
+                            content;
+                    });
+                
+                simulation.on('tick', () => {
+                    link.attr('d', d => {
+                        const dx = d.target.x - d.source.x;
+                        const dy = d.target.y - d.source.y;
+                        const dr = Math.sqrt(dx * dx + dy * dy);
+                        return `M ${d.source.x} ${d.source.y} A ${dr} ${dr} 0 0 1 ${d.target.x} ${d.target.y}`;
+                    });
+                    
+                    node.attr('transform', d => `translate(${d.x},${d.y})`);
+                });
+                
+                // 添加缩放功能
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 3])
+                    .on('zoom', function(event) {
+                        g.attr('transform', 
+                            `translate(${margin.left + event.transform.x},${margin.top + event.transform.y}) scale(${event.transform.k})`);
+                    });
+                
+                svg.call(zoom);
+                
+            } catch (error) {
+                console.error('有机思维导图渲染失败:', error);
+                renderSimpleSVGMindmap(markdown, svg, 'tree');
+            }
+        }
+
+        // 经典思维导图
+        function renderClassicMindmap(markdown, svg) {
+            renderSimpleSVGMindmap(markdown, svg, 'classic');
+        }
+
+        // 简单的SVG思维导图渲染（增强版）
+        function renderSimpleSVGMindmap(markdown, svg, style = 'tree') {
             try {
                 const root = parseMarkdownToRoot(markdown);
                 
@@ -1221,9 +1589,18 @@
                 const g = svg.append('g')
                     .attr('transform', `translate(${margin.left},${margin.top})`);
                 
-                // 创建树状布局
-                const tree = d3.tree()
-                    .size([availableHeight, availableWidth]);
+                // 根据风格创建不同的布局
+                let tree;
+                if (style === 'hierarchical') {
+                    // 层次布局 - 更紧凑的垂直布局
+                    tree = d3.tree()
+                        .size([availableHeight, availableWidth])
+                        .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
+                } else {
+                    // 默认树状布局
+                    tree = d3.tree()
+                        .size([availableHeight, availableWidth]);
+                }
                 
                 const hierarchy = d3.hierarchy(root);
                 const treeData = tree(hierarchy);
@@ -1245,6 +1622,20 @@
                     }
                 });
                 
+                // 根据风格选择连接线样式
+                let linkGenerator;
+                if (style === 'classic') {
+                    // 经典思维导图使用曲线
+                    linkGenerator = d3.linkHorizontal()
+                        .x(d => d.y)
+                        .y(d => d.x);
+                } else {
+                    // 其他使用直线
+                    linkGenerator = d3.linkHorizontal()
+                        .x(d => d.y)
+                        .y(d => d.x);
+                }
+                
                 // 绘制连接线
                 g.selectAll('.link')
                     .data(links)
@@ -1257,12 +1648,10 @@
                         const targetX = isNaN(d.target.x) ? 0 : d.target.x;
                         const targetY = isNaN(d.target.y) ? 0 : d.target.y;
                         
-                        return d3.linkHorizontal()
-                            .x(d => d.y)
-                            .y(d => d.x)({
-                                source: { x: sourceX, y: sourceY },
-                                target: { x: targetX, y: targetY }
-                            });
+                        return linkGenerator({
+                            source: { x: sourceX, y: sourceY },
+                            target: { x: targetX, y: targetY }
+                        });
                     })
                     .style('fill', 'none')
                     .style('stroke', '#ccc')
@@ -1283,7 +1672,12 @@
                 const circleRadius = isMobile ? 6 : 8;
                 
                 node.append('circle')
-                    .attr('r', circleRadius)
+                    .attr('r', d => {
+                        if (style === 'classic' && d.depth === 0) {
+                            return circleRadius * 2; // 经典思维导图根节点更大
+                        }
+                        return circleRadius;
+                    })
                     .style('fill', d => {
                         const colors = ['#007bff', '#28a745', '#17a2b8', '#ffc107', '#dc3545', '#6f42c1'];
                         return colors[d.depth % colors.length];
@@ -1297,11 +1691,22 @@
                 
                 node.append('text')
                     .attr('dy', 4)
-                    .attr('x', d => d.children ? -textOffset : textOffset)
-                    .style('text-anchor', d => d.children ? 'end' : 'start')
+                    .attr('x', d => {
+                        if (style === 'classic') {
+                            return d.children ? -textOffset : textOffset;
+                        }
+                        return d.children ? -textOffset : textOffset;
+                    })
+                    .style('text-anchor', d => {
+                        if (style === 'classic') {
+                            return d.children ? 'end' : 'start';
+                        }
+                        return d.children ? 'end' : 'start';
+                    })
                     .style('font-size', fontSize)
                     .style('font-family', 'Arial, sans-serif')
                     .style('fill', '#333')
+                    .style('font-weight', d => style === 'classic' && d.depth === 0 ? 'bold' : 'normal')
                     .text(d => {
                         // 移动端文字截断
                         const content = d.data.content || '';
@@ -1326,7 +1731,7 @@
                     svg.style('touch-action', 'manipulation');
                 }
                 
-                console.log('SVG思维导图渲染成功:', { width, height, nodes: nodes.length });
+                console.log(`${style}思维导图渲染成功:`, { width, height, nodes: nodes.length });
                 
             } catch (error) {
                 console.error('SVG思维导图渲染失败:', error);
@@ -1584,10 +1989,12 @@
             }[complexity];
 
             let styleDesc = {
-                'structured': '结构化，层次清晰，逻辑性强',
-                'creative': '创意型，富有想象力，生动有趣',
-                'academic': '学术型，严谨准确，适合学术研究',
-                'business': '商业型，实用性强，关注实际应用'
+                'tree': '树状思维导图，自上而下的层级结构，适合展示层次关系',
+                'radial': '放射状思维导图，从中心向外辐射，适合展示中心主题和分支',
+                'circular': '环形思维导图，循环布局，适合展示循环关系和流程',
+                'hierarchical': '层次思维导图，清晰的层级结构，适合展示组织架构',
+                'organic': '有机思维导图，自然流畅的曲线布局，适合创意思维',
+                'mindmap': '经典思维导图，传统的思维导图布局，适合一般用途'
             }[style];
 
             let languageDesc = {
@@ -1754,6 +2161,10 @@ ${details ? `详细描述：${details}` : ''}
                     console.warn('使用默认容器尺寸:', { width, height });
                 }
                 
+                // 获取当前选择的风格
+                const selectedStyle = elements.styleSelect.value;
+                console.log('当前选择的风格:', selectedStyle);
+                
                 // 创建 SVG 元素
                 const svg = d3.select('#mindmapContainer')
                     .append('svg')
@@ -1776,36 +2187,77 @@ ${details ? `详细描述：${details}` : ''}
                     root = parseMarkdownToRoot(markdown);
                 }
                 
+                // 根据选择的风格设置不同的渲染参数
+                let renderOptions = {
+                    color: (node) => {
+                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                        return colors[node.depth % colors.length];
+                    },
+                    duration: 800,
+                    maxWidth: 200,
+                    spacingVertical: 10,
+                    spacingHorizontal: 80,
+                    autoFit: true,
+                    pan: true,
+                    zoom: true
+                };
+                
+                // 根据风格调整参数
+                switch(selectedStyle) {
+                    case 'tree':
+                        renderOptions.maxWidth = 300;
+                        renderOptions.spacingHorizontal = 120;
+                        renderOptions.spacingVertical = 15;
+                        renderOptions.duration = 600;
+                        break;
+                    case 'radial':
+                        renderOptions.maxWidth = 180;
+                        renderOptions.spacingHorizontal = 60;
+                        renderOptions.spacingVertical = 60;
+                        renderOptions.duration = 1000;
+                        break;
+                    case 'circular':
+                        renderOptions.maxWidth = 220;
+                        renderOptions.spacingHorizontal = 90;
+                        renderOptions.spacingVertical = 30;
+                        renderOptions.duration = 800;
+                        break;
+                    case 'hierarchical':
+                        renderOptions.maxWidth = 350;
+                        renderOptions.spacingHorizontal = 150;
+                        renderOptions.spacingVertical = 12;
+                        renderOptions.duration = 500;
+                        break;
+                    case 'organic':
+                        renderOptions.maxWidth = 250;
+                        renderOptions.spacingHorizontal = 100;
+                        renderOptions.spacingVertical = 20;
+                        renderOptions.duration = 900;
+                        break;
+                    case 'classic':
+                    default:
+                        // 使用默认参数
+                        break;
+                }
+                
                 // 创建 markmap 实例
                 if (MarkmapClass) {
                     try {
-                        markmapInstance = MarkmapClass.create(svg.node(), {
-                            color: (node) => {
-                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                                return colors[node.depth % colors.length];
-                            },
-                            duration: 800,
-                            maxWidth: 200,
-                            spacingVertical: 10,
-                            spacingHorizontal: 80,
-                            autoFit: true,
-                            pan: true,
-                            zoom: true
-                        });
+                        markmapInstance = MarkmapClass.create(svg.node(), renderOptions);
                         
                         // 渲染思维导图
                         markmapInstance.setData(root);
                         markmapInstance.fit();
-                        console.log('Markmap实例创建成功');
+                        console.log('Markmap实例创建成功，风格:', selectedStyle);
                     } catch (createError) {
                         console.error('Markmap创建错误:', createError);
                         // 如果创建失败，显示简单的可视化
-                        renderSimpleSVGMindmap(markdown, svg);
+                        renderSimpleSVGMindmap(markdown, svg, selectedStyle);
                     }
                 } else {
                     // 没有Markmap类，直接使用简单的可视化
                     console.log('使用备用SVG渲染');
-                    renderSimpleSVGMindmap(markdown, svg);
+                    renderSimpleSVGMindmap(markdown, svg, selectedStyle);
                 }
 
             } catch (error) {
@@ -1854,7 +2306,7 @@ ${details ? `详细描述：${details}` : ''}
             }
         }
 
-        // 下载 PNG
+        // 下载 PNG - 高清版本
         function downloadPng() {
             const svgElement = elements.mindmapContainer.querySelector('svg');
             if (!svgElement) {
@@ -1863,36 +2315,67 @@ ${details ? `详细描述：${details}` : ''}
             }
 
             try {
+                // 获取SVG的实际尺寸
+                const svgRect = svgElement.getBoundingClientRect();
+                const svgWidth = svgElement.viewBox?.baseVal?.width || svgRect.width || 800;
+                const svgHeight = svgElement.viewBox?.baseVal?.height || svgRect.height || 600;
+                
+                // 设置高清输出尺寸（4倍分辨率）
+                const scale = 4;
+                const canvasWidth = Math.max(svgWidth * scale, 3200);
+                const canvasHeight = Math.max(svgHeight * scale, 2400);
+                
+                // 序列化SVG数据
                 const svgData = new XMLSerializer().serializeToString(svgElement);
                 
+                // 创建高分辨率canvas
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
+                canvas.width = canvasWidth;
+                canvas.height = canvasHeight;
+                
+                // 设置高质量渲染
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // 白色背景
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+                
                 const img = new Image();
                 
                 img.onload = function() {
-                    canvas.width = this.width || 800;
-                    canvas.height = this.height || 600;
-                    ctx.fillStyle = 'white';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(this, 0, 0);
+                    // 计算居中位置
+                    const x = (canvasWidth - this.width * scale) / 2;
+                    const y = (canvasHeight - this.height * scale) / 2;
                     
+                    // 高质量缩放绘制
+                    ctx.drawImage(this, x, y, this.width * scale, this.height * scale);
+                    
+                    // 使用最高质量导出
                     canvas.toBlob(function(blob) {
                         const url = URL.createObjectURL(blob);
                         const link = document.createElement('a');
                         link.href = url;
-                        link.download = `mindmap-${Date.now()}.png`;
+                        link.download = `mindmap-hd-${Date.now()}.png`;
                         link.click();
                         URL.revokeObjectURL(url);
-                        showSuccess('PNG 文件下载成功');
-                    });
+                        showSuccess('高清 PNG 文件下载成功');
+                    }, 'image/png', 1.0); // 最高质量
                 };
                 
                 img.onerror = function() {
                     showError('PNG 转换失败，请尝试下载 SVG 格式');
                 };
                 
-                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+                // 添加XML声明和命名空间以确保兼容性
+                const svgWithHeader = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+${svgData}`;
+                
+                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgWithHeader)));
             } catch (error) {
+                console.error('PNG下载错误:', error);
                 showError('下载失败，请稍后重试');
             }
         }
