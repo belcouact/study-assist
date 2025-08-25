@@ -1187,12 +1187,14 @@
             /* Ensure Luckysheet container is scrollable on mobile */
             #luckysheetContainer {
                 height: 300px;
-                overflow: auto;
+                overflow: visible;
                 -webkit-overflow-scrolling: touch;
-                touch-action: pan-x pan-y;
+                touch-action: auto;
                 position: relative;
                 z-index: 1;
                 clear: both;
+                min-height: 300px;
+                max-height: none;
             }
             
             /* Fix template grid scrolling */
@@ -2735,8 +2737,7 @@
                 this.setupInfoIcon();
                 // 页面加载时自动初始化Luckysheet
                 this.createLuckysheet();
-                // 添加事件监听器防止luckysheet单元格点击时页面滚动
-                this.preventLuckysheetScroll();
+                // 移除了防滚动功能以允许正常页面滚动
             }
             
             checkEChartsLibrary() {
@@ -4830,15 +4831,16 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                 // 移动设备特定的容器优化
                 if (isMobile) {
                     console.log('应用移动设备容器优化');
-                    // 确保容器有正确的触摸设置
-                    container.style.touchAction = 'pan-x pan-y';
+                    // 确保容器有正确的触摸设置，允许正常滚动
+                    container.style.touchAction = 'auto';
                     container.style.webkitOverflowScrolling = 'touch';
-                    container.style.overflow = 'auto';
+                    container.style.overflow = 'visible';
                     
-                    // 调整容器高度以适应移动设备
+                    // 调整容器高度以适应移动设备，但不限制滚动
                     const viewportHeight = window.innerHeight;
-                    const containerHeight = Math.max(250, Math.min(400, viewportHeight * 0.4));
+                    const containerHeight = Math.max(300, Math.min(500, viewportHeight * 0.5));
                     container.style.height = containerHeight + 'px';
+                    container.style.maxHeight = 'none';
                     
                     // 添加移动设备特定的CSS类
                     container.classList.add('mobile-luckysheet');
@@ -4887,15 +4889,15 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     showinfobar: false, // 是否显示顶部信息栏
                     showsheetbar: !isMobile, // 移动设备隐藏底部sheet页按钮以节省空间
                     showstatisticBar: false, // 是否显示底部计数栏
-                    enableAddRow: !isMobile, // 移动设备禁用添加行功能
-                    enableAddCol: !isMobile, // 移动设备禁用添加列功能
-                    allowCopy: !isMobile, // 移动设备禁用拷贝以避免触摸冲突
+                    enableAddRow: true, // 允许添加行功能
+                    enableAddCol: true, // 允许添加列功能
+                    allowCopy: true, // 允许拷贝功能
                     rowHeaderWidth: isMobile ? 60 : 46, // 移动设备增加行标题宽度以便触摸
                     columnHeaderHeight: isMobile ? 35 : 20, // 移动设备增加列标题高度以便触摸
                     defaultRowHeight: isMobile ? 35 : 25, // 移动设备增加默认行高
                     defaultColWidth: isMobile ? 90 : 73, // 移动设备增加默认列宽
-                    cellRightClickConfig: { // 禁用右键菜单可能导致滚动的选项
-                        copy: !isMobile, // 移动设备禁用右键拷贝
+                    cellRightClickConfig: { // 右键菜单配置
+                        copy: true, // 允许右键拷贝
                     },
                     // 移动设备特定的钩子函数
                     hook: {
@@ -4918,7 +4920,7 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
                     editMode: isMobile, // 移动设备启用编辑模式
                     devicePixelRatio: window.devicePixelRatio || 1, // 适应高DPI屏幕
                     // 移动设备特定的滚动设置
-                    scrollBarWidth: isMobile ? 8 : 10, // 移动设备使用更窄的滚动条
+                    scrollBarWidth: 10, // 统一使用标准滚动条宽度
                     // 移动设备特定的字体设置
                     defaultFontSize: isMobile ? 14 : 12, // 移动设备使用更大的字体
                     data: [
@@ -7025,98 +7027,8 @@ ${data.map(row => headers.map(header => row[header]).join('\t')).join('\n')}
             }
 
             preventLuckysheetScroll() {
-                let isLuckysheetInteraction = false;
-                let savedScrollPosition = 0;
-                let scrollTimeout;
-                let scrollRestorationAttempts = 0;
-                const maxRestorationAttempts = 3;
-                
-                // 检测是否为移动设备
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                              window.innerWidth <= 768;
-                
-                // 为luckysheet容器添加CSS样式，防止内部滚动影响页面
-                const luckysheetContainer = document.getElementById('luckysheetContainer');
-                if (luckysheetContainer) {
-                    luckysheetContainer.style.overflow = 'hidden';
-                    luckysheetContainer.style.position = 'relative';
-                }
-                
-                // 检测luckysheet交互开始
-                const handleInteractionStart = (e) => {
-                    if (e.target.closest('#luckysheetContainer') || 
-                        e.target.closest('.luckysheet-cell-main') || 
-                        e.target.closest('.luckysheet-cell-selected') ||
-                        e.target.closest('.luckysheet-cell-selected-extend') ||
-                        e.target.closest('.luckysheet-cell-selected-move')) {
-                        
-                        if (!isLuckysheetInteraction) {
-                            isLuckysheetInteraction = true;
-                            savedScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-                            scrollRestorationAttempts = 0;
-                            
-                            // 保存原始的scrollRestoration设置
-                            const originalScrollRestoration = history.scrollRestoration;
-                            history.scrollRestoration = 'manual';
-                            
-                            // 移除了阻止滚动的代码以允许正常页面滚动
-                            
-                            // 恢复scrollRestoration设置
-                            setTimeout(() => {
-                                history.scrollRestoration = originalScrollRestoration;
-                            }, 100);
-                        }
-                    }
-                };
-                
-                // 检测luckysheet交互结束
-                const handleInteractionEnd = () => {
-                    if (isLuckysheetInteraction) {
-                        clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(() => {
-                            isLuckysheetInteraction = false;
-                            
-                            // 恢复滚动能力
-                            document.documentElement.style.overflow = '';
-                            document.body.style.overflow = '';
-                            
-                            // 多次尝试恢复滚动位置，确保成功
-                            const restoreScrollPosition = () => {
-                                const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                                if (Math.abs(currentScrollTop - savedScrollPosition) > 5 && scrollRestorationAttempts < maxRestorationAttempts) {
-                                    scrollRestorationAttempts++;
-                                    window.scrollTo(0, savedScrollPosition);
-                                    
-                                    // 递归尝试，但增加延迟
-                                    setTimeout(restoreScrollPosition, 200 * scrollRestorationAttempts);
-                                }
-                            };
-                            
-                            // 立即尝试恢复滚动位置
-                            window.scrollTo(0, savedScrollPosition);
-                            
-                            // 延迟检查并恢复
-                            setTimeout(restoreScrollPosition, 300);
-                        }, 200); // 增加延迟确保交互完全结束
-                    }
-                };
-                
-                // 添加事件监听器（使用冒泡阶段，避免与其他事件冲突）
-                document.addEventListener('mousedown', handleInteractionStart, false);
-                document.addEventListener('touchstart', handleInteractionStart, false);
-                document.addEventListener('mouseup', handleInteractionEnd, false);
-                document.addEventListener('touchend', handleInteractionEnd, false);
-                
-                // 移除了阻止滚动和wheel事件的监听器以允许正常页面滚动
-                
-                // 清理函数（在页面卸载时调用）
-                const cleanup = () => {
-                    // 移除了滚动相关的清理代码
-                };
-                
-                window.addEventListener('beforeunload', cleanup);
-                
-                console.log('Luckysheet防滚动事件监听器已设置（改进版）');
+                // 移除了所有防滚动逻辑以允许正常页面滚动
+                console.log('Luckysheet防滚动功能已禁用，允许正常页面滚动');
             }
             
             setupInfoIcon() {
