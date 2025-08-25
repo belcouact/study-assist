@@ -660,7 +660,7 @@
                 AI思维导图生成器
             </h1>
             <p class="hero-subtitle">
-                使用 DeepSeek AI 智能生成 Markdown 内容，自动转换为精美的思维导图
+                使用AI智能生成Markdown内容，自动转换为思维导图
             </p>
         </section>
 
@@ -1324,11 +1324,14 @@
             throw new Error('备用方案也无法加载markmap');
         }
 
-        // 简单的Markdown解析为root对象
+        // 改进的Markdown解析为root对象 - 使用第一个标题作为根节点
         function parseMarkdownToRoot(markdown) {
             const lines = markdown.split('\n').filter(line => line.trim());
-            const root = { content: '思维导图', children: [] };
-            const stack = [root];
+            let root = { content: '思维导图', children: [] };
+            const stack = [];
+            
+            // 寻找第一个标题作为根节点
+            let firstHeadingFound = false;
             
             lines.forEach(line => {
                 const match = line.match(/^(#+)\s*(.+)$/);
@@ -1337,14 +1340,21 @@
                     const content = match[2].trim();
                     const node = { content, children: [] };
                     
-                    // 找到正确的父节点
-                    while (stack.length > level) {
-                        stack.pop();
+                    if (!firstHeadingFound) {
+                        // 使用第一个标题作为根节点
+                        root = node;
+                        stack.push(root);
+                        firstHeadingFound = true;
+                    } else {
+                        // 找到正确的父节点
+                        while (stack.length > level) {
+                            stack.pop();
+                        }
+                        
+                        const parent = stack[stack.length - 1];
+                        parent.children.push(node);
+                        stack.push(node);
                     }
-                    
-                    const parent = stack[stack.length - 1];
-                    parent.children.push(node);
-                    stack.push(node);
                 }
             });
             
@@ -2277,6 +2287,7 @@
                 convertBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 转换中...';
                 
                 hideMessages();
+                console.log('开始Markdown转换');
 
                 // 验证Markdown内容是否包含标题结构
                 const hasHeaders = /^#{1,6}\s+.+$/m.test(markdownContent);
@@ -2297,10 +2308,12 @@
                     currentMarkdown = cleanMarkdown(markdownContent);
                 }
 
-                // Markdown内容已转换
+                console.log('Markdown内容处理完成，开始渲染思维导图');
 
                 // 渲染思维导图
                 await renderMindmap(currentMarkdown);
+
+                console.log('思维导图渲染完成，切换到结果标签页');
 
                 // 切换到思维导图标签页
                 switchTab('convert-mindmap');
@@ -2315,7 +2328,8 @@
 
             } catch (error) {
                 // 转换Markdown时出错处理
-                showError(error.message || '转换失败，请检查Markdown格式');
+                console.error('Markdown转换错误:', error);
+                showError(`转换失败: ${error.message || '请检查Markdown格式或重试'}`);
             } finally {
                 // 恢复转换按钮状态
                 const convertBtn = document.getElementById('convertBtn');
@@ -2599,7 +2613,9 @@ ${details ? `详细描述：${details}` : ''}
 
             } catch (error) {
                 // 渲染思维导图时出错处理
-                showError('思维导图渲染失败：' + error.message);
+                console.error('思维导图渲染失败详情：', error);
+                console.error('错误堆栈：', error.stack);
+                showError('思维导图渲染失败：' + error.message + '\n\n请查看控制台获取详细错误信息。');
             }
         }
 
