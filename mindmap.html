@@ -741,6 +741,7 @@
                             <option value="circular">环形思维导图</option>
                             <option value="hierarchical">层次思维导图</option>
                             <option value="organic">有机思维导图</option>
+                            <option value="echarts">ECharts思维导图</option>
                             <option value="mindmap">经典思维导图</option>
                         </select>
                     </div>
@@ -891,6 +892,7 @@
                                 <option value="circular">环形思维导图</option>
                                 <option value="hierarchical">层次思维导图</option>
                                 <option value="organic">有机思维导图</option>
+                                <option value="echarts">ECharts思维导图</option>
                                 <option value="mindmap">经典思维导图</option>
                             </select>
                         </div>
@@ -984,6 +986,8 @@
         // 全局变量
         let currentMarkdown = '';
         let markmapInstance = null;
+        let echartsInstance = null;
+        let currentRenderEngine = 'markmap'; // 'markmap' 或 'echarts'
         let librariesLoaded = false;
 
         // DOM 元素
@@ -1084,6 +1088,15 @@
                     'https://unpkg.com/markmap-view@0.15.8/dist/browser/index.min.js'
                 ]);
                 
+                elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在加载 ECharts...';
+                
+                // 加载 ECharts 库
+                await loadScriptWithFallback([
+                    'https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js',
+                    'https://unpkg.com/echarts@5.4.3/dist/echarts.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js'
+                ]);
+                
                 // 等待库完全加载
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
@@ -1100,6 +1113,11 @@
                 
                 if (!hasMarkmap) {
                     throw new Error('markmap 库加载失败');
+                }
+                
+                // 检查ECharts库是否正确加载
+                if (typeof echarts === 'undefined') {
+                    throw new Error('ECharts 加载失败');
                 }
                 
                 // 库加载验证成功，继续初始化
@@ -1378,6 +1396,9 @@
                     break;
                 case 'organic':
                     renderOrganicMindmap(markdown, svg);
+                    break;
+                case 'echarts':
+                    renderEChartsMindmap(markdown, svg);
                     break;
                 case 'mindmap':
                 default:
@@ -2602,6 +2623,9 @@ ${details ? `详细描述：${details}` : ''}
                         renderOptions.spacingVertical = 20;
                         renderOptions.duration = 900;
                         break;
+                    case 'echarts':
+                        // ECharts风格不需要传统的SVG参数，会使用ECharts自己的配置
+                        break;
                     case 'classic':
                     default:
                         // 使用默认参数
@@ -2882,6 +2906,160 @@ ${svgData}`;
         function hideMessages() {
             elements.errorMessage.style.display = 'none';
             elements.successMessage.style.display = 'none';
+        }
+
+        // 使用ECharts渲染思维导图
+        function renderEChartsMindmap(markdown, svg) {
+            try {
+                // 检查ECharts是否可用
+                if (typeof echarts === 'undefined') {
+                    throw new Error('ECharts 库未加载');
+                }
+
+                // 解析Markdown为树状结构
+                const root = parseMarkdownToRoot(markdown);
+                
+                // 获取当前容器
+                const isConvertTab = document.querySelector('.main-tab-btn.active').dataset.mainTab === 'markdown-convert';
+                const container = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
+                
+                // 清空容器
+                container.innerHTML = '';
+                
+                // 创建ECharts容器div
+                const echartsContainer = document.createElement('div');
+                echartsContainer.style.width = '100%';
+                echartsContainer.style.height = '100%';
+                echartsContainer.style.minHeight = '400px';
+                container.appendChild(echartsContainer);
+                
+                // 获取容器尺寸
+                const containerRect = container.getBoundingClientRect();
+                const isMobile = window.innerWidth < 768;
+                
+                let width = containerRect.width || 800;
+                let height = containerRect.height || 600;
+                const minSize = isMobile ? 320 : 600;
+                width = Math.max(minSize, Math.min(1200, width));
+                height = Math.max(minSize, Math.min(1200, height));
+                
+                // 设置容器尺寸
+                echartsContainer.style.width = width + 'px';
+                echartsContainer.style.height = height + 'px';
+                
+                // 转换数据为ECharts格式
+                const echartsData = convertToEChartsData(root);
+                
+                // 初始化ECharts实例
+                if (echartsInstance) {
+                    echartsInstance.dispose();
+                }
+                
+                echartsInstance = echarts.init(echartsContainer);
+                currentRenderEngine = 'echarts';
+                
+                // 配置选项
+                const option = {
+                    tooltip: {
+                        trigger: 'item',
+                        triggerOn: 'mousemove',
+                        formatter: function(params) {
+                            return params.name;
+                        }
+                    },
+                    series: [{
+                        type: 'tree',
+                        name: '思维导图',
+                        data: [echartsData],
+                        top: '5%',
+                        bottom: '5%',
+                        left: '5%',
+                        right: '5%',
+                        layout: 'orthogonal',
+                        orient: 'LR',
+                        symbol: 'circle',
+                        symbolSize: isMobile ? 6 : 8,
+                        initialTreeDepth: 3,
+                        animationDuration: 550,
+                        animationDurationUpdate: 750,
+                        emphasis: {
+                            focus: 'descendant'
+                        },
+                        expandAndCollapse: true,
+                        label: {
+                            position: 'left',
+                            verticalAlign: 'middle',
+                            align: 'right',
+                            fontSize: isMobile ? 10 : 12,
+                            distance: 5,
+                            formatter: function(params) {
+                                const name = params.name || '';
+                                const maxLength = isMobile ? 12 : 20;
+                                
+                                if (name.length > maxLength) {
+                                    return name.substring(0, maxLength) + '...';
+                                }
+                                return name;
+                            }
+                        },
+                        leaves: {
+                            label: {
+                                position: 'right',
+                                verticalAlign: 'middle',
+                                align: 'left'
+                            }
+                        },
+                        lineStyle: {
+                            width: isMobile ? 1 : 2,
+                            curveness: 0.3
+                        },
+                        itemStyle: {
+                            color: function(params) {
+                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+                                return colors[params.data.depth % colors.length];
+                            },
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }
+                    }]
+                };
+                
+                // 设置配置项并渲染图表
+                echartsInstance.setOption(option);
+                
+                // 响应式处理
+                window.addEventListener('resize', function() {
+                    if (echartsInstance) {
+                        echartsInstance.resize();
+                    }
+                });
+                
+                // 添加触摸支持
+                if (isMobile) {
+                    echartsContainer.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                    }, { passive: false });
+                }
+                
+            } catch (error) {
+                console.error('ECharts思维导图渲染失败:', error);
+                // 回退到简单SVG渲染
+                renderSimpleSVGMindmap(markdown, svg, 'tree');
+            }
+        }
+        
+        // 将解析的Markdown数据转换为ECharts格式
+        function convertToEChartsData(node, depth = 0) {
+            const result = {
+                name: node.content || '',
+                depth: depth
+            };
+            
+            if (node.children && node.children.length > 0) {
+                result.children = node.children.map(child => convertToEChartsData(child, depth + 1));
+            }
+            
+            return result;
         }
     </script>
 </body>
