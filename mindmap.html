@@ -2429,7 +2429,7 @@
                 'mixed': '可以混合使用中英文'
             }[language];
 
-            let prompt = `请为以下主题生成一个详细的思维导图 Markdown 格式内容：
+            let prompt = `请为以下主题生成一个详细的思维导图 Markdown 格式内容，专门用于 ECharts 可视化：
 
 主题：${topic}
 ${details ? `详细描述：${details}` : ''}
@@ -2439,20 +2439,32 @@ ${details ? `详细描述：${details}` : ''}
 2. ${styleDesc}
 3. ${languageDesc}
 4. 请严格按照 Markdown 格式输出，使用标题层级（#, ##, ###）来表示思维导图的层次结构
-5. 每个主要分支应该有 3-6 个子分支
-6. 内容要全面、准确、有条理
-7. 适当使用列表、粗体、斜体等 Markdown 语法
-8. 不要输出代码块标记（\`\`\`），直接输出 Markdown 内容
+5. 每个主要分支应该有 3-6 个子分支，确保层次清晰
+6. 内容要全面、准确、有条理，适合数据可视化展示
+7. 适当使用列表、粗体、斜体等 Markdown 语法增强可读性
+8. 不要输出代码块标记（\`\`\`），直接输出纯 Markdown 内容
+9. **ECharts 专用要求**：
+   - 确保每个节点内容简洁明了，避免过长文本
+   - 使用层级结构确保 ECharts 能正确解析父子关系
+   - 避免使用特殊字符和符号，确保 ECharts 兼容性
+   - 节点名称应该具有描述性，便于在图表中显示
+   - 保持结构平衡，避免某个分支过于复杂而其他分支过于简单
 
 请开始生成：`;
 
             return prompt;
         }
 
-        // 清理 Markdown 内容
-        function cleanMarkdown(markdown) {
+        // 清理 markdown 内容
+        function cleanmarkdown(markdown) {
             // 移除代码块标记
             markdown = markdown.replace(/```markdown\n?/g, '').replace(/```\n?/g, '');
+            
+            // 移除可能影响 echarts 的特殊字符（保留必要的markdown语法）
+            markdown = markdown.replace(/[\|\[\]{}]/g, '');
+            
+            // 替换可能导致解析问题的引号为直引号
+            markdown = markdown.replace(/["'']/g, "'");
             
             // 确保每个标题前有空行
             markdown = markdown.replace(/\n(#{1,6})/g, '\n\n$1');
@@ -2798,13 +2810,16 @@ ${details ? `详细描述：${details}` : ''}
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.remove('active');
             });
-            const targetContent = document.getElementById(`${tabId}Tab`);
+            // 将tabId转换为对应的ID格式（处理连字符转换为驼峰命名）
+            const contentId = tabId.replace(/-([a-z])/g, function(g) { return g[1].toUpperCase(); }) + 'Tab';
+            const targetContent = document.getElementById(contentId);
+            console.log('查找内容ID:', contentId);
             console.log('找到目标内容:', targetContent);
             if (targetContent) {
                 targetContent.classList.add('active');
                 console.log('设置内容为active状态');
             } else {
-                console.error('未找到目标内容:', tabId + 'Tab');
+                console.error('未找到目标内容:', contentId);
             }
         }
 
