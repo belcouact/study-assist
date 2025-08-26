@@ -1389,25 +1389,47 @@
 
         // 根据风格渲染不同类型的思维导图
         function renderMindmapByStyle(markdown, svg, style) {
-            switch(style) {
-                case 'tree':
-                case 'radial':
-                case 'hierarchical':
-                    renderEChartsMindmap(markdown, svg);
-                    break;
-                case 'circular':
-                    renderCircularMindmap(markdown, svg);
-                    break;
-                case 'organic':
-                    renderOrganicMindmap(markdown, svg);
-                    break;
-                case 'echarts':
-                    renderEChartsMindmap(markdown, svg);
-                    break;
-                case 'mindmap':
-                default:
-                    renderClassicMindmap(markdown, svg);
-                    break;
+            console.log('=== renderMindmapByStyle函数开始执行 ===');
+            console.log('输入参数 - markdown长度:', markdown.length, 'style:', style);
+            console.log('SVG元素:', svg);
+            
+            try {
+                switch(style) {
+                    case 'tree':
+                        console.log('使用tree风格渲染...');
+                        renderEChartsMindmap(markdown, svg);
+                        break;
+                    case 'radial':
+                        console.log('使用radial风格渲染...');
+                        renderEChartsMindmap(markdown, svg);
+                        break;
+                    case 'hierarchical':
+                        console.log('使用hierarchical风格渲染...');
+                        renderEChartsMindmap(markdown, svg);
+                        break;
+                    case 'circular':
+                        console.log('使用circular风格渲染...');
+                        renderCircularMindmap(markdown, svg);
+                        break;
+                    case 'organic':
+                        console.log('使用organic风格渲染...');
+                        renderOrganicMindmap(markdown, svg);
+                        break;
+                    case 'echarts':
+                        console.log('使用echarts风格渲染...');
+                        renderEChartsMindmap(markdown, svg);
+                        break;
+                    case 'mindmap':
+                    default:
+                        console.log('使用classic风格渲染...');
+                        renderClassicMindmap(markdown, svg);
+                        break;
+                }
+                console.log('renderMindmapByStyle函数执行完成');
+            } catch (error) {
+                console.error('renderMindmapByStyle函数执行失败:', error);
+                console.error('错误堆栈:', error.stack);
+                throw error;
             }
         }
 
@@ -2438,20 +2460,36 @@ ${details ? `详细描述：${details}` : ''}
 
         // 渲染思维导图
         async function renderMindmap(markdown) {
+            console.log('=== renderMindmap函数开始执行 ===');
+            console.log('输入的markdown内容:', markdown.substring(0, 100) + '...');
+            
             try {
                 // 检查当前在哪个主标签页中
-                const activeMainTab = document.querySelector('.main-tab-btn.active').dataset.mainTab;
+                const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
+                console.log('当前活跃的主标签页按钮:', activeMainTabBtn);
+                const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
                 const isConvertTab = activeMainTab === 'markdown-convert';
+                console.log('是否在转换标签页:', isConvertTab);
                 
                 // 更新 Markdown 显示到对应的内容区域
                 if (isConvertTab) {
-                    document.getElementById('convertMarkdownContent').textContent = currentMarkdown;
+                    const convertMarkdownContent = document.getElementById('convertMarkdownContent');
+                    console.log('找到convertMarkdownContent:', convertMarkdownContent);
+                    if (convertMarkdownContent) {
+                        convertMarkdownContent.textContent = currentMarkdown;
+                        console.log('已更新convertMarkdownContent内容');
+                    }
                 } else {
-                    elements.markdownContent.textContent = currentMarkdown;
+                    console.log('找到elements.markdownContent:', elements.markdownContent);
+                    if (elements.markdownContent) {
+                        elements.markdownContent.textContent = currentMarkdown;
+                        console.log('已更新markdownContent内容');
+                    }
                 }
 
                 // 如果是纯文本模式，显示文本版思维导图
                 if (window.markdownOnlyMode) {
+                    console.log('检测到markdownOnlyMode，将渲染文本版思维导图');
                     renderTextMindmap(markdown);
                     
                     // 自动切换到 Markdown 标签页
@@ -2463,53 +2501,75 @@ ${details ? `详细描述：${details}` : ''}
                 }
 
                 // 验证库是否可用（正常模式）
+                console.log('开始验证库可用性...');
                 const hasMarkmap = typeof markmap !== 'undefined' || 
                                  typeof window.markmap !== 'undefined';
+                console.log('markmap库可用性:', hasMarkmap);
+                console.log('d3库可用性:', typeof d3 !== 'undefined');
                                  
                 if (typeof d3 === 'undefined' || !hasMarkmap) {
+                    console.error('库加载失败 - d3:', typeof d3, 'markmap:', hasMarkmap);
                     throw new Error('思维导图库未正确加载');
                 }
                 
+                console.log('库验证通过，开始获取markmap对象和API');
                 // 使用正确的markmap对象和API
                 const markmapModule = markmap || window.markmap;
+                console.log('使用的markmap模块:', markmapModule);
                 
                 // 检查markmap的结构
+                console.log('开始检查markmap模块结构...');
                 
                 // 尝试不同的API调用方式
                 let transformFn, MarkmapClass;
                 
                 // 检查markmap-lib的Transformer类
+                console.log('检查markmap-lib的Transformer类...');
                 if (markmapModule.Transformer) {
+                    console.log('找到Transformer类，创建实例...');
                     const transformer = new markmapModule.Transformer();
                     transformFn = (markdown) => transformer.transform(markdown);
+                    console.log('使用Transformer创建transformFn');
                 } else if (markmapModule.transform) {
+                    console.log('使用markmapModule.transform');
                     transformFn = markmapModule.transform;
                 } else if (markmapModule.transformer && markmapModule.transformer.transform) {
+                    console.log('使用markmapModule.transformer.transform');
                     transformFn = markmapModule.transformer.transform;
                 } else if (window.markmap && window.markmap.transform) {
+                    console.log('使用window.markmap.transform');
                     transformFn = window.markmap.transform;
                 } else {
                     // 尝试从全局对象中获取
+                    console.log('尝试从全局对象获取transform函数...');
                     transformFn = window.transform || (window.markmapLib && window.markmapLib.transform);
                 }
                 
                 // 检查Markmap类（通常在markmap-view中）
+                console.log('检查Markmap类...');
                 if (markmapModule.Markmap) {
+                    console.log('使用markmapModule.Markmap');
                     MarkmapClass = markmapModule.Markmap;
                 } else if (window.markmap && window.markmap.Markmap) {
+                    console.log('使用window.markmap.Markmap');
                     MarkmapClass = window.markmap.Markmap;
                 } else if (window.Markmap) {
+                    console.log('使用window.Markmap');
                     MarkmapClass = window.Markmap;
                 } else if (window.markmapView && window.markmapView.Markmap) {
+                    console.log('使用window.markmapView.Markmap');
                     MarkmapClass = window.markmapView.Markmap;
                 } else {
                     // 检查其他可能的全局变量
+                    console.log('搜索其他可能的全局变量...');
                     const globals = Object.keys(window).filter(key => key.toLowerCase().includes('markmap'));
+                    console.log('找到的markmap相关全局变量:', globals);
                     
                     // 尝试从这些全局变量中找到Markmap
                     for (const globalName of globals) {
                         const globalObj = window[globalName];
                         if (globalObj && globalObj.Markmap) {
+                            console.log(`从${globalName}找到Markmap类`);
                             MarkmapClass = globalObj.Markmap;
                             break;
                         }
@@ -2517,8 +2577,11 @@ ${details ? `详细描述：${details}` : ''}
                 }
                 
                 // Transform函数和Markmap类检查完成
+                console.log('transformFn类型:', typeof transformFn);
+                console.log('MarkmapClass类型:', typeof MarkmapClass);
                 
                 if (!transformFn) {
+                    console.error('无法找到markmap的transform函数');
                     throw new Error('无法找到markmap的transform函数');
                 }
                 
@@ -2527,32 +2590,44 @@ ${details ? `详细描述：${details}` : ''}
                 }
 
                 // 清空容器
+                console.log('开始清空容器...');
                 if (isConvertTab) {
+                    console.log('清空convertMindmapContainer');
                     document.getElementById('convertMindmapContainer').innerHTML = '';
                 } else {
+                    console.log('清空mindmapContainer');
                     elements.mindmapContainer.innerHTML = '';
                 }
                 
                 // 等待容器重新布局后再获取尺寸
+                console.log('等待容器重新布局...');
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
                 // 安全地获取容器尺寸
+                console.log('获取容器尺寸...');
                 const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
+                console.log('目标容器:', mindmapContainer);
                 const containerRect = mindmapContainer.getBoundingClientRect();
+                console.log('容器矩形信息:', containerRect);
                 
                 // 移动端适配和尺寸验证
+                console.log('开始移动端适配和尺寸验证...');
                 const isMobile = window.innerWidth < 768;
+                console.log('是否移动端:', isMobile);
                 const minWidth = isMobile ? 320 : 800;
                 const minHeight = isMobile ? 400 : 600;
                 const maxWidth = isMobile ? window.innerWidth - 40 : 1200;
                 const maxHeight = isMobile ? window.innerHeight - 200 : 800;
+                console.log('尺寸限制 - 最小宽高:', minWidth, minHeight, '最大宽高:', maxWidth, maxHeight);
                 
                 let width = containerRect.width || minWidth;
                 let height = containerRect.height || minHeight;
+                console.log('初始尺寸 - 宽度:', width, '高度:', height);
                 
                 // 确保尺寸在合理范围内
                 width = Math.max(minWidth, Math.min(maxWidth, width));
                 height = Math.max(minHeight, Math.min(maxHeight, height));
+                console.log('调整后尺寸 - 宽度:', width, '高度:', height);
                 
                 // 最终验证，避免NaN
                 if (!width || !height || isNaN(width) || isNaN(height)) {
@@ -2563,9 +2638,12 @@ ${details ? `详细描述：${details}` : ''}
                 
                 // 获取当前选择的风格
                 const selectedStyle = elements.styleSelect.value;
+                console.log('当前选择的风格:', selectedStyle);
                 
                 // 创建 SVG 元素
+                console.log('开始创建SVG元素...');
                 const containerId = isConvertTab ? '#convertMindmapContainer' : '#mindmapContainer';
+                console.log('容器选择器:', containerId);
                 const svg = d3.select(containerId)
                     .append('svg')
                     .attr('width', width)
@@ -2575,19 +2653,25 @@ ${details ? `详细描述：${details}` : ''}
                     .style('height', '100%')
                     .style('display', 'block')
                     .style('margin', '0 auto');
+                console.log('SVG元素创建完成，尺寸:', { width, height });
 
                 // 使用 markmap 解析 Markdown 并创建思维导图
+                console.log('开始解析Markdown...');
                 let root;
                 try {
                     const result = transformFn(markdown);
                     root = result.root || result;
+                    console.log('Markdown解析成功，root节点:', root);
                 } catch (transformError) {
                     console.error('Transform错误:', transformError);
                     // 如果transform失败，尝试简单的解析
+                    console.log('使用备用解析方案...');
                     root = parseMarkdownToRoot(markdown);
+                    console.log('备用解析结果:', root);
                 }
                 
                 // 根据选择的风格设置不同的渲染参数
+                console.log('开始设置渲染参数...');
                 let renderOptions = {
                     color: (node) => {
                         const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
@@ -2601,8 +2685,10 @@ ${details ? `详细描述：${details}` : ''}
                     pan: true,
                     zoom: true
                 };
+                console.log('基础渲染参数:', renderOptions);
                 
                 // 根据风格调整参数
+                console.log('根据风格调整参数...');
                 switch(selectedStyle) {
                     case 'tree':
                         renderOptions.maxWidth = 300;
@@ -2636,15 +2722,20 @@ ${details ? `详细描述：${details}` : ''}
                         break;
                     case 'echarts':
                         // ECharts风格不需要传统的SVG参数，会使用ECharts自己的配置
+                        console.log('ECharts风格，跳过传统参数设置');
                         break;
                     case 'classic':
                     default:
                         // 使用默认参数
+                        console.log('使用默认参数');
                         break;
                 }
+                console.log('调整后渲染参数:', renderOptions);
                 
                 // 根据选择的风格使用对应的渲染函数
+                console.log('开始调用渲染函数，风格:', selectedStyle);
                 renderMindmapByStyle(markdown, svg, selectedStyle);
+                console.log('渲染函数调用完成');
 
             } catch (error) {
                 // 渲染思维导图时出错处理
@@ -2999,36 +3090,41 @@ ${svgData}`;
                                 type: 'tree',
                                 name: '思维导图',
                                 data: [echartsData],
-                                top: '3%',
-                                bottom: '3%',
-                                left: '3%',
-                                right: '3%',
+                                top: '1%',
+                                bottom: '1%',
+                                left: '1%',
+                                right: '1%',
                                 layout: 'orthogonal',
                                 orient: 'LR',
                                 symbol: 'circle',
                                 symbolSize: isMobile ? 7 : 10,
-                                initialTreeDepth: -1,
+                                initialTreeDepth: -1, // 显示所有层级
+                                expandAndCollapse: true, // 允许展开和折叠
                                 roam: true,
                                 animationDuration: 550,
                                 animationDurationUpdate: 750,
-                                emphasis: {
-                                    focus: 'descendant'
-                                },
-                                expandAndCollapse: false,
                                 label: {
+                                    show: true,
                                     position: 'left',
                                     verticalAlign: 'middle',
                                     align: 'right',
-                                    fontSize: isMobile ? 11 : 14,
-                                    distance: 8,
+                                    fontSize: isMobile ? 10 : 12,
+                                    distance: isMobile ? 3 : 5,
                                     formatter: function(params) {
-                                        const name = params.name || '';
-                                        const maxLength = isMobile ? 15 : 25;
+                                        // 根据节点深度调整显示文本长度
+                                        const maxLength = isMobile ? 
+                                            (params.data.depth === 0 ? 25 : 
+                                             params.data.depth === 1 ? 20 : 
+                                             params.data.depth === 2 ? 15 : 12) :
+                                            (params.data.depth === 0 ? 40 : 
+                                             params.data.depth === 1 ? 35 : 
+                                             params.data.depth === 2 ? 25 : 20);
                                         
-                                        if (name.length > maxLength) {
-                                            return name.substring(0, maxLength) + '...';
+                                        let text = params.name || '';
+                                        if (text.length > maxLength) {
+                                            text = text.substring(0, maxLength) + '...';
                                         }
-                                        return name;
+                                        return text;
                                     }
                                 },
                                 leaves: {
@@ -3038,8 +3134,16 @@ ${svgData}`;
                                         align: 'left'
                                     }
                                 },
+                                emphasis: {
+                                    focus: 'descendant',
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                    }
+                                },
                                 lineStyle: {
-                                    width: isMobile ? 1.5 : 2,
+                                    color: '#ccc',
+                                    width: isMobile ? 1 : 1.5,
                                     curveness: 0.3
                                 },
                                 itemStyle: {
@@ -3067,34 +3171,45 @@ ${svgData}`;
                                 type: 'tree',
                                 name: '思维导图',
                                 data: [echartsData],
-                                top: '5%',
-                                bottom: '5%',
-                                left: '5%',
-                                right: '5%',
+                                top: '1%',
+                                bottom: '1%',
+                                left: '1%',
+                                right: '1%',
                                 layout: 'radial',
                                 orient: 'LR',
                                 symbol: 'circle',
                                 symbolSize: isMobile ? 6 : 8,
-                                initialTreeDepth: -1,
+                                initialTreeDepth: -1, // 显示所有层级
+                                expandAndCollapse: true, // 允许展开和折叠
                                 roam: true,
                                 animationDuration: 550,
                                 animationDurationUpdate: 750,
                                 emphasis: {
-                                    focus: 'descendant'
+                                    focus: 'descendant',
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                    }
                                 },
-                                expandAndCollapse: false,
                                 label: {
                                     position: 'outside',
                                     fontSize: isMobile ? 10 : 12,
                                     distance: 5,
                                     formatter: function(params) {
-                                        const name = params.name || '';
-                                        const maxLength = isMobile ? 12 : 18;
+                                        // 根据节点深度调整显示文本长度
+                                        const maxLength = isMobile ? 
+                                            (params.data.depth === 0 ? 20 : 
+                                             params.data.depth === 1 ? 16 : 
+                                             params.data.depth === 2 ? 12 : 10) :
+                                            (params.data.depth === 0 ? 30 : 
+                                             params.data.depth === 1 ? 25 : 
+                                             params.data.depth === 2 ? 20 : 15);
                                         
-                                        if (name.length > maxLength) {
-                                            return name.substring(0, maxLength) + '...';
+                                        let text = params.name || '';
+                                        if (text.length > maxLength) {
+                                            text = text.substring(0, maxLength) + '...';
                                         }
-                                        return name;
+                                        return text;
                                     }
                                 },
                                 lineStyle: {
@@ -3126,22 +3241,26 @@ ${svgData}`;
                                 type: 'tree',
                                 name: '思维导图',
                                 data: [echartsData],
-                                top: '3%',
-                                bottom: '3%',
-                                left: '3%',
-                                right: '3%',
+                                top: '1%',
+                                bottom: '1%',
+                                left: '1%',
+                                right: '1%',
                                 layout: 'orthogonal',
                                 orient: 'TB',
                                 symbol: 'circle',
                                 symbolSize: isMobile ? 7 : 9,
-                                initialTreeDepth: -1,
+                                initialTreeDepth: -1, // 显示所有层级
+                                expandAndCollapse: true, // 允许展开和折叠
                                 roam: true,
                                 animationDuration: 550,
                                 animationDurationUpdate: 750,
                                 emphasis: {
-                                    focus: 'descendant'
+                                    focus: 'descendant',
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                    }
                                 },
-                                expandAndCollapse: false,
                                 label: {
                                     position: 'top',
                                     verticalAlign: 'middle',
@@ -3149,13 +3268,20 @@ ${svgData}`;
                                     fontSize: isMobile ? 11 : 13,
                                     distance: 8,
                                     formatter: function(params) {
-                                        const name = params.name || '';
-                                        const maxLength = isMobile ? 14 : 22;
+                                        // 根据节点深度调整显示文本长度
+                                        const maxLength = isMobile ? 
+                                            (params.data.depth === 0 ? 20 : 
+                                             params.data.depth === 1 ? 16 : 
+                                             params.data.depth === 2 ? 12 : 10) :
+                                            (params.data.depth === 0 ? 30 : 
+                                             params.data.depth === 1 ? 25 : 
+                                             params.data.depth === 2 ? 20 : 15);
                                         
-                                        if (name.length > maxLength) {
-                                            return name.substring(0, maxLength) + '...';
+                                        let text = params.name || '';
+                                        if (text.length > maxLength) {
+                                            text = text.substring(0, maxLength) + '...';
                                         }
-                                        return name;
+                                        return text;
                                     }
                                 },
                                 leaves: {
@@ -3195,22 +3321,26 @@ ${svgData}`;
                                 type: 'tree',
                                 name: '思维导图',
                                 data: [echartsData],
-                                top: '3%',
-                                bottom: '3%',
-                                left: '3%',
-                                right: '3%',
+                                top: '1%',
+                                bottom: '1%',
+                                left: '1%',
+                                right: '1%',
                                 layout: 'orthogonal',
                                 orient: 'LR',
                                 symbol: 'circle',
                                 symbolSize: isMobile ? 7 : 10,
-                                initialTreeDepth: -1,
+                                initialTreeDepth: -1, // 显示所有层级
+                                expandAndCollapse: true, // 允许展开和折叠
                                 roam: true,
                                 animationDuration: 550,
                                 animationDurationUpdate: 750,
                                 emphasis: {
-                                    focus: 'descendant'
+                                    focus: 'descendant',
+                                    itemStyle: {
+                                        shadowBlur: 10,
+                                        shadowColor: 'rgba(0, 0, 0, 0.3)'
+                                    }
                                 },
-                                expandAndCollapse: true,
                                 label: {
                                     position: 'left',
                                     verticalAlign: 'middle',
@@ -3218,13 +3348,20 @@ ${svgData}`;
                                     fontSize: isMobile ? 11 : 14,
                                     distance: 8,
                                     formatter: function(params) {
-                                        const name = params.name || '';
-                                        const maxLength = isMobile ? 15 : 25;
+                                        // 根据节点深度调整显示文本长度
+                                        const maxLength = isMobile ? 
+                                            (params.data.depth === 0 ? 20 : 
+                                             params.data.depth === 1 ? 16 : 
+                                             params.data.depth === 2 ? 12 : 10) :
+                                            (params.data.depth === 0 ? 30 : 
+                                             params.data.depth === 1 ? 25 : 
+                                             params.data.depth === 2 ? 20 : 15);
                                         
-                                        if (name.length > maxLength) {
-                                            return name.substring(0, maxLength) + '...';
+                                        let text = params.name || '';
+                                        if (text.length > maxLength) {
+                                            text = text.substring(0, maxLength) + '...';
                                         }
-                                        return name;
+                                        return text;
                                     }
                                 },
                                 leaves: {
