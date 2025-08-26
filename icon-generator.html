@@ -459,48 +459,90 @@
             }
             
             async optimizePrompt(description) {
-                const response = await fetch('/api/icon-generator', {
+                const systemMessage = `你是一个专业的图标设计师，擅长将用户的需求转化为精确的图标设计描述。请优化用户的图标需求，使其更加具体、明确，便于生成高质量的SVG图标。重点关注：
+1. 明确图标的主题和用途
+2. 细化设计元素和风格
+3. 确保描述简洁而全面
+4. 保持描述的专业性和可执行性`;
+                
+                const fullPrompt = `${systemMessage}\n\n用户需求：${description}`;
+                
+                const response = await fetch('https://glm.study-llm.me/functions/api/chat-glm', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: description,
-                        temperature: 0.7,
-                        action: 'optimize'
+                        prompt: fullPrompt
                     })
                 });
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API调用失败:', response.status, errorText);
                     throw new Error('API请求失败');
                 }
                 
                 const data = await response.json();
-                return data.optimized_prompt || data.response || data.content || description;
+                let content;
+                if (data.output) {
+                    content = data.output;
+                } else if (data.choices && data.choices[0] && data.choices[0].message) {
+                    content = data.choices[0].message.content;
+                } else if (data.message) {
+                    content = data.message;
+                } else if (data.content) {
+                    content = data.content;
+                } else {
+                    content = data;
+                }
+                
+                return content || description;
             }
             
             async createSvg(optimizedPrompt, size, primaryColor, secondaryColor) {
                 const styleInfo = this.selectedStyle ? `，设计风格为${this.selectedStyle}` : '';
-                const fullPrompt = `${optimizedPrompt}${styleInfo}，尺寸：${size}x${size}px，主色调：${primaryColor}，辅助色：${secondaryColor}`;
+                const systemMessage = `你是一个专业的SVG图标设计师，请根据用户的需求生成高质量的SVG图标代码。要求：
+1. 生成完整的SVG代码，包含XML声明和正确的命名空间
+2. 图标尺寸为${size}x${size}px，设置合适的viewBox
+3. 使用主色调${primaryColor}和辅助色${secondaryColor}
+4. 设计风格要现代、简洁、专业
+5. 确保SVG代码清晰、可读、易于修改
+6. 只返回SVG代码，不要包含任何解释文字`;
                 
-                const response = await fetch('/api/icon-generator', {
+                const fullPrompt = `${systemMessage}\n\n图标需求：${optimizedPrompt}${styleInfo}`;
+                
+                const response = await fetch('https://glm.study-llm.me/functions/api/chat-glm', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: fullPrompt,
-                        temperature: 0.3,
-                        action: 'generate'
+                        prompt: fullPrompt
                     })
                 });
                 
                 if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('SVG生成失败:', response.status, errorText);
                     throw new Error('SVG生成失败');
                 }
                 
                 const data = await response.json();
-                let svgCode = data.svg_code || data.response || data.content || '';
+                let svgCode;
+                if (data.output) {
+                    svgCode = data.output;
+                } else if (data.choices && data.choices[0] && data.choices[0].message) {
+                    svgCode = data.choices[0].message.content;
+                } else if (data.message) {
+                    svgCode = data.message;
+                } else if (data.content) {
+                    svgCode = data.content;
+                } else {
+                    svgCode = data;
+                }
                 
                 // 如果API返回的代码不完整，进行基本清理
                 if (!svgCode.includes('<?xml')) {
