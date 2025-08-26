@@ -385,6 +385,7 @@
         </div>
     </div>
     
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
     <script src="js/api.js"></script>
     <script>
         class IconGenerator {
@@ -502,6 +503,284 @@
             }
             
             async createSvg(optimizedPrompt, size, primaryColor, secondaryColor) {
+                // 首先尝试使用Paper.js生成高质量SVG
+                try {
+                    const paperSvg = await this.createSvgWithPaper(optimizedPrompt, size, primaryColor, secondaryColor);
+                    if (paperSvg) {
+                        return paperSvg;
+                    }
+                } catch (error) {
+                    console.warn('Paper.js生成失败，回退到API生成:', error);
+                }
+                
+                // 如果Paper.js失败，回退到原来的API方法
+                return await this.createSvgWithApi(optimizedPrompt, size, primaryColor, secondaryColor);
+            }
+            
+            async createSvgWithPaper(optimizedPrompt, size, primaryColor, secondaryColor) {
+                return new Promise((resolve, reject) => {
+                    // 创建一个隐藏的canvas用于Paper.js
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 256;
+                    canvas.height = 256;
+                    canvas.style.display = 'none';
+                    document.body.appendChild(canvas);
+                    
+                    try {
+                        // 初始化Paper.js
+                        paper.setup(canvas);
+                        
+                        // 根据描述生成SVG
+                        const svgContent = this.generatePaperSvg(optimizedPrompt, size, primaryColor, secondaryColor);
+                        
+                        // 清理
+                        document.body.removeChild(canvas);
+                        paper.project.clear();
+                        
+                        resolve(svgContent);
+                    } catch (error) {
+                        document.body.removeChild(canvas);
+                        reject(error);
+                    }
+                });
+            }
+            
+            generatePaperSvg(optimizedPrompt, size, primaryColor, secondaryColor) {
+                // 清空项目
+                paper.project.clear();
+                
+                // 创建中心点
+                const center = new paper.Point(128, 128);
+                
+                // 根据描述生成不同的图标
+                let svgContent = '';
+                
+                // 分析描述关键词
+                const desc = optimizedPrompt.toLowerCase();
+                
+                // 创建渐变
+                const gradient = new paper.Gradient();
+                gradient.stops = [
+                    new paper.Gradient.Stop(0, primaryColor),
+                    new paper.Gradient.Stop(1, secondaryColor)
+                ];
+                
+                // 根据风格选择不同的生成策略
+                if (desc.includes('山') || desc.includes('mountain')) {
+                    svgContent = this.generateMountainIcon(center, gradient, size);
+                } else if (desc.includes('太阳') || desc.includes('sun')) {
+                    svgContent = this.generateSunIcon(center, gradient, size);
+                } else if (desc.includes('月亮') || desc.includes('moon')) {
+                    svgContent = this.generateMoonIcon(center, gradient, size);
+                } else if (desc.includes('星星') || desc.includes('star')) {
+                    svgContent = this.generateStarIcon(center, gradient, size);
+                } else if (desc.includes('心') || desc.includes('heart')) {
+                    svgContent = this.generateHeartIcon(center, gradient, size);
+                } else {
+                    // 默认生成一个现代化的几何图标
+                    svgContent = this.generateGeometricIcon(center, gradient, size);
+                }
+                
+                return svgContent;
+            }
+            
+            generateMountainIcon(center, gradient, size) {
+                // 创建山脉图标
+                const mountainPath = new paper.Path();
+                mountainPath.add(new paper.Point(20, 200));
+                mountainPath.add(new paper.Point(80, 120));
+                mountainPath.add(new paper.Point(128, 140));
+                mountainPath.add(new paper.Point(180, 100));
+                mountainPath.add(new paper.Point(236, 160));
+                mountainPath.add(new paper.Point(236, 236));
+                mountainPath.add(new paper.Point(20, 236));
+                mountainPath.closePath();
+                
+                mountainPath.fillColor = {
+                    gradient: gradient,
+                    origin: mountainPath.bounds.topLeft,
+                    destination: mountainPath.bounds.bottomLeft
+                };
+                
+                mountainPath.strokeColor = 'rgba(0,0,0,0.1)';
+                mountainPath.strokeWidth = 2;
+                mountainPath.smooth();
+                
+                // 添加阴影效果
+                mountainPath.shadowColor = new paper.Color(0, 0, 0, 0.3);
+                mountainPath.shadowBlur = 10;
+                mountainPath.shadowOffset = new paper.Point(2, 4);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            generateSunIcon(center, gradient, size) {
+                // 创建太阳图标
+                const sun = new paper.Path.Circle(center, 60);
+                sun.fillColor = {
+                    gradient: gradient,
+                    origin: center.subtract([30, 30]),
+                    destination: center.add([30, 30])
+                };
+                
+                // 添加光芒
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i * 30) * Math.PI / 180;
+                    const start = center.add(new paper.Point(Math.cos(angle) * 70, Math.sin(angle) * 70));
+                    const end = center.add(new paper.Point(Math.cos(angle) * 90, Math.sin(angle) * 90));
+                    
+                    const ray = new paper.Path.Line(start, end);
+                    ray.strokeColor = gradient;
+                    ray.strokeWidth = 3;
+                    ray.strokeCap = 'round';
+                }
+                
+                // 添加阴影
+                sun.shadowColor = new paper.Color(0, 0, 0, 0.2);
+                sun.shadowBlur = 15;
+                sun.shadowOffset = new paper.Point(2, 2);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            generateMoonIcon(center, gradient, size) {
+                // 创建月亮图标
+                const moon = new paper.Path.Circle(center, 50);
+                moon.fillColor = {
+                    gradient: gradient,
+                    origin: center.subtract([25, 25]),
+                    destination: center.add([25, 25])
+                };
+                
+                // 创建月牙效果
+                const crescent = new paper.Path.Circle(center.add([15, -10]), 45);
+                crescent.fillColor = 'white';
+                
+                // 使用布尔运算创建月牙
+                const moonShape = moon.subtract(crescent);
+                moonShape.fillColor = moon.fillColor;
+                
+                moon.remove();
+                crescent.remove();
+                
+                // 添加阴影
+                moonShape.shadowColor = new paper.Color(0, 0, 0, 0.3);
+                moonShape.shadowBlur = 12;
+                moonShape.shadowOffset = new paper.Point(2, 3);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            generateStarIcon(center, gradient, size) {
+                // 创建星星图标
+                const star = new paper.Path.Star(center, 5, 25, 50);
+                star.fillColor = {
+                    gradient: gradient,
+                    origin: center,
+                    destination: center.add([0, 50])
+                };
+                
+                star.strokeColor = 'rgba(0,0,0,0.1)';
+                star.strokeWidth = 2;
+                star.smooth();
+                
+                // 添加阴影
+                star.shadowColor = new paper.Color(0, 0, 0, 0.25);
+                star.shadowBlur = 8;
+                star.shadowOffset = new paper.Point(1, 2);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            generateHeartIcon(center, gradient, size) {
+                // 创建心形图标
+                const heart = new paper.Path();
+                const topCurveHeight = 25;
+                heart.add(new paper.Point(center.x, center.y + topCurveHeight));
+                heart.add(new paper.Point(center.x, center.y));
+                heart.add(new paper.Point(center.x, center.y - topCurveHeight));
+                
+                // 左边曲线
+                heart.cubicCurveTo(
+                    new paper.Point(center.x, center.y - topCurveHeight),
+                    new paper.Point(center.x - 35, center.y - topCurveHeight),
+                    new paper.Point(center.x - 35, center.y)
+                );
+                
+                // 左边底部
+                heart.cubicCurveTo(
+                    new paper.Point(center.x - 35, center.y),
+                    new paper.Point(center.x - 35, center.y + 20),
+                    new paper.Point(center.x, center.y + 40)
+                );
+                
+                // 右边底部
+                heart.cubicCurveTo(
+                    new paper.Point(center.x, center.y + 40),
+                    new paper.Point(center.x + 35, center.y + 20),
+                    new paper.Point(center.x + 35, center.y)
+                );
+                
+                // 右边曲线
+                heart.cubicCurveTo(
+                    new paper.Point(center.x + 35, center.y),
+                    new paper.Point(center.x + 35, center.y - topCurveHeight),
+                    new paper.Point(center.x, center.y - topCurveHeight)
+                );
+                
+                heart.closePath();
+                heart.fillColor = {
+                    gradient: gradient,
+                    origin: heart.bounds.topCenter,
+                    destination: heart.bounds.bottomCenter
+                };
+                
+                heart.smooth();
+                
+                // 添加阴影
+                heart.shadowColor = new paper.Color(0, 0, 0, 0.3);
+                heart.shadowBlur = 10;
+                heart.shadowOffset = new paper.Point(2, 3);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            generateGeometricIcon(center, gradient, size) {
+                // 创建几何图标
+                const group = new paper.Group();
+                
+                // 外圆
+                const outerCircle = new paper.Path.Circle(center, 80);
+                outerCircle.fillColor = new paper.Color(gradient.stops[0].color);
+                outerCircle.opacity = 0.1;
+                
+                // 内圆
+                const innerCircle = new paper.Path.Circle(center, 60);
+                innerCircle.fillColor = {
+                    gradient: gradient,
+                    origin: center.subtract([30, 30]),
+                    destination: center.add([30, 30])
+                };
+                
+                // 中心几何形状
+                const shape = new paper.Path.RegularPolygon(center, 6, 30);
+                shape.fillColor = 'white';
+                shape.strokeColor = gradient;
+                shape.strokeWidth = 3;
+                
+                group.addChild(outerCircle);
+                group.addChild(innerCircle);
+                group.addChild(shape);
+                
+                // 添加阴影
+                group.shadowColor = new paper.Color(0, 0, 0, 0.2);
+                group.shadowBlur = 12;
+                group.shadowOffset = new paper.Point(2, 2);
+                
+                return paper.project.exportSVG({ asString: true });
+            }
+            
+            async createSvgWithApi(optimizedPrompt, size, primaryColor, secondaryColor) {
                 const styleInfo = this.selectedStyle ? `，设计风格为${this.selectedStyle}` : '';
                 const systemMessage = `图标描述：${optimizedPrompt}，图标尺寸：${size}，设计风格：${this.selectedStyle || '现代扁平化'}，主色调：${primaryColor}，辅助色：${secondaryColor}。生成单个<svg>元素，viewBox和尺寸为256x256，无文本外部字体和光栅图像，使用带圆角的<path>元素，限制2-4种颜色，低节点数，视觉平衡居中，添加无障碍<title>，现代扁平化设计，柔和阴影，微妙渐变，简约干净可扩展，仅返回有效的独立SVG。`;
                 
