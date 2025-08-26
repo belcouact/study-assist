@@ -249,6 +249,20 @@
             cursor: pointer;
             opacity: 0;
             transition: opacity 0.3s ease;
+            z-index: 10;
+        }
+
+        .copy-btn:nth-child(2) {
+            right: 3rem;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--primary-color);
+            transform: scale(1.05);
+        }
+
+        .icon-card:hover .copy-btn {
+            opacity: 1;
         }
 
         .icon-card:hover .copy-btn {
@@ -343,6 +357,15 @@
                 padding: 1rem;
             }
 
+            .copy-btn {
+                font-size: 0.625rem;
+                padding: 0.125rem 0.375rem;
+            }
+
+            .copy-btn:nth-child(2) {
+                right: 2.5rem;
+            }
+
             .stats {
                 flex-direction: column;
                 align-items: stretch;
@@ -377,6 +400,15 @@
             .filter-btn {
                 font-size: 0.75rem;
                 padding: 0.375rem 0.75rem;
+            }
+
+            .copy-btn {
+                font-size: 0.5rem;
+                padding: 0.125rem 0.25rem;
+            }
+
+            .copy-btn:nth-child(2) {
+                right: 2rem;
             }
         }
 
@@ -553,7 +585,10 @@
 
                 this.iconsGrid.innerHTML = this.filteredIcons.map(icon => `
                     <div class="icon-card" data-icon="${icon}">
-                        <button class="copy-btn" onclick="iconBrowser.copyIconName('${icon}')">
+                        <button class="copy-btn" onclick="iconBrowser.copyIconName('${icon}')" title="Copy icon name">
+                            <i class="fas fa-font"></i>
+                        </button>
+                        <button class="copy-btn" onclick="iconBrowser.copyIconSVG('${icon}')" title="Copy SVG icon" style="right: 3rem;">
                             <i class="fas fa-copy"></i>
                         </button>
                         <div class="icon-display">
@@ -589,7 +624,7 @@
 
             copyIconName(iconName) {
                 navigator.clipboard.writeText(iconName).then(() => {
-                    this.showToast(`Copied: ${iconName}`);
+                    this.showToast(`Copied icon name: ${iconName}`);
                 }).catch(() => {
                     // Fallback for older browsers
                     const textArea = document.createElement('textarea');
@@ -598,8 +633,339 @@
                     textArea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textArea);
-                    this.showToast(`Copied: ${iconName}`);
+                    this.showToast(`Copied icon name: ${iconName}`);
                 });
+            }
+
+            async copyIconSVG(iconName) {
+                try {
+                    // Get the icon element from the DOM
+                    const iconCard = document.querySelector(`[data-icon="${iconName}"]`);
+                    const iconElement = iconCard.querySelector('i');
+                    
+                    if (!iconElement) {
+                        throw new Error('Icon element not found');
+                    }
+                    
+                    // Get computed styles for the icon
+                    const computedStyle = window.getComputedStyle(iconElement);
+                    const color = this.rgbToHex(computedStyle.color);
+                    
+                    // Try to get SVG path data from Font Awesome
+                    const svgPath = await this.getIconSVGPath(iconName);
+                    
+                    if (svgPath) {
+                        // Create proper SVG with path data
+                        const svgContent = this.createSVGWithPath(iconName, svgPath, color);
+                        await navigator.clipboard.writeText(svgContent);
+                        this.showToast(`Copied SVG icon: ${iconName}`);
+                    } else {
+                        // Fallback: create SVG with Unicode character
+                        const iconUnicode = this.getIconUnicode(iconName);
+                        if (iconUnicode) {
+                            const svgContent = this.createSVGWithUnicode(iconName, iconUnicode, color);
+                            await navigator.clipboard.writeText(svgContent);
+                            this.showToast(`Copied SVG icon: ${iconName}`);
+                        } else {
+                            // Last resort: create simple placeholder SVG
+                            const svgContent = this.createPlaceholderSVG(iconName, color);
+                            await navigator.clipboard.writeText(svgContent);
+                            this.showToast(`Copied SVG icon: ${iconName}`);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error copying SVG icon:', error);
+                    
+                    // Ultimate fallback: create a simple SVG representation
+                    const svgContent = this.createPlaceholderSVG(iconName);
+                    navigator.clipboard.writeText(svgContent).then(() => {
+                        this.showToast(`Copied SVG icon: ${iconName}`);
+                    }).catch(() => {
+                        const textArea = document.createElement('textarea');
+                        textArea.value = svgContent;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        this.showToast(`Copied SVG icon: ${iconName}`);
+                    });
+                }
+            }
+
+            getIconUnicode(iconName) {
+                // Common Font Awesome icon Unicode mappings
+                const iconMap = {
+                    'fa-solid fa-house': '\uF015',
+                    'fa-solid fa-magnifying-glass': '\uF002',
+                    'fa-regular fa-user': '\uF007',
+                    'fa-solid fa-user': '\uF007',
+                    'fa-solid fa-check': '\uF00C',
+                    'fa-solid fa-download': '\uF019',
+                    'fa-regular fa-image': '\uF03E',
+                    'fa-solid fa-image': '\uF03E',
+                    'fa-solid fa-phone': '\uF095',
+                    'fa-solid fa-bars': '\uF0C9',
+                    'fa-regular fa-envelope': '\uF0E0',
+                    'fa-solid fa-envelope': '\uF0E0',
+                    'fa-regular fa-star': '\uF005',
+                    'fa-solid fa-star': '\uF005',
+                    'fa-solid fa-location-dot': '\uF3C5',
+                    'fa-solid fa-music': '\uF001',
+                    'fa-regular fa-heart': '\uF004',
+                    'fa-solid fa-heart': '\uF004',
+                    'fa-solid fa-arrow-right': '\uF061',
+                    'fa-solid fa-xmark': '\uF00D',
+                    'fa-solid fa-cloud': '\uF0C2',
+                    'fa-regular fa-comment': '\uF075',
+                    'fa-solid fa-comment': '\uF075',
+                    'fa-solid fa-caret-up': '\uF0D8',
+                    'fa-solid fa-pen-nib': '\uF5AD',
+                    'fa-solid fa-arrow-up': '\uF062',
+                    'fa-regular fa-face-smile': '\uF118',
+                    'fa-solid fa-face-smile': '\uF118',
+                    'fa-regular fa-calendar-days': '\uF073',
+                    'fa-solid fa-calendar-days': '\uF073',
+                    'fa-solid fa-paperclip': '\uF0C6',
+                    'fa-solid fa-shield-halved': '\uF3ED',
+                    'fa-regular fa-file': '\uF15B',
+                    'fa-solid fa-file': '\uF15B',
+                    'fa-regular fa-bell': '\uF0F3',
+                    'fa-solid fa-bell': '\uF0F3',
+                    'fa-solid fa-cart-shopping': '\uF07A',
+                    'fa-regular fa-clipboard': '\uF328',
+                    'fa-solid fa-clipboard': '\uF328',
+                    'fa-solid fa-filter': '\uF0B0',
+                    'fa-solid fa-circle-info': '\uF05A',
+                    'fa-solid fa-bolt': '\uF0E7',
+                    'fa-solid fa-car': '\uF1B9',
+                    'fa-solid fa-camera': '\uF030',
+                    'fa-solid fa-font': '\uF031',
+                    'fa-solid fa-video': '\uF03D',
+                    'fa-solid fa-plus': '\uF067',
+                    'fa-solid fa-minus': '\uF068',
+                    'fa-solid fa-share': '\uF064',
+                    'fa-solid fa-fire': '\uF06D',
+                    'fa-regular fa-eye': '\uF06E',
+                    'fa-solid fa-eye': '\uF06E',
+                    'fa-regular fa-eye-slash': '\uF070',
+                    'fa-solid fa-eye-slash': '\uF070',
+                    'fa-solid fa-plane': '\uF072',
+                    'fa-regular fa-hand': '\uF256',
+                    'fa-solid fa-hand': '\uF256',
+                    'fa-regular fa-folder': '\uF07B',
+                    'fa-solid fa-folder': '\uF07B',
+                    'fa-regular fa-folder-open': '\uF07C',
+                    'fa-solid fa-folder-open': '\uF07C',
+                    'fa-regular fa-thumbs-up': '\uF164',
+                    'fa-solid fa-thumbs-up': '\uF164',
+                    'fa-regular fa-thumbs-down': '\uF165',
+                    'fa-solid fa-thumbs-down': '\uF165',
+                    'fa-regular fa-comments': '\uF086',
+                    'fa-solid fa-comments': '\uF086',
+                    'fa-solid fa-key': '\uF084',
+                    'fa-solid fa-gear': '\uF013',
+                    'fa-solid fa-trash': '\uF1F8',
+                    'fa-solid fa-lock': '\uF023',
+                    'fa-solid fa-headphones': '\uF025',
+                    'fa-solid fa-tag': '\uF02B',
+                    'fa-solid fa-book': '\uF02D',
+                    'fa-regular fa-bookmark': '\uF02E',
+                    'fa-solid fa-bookmark': '\uF02E',
+                    'fa-solid fa-print': '\uF02F',
+                    'fa-solid fa-code': '\uF121',
+                    'fa-solid fa-globe': '\uF0AC',
+                    'fa-solid fa-truck': '\uF0D1',
+                    'fa-solid fa-tree': '\uF1BB',
+                    'fa-solid fa-wifi': '\uF1EB',
+                    'fa-solid fa-hashtag': '\uF292',
+                    'fa-solid fa-flask': '\uF0C3',
+                    'fa-solid fa-briefcase': '\uF0B1',
+                    'fa-regular fa-compass': '\uF14E',
+                    'fa-solid fa-compass': '\uF14E',
+                    'fa-solid fa-person': '\uF183',
+                    'fa-solid fa-users': '\uF0C0',
+                    'fa-solid fa-gamepad': '\uF11B',
+                    'fa-solid fa-sun': '\uF185',
+                    'fa-solid fa-link': '\uF0C1',
+                    'fa-solid fa-anchor': '\uF13D',
+                    'fa-solid fa-quote-left': '\uF10D',
+                    'fa-solid fa-bag-shopping': '\uF290',
+                    'fa-solid fa-user-secret': '\uF21B',
+                    'fa-solid fa-question': '\uF128',
+                    'fa-solid fa-pen': '\uF304',
+                    'fa-solid fa-upload': '\uF093',
+                    'fa-solid fa-database': '\uF1C0',
+                    'fa-regular fa-copy': '\uF0C5',
+                    'fa-solid fa-copy': '\uF0C5',
+                    'fa-solid fa-mobile': '\uF3CE',
+                    'fa-solid fa-sort': '\uF0DC',
+                    'fa-solid fa-hourglass-start': '\uF251',
+                    'fa-regular fa-building': '\uF1AD',
+                    'fa-solid fa-building': '\uF1AD',
+                    'fa-solid fa-stop': '\uF04D',
+                    'fa-solid fa-store': '\uF54E',
+                    'fa-regular fa-flag': '\uF024',
+                    'fa-solid fa-flag': '\uF024',
+                    'fa-solid fa-server': '\uF233',
+                    'fa-solid fa-power-off': '\uF011',
+                    'fa-solid fa-sitemap': '\uF0E8',
+                    'fa-solid fa-icons': '\uF86D',
+                    'fa-solid fa-desktop': '\uF108',
+                    'fa-solid fa-moon': '\uF186',
+                    'fa-solid fa-pause': '\uF04C',
+                    'fa-solid fa-language': '\uF1AB',
+                    'fa-solid fa-door-open': '\uF52B',
+                    'fa-solid fa-brain': '\uF5DC',
+                    'fa-solid fa-leaf': '\uF06C',
+                    'fa-solid fa-caret-down': '\uF0D7',
+                    'fa-solid fa-award': '\uF559',
+                    'fa-solid fa-toggle-on': '\uF205',
+                    'fa-solid fa-ship': '\uF21A',
+                    'fa-solid fa-chalkboard': '\uF51B',
+                    'fa-solid fa-hands': '\uF2A7',
+                    'fa-solid fa-signal': '\uF012',
+                    'fa-solid fa-wrench': '\uF0AD',
+                    'fa-solid fa-trophy': '\uF091',
+                    'fa-solid fa-hammer': '\uF6E3',
+                    'fa-solid fa-robot': '\uF544',
+                    'fa-solid fa-child': '\uF1AE',
+                    'fa-solid fa-repeat': '\uF01E',
+                    'fa-solid fa-cube': '\uF1B2',
+                    'fa-solid fa-crown': '\uF521',
+                    'fa-solid fa-user-plus': '\uF234',
+                    'fa-solid fa-virus': '\uE074',
+                    'fa-solid fa-plug': '\uF1E6',
+                    'fa-solid fa-calculator': '\uF1EC',
+                    'fa-solid fa-dragon': '\uF6D5',
+                    'fa-solid fa-certificate': '\uF0A3',
+                    'fa-solid fa-fingerprint': '\uF577',
+                    'fa-solid fa-road': '\uF018',
+                    'fa-solid fa-heading': '\uF1DC',
+                    'fa-solid fa-percent': '\uF295',
+                    'fa-solid fa-soap': '\uE06E',
+                    'fa-solid fa-scroll': '\uF70E',
+                    'fa-solid fa-coins': '\uF51E',
+                    'fa-solid fa-wind': '\uF72E',
+                    'fa-solid fa-baby': '\uF77C',
+                    'fa-solid fa-lightbulb': '\uF0EB',
+                    'fa-solid fa-puzzle-piece': '\uF12E',
+                    'fa-regular fa-keyboard': '\uF11C',
+                    'fa-solid fa-keyboard': '\uF11C',
+                    'fa-regular fa-clone': '\uF24D',
+                    'fa-solid fa-clone': '\uF24D',
+                    'fa-solid fa-eraser': '\uF12D',
+                    'fa-solid fa-dice': '\uF522',
+                    'fa-solid fa-receipt': '\uF543',
+                    'fa-solid fa-ring': '\uF70B',
+                    'fa-solid fa-unlock': '\uF09C',
+                    'fa-solid fa-ruler': '\uF545',
+                    'fa-solid fa-dumbbell': '\uF44B',
+                    'fa-solid fa-microphone': '\uF130',
+                    'fa-solid fa-border-none': '\uF850',
+                    'fa-solid fa-spinner': '\uF110',
+                    'fa-solid fa-search': '\uF002',
+                    'fa-solid fa-th': '\uF00A',
+                    'fa-solid fa-list': '\uF03A',
+                    'fa-solid fa-copy': '\uF0C5'
+                };
+                
+                return iconMap[iconName] || null;
+            }
+
+            rgbToHex(rgb) {
+                // Convert RGB color to HEX format
+                if (rgb.startsWith('#')) {
+                    return rgb;
+                }
+                
+                const result = rgb.match(/\d+/g);
+                if (!result || result.length < 3) {
+                    return '#2563eb'; // Default color
+                }
+                
+                const r = parseInt(result[0]);
+                const g = parseInt(result[1]);
+                const b = parseInt(result[2]);
+                
+                return '#' + [r, g, b].map(x => {
+                    const hex = x.toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                }).join('');
+            }
+
+            async getIconSVGPath(iconName) {
+                // Try to fetch SVG path data from Font Awesome CDN
+                try {
+                    const iconClass = iconName.replace('fa-solid ', '').replace('fa-regular ', '').replace('fa-brands ', '');
+                    const style = iconName.includes('fa-solid') ? 'solid' : iconName.includes('fa-regular') ? 'regular' : 'brands';
+                    
+                    // Common icon SVG paths (fallback for offline use)
+                    const iconPaths = {
+                        'house': 'M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z',
+                        'user': 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
+                        'search': 'M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z',
+                        'heart': 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
+                        'star': 'M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z',
+                        'download': 'M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z',
+                        'copy': 'M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3'
+                    };
+                    
+                    return iconPaths[iconClass] || null;
+                } catch (error) {
+                    console.error('Error fetching SVG path:', error);
+                    return null;
+                }
+            }
+
+            createSVGWithPath(iconName, pathData, color) {
+                return `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <title>${iconName}</title>
+    <path d="${pathData}" fill="${color}" />
+</svg>`;
+            }
+
+            createSVGWithUnicode(iconName, unicode, color) {
+                const unicodeHex = unicode.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0');
+                return `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <title>${iconName}</title>
+    <text x="12" y="12" font-family="Font Awesome 6 Free" font-size="20" fill="${color}" text-anchor="middle" dominant-baseline="middle">&#x${unicodeHex};</text>
+</svg>`;
+            }
+
+            createPlaceholderSVG(iconName, color = '#2563eb') {
+                return `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <title>${iconName}</title>
+    <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="${color}" stroke-width="2"/>
+    <text x="12" y="12" font-family="Arial, sans-serif" font-size="10" fill="${color}" text-anchor="middle" dominant-baseline="middle">ICON</text>
+</svg>`;
+            }
+
+            canvasToSVG(canvas, iconName, color) {
+                const dataURL = canvas.toDataURL();
+                const size = canvas.width;
+                
+                return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
+    <title>${iconName}</title>
+    <image href="${dataURL}" width="${size}" height="${size}" />
+</svg>`;
+            }
+
+            createSVGWithClass(iconName, color = '#2563eb') {
+                // Extract the icon class name without the prefix
+                const iconClass = iconName.replace('fa-solid ', '').replace('fa-regular ', '').replace('fa-brands ', '');
+                
+                return `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <title>${iconName}</title>
+    <style>
+        .icon {
+            font-family: 'Font Awesome 6 Free';
+            font-size: 24px;
+            color: ${color};
+            font-weight: ${iconName.includes('fa-solid') ? '900' : iconName.includes('fa-regular') ? '400' : '400'};
+        }
+    </style>
+    <text x="12" y="12" class="icon" text-anchor="middle" dominant-baseline="middle">&#x${this.getIconUnicode(iconName).charCodeAt(0).toString(16).toUpperCase()};</text>
+</svg>`;
             }
 
             showToast(message, type = 'success') {
