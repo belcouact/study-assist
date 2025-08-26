@@ -736,13 +736,9 @@
                             思维导图风格
                         </label>
                         <select id="styleSelect" class="select-field">
-                            <option value="tree" selected>树状思维导图</option>
-                            <option value="radial">放射状思维导图</option>
-                            <option value="circular">环形思维导图</option>
-                            <option value="hierarchical">层次思维导图</option>
-                            <option value="organic">有机思维导图</option>
-                            <option value="echarts">ECharts思维导图</option>
-                            <option value="mindmap">经典思维导图</option>
+                            <option value="tree" selected>从左到右树状图</option>
+                            <option value="radial">径向树状图</option>
+                            <option value="hierarchical">从上到下树状图</option>
                         </select>
                     </div>
 
@@ -887,13 +883,9 @@
                                 思维导图风格
                             </label>
                             <select id="convertStyleSelect" class="select-field">
-                                <option value="tree" selected>树状思维导图</option>
-                                <option value="radial">放射状思维导图</option>
-                                <option value="circular">环形思维导图</option>
-                                <option value="hierarchical">层次思维导图</option>
-                                <option value="organic">有机思维导图</option>
-                                <option value="echarts">ECharts思维导图</option>
-                                <option value="mindmap">经典思维导图</option>
+                                <option value="tree" selected>从左到右树状图</option>
+                                <option value="radial">径向树状图</option>
+                                <option value="hierarchical">从上到下树状图</option>
                             </select>
                         </div>
                     </div>
@@ -1383,16 +1375,12 @@
         function renderMindmapByStyle(markdown, svg, style) {
             switch(style) {
                 case 'tree':
-                    renderTreeMindmap(markdown, svg);
-                    break;
                 case 'radial':
-                    renderRadialMindmap(markdown, svg);
+                case 'hierarchical':
+                    renderEChartsMindmap(markdown, svg);
                     break;
                 case 'circular':
                     renderCircularMindmap(markdown, svg);
-                    break;
-                case 'hierarchical':
-                    renderHierarchicalMindmap(markdown, svg);
                     break;
                 case 'organic':
                     renderOrganicMindmap(markdown, svg);
@@ -2919,9 +2907,10 @@ ${svgData}`;
                 // 解析Markdown为树状结构
                 const root = parseMarkdownToRoot(markdown);
                 
-                // 获取当前容器
+                // 获取当前容器和风格
                 const isConvertTab = document.querySelector('.main-tab-btn.active').dataset.mainTab === 'markdown-convert';
                 const container = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
+                const currentStyle = isConvertTab ? document.getElementById('convertStyleSelect').value : document.getElementById('styleSelect').value;
                 
                 // 清空容器
                 container.innerHTML = '';
@@ -2930,7 +2919,7 @@ ${svgData}`;
                 const echartsContainer = document.createElement('div');
                 echartsContainer.style.width = '100%';
                 echartsContainer.style.height = '100%';
-                echartsContainer.style.minHeight = '400px';
+                echartsContainer.style.minHeight = '500px';
                 container.appendChild(echartsContainer);
                 
                 // 获取容器尺寸
@@ -2939,9 +2928,9 @@ ${svgData}`;
                 
                 let width = containerRect.width || 800;
                 let height = containerRect.height || 600;
-                const minSize = isMobile ? 320 : 600;
-                width = Math.max(minSize, Math.min(1200, width));
-                height = Math.max(minSize, Math.min(1200, height));
+                const minSize = isMobile ? 400 : 500;
+                width = Math.max(minSize, Math.min(1400, width));
+                height = Math.max(minSize, Math.min(1400, height));
                 
                 // 设置容器尺寸
                 echartsContainer.style.width = width + 'px';
@@ -2958,71 +2947,273 @@ ${svgData}`;
                 echartsInstance = echarts.init(echartsContainer);
                 currentRenderEngine = 'echarts';
                 
-                // 配置选项
-                const option = {
-                    tooltip: {
-                        trigger: 'item',
-                        triggerOn: 'mousemove',
-                        formatter: function(params) {
-                            return params.name;
-                        }
-                    },
-                    series: [{
-                        type: 'tree',
-                        name: '思维导图',
-                        data: [echartsData],
-                        top: '5%',
-                        bottom: '5%',
-                        left: '5%',
-                        right: '5%',
-                        layout: 'orthogonal',
-                        orient: 'LR',
-                        symbol: 'circle',
-                        symbolSize: isMobile ? 6 : 8,
-                        initialTreeDepth: 3,
-                        animationDuration: 550,
-                        animationDurationUpdate: 750,
-                        emphasis: {
-                            focus: 'descendant'
-                        },
-                        expandAndCollapse: true,
-                        label: {
-                            position: 'left',
-                            verticalAlign: 'middle',
-                            align: 'right',
-                            fontSize: isMobile ? 10 : 12,
-                            distance: 5,
-                            formatter: function(params) {
-                                const name = params.name || '';
-                                const maxLength = isMobile ? 12 : 20;
-                                
-                                if (name.length > maxLength) {
-                                    return name.substring(0, maxLength) + '...';
+                // 根据不同风格配置ECharts选项
+                let option;
+                
+                switch (currentStyle) {
+                    case 'tree': // 从左到右树状图
+                        option = {
+                            tooltip: {
+                                trigger: 'item',
+                                triggerOn: 'mousemove',
+                                formatter: function(params) {
+                                    return params.name;
                                 }
-                                return name;
-                            }
-                        },
-                        leaves: {
-                            label: {
-                                position: 'right',
-                                verticalAlign: 'middle',
-                                align: 'left'
-                            }
-                        },
-                        lineStyle: {
-                            width: isMobile ? 1 : 2,
-                            curveness: 0.3
-                        },
-                        itemStyle: {
-                            color: function(params) {
-                                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
-                                return colors[params.data.depth % colors.length];
                             },
-                            borderWidth: 2,
-                            borderColor: '#fff'
-                        }
-                    }]
-                };
+                            series: [{
+                                type: 'tree',
+                                name: '思维导图',
+                                data: [echartsData],
+                                top: '3%',
+                                bottom: '3%',
+                                left: '3%',
+                                right: '3%',
+                                layout: 'orthogonal',
+                                orient: 'LR',
+                                symbol: 'circle',
+                                symbolSize: isMobile ? 7 : 10,
+                                initialTreeDepth: 4,
+                                roam: true,
+                                animationDuration: 550,
+                                animationDurationUpdate: 750,
+                                emphasis: {
+                                    focus: 'descendant'
+                                },
+                                expandAndCollapse: true,
+                                label: {
+                                    position: 'left',
+                                    verticalAlign: 'middle',
+                                    align: 'right',
+                                    fontSize: isMobile ? 11 : 14,
+                                    distance: 8,
+                                    formatter: function(params) {
+                                        const name = params.name || '';
+                                        const maxLength = isMobile ? 15 : 25;
+                                        
+                                        if (name.length > maxLength) {
+                                            return name.substring(0, maxLength) + '...';
+                                        }
+                                        return name;
+                                    }
+                                },
+                                leaves: {
+                                    label: {
+                                        position: 'right',
+                                        verticalAlign: 'middle',
+                                        align: 'left'
+                                    }
+                                },
+                                lineStyle: {
+                                    width: isMobile ? 1.5 : 2,
+                                    curveness: 0.3
+                                },
+                                itemStyle: {
+                                    color: function(params) {
+                                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#fa709a', '#fee140'];
+                                        return colors[params.data.depth % colors.length];
+                                    },
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }
+                            }]
+                        };
+                        break;
+                        
+                    case 'radial': // 径向树状图
+                        option = {
+                            tooltip: {
+                                trigger: 'item',
+                                triggerOn: 'mousemove',
+                                formatter: function(params) {
+                                    return params.name;
+                                }
+                            },
+                            series: [{
+                                type: 'tree',
+                                name: '思维导图',
+                                data: [echartsData],
+                                top: '5%',
+                                bottom: '5%',
+                                left: '5%',
+                                right: '5%',
+                                layout: 'radial',
+                                orient: 'LR',
+                                symbol: 'circle',
+                                symbolSize: isMobile ? 6 : 8,
+                                initialTreeDepth: 3,
+                                roam: true,
+                                animationDuration: 550,
+                                animationDurationUpdate: 750,
+                                emphasis: {
+                                    focus: 'descendant'
+                                },
+                                expandAndCollapse: true,
+                                label: {
+                                    position: 'outside',
+                                    fontSize: isMobile ? 10 : 12,
+                                    distance: 5,
+                                    formatter: function(params) {
+                                        const name = params.name || '';
+                                        const maxLength = isMobile ? 12 : 18;
+                                        
+                                        if (name.length > maxLength) {
+                                            return name.substring(0, maxLength) + '...';
+                                        }
+                                        return name;
+                                    }
+                                },
+                                lineStyle: {
+                                    width: isMobile ? 1 : 1.5,
+                                    curveness: 0.5
+                                },
+                                itemStyle: {
+                                    color: function(params) {
+                                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#fa709a', '#fee140'];
+                                        return colors[params.data.depth % colors.length];
+                                    },
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }
+                            }]
+                        };
+                        break;
+                        
+                    case 'hierarchical': // 从上到下树状图
+                        option = {
+                            tooltip: {
+                                trigger: 'item',
+                                triggerOn: 'mousemove',
+                                formatter: function(params) {
+                                    return params.name;
+                                }
+                            },
+                            series: [{
+                                type: 'tree',
+                                name: '思维导图',
+                                data: [echartsData],
+                                top: '3%',
+                                bottom: '3%',
+                                left: '3%',
+                                right: '3%',
+                                layout: 'orthogonal',
+                                orient: 'TB',
+                                symbol: 'circle',
+                                symbolSize: isMobile ? 7 : 9,
+                                initialTreeDepth: 4,
+                                roam: true,
+                                animationDuration: 550,
+                                animationDurationUpdate: 750,
+                                emphasis: {
+                                    focus: 'descendant'
+                                },
+                                expandAndCollapse: true,
+                                label: {
+                                    position: 'top',
+                                    verticalAlign: 'middle',
+                                    align: 'center',
+                                    fontSize: isMobile ? 11 : 13,
+                                    distance: 8,
+                                    formatter: function(params) {
+                                        const name = params.name || '';
+                                        const maxLength = isMobile ? 14 : 22;
+                                        
+                                        if (name.length > maxLength) {
+                                            return name.substring(0, maxLength) + '...';
+                                        }
+                                        return name;
+                                    }
+                                },
+                                leaves: {
+                                    label: {
+                                        position: 'bottom',
+                                        verticalAlign: 'middle',
+                                        align: 'center'
+                                    }
+                                },
+                                lineStyle: {
+                                    width: isMobile ? 1.5 : 2,
+                                    curveness: 0.3
+                                },
+                                itemStyle: {
+                                    color: function(params) {
+                                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#fa709a', '#fee140'];
+                                        return colors[params.data.depth % colors.length];
+                                    },
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }
+                            }]
+                        };
+                        break;
+                        
+                    default:
+                        // 默认使用从左到右树状图
+                        option = {
+                            tooltip: {
+                                trigger: 'item',
+                                triggerOn: 'mousemove',
+                                formatter: function(params) {
+                                    return params.name;
+                                }
+                            },
+                            series: [{
+                                type: 'tree',
+                                name: '思维导图',
+                                data: [echartsData],
+                                top: '3%',
+                                bottom: '3%',
+                                left: '3%',
+                                right: '3%',
+                                layout: 'orthogonal',
+                                orient: 'LR',
+                                symbol: 'circle',
+                                symbolSize: isMobile ? 7 : 10,
+                                initialTreeDepth: 4,
+                                roam: true,
+                                animationDuration: 550,
+                                animationDurationUpdate: 750,
+                                emphasis: {
+                                    focus: 'descendant'
+                                },
+                                expandAndCollapse: true,
+                                label: {
+                                    position: 'left',
+                                    verticalAlign: 'middle',
+                                    align: 'right',
+                                    fontSize: isMobile ? 11 : 14,
+                                    distance: 8,
+                                    formatter: function(params) {
+                                        const name = params.name || '';
+                                        const maxLength = isMobile ? 15 : 25;
+                                        
+                                        if (name.length > maxLength) {
+                                            return name.substring(0, maxLength) + '...';
+                                        }
+                                        return name;
+                                    }
+                                },
+                                leaves: {
+                                    label: {
+                                        position: 'right',
+                                        verticalAlign: 'middle',
+                                        align: 'left'
+                                    }
+                                },
+                                lineStyle: {
+                                    width: isMobile ? 1.5 : 2,
+                                    curveness: 0.3
+                                },
+                                itemStyle: {
+                                    color: function(params) {
+                                        const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#fa709a', '#fee140'];
+                                        return colors[params.data.depth % colors.length];
+                                    },
+                                    borderWidth: 2,
+                                    borderColor: '#fff'
+                                }
+                            }]
+                        };
+                }
                 
                 // 设置配置项并渲染图表
                 echartsInstance.setOption(option);
