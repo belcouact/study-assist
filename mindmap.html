@@ -1334,7 +1334,7 @@
             throw new Error('备用方案也无法加载markmap');
         }
 
-        // 改进的Markdown解析为root对象 - 支持多层级结构
+        // 改进的Markdown解析为root对象 - 支持多层级结构和列表项
         function parseMarkdownToRoot(markdown) {
             const lines = markdown.split('\n').filter(line => line.trim());
             let root = { content: '思维导图', children: [] };
@@ -1344,10 +1344,11 @@
             let firstHeadingFound = false;
             
             lines.forEach(line => {
-                const match = line.match(/^(#+)\s*(.+)$/);
-                if (match) {
-                    const level = match[1].length;
-                    const content = match[2].trim();
+                // 检查是否是标题
+                const headingMatch = line.match(/^(#+)\s*(.+)$/);
+                if (headingMatch) {
+                    const level = headingMatch[1].length;
+                    const content = headingMatch[2].trim();
                     const node = { content, children: [] };
                     
                     if (!firstHeadingFound) {
@@ -1358,8 +1359,7 @@
                         console.log(`设置根节点: ${content}, 级别: ${level}`);
                     } else {
                         // 找到正确的父节点 - 修正的多层级逻辑
-                        // 当前节点的级别是level，父节点应该是level-1
-                        console.log(`处理节点: ${content}, 级别: ${level}, 当前stack长度: ${stack.length}`);
+                        console.log(`处理标题节点: ${content}, 级别: ${level}, 当前stack长度: ${stack.length}`);
                         
                         // 计算应该保留的stack深度
                         const targetStackLength = level - 1;
@@ -1372,12 +1372,38 @@
                             const parent = stack[stack.length - 1];
                             parent.children.push(node);
                             stack.push(node);
-                            console.log(`添加节点 ${content} 到父节点 ${parent.content}`);
+                            console.log(`添加标题节点 ${content} 到父节点 ${parent.content}`);
                         } else {
                             // 如果stack为空，作为根节点的子节点
                             root.children.push(node);
                             stack.push(node);
-                            console.log(`添加节点 ${content} 到根节点`);
+                            console.log(`添加标题节点 ${content} 到根节点`);
+                        }
+                    }
+                } else {
+                    // 检查是否是列表项
+                    const listMatch = line.match(/^[-*+]\s*(.+)$/);
+                    if (listMatch) {
+                        const content = listMatch[1].trim();
+                        const node = { content, children: [] };
+                        
+                        if (!firstHeadingFound) {
+                            // 如果没有找到标题，将第一个列表项作为根节点
+                            root = node;
+                            stack.push(root);
+                            firstHeadingFound = true;
+                            console.log(`设置列表项为根节点: ${content}`);
+                        } else {
+                            // 列表项作为当前stack最后一个节点的子节点
+                            if (stack.length > 0) {
+                                const parent = stack[stack.length - 1];
+                                parent.children.push(node);
+                                console.log(`添加列表节点 ${content} 到父节点 ${parent.content}`);
+                            } else {
+                                // 如果stack为空，作为根节点的子节点
+                                root.children.push(node);
+                                console.log(`添加列表节点 ${content} 到根节点`);
+                            }
                         }
                     }
                 }
@@ -2461,7 +2487,8 @@ ${details ? `详细描述：${details}` : ''}
             markdown = markdown.replace(/```markdown\n?/g, '').replace(/```\n?/g, '');
             
             // 移除可能影响 echarts 的特殊字符（保留必要的markdown语法）
-            markdown = markdown.replace(/[\|\[\]{}]/g, '');
+            // 保留列表符号(-)、标题符号(#)、粗体(**)、斜体(*)、方括号([])等markdown语法
+            markdown = markdown.replace(/[\|{}]/g, '');
             
             // 替换可能导致解析问题的引号为直引号
             markdown = markdown.replace(/["'']/g, "'");
