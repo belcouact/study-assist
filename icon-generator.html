@@ -554,30 +554,95 @@
             
             displaySvg(svgContent) {
                 try {
+                    console.log('原始SVG内容:', svgContent);
+                    
+                    // 清理SVG代码
+                    let cleanSvg = this.cleanSvgCode(svgContent);
+                    console.log('清理后的SVG内容:', cleanSvg);
+                    
                     // 验证SVG代码
                     const parser = new DOMParser();
-                    const doc = parser.parseFromString(svgContent, 'image/svg+xml');
+                    const doc = parser.parseFromString(cleanSvg, 'image/svg+xml');
                     const svgElement = doc.querySelector('svg');
+                    const parserError = doc.querySelector('parsererror');
                     
-                    if (!svgElement || doc.querySelector('parsererror')) {
-                        throw new Error('无效的SVG代码');
+                    if (parserError) {
+                        console.error('DOMParser错误:', parserError.textContent);
+                        throw new Error(`SVG解析错误: ${parserError.textContent}`);
+                    }
+                    
+                    if (!svgElement) {
+                        throw new Error('未找到SVG元素');
                     }
                     
                     // 设置SVG尺寸
                     const size = document.getElementById('iconSize').value;
                     svgElement.setAttribute('width', size);
                     svgElement.setAttribute('height', size);
-                    svgElement.setAttribute('viewBox', `0 0 ${size} ${size}`);
+                    
+                    // 如果没有viewBox，设置一个默认的
+                    if (!svgElement.getAttribute('viewBox')) {
+                        svgElement.setAttribute('viewBox', `0 0 ${size} ${size}`);
+                    }
                     
                     this.svgPreview.innerHTML = '';
                     this.svgPreview.appendChild(svgElement);
-                    this.currentSvg = svgContent;
+                    this.currentSvg = cleanSvg;
                     this.downloadSection.style.display = 'flex';
                     
                 } catch (error) {
                     console.error('SVG显示错误:', error);
-                    this.showError('生成的SVG格式有误');
+                    console.error('原始SVG内容:', svgContent);
+                    this.showError(`生成的SVG格式有误: ${error.message}`);
                 }
+            }
+            
+            cleanSvgCode(svgContent) {
+                let cleaned = svgContent.trim();
+                
+                // 移除可能的markdown代码块标记
+                cleaned = cleaned.replace(/```svg\n?/g, '').replace(/```\n?/g, '');
+                
+                // 移除可能的解释文字
+                cleaned = cleaned.replace(/^.*?SVG代码：/s, '').replace(/^.*?以下是SVG代码：/s, '');
+                cleaned = cleaned.replace(/\n.*?SVG图标.*?\n/s, '\n').replace(/\n.*?图标设计.*?\n/s, '\n');
+                
+                // 确保以XML声明或SVG标签开始
+                if (!cleaned.startsWith('<?xml') && !cleaned.startsWith('<svg')) {
+                    // 查找第一个SVG标签
+                    const svgMatch = cleaned.match(/<svg[^>]*>/);
+                    if (svgMatch) {
+                        cleaned = cleaned.substring(cleaned.indexOf(svgMatch[0]));
+                    }
+                }
+                
+                // 确保包含XML声明
+                if (!cleaned.includes('<?xml')) {
+                    cleaned = '<?xml version="1.0" encoding="UTF-8"?>\n' + cleaned;
+                }
+                
+                // 确保SVG标签有正确的命名空间
+                if (!cleaned.includes('xmlns="http://www.w3.org/2000/svg"')) {
+                    cleaned = cleaned.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                
+                // 移除HTML实体编码
+                cleaned = cleaned.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                cleaned = cleaned.replace(/&amp;/g, '&').replace(/&quot;/g, '"');
+                
+                // 确保SVG标签正确闭合
+                if (!cleaned.endsWith('</svg>')) {
+                    // 查找最后一个SVG标签
+                    const lastSvgIndex = cleaned.lastIndexOf('</svg>');
+                    if (lastSvgIndex !== -1) {
+                        cleaned = cleaned.substring(0, lastSvgIndex + 6);
+                    } else {
+                        // 如果没有结束标签，添加一个
+                        cleaned += '</svg>';
+                    }
+                }
+                
+                return cleaned;
             }
             
             showOptimizedPrompt(prompt) {
