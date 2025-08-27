@@ -581,22 +581,28 @@
                     if (currentPage === 1) {
                         // First load, replace all data
                         svgData = newData;
+                        
+                        // Only render category filters on first load
+                        renderCategoryFilters();
+                        
+                        // Apply current filters
+                        applyCurrentFilters();
+                        
+                        // Render grid and setup lazy loading
+                        renderSVGGrid();
+                        setupLazyLoading();
                     } else {
                         // Append new data for lazy loading
                         svgData = [...svgData, ...newData];
-                    }
-                    
-                    // Check if we have more data
-                    hasMoreData = newData.length === itemsPerPage;
-                    
-                    // Apply current filters
-                    applyCurrentFilters();
-                    
-                    renderSVGGrid();
-                    
-                    if (currentPage === 1) {
-                        renderCategoryFilters();
-                        setupLazyLoading();
+                        
+                        // Check if we have more data
+                        hasMoreData = newData.length === itemsPerPage;
+                        
+                        // Apply current filters
+                        applyCurrentFilters();
+                        
+                        // Render new items only
+                        renderSVGGrid();
                     }
                     
                     updateStats();
@@ -646,7 +652,7 @@
             });
             
             // Re-add sentinel if we have more data
-            if (hasMoreData && newItems.length > 0) {
+            if (hasMoreData && filteredData.length > endIndex) {
                 const sentinel = document.createElement('div');
                 sentinel.className = 'loading-sentinel';
                 sentinel.style.height = '50px';
@@ -657,6 +663,12 @@
                 if (observer) {
                     observer.observe(sentinel);
                 }
+            } else if (!hasMoreData && filteredData.length > 0) {
+                // Show "no more data" message
+                const noMoreMsg = document.createElement('div');
+                noMoreMsg.className = 'no-more-data';
+                noMoreMsg.textContent = 'No more SVG paths to load';
+                grid.appendChild(noMoreMsg);
             }
         }
 
@@ -820,6 +832,7 @@
             // Remove existing observer
             if (observer) {
                 observer.disconnect();
+                observer = null;
             }
             
             const grid = document.getElementById('svgGrid');
@@ -830,7 +843,7 @@
                 existingSentinel.remove();
             }
             
-            // Only create sentinel if we have more data
+            // Only create sentinel if we have more data and filtered data exists
             if (hasMoreData && filteredData.length > 0) {
                 // Create a sentinel element for infinite scroll
                 const sentinel = document.createElement('div');
@@ -894,14 +907,6 @@
                     // Render new items only
                     renderSVGGrid();
                     updateStats();
-                    
-                    // Show "no more data" message if needed
-                    if (!hasMoreData) {
-                        const noMoreMsg = document.createElement('div');
-                        noMoreMsg.className = 'no-more-data';
-                        noMoreMsg.textContent = 'No more SVG paths to load';
-                        document.getElementById('svgGrid').appendChild(noMoreMsg);
-                    }
                 }
             } catch (error) {
                 console.error('Error loading more SVG data:', error);
@@ -957,9 +962,18 @@
             const grid = document.getElementById('svgGrid');
             grid.innerHTML = '';
             
-            // Show loading message
+            // Hide any existing messages
             document.getElementById('loadingMessage').style.display = 'block';
             document.getElementById('errorMessage').style.display = 'none';
+            
+            // Remove any existing sentinel or messages
+            const existingSentinel = grid.querySelector('.loading-sentinel');
+            const existingNoMore = grid.querySelector('.no-more-data');
+            const existingError = grid.querySelector('.error');
+            
+            if (existingSentinel) existingSentinel.remove();
+            if (existingNoMore) existingNoMore.remove();
+            if (existingError) existingError.remove();
             
             // Reload data
             loadSVGData();
