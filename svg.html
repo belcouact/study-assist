@@ -392,6 +392,43 @@
             margin: 1rem 0;
         }
 
+        .loading-sentinel {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .loading-sentinel::after {
+            content: 'Loading more...';
+            opacity: 0.7;
+        }
+
+        .loading-sentinel.loading::after {
+            content: 'Loading...';
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        .pagination-info {
+            text-align: center;
+            margin: 1rem 0;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .no-more-data {
+            text-align: center;
+            padding: 1rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .svg-grid {
@@ -505,6 +542,11 @@
         let filteredData = [];
         let currentSVG = null;
         let activeCategory = 'all';
+        let currentPage = 1;
+        let itemsPerPage = 20;
+        let isLoading = false;
+        let hasMoreData = true;
+        let observer = null;
 
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
@@ -519,9 +561,9 @@
 
         async function loadSVGData() {
             try {
-                // Fetch from the actual database API
-                // This requires the proper Cloudflare Workers deployment
-                const response = await fetch('/api/db/query/fa_svg');
+                // Fetch from the actual database API with pagination support
+                const offset = (currentPage - 1) * itemsPerPage;
+                const response = await fetch(`/api/db/query/fa_svg?limit=${itemsPerPage}&offset=${offset}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -530,11 +572,24 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    svgData = result.data || [];
+                    const newData = result.data || [];
+                    
+                    if (currentPage === 1) {
+                        // First load, replace all data
+                        svgData = newData;
+                    } else {
+                        // Append new data for lazy loading
+                        svgData = [...svgData, ...newData];
+                    }
+                    
+                    // Check if we have more data
+                    hasMoreData = newData.length === itemsPerPage;
+                    
                     filteredData = [...svgData];
                     renderSVGGrid();
                     renderCategoryFilters();
                     updateStats();
+                    setupLazyLoading();
                     document.getElementById('loadingMessage').style.display = 'none';
                 } else {
                     throw new Error(result.error || 'Failed to load SVG data');
@@ -549,9 +604,22 @@
 
         function renderSVGGrid() {
             const grid = document.getElementById('svgGrid');
-            grid.innerHTML = '';
-
-            filteredData.forEach(svg => {
+            
+            // Calculate paginated data
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedData = filteredData.slice(0, endIndex);
+            
+            // Only clear grid if it's a new page or filter change
+            if (currentPage === 1 || grid.children.length === 0) {
+                grid.innerHTML = '';
+            }
+            
+            // Render only the new items for lazy loading
+            const existingItems = grid.children.length;
+            const newItems = paginatedData.slice(existingItems);
+            
+            newItems.forEach(svg => {
                 const card = createSVGCard(svg);
                 grid.appendChild(card);
             });
@@ -639,51 +707,19 @@
             });
             event.target.classList.add('active');
             
-            // Filter data
-            if (category === 'all') {
-                filteredData = [...svgData];
-            } else {
-                filteredData = svgData.filter(svg => svg.Category === category);
-            }
-            
-            // Apply search filter if exists
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            if (searchTerm) {
-                filteredData = filteredData.filter(svg => 
-                    (svg.Name && svg.Name.toLowerCase().includes(searchTerm)) ||
-                    (svg.Category && svg.Category.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            renderSVGGrid();
-            updateStats();
+            // Reset pagination and reload with new filter
+            resetPagination();
         }
 
         function handleSearch() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            
-            // Start with category filter
-            if (activeCategory === 'all') {
-                filteredData = [...svgData];
-            } else {
-                filteredData = svgData.filter(svg => svg.Category === activeCategory);
-            }
-            
-            // Apply search filter
-            if (searchTerm) {
-                filteredData = filteredData.filter(svg => 
-                    (svg.Name && svg.Name.toLowerCase().includes(searchTerm)) ||
-                    (svg.Category && svg.Category.toLowerCase().includes(searchTerm))
-                );
-            }
-            
-            renderSVGGrid();
-            updateStats();
+            // Reset pagination and reload with new search
+            resetPagination();
         }
 
         function updateStats() {
             const statsText = document.getElementById('statsText');
-            statsText.textContent = `Showing ${filteredData.length} of ${svgData.length} SVG paths`;
+            const showingCount = Math.min(filteredData.length, currentPage * itemsPerPage);
+            statsText.textContent = `Showing ${showingCount} of ${filteredData.length} SVG paths`;
         }
 
         function showDetail(svg) {
@@ -744,6 +780,109 @@
             });
         }
 
+        // Setup lazy loading with Intersection Observer
+        function setupLazyLoading() {
+            // Remove existing observer
+            if (observer) {
+                observer.disconnect();
+            }
+            
+            // Create a sentinel element for infinite scroll
+            const sentinel = document.createElement('div');
+            sentinel.className = 'loading-sentinel';
+            sentinel.style.height = '50px';
+            sentinel.style.marginTop = '20px';
+            
+            const grid = document.getElementById('svgGrid');
+            grid.appendChild(sentinel);
+            
+            // Create Intersection Observer
+            observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting && !isLoading && hasMoreData) {
+                        loadMoreItems();
+                    }
+                });
+            }, {
+                rootMargin: '100px'
+            });
+            
+            observer.observe(sentinel);
+        }
+        
+        // Load more items for lazy loading
+        async function loadMoreItems() {
+            if (isLoading || !hasMoreData) return;
+            
+            isLoading = true;
+            currentPage++;
+            
+            try {
+                const offset = (currentPage - 1) * itemsPerPage;
+                const response = await fetch(`/api/db/query/fa_svg?limit=${itemsPerPage}&offset=${offset}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const newData = result.data || [];
+                    
+                    // Append new data
+                    svgData = [...svgData, ...newData];
+                    
+                    // Check if we have more data
+                    hasMoreData = newData.length === itemsPerPage;
+                    
+                    // Update filtered data with current filters
+                    applyCurrentFilters();
+                    
+                    // Render new items
+                    renderSVGGrid();
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Error loading more SVG data:', error);
+            } finally {
+                isLoading = false;
+            }
+        }
+        
+        // Apply current filters (search and category)
+        function applyCurrentFilters() {
+            // Start with category filter
+            if (activeCategory === 'all') {
+                filteredData = [...svgData];
+            } else {
+                filteredData = svgData.filter(svg => svg.Category === activeCategory);
+            }
+            
+            // Apply search filter
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (searchTerm) {
+                filteredData = filteredData.filter(svg => 
+                    (svg.Name && svg.Name.toLowerCase().includes(searchTerm)) ||
+                    (svg.Category && svg.Category.toLowerCase().includes(searchTerm))
+                );
+            }
+        }
+        
+        // Reset pagination and reload data
+        function resetPagination() {
+            currentPage = 1;
+            hasMoreData = true;
+            isLoading = false;
+            
+            // Clear existing data
+            svgData = [];
+            filteredData = [];
+            
+            // Reload data
+            loadSVGData();
+        }
+        
         // Close modal when clicking outside
         window.onclick = function(event) {
             const modal = document.getElementById('detailModal');
