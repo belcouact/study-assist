@@ -311,6 +311,36 @@
             background-color: #cc0341;
             transform: scale(0.95);
         }
+        
+        .btn-save-html {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-save-html:hover {
+            background-color: #218838;
+            transform: scale(1.05);
+        }
+        
+        .btn-save-html:active {
+            background-color: #1e7e34;
+            transform: scale(0.95);
+        }
+        
+        .btn-save-png {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-save-png:hover {
+            background-color: #138496;
+            transform: scale(1.05);
+        }
+        
+        .btn-save-png:active {
+            background-color: #117a8b;
+            transform: scale(0.95);
+        }
 
         .modal {
             display: none;
@@ -327,16 +357,19 @@
 
         .modal-content {
             background-color: var(--card-background);
-            padding: 2rem;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
             border-radius: 12px;
-            max-width: 600px;
+            max-width: 500px;
             width: 90%;
             max-height: 80vh;
+            position: relative;
         }
         
         .modal .svg-preview {
-            width: 512px;
-            height: 512px;
+            width: 300px;
+            height: 300px;
             margin: 0 auto 1rem;
             display: flex;
             align-items: center;
@@ -346,8 +379,8 @@
         }
         
         .modal .svg-preview svg {
-            width: 512px;
-            height: 512px;
+            width: 300px;
+            height: 300px;
             fill: var(--primary-color);
         }
 
@@ -364,6 +397,10 @@
             font-size: 1.5rem;
             cursor: pointer;
             color: var(--text-secondary);
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 10;
         }
 
         .path-display {
@@ -496,6 +533,30 @@
             .filter-container {
                 justify-content: center;
             }
+            
+            .modal-content {
+                max-width: 90%;
+                padding: 1rem;
+            }
+            
+            .modal .svg-preview {
+                width: 250px;
+                height: 250px;
+            }
+            
+            .modal .svg-preview svg {
+                width: 250px;
+                height: 250px;
+            }
+            
+            .svg-actions {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .action-btn {
+                width: 100%;
+            }
         }
 
         @media (max-width: 480px) {
@@ -553,17 +614,11 @@
     <!-- Modal for detailed view -->
     <div class="modal" id="detailModal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">SVG Details</h2>
-                <button class="close-btn" onclick="closeModal()">&times;</button>
-            </div>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
             <div class="svg-preview" id="modalPreview">
                 <!-- SVG preview will be shown here -->
             </div>
-            <div class="svg-info">
-                <div class="svg-name" id="modalName"></div>
-                <div class="svg-category" id="modalCategory"></div>
-            </div>
+
             <div class="color-picker-container">
                 <label for="colorPicker">Color:</label>
                 <input type="color" id="colorPicker" value="#4361ee" onchange="changeSVGColor(this.value)">
@@ -571,6 +626,8 @@
             <div class="svg-actions">
                 <button class="action-btn btn-download" onclick="downloadSVG()">Download SVG</button>
                 <button class="action-btn btn-copy" onclick="copyPath()">Copy Path</button>
+                <button class="action-btn btn-save-html" onclick="saveAsHTML()">Save as HTML</button>
+                <button class="action-btn btn-save-png" onclick="saveAsPNG()">Save as PNG</button>
             </div>
         </div>
     </div>
@@ -835,22 +892,28 @@
 
         function showDetail(svg) {
             currentSVG = svg;
-            document.getElementById('modalTitle').textContent = 'SVG Details';
-            document.getElementById('modalName').textContent = svg.Name || 'Unnamed';
-            document.getElementById('modalCategory').textContent = svg.Category || 'Uncategorized';
-            document.getElementById('modalPreview').innerHTML = svg.Path || '<div style="color: #999;">No SVG</div>';
-            document.getElementById('detailModal').style.display = 'flex';
+            const modal = document.getElementById('detailModal');
+            const modalPreview = document.getElementById('modalPreview');
             
-            // Set initial color picker value
+            // Set initial color
             const colorPicker = document.getElementById('colorPicker');
-            if (colorPicker) {
-                colorPicker.value = '#4361ee';
-                // Apply initial color to SVG
-                const svgElement = document.querySelector('#modalPreview svg');
-                if (svgElement) {
-                    svgElement.style.fill = '#4361ee';
-                }
-            }
+            colorPicker.value = '#4361ee';
+            
+            // Create SVG element with the path
+            const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svgElement.setAttribute('width', '300');
+            svgElement.setAttribute('height', '300');
+            svgElement.setAttribute('viewBox', '0 0 512 512');
+            
+            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            pathElement.setAttribute('d', svg.Path);
+            pathElement.setAttribute('fill', '#4361ee');
+            
+            svgElement.appendChild(pathElement);
+            modalPreview.innerHTML = '';
+            modalPreview.appendChild(svgElement);
+            
+            modal.style.display = 'flex';
         }
         
         function changeSVGColor(color) {
@@ -910,6 +973,121 @@
                 console.error('Failed to copy path:', err);
                 alert('Failed to copy path to clipboard');
             });
+        }
+        
+        function saveAsHTML() {
+            if (!currentSVG || !currentSVG.Path) {
+                alert('No SVG path available to save');
+                return;
+            }
+            
+            // Get current color from color picker
+            const colorPicker = document.getElementById('colorPicker');
+            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            
+            const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${currentSVG.Name || 'SVG'}</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f8f9fa;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            text-align: center;
+        }
+        svg {
+            width: 300px;
+            height: 300px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>${currentSVG.Name || 'SVG'}</h1>
+        <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+            <path fill="${currentColor}" d="${currentSVG.Path}"/>
+        </svg>
+    </div>
+</body>
+</html>`;
+            
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentSVG.Name || 'svg'}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function saveAsPNG() {
+            if (!currentSVG || !currentSVG.Path) {
+                alert('No SVG path available to save');
+                return;
+            }
+            
+            // Get current color from color picker
+            const colorPicker = document.getElementById('colorPicker');
+            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            
+            // Create a canvas element
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            // Create an SVG element
+            const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+                <path fill="${currentColor}" d="${currentSVG.Path}"/>
+            </svg>`;
+            
+            // Create a blob from the SVG content
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            
+            // Create an image element
+            const img = new Image();
+            img.onload = function() {
+                // Draw the image on the canvas
+                ctx.drawImage(img, 0, 0, 512, 512);
+                
+                // Convert canvas to PNG
+                canvas.toBlob(function(pngBlob) {
+                    const pngUrl = URL.createObjectURL(pngBlob);
+                    const a = document.createElement('a');
+                    a.href = pngUrl;
+                    a.download = `${currentSVG.Name || 'svg'}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(pngUrl);
+                }, 'image/png');
+                
+                // Clean up
+                URL.revokeObjectURL(url);
+            };
+            
+            img.onerror = function() {
+                alert('Error converting SVG to PNG');
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
         }
 
         // Setup lazy loading with Intersection Observer
