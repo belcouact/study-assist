@@ -365,6 +365,21 @@
             width: 90%;
             max-height: 80vh;
             position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .modal-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .modal-footer {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
         }
         
         .modal .svg-preview {
@@ -615,19 +630,20 @@
     <div class="modal" id="detailModal">
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal()">&times;</button>
-            <div class="svg-preview" id="modalPreview">
-                <!-- SVG preview will be shown here -->
+            <div class="modal-body">
+                <div class="svg-preview" id="modalPreview">
+                    <!-- SVG preview will be shown here -->
+                </div>
+                <div class="color-picker-container">
+                    <label for="colorPicker">Color:</label>
+                    <input type="color" id="colorPicker" value="#4361ee" onchange="changeSVGColor(this.value)">
+                </div>
             </div>
-
-            <div class="color-picker-container">
-                <label for="colorPicker">Color:</label>
-                <input type="color" id="colorPicker" value="#4361ee" onchange="changeSVGColor(this.value)">
-            </div>
-            <div class="svg-actions">
-                <button class="action-btn btn-download" onclick="downloadSVG()">Download SVG</button>
-                <button class="action-btn btn-copy" onclick="copyPath()">Copy Path</button>
-                <button class="action-btn btn-save-html" onclick="saveAsHTML()">Save as HTML</button>
-                <button class="action-btn btn-save-png" onclick="saveAsPNG()">Save as PNG</button>
+            <div class="modal-footer">
+                <div class="svg-actions">
+                    <button class="action-btn btn-download" onclick="downloadSVG()">Save SVG</button>
+                    <button class="action-btn btn-save-png" onclick="saveAsPNG()">Save PNG</button>
+                </div>
             </div>
         </div>
     </div>
@@ -899,17 +915,42 @@
             const colorPicker = document.getElementById('colorPicker');
             colorPicker.value = '#4361ee';
             
+            // Extract path data - handle different possible data structures
+            let pathData = '';
+            if (svg.Path) {
+                // If Path contains HTML, try to extract the d attribute
+                if (typeof svg.Path === 'string' && svg.Path.includes('<path')) {
+                    const pathMatch = svg.Path.match(/d="([^"]+)"/);
+                    if (pathMatch) {
+                        pathData = pathMatch[1];
+                    }
+                } else {
+                    // Direct path data
+                    pathData = svg.Path;
+                }
+            } else if (svg.path) {
+                pathData = svg.path;
+            } else if (svg.d) {
+                pathData = svg.d;
+            }
+            
             // Create SVG element with the path
             const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
             svgElement.setAttribute('width', '300');
             svgElement.setAttribute('height', '300');
             svgElement.setAttribute('viewBox', '0 0 512 512');
             
-            const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            pathElement.setAttribute('d', svg.Path);
-            pathElement.setAttribute('fill', '#4361ee');
+            if (pathData && pathData.startsWith('M')) {
+                const pathElement = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                pathElement.setAttribute('d', pathData);
+                pathElement.setAttribute('fill', '#4361ee');
+                
+                svgElement.appendChild(pathElement);
+            } else {
+                // Fallback: show error message
+                modalPreview.innerHTML = '<div style="color: #999; text-align: center;">Invalid SVG path data</div>';
+            }
             
-            svgElement.appendChild(pathElement);
             modalPreview.innerHTML = '';
             modalPreview.appendChild(svgElement);
             
@@ -929,8 +970,30 @@
         }
 
         function downloadSVG(svg = currentSVG) {
-            if (!svg || !svg.Path) {
-                alert('No SVG path available for download');
+            if (!svg) {
+                alert('No SVG data available for download');
+                return;
+            }
+            
+            // Extract path data using the same logic as showDetail
+            let pathData = '';
+            if (svg.Path) {
+                if (typeof svg.Path === 'string' && svg.Path.includes('<path')) {
+                    const pathMatch = svg.Path.match(/d="([^"]+)"/);
+                    if (pathMatch) {
+                        pathData = pathMatch[1];
+                    }
+                } else {
+                    pathData = svg.Path;
+                }
+            } else if (svg.path) {
+                pathData = svg.path;
+            } else if (svg.d) {
+                pathData = svg.d;
+            }
+            
+            if (!pathData || !pathData.startsWith('M')) {
+                alert('Invalid SVG path data');
                 return;
             }
             
@@ -940,7 +1003,7 @@
             
             const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-    <path fill="${currentColor}" d="${svg.Path}"/>
+    <path fill="${currentColor}" d="${pathData}"/>
 </svg>`;
             
             const blob = new Blob([svgContent], { type: 'image/svg+xml' });
@@ -1036,8 +1099,30 @@
         }
         
         function saveAsPNG() {
-            if (!currentSVG || !currentSVG.Path) {
-                alert('No SVG path available to save');
+            if (!currentSVG) {
+                alert('No SVG data available to save');
+                return;
+            }
+            
+            // Extract path data using the same logic as showDetail
+            let pathData = '';
+            if (currentSVG.Path) {
+                if (typeof currentSVG.Path === 'string' && currentSVG.Path.includes('<path')) {
+                    const pathMatch = currentSVG.Path.match(/d="([^"]+)"/);
+                    if (pathMatch) {
+                        pathData = pathMatch[1];
+                    }
+                } else {
+                    pathData = currentSVG.Path;
+                }
+            } else if (currentSVG.path) {
+                pathData = currentSVG.path;
+            } else if (currentSVG.d) {
+                pathData = currentSVG.d;
+            }
+            
+            if (!pathData || !pathData.startsWith('M')) {
+                alert('Invalid SVG path data');
                 return;
             }
             
@@ -1053,7 +1138,7 @@
             
             // Create an SVG element
             const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-                <path fill="${currentColor}" d="${currentSVG.Path}"/>
+                <path fill="${currentColor}" d="${pathData}"/>
             </svg>`;
             
             // Create a blob from the SVG content
