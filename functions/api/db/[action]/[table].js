@@ -32,7 +32,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa-svg"]; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa_svg"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -154,10 +154,10 @@ export async function onRequest(context) {
                                 row.Dynasty || null
                             );
                         }));
-                    } else if (table === 'fa-svg') {
+                    } else if (table === 'fa_svg') {
                         await db.batch(data.map(row => {
                             return db.prepare(`
-                                INSERT INTO fa-svg (Name, Category, Path)
+                                INSERT INTO fa_svg (Name, Category, Path)
                                 VALUES (?, ?, ?)
                             `).bind(
                                 row.Name || null,
