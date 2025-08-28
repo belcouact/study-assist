@@ -714,7 +714,7 @@
                 </div>
                 <div class="search-container">
                     <span class="search-icon">🔍</span>
-                    <input type="text" class="search-input" id="searchInput" placeholder="按名称或类别搜索 SVG 路径...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="按名称或类别搜索 SVG 图标...">
                 </div>
             </div>
         </div>
@@ -723,13 +723,13 @@
     <main>
         <div class="container">
             <div class="stats">
-                <div class="stats-text" id="statsText">正在加载 SVG 路径...</div>
+                <div class="stats-text" id="statsText">正在加载 SVG 图标...</div>
                 <div class="filter-container" id="categoryFilters">
                     <!-- Category filters will be populated dynamically -->
                 </div>
             </div>
 
-            <div id="loadingMessage" class="loading">正在从数据库加载 SVG 路径...</div>
+            <div id="loadingMessage" class="loading">正在从数据库加载 SVG 图标...</div>
             <div id="errorMessage" class="error" style="display: none;"></div>
             
             <div class="svg-grid" id="svgGrid">
@@ -743,21 +743,8 @@
         <div class="modal-content">
             <button class="close-btn" onclick="closeModal()">&times;</button>
             <div class="modal-body">
-                <div class="svg-preview-container">
-                    <div class="svg-preview" id="modalPreview">
-                        <!-- SVG preview will be shown here -->
-                    </div>
-                </div>
-                <div class="color-picker-container">
-                    <label for="colorPicker">颜色:</label>
-                    <input type="color" id="colorPicker" value="#4361ee" onchange="changeSVGColor(this.value)">
-                </div>
-                <div class="path-display" id="pathDisplay">
-                    <!-- SVG path will be shown here -->
-                </div>
-                <div class="svg-actions">
-                    <button class="action-btn btn-download" onclick="downloadSVG()">保存 SVG</button>
-                    <button class="action-btn btn-save-png" onclick="saveAsPNG()">保存 PNG</button>
+                <div class="svg-card" id="modalCard">
+                    <!-- SVG card will be shown here -->
                 </div>
             </div>
 
@@ -884,7 +871,7 @@
                 if (filteredData.length === 0 && svgData.length > 0) {
                     const noResultsMsg = document.createElement('div');
                     noResultsMsg.className = 'no-more-data';
-                    noResultsMsg.textContent = '未找到匹配的 SVG 路径';
+                    noResultsMsg.textContent = '未找到匹配的 SVG 图标';
                     noResultsMsg.style.gridColumn = '1 / -1';
                     grid.appendChild(noResultsMsg);
                     return;
@@ -916,7 +903,7 @@
                 // Show "no more data" message only if we have results
                 const noMoreMsg = document.createElement('div');
                 noMoreMsg.className = 'no-more-data';
-                noMoreMsg.textContent = '没有更多 SVG 路径可加载';
+                noMoreMsg.textContent = '没有更多 SVG 图标可加载';
                 noMoreMsg.style.gridColumn = '1 / -1';
                 grid.appendChild(noMoreMsg);
             }
@@ -958,7 +945,7 @@
             
             const copyBtn = document.createElement('button');
             copyBtn.className = 'action-btn btn-copy';
-            copyBtn.title = '复制路径';
+            copyBtn.title = '复制图标';
             copyBtn.onclick = (e) => {
                 e.stopPropagation();
                 copyPath(svg, e);
@@ -1019,18 +1006,19 @@
         function updateStats() {
             const statsText = document.getElementById('statsText');
             const showingCount = Math.min(filteredData.length, currentPage * itemsPerPage);
-            statsText.textContent = `显示 ${showingCount} 个，共 ${filteredData.length} 个 SVG 路径`;
+            statsText.textContent = `显示 ${showingCount} 个，共 ${filteredData.length} 个 SVG 图标`;
         }
 
         function showDetail(svg) {
             currentSVG = svg;
             const modal = document.getElementById('detailModal');
-            const modalPreview = document.getElementById('modalPreview');
-            const pathDisplay = document.getElementById('pathDisplay');
+            const modalCard = document.getElementById('modalCard');
             
-            // Set initial color
-            const colorPicker = document.getElementById('colorPicker');
-            colorPicker.value = '#4361ee';
+            // Create a complete svg-card structure
+            modalCard.innerHTML = '';
+            
+            const preview = document.createElement('div');
+            preview.className = 'svg-preview';
             
             // Extract path data - handle different possible data structures
             let pathData = '';
@@ -1064,24 +1052,56 @@
                 svgElement.appendChild(pathElement);
             } else {
                 // Fallback: show error message
-                modalPreview.innerHTML = '<div style="color: #999; text-align: center;">无效的 SVG 路径数据</div>';
+                preview.innerHTML = '<div style="color: #999; text-align: center;">无效的 SVG 图标数据</div>';
             }
             
-            modalPreview.innerHTML = '';
-            modalPreview.appendChild(svgElement);
+            preview.appendChild(svgElement);
             
-            // Display path data
-            if (pathData) {
-                pathDisplay.textContent = pathData;
-            } else {
-                pathDisplay.textContent = '无有效的路径数据';
-            }
+            const info = document.createElement('div');
+            info.className = 'svg-info';
+            
+            const name = document.createElement('div');
+            name.className = 'svg-name';
+            name.textContent = svg.Name || '未命名';
+            
+            const category = document.createElement('div');
+            category.className = 'svg-category';
+            category.textContent = svg.Category || '未分类';
+            
+            info.appendChild(name);
+            info.appendChild(category);
+            
+            const actions = document.createElement('div');
+            actions.className = 'svg-actions';
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'action-btn btn-download';
+            downloadBtn.title = '下载';
+            downloadBtn.onclick = (e) => {
+                e.stopPropagation();
+                downloadSVG(svg);
+            };
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.className = 'action-btn btn-copy';
+            copyBtn.title = '复制图标';
+            copyBtn.onclick = (e) => {
+                e.stopPropagation();
+                copyPath(svg, e);
+            };
+            
+            actions.appendChild(downloadBtn);
+            actions.appendChild(copyBtn);
+            
+            modalCard.appendChild(preview);
+            modalCard.appendChild(info);
+            modalCard.appendChild(actions);
             
             modal.style.display = 'flex';
         }
         
         function changeSVGColor(color) {
-            const pathElement = document.querySelector('#modalPreview svg path');
+            const pathElement = document.querySelector('#modalCard svg path');
             if (pathElement) {
                 pathElement.setAttribute('fill', color);
             }
@@ -1116,13 +1136,12 @@
             }
             
             if (!pathData || !pathData.startsWith('M')) {
-                alert('无效的 SVG 路径数据');
+                alert('无效的 SVG 图标数据');
                 return;
             }
             
-            // Get current color from color picker
-            const colorPicker = document.getElementById('colorPicker');
-            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            // Use default color since color picker was removed
+            const currentColor = '#4361ee';
             
             const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
@@ -1142,7 +1161,7 @@
 
         function copyPath(svg = currentSVG, event = null) {
             if (!svg || !svg.Path) {
-                alert('没有可复制的 SVG 路径');
+                alert('没有可复制的 SVG 图标');
                 return;
             }
             
@@ -1156,20 +1175,19 @@
                     }, 2000);
                 }
             }).catch(err => {
-                console.error('复制路径失败:', err);
-                alert('复制路径到剪贴板失败');
+                console.error('复制图标失败:', err);
+                alert('复制图标到剪贴板失败');
             });
         }
         
         function saveAsHTML() {
             if (!currentSVG || !currentSVG.Path) {
-                alert('没有可保存的 SVG 路径');
+                alert('没有可保存的 SVG 图标');
                 return;
             }
             
-            // Get current color from color picker
-            const colorPicker = document.getElementById('colorPicker');
-            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            // Use default color since color picker was removed
+            const currentColor = '#4361ee';
             
             const htmlContent = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -1245,13 +1263,12 @@
             }
             
             if (!pathData || !pathData.startsWith('M')) {
-                alert('无效的 SVG 路径数据');
+                alert('无效的 SVG 图标数据');
                 return;
             }
             
-            // Get current color from color picker
-            const colorPicker = document.getElementById('colorPicker');
-            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            // Use default color since color picker was removed
+            const currentColor = '#4361ee';
             
             // Create a canvas element
             const canvas = document.createElement('canvas');
