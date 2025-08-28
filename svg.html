@@ -229,6 +229,61 @@
             animation: slideIn 0.3s ease;
             box-shadow: var(--shadow-lg);
         }
+        
+        .popup-color-section {
+            margin: 15px 0;
+            padding: 12px;
+            background: var(--background-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .color-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .color-picker {
+            width: 50px;
+            height: 40px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch {
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .color-picker::-moz-color-swatch {
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .color-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-family: 'Courier New', monospace;
+            background: var(--card-background);
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            min-width: 80px;
+            text-align: center;
+        }
 
         .popup-close {
             position: absolute;
@@ -355,6 +410,26 @@
                 font-size: 1.25rem;
             }
 
+            .popup-color-section {
+                margin: 10px 0;
+                padding: 8px;
+            }
+
+            .color-picker-container {
+                gap: 8px;
+            }
+
+            .color-picker {
+                width: 45px;
+                height: 35px;
+            }
+
+            .color-value {
+                font-size: 12px;
+                padding: 4px 8px;
+                min-width: 70px;
+            }
+
             .popup-actions {
                 flex-direction: column;
                 align-items: center;
@@ -381,6 +456,28 @@
 
             .popup-name {
                 font-size: 1.1rem;
+            }
+
+            .popup-color-section {
+                margin: 8px 0;
+                padding: 6px;
+            }
+
+            .color-picker-container {
+                gap: 6px;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .color-picker {
+                width: 40px;
+                height: 30px;
+            }
+
+            .color-value {
+                font-size: 11px;
+                padding: 3px 6px;
+                min-width: 60px;
             }
 
             .popup-close {
@@ -877,6 +974,13 @@
             <div class="popup-info">
                 <h2 id="popupName" class="popup-name"></h2>
                 <p id="popupCategory" class="popup-category"></p>
+                <div class="popup-color-section">
+                    <label for="colorPicker" class="color-label">Icon Color:</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="colorPicker" class="color-picker" value="#4361ee" onchange="updateSVGColor()">
+                        <span id="colorValue" class="color-value">#4361ee</span>
+                    </div>
+                </div>
                 <div class="popup-actions">
                     <button class="popup-btn popup-btn-primary" onclick="downloadSVG()">Download SVG</button>
                     <button class="popup-btn popup-btn-secondary" onclick="closeIconPopup()">Close</button>
@@ -1151,6 +1255,15 @@
             document.getElementById('popupName').textContent = svg.Name || '未命名';
             document.getElementById('popupCategory').textContent = svg.Category || '未分类';
             
+            // Initialize color picker
+            const colorPicker = document.getElementById('colorPicker');
+            const colorValue = document.getElementById('colorValue');
+            colorPicker.value = '#4361ee';
+            colorValue.textContent = '#4361ee';
+            
+            // Apply initial color to the SVG
+            updateSVGColor();
+            
             // Show popup
             const popup = document.getElementById('iconPopup');
             popup.classList.add('active');
@@ -1159,6 +1272,34 @@
         function closeIconPopup() {
             const popup = document.getElementById('iconPopup');
             popup.classList.remove('active');
+        }
+        
+        function updateSVGColor() {
+            const colorPicker = document.getElementById('colorPicker');
+            const colorValue = document.getElementById('colorValue');
+            const popupIcon = document.getElementById('popupIcon');
+            
+            const selectedColor = colorPicker.value;
+            colorValue.textContent = selectedColor;
+            
+            // Update the SVG color
+            if (currentSVG && currentSVG.Path) {
+                let svgContent = currentSVG.Path;
+                
+                // If it's a full SVG string, update the fill attribute
+                if (typeof svgContent === 'string' && svgContent.includes('<svg')) {
+                    // Update fill attribute in path elements
+                    svgContent = svgContent.replace(/fill="([^"]*?)"/g, `fill="${selectedColor}"`);
+                    // If no fill attribute exists, add it to path elements
+                    svgContent = svgContent.replace(/<path([^>]*?)>/g, `<path$1 fill="${selectedColor}">`);
+                } else if (typeof svgContent === 'string' && svgContent.includes('<path')) {
+                    // If it's just a path element, update or add fill attribute
+                    svgContent = svgContent.replace(/fill="([^"]*?)"/g, `fill="${selectedColor}"`);
+                    svgContent = svgContent.replace(/<path([^>]*?)>/g, `<path$1 fill="${selectedColor}">`);
+                }
+                
+                popupIcon.innerHTML = svgContent;
+            }
         }
         
         function changeSVGColor(color) {
@@ -1179,35 +1320,54 @@
                 return;
             }
             
-            // Extract path data using the same logic as showDetail
-            let pathData = '';
-            if (svg.Path) {
-                if (typeof svg.Path === 'string' && svg.Path.includes('<path')) {
-                    const pathMatch = svg.Path.match(/d="([^"]+)"/);
-                    if (pathMatch) {
-                        pathData = pathMatch[1];
+            // Get the current selected color from color picker
+            const colorPicker = document.getElementById('colorPicker');
+            const currentColor = colorPicker ? colorPicker.value : '#4361ee';
+            
+            let svgContent = '';
+            
+            // Check if we have full SVG content
+            if (svg.Path && typeof svg.Path === 'string' && svg.Path.includes('<svg')) {
+                // We have full SVG content, just update the color
+                svgContent = svg.Path;
+                // Update fill attribute in path elements
+                svgContent = svgContent.replace(/fill="([^"]*?)"/g, `fill="${currentColor}"`);
+                // If no fill attribute exists, add it to path elements
+                svgContent = svgContent.replace(/<path([^>]*?)>/g, (match, attrs) => {
+                    if (!attrs.includes('fill=')) {
+                        return `<path${attrs} fill="${currentColor}">`;
                     }
-                } else {
-                    pathData = svg.Path;
+                    return match;
+                });
+            } else {
+                // Extract path data and create new SVG
+                let pathData = '';
+                if (svg.Path) {
+                    if (typeof svg.Path === 'string' && svg.Path.includes('<path')) {
+                        const pathMatch = svg.Path.match(/d="([^"]+)"/);
+                        if (pathMatch) {
+                            pathData = pathMatch[1];
+                        }
+                    } else {
+                        pathData = svg.Path;
+                    }
+                } else if (svg.path) {
+                    pathData = svg.path;
+                } else if (svg.d) {
+                    pathData = svg.d;
                 }
-            } else if (svg.path) {
-                pathData = svg.path;
-            } else if (svg.d) {
-                pathData = svg.d;
-            }
-            
-            if (!pathData || !pathData.startsWith('M')) {
-                alert('无效的 SVG 图标数据');
-                return;
-            }
-            
-            // Use default color since color picker was removed
-            const currentColor = '#4361ee';
-            
-            const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
+                
+                if (!pathData || !pathData.startsWith('M')) {
+                    alert('无效的 SVG 图标数据');
+                    return;
+                }
+                
+                // Create new SVG with the path data
+                svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
     <path fill="${currentColor}" d="${pathData}"/>
 </svg>`;
+            }
             
             const blob = new Blob([svgContent], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
