@@ -55,15 +55,23 @@
             
             .search-container {
                 margin: 0.25rem 0;
+                max-width: none;
             }
             
             .search-input {
                 padding: 0.5rem 1rem 0.5rem 2.5rem;
             }
             
-            .filter-container {
+            .category-menu {
                 margin: 0.25rem 0;
-                padding: 0.25rem 0;
+            }
+            
+            .category-menu-btn {
+                padding: 0.5rem 0.75rem;
+            }
+            
+            .category-dropdown {
+                min-width: 150px;
             }
         }
         
@@ -120,8 +128,73 @@
 
         .search-container {
             position: relative;
-            max-width: 400px;
+            max-width: 300px;
             flex: 1;
+        }
+        
+        .category-menu {
+            position: relative;
+        }
+        
+        .category-menu-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-primary);
+        }
+        
+        .category-menu-btn:hover {
+            background-color: var(--hover-color);
+            border-color: var(--primary-color);
+        }
+        
+        .category-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            box-shadow: var(--shadow-lg);
+            z-index: 100;
+            min-width: 200px;
+            display: none;
+        }
+        
+        .category-dropdown.active {
+            display: block;
+        }
+        
+        .category-list {
+            padding: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .category-item {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-primary);
+        }
+        
+        .category-item:hover {
+            background-color: var(--hover-color);
+            color: var(--primary-color);
+        }
+        
+        .category-item.active {
+            background-color: var(--primary-color);
+            color: white;
         }
 
         .search-icon {
@@ -1153,8 +1226,15 @@
                     <span class="search-icon">🔍</span>
                     <input type="text" class="search-input" id="searchInput" placeholder="按名称或类别搜索 SVG 图标...">
                 </div>
-                <div class="filter-container" id="categoryFilters">
-                    <!-- Category filters will be populated dynamically -->
+                <div class="category-menu">
+                    <button class="category-menu-btn" id="categoryMenuBtn">
+                        <i class="fas fa-bars"></i> 分类
+                    </button>
+                    <div class="category-dropdown" id="categoryDropdown">
+                        <div class="category-list" id="categoryList">
+                            <!-- Categories will be populated dynamically -->
+                        </div>
+                    </div>
                 </div>
                 <!-- Navigation buttons removed -->
             </div>
@@ -1220,6 +1300,26 @@
             const searchInput = document.getElementById('searchInput');
             searchInput.addEventListener('input', handleSearch);
             
+            // Category menu functionality
+            const categoryMenuBtn = document.getElementById('categoryMenuBtn');
+            const categoryDropdown = document.getElementById('categoryDropdown');
+            
+            // Toggle dropdown when menu button is clicked
+            categoryMenuBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                categoryDropdown.classList.toggle('active');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function() {
+                categoryDropdown.classList.remove('active');
+            });
+            
+            // Prevent dropdown from closing when clicking inside it
+            categoryDropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
             // SVG intro modal functionality removed
         }
         // SVG intro modal functions removed
@@ -1248,7 +1348,7 @@
                         svgData = newData;
                         
                         // Only render category filters on first load if container is empty
-                        const categoryContainer = document.getElementById('categoryFilters');
+                        const categoryContainer = document.getElementById('categoryList');
                         if (categoryContainer && categoryContainer.children.length === 0) {
                             renderCategoryFilters();
                         }
@@ -1408,36 +1508,39 @@
 
         function renderCategoryFilters() {
             const categories = [...new Set(svgData.map(svg => svg.Category).filter(cat => cat))];
-            const filterContainer = document.getElementById('categoryFilters');
+            const categoryList = document.getElementById('categoryList');
             
-            // Clear existing filters
-            filterContainer.innerHTML = '';
+            // Clear existing categories
+            categoryList.innerHTML = '';
             
-            // Add "All" filter
-            const allBtn = document.createElement('button');
-            allBtn.className = 'filter-btn active';
-            allBtn.textContent = '全部';
-            allBtn.onclick = () => filterByCategory('all');
-            filterContainer.appendChild(allBtn);
+            // Add "All" option
+            const allItem = document.createElement('div');
+            allItem.className = 'category-item active';
+            allItem.textContent = '全部';
+            allItem.onclick = () => filterByCategory('all');
+            categoryList.appendChild(allItem);
             
-            // Add category filters
+            // Add category options
             categories.forEach(category => {
-                const btn = document.createElement('button');
-                btn.className = 'filter-btn';
-                btn.textContent = category;
-                btn.onclick = () => filterByCategory(category);
-                filterContainer.appendChild(btn);
+                const item = document.createElement('div');
+                item.className = 'category-item';
+                item.textContent = category;
+                item.onclick = () => filterByCategory(category);
+                categoryList.appendChild(item);
             });
         }
 
         function filterByCategory(category) {
             activeCategory = category;
             
-            // Update active button
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
+            // Update active item
+            document.querySelectorAll('.category-item').forEach(item => {
+                item.classList.remove('active');
             });
             event.target.classList.add('active');
+            
+            // Close dropdown after selection
+            document.getElementById('categoryDropdown').classList.remove('active');
             
             // Reset pagination and reload with new filter
             resetPagination();
