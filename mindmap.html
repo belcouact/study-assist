@@ -1084,7 +1084,9 @@
                 
                 // 加载 JSMind 库（增加更多备用 CDN，优先 non-es6 构建）
                 await loadScriptWithFallback([
-                    // common npm bundle paths
+                    // preferred newer version (user requested)
+                    'https://cdn.jsdelivr.net/npm/jsmind@0.8.8/es6/jsmind.js',
+                    // common npm bundle paths (older stable)
                     'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/jsmind.js',
                     'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/es6/jsmind.js',
                     'https://unpkg.com/jsmind@0.4.6/jsmind.js',
@@ -1097,14 +1099,18 @@
                 const jsmindCss = document.createElement('link');
                 jsmindCss.rel = 'stylesheet';
                 // 尝试多个CDN源
-                jsmindCss.href = 'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/style/jsmind.css';
+                // 优先尝试新版本的样式，再回退到 0.4.6
+                jsmindCss.href = 'https://cdn.jsdelivr.net/npm/jsmind@0.8.8/style/jsmind.css';
                 jsmindCss.onerror = function() {
-                    // 第一个CSS加载失败，尝试第二个
-                    this.href = 'https://unpkg.com/jsmind@0.4.6/style/jsmind.css';
+                    // 回退到 0.4.6 样式
+                    this.href = 'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/style/jsmind.css';
                     this.onerror = function() {
                         // 第二个CSS加载失败，尝试第三个
-                        this.href = 'https://cdn.bootcdn.net/ajax/libs/jsmind/0.4.6/style/jsmind.css';
-                        this.onerror = null; // 不再继续尝试
+                        this.href = 'https://unpkg.com/jsmind@0.4.6/style/jsmind.css';
+                        this.onerror = function() {
+                            this.href = 'https://cdn.bootcdn.net/ajax/libs/jsmind/0.4.6/style/jsmind.css';
+                            this.onerror = null;
+                        };
                     };
                 };
                 document.head.appendChild(jsmindCss);
