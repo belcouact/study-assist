@@ -3009,6 +3009,27 @@ ${details ? `详细描述：${details}` : ''}
                     console.debug('no canvas replacement necessary or failed:', swapErr);
                 }
 
+                // sanitize HTML for XML/XHTML embedding inside <foreignObject>
+                const sanitizeForForeignObject = (html) => {
+                    try {
+                        // escape ampersand not part of entity
+                        html = html.replace(/&(?!(?:#|[a-zA-Z]+);)/g, '&amp;');
+                    } catch (e) {}
+
+                    // ensure img and other void elements are self-closed for XML
+                    const voidTags = ['img','br','hr','input','meta','link','area','base','col','command','embed','keygen','param','source','track','wbr'];
+                    voidTags.forEach(tag => {
+                        const re = new RegExp(`<${tag}\b([^>]*)>`, 'gi');
+                        html = html.replace(re, (m, attrs) => {
+                            // if already self-closed, leave as-is
+                            if (/\/>\s*$/.test(m)) return m;
+                            return `<${tag}${attrs} />`;
+                        });
+                    });
+
+                    return html;
+                };
+
                 if (options.computeFullSize) {
                     // compute bounding rect that covers all descendants (relative to the node)
                     const rects = [];
@@ -3027,11 +3048,11 @@ ${details ? `详细描述：${details}` : ''}
                         const bottom = Math.max(...rects.map(r => r.bottom));
                         const width = Math.max(1, right - left);
                         const height = Math.max(1, bottom - top);
-                        return { html: clone.outerHTML, width, height };
+            return { html: sanitizeForForeignObject(clone.outerHTML), width, height };
                     }
                 }
 
-                return { html: clone.outerHTML };
+        return { html: sanitizeForForeignObject(clone.outerHTML) };
             } catch (e) {
                 console.warn('inlineNodeWithStyles failed, falling back to outerHTML', e);
                 return { html: node.outerHTML };
