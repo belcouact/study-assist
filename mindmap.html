@@ -977,23 +977,13 @@
 
     <!-- 按顺序加载外部库 -->
     <script>
-        // 全局变量
-        let currentMarkdown = '';
-        let markmapInstance = null;
-        let jsmindInstance = null;
-        let currentRenderEngine = 'markmap'; // 'markmap' 或 'jsmind'
-        let librariesLoaded = false;
-
-        // DOM 元素
+        // 页面中重要的 DOM 元素引用
         const elements = {
-            topicInput: document.getElementById('topicInput'),
             detailsInput: document.getElementById('detailsInput'),
-            complexitySelect: document.getElementById('complexitySelect'),
-            styleSelect: document.getElementById('styleSelect'),
-            languageSelect: document.getElementById('languageSelect'),
             generateBtn: document.getElementById('generateBtn'),
             resultSection: document.getElementById('resultSection'),
             mindmapContainer: document.getElementById('mindmapContainer'),
+            convertMindmapContainer: document.getElementById('convertMindmapContainer'),
             markdownContent: document.getElementById('markdownContent'),
             errorMessage: document.getElementById('errorMessage'),
             errorText: document.getElementById('errorText'),
@@ -3298,13 +3288,15 @@ ${details ? `详细描述：${details}` : ''}
                         } else {
                             // 作为最后手段，清空容器 DOM
                             const prev = document.getElementById('jsmind_container');
-                            if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
-                            console.debug('使用 DOM 回退清理 jsmind_container');
+                            if (prev) {
+                                prev.innerHTML = '';
+                            }
+                            console.debug('使用 DOM 回退清理 jsmind_container (清空内容)');
                         }
                     } catch (cleanupError) {
                         console.warn('清理旧的 jsmind 实例时出错，已回退到 DOM 清理：', cleanupError);
                         const prev = document.getElementById('jsmind_container');
-                        if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+                        if (prev) prev.innerHTML = '';
                     }
                     jsmindInstance = null;
                 }
@@ -3425,13 +3417,14 @@ ${details ? `详细描述：${details}` : ''}
             const rawTopic = node.content || '';
             // 简单的 HTML 转义以避免注入
             const safeTopic = String(rawTopic).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            // 使用 support_html=true 的能力，将 topic 包装为带背景色的标签，便于视觉区分层级
-            const htmlTopic = `<span style="display:inline-block;padding:4px 8px;border-radius:6px;background:${color};color:#ffffff;">${safeTopic}</span>`;
+            // 如果是叶子节点（最后一层），不要使用彩色背景，直接使用纯文本以满足用户要求
+            const topicValue = (node.children && node.children.length > 0)
+                ? `<span style="display:inline-block;padding:4px 8px;border-radius:6px;background:${color};color:#ffffff;">${safeTopic}</span>`
+                : safeTopic;
 
             const result = {
                 id: 'node_' + Math.random().toString(36).substr(2, 9),
-                // 使用 HTML 主题以便在 JSMind DOM 中展示彩色标签
-                topic: htmlTopic,
+                topic: topicValue,
                 isroot: depth === 0
             };
 
