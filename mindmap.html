@@ -913,7 +913,7 @@
 
                     <div id="convertMindmapTab" class="tab-content active">
                         <div id="convertMindmapContainer" class="mindmap-container">
-                            <!-- 思维导图将在这里渲染（转换结果专用容器） -->
+                            <!-- 思维导图将在这里渲染 -->
                         </div>
                         <div class="action-buttons">
                             <button id="convertDownloadSvgBtn" class="btn-secondary">
@@ -1264,16 +1264,6 @@
 
         // 初始化事件监听器
         function initializeEventListeners() {
-            // helper: safely add event listener if element exists
-            const safeAdd = (elOrId, evt, handler) => {
-                try {
-                    const el = typeof elOrId === 'string' ? document.getElementById(elOrId) : elOrId;
-                    if (!el) return;
-                    el.addEventListener(evt, handler);
-                } catch (e) {
-                    console.debug('safeAdd failed for', elOrId, e);
-                }
-            };
             // 主标签页切换 - 保留原有绑定作为备用
             document.querySelectorAll('.main-tab-btn').forEach(btn => {
                 btn.addEventListener('click', function() {
@@ -1283,14 +1273,14 @@
             });
 
             // 生成按钮点击事件
-            safeAdd(elements.generateBtn, 'click', generateMindmap);
+            elements.generateBtn.addEventListener('click', generateMindmap);
 
             // 转换Markdown按钮点击事件
-            safeAdd('convertBtn', 'click', convertMarkdownToMindmap);
+            document.getElementById('convertBtn').addEventListener('click', convertMarkdownToMindmap);
 
             // 回车键快捷键
-            safeAdd(elements.topicInput, 'keypress', function(e) {
-                if (e.key === 'Enter' && elements.generateBtn && !elements.generateBtn.disabled) {
+            elements.topicInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !elements.generateBtn.disabled) {
                     generateMindmap();
                 }
             });
@@ -1304,18 +1294,18 @@
             });
 
             // 下载按钮事件
-            safeAdd('downloadSvgBtn', 'click', downloadSvg);
-            safeAdd('downloadPngBtn', 'click', downloadPng);
-            safeAdd('fullscreenBtn', 'click', toggleFullscreen);
-            safeAdd('copyMarkdownBtn', 'click', copyMarkdown);
-            safeAdd('downloadMarkdownBtn', 'click', downloadMarkdown);
+            document.getElementById('downloadSvgBtn').addEventListener('click', downloadSvg);
+            document.getElementById('downloadPngBtn').addEventListener('click', downloadPng);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+            document.getElementById('copyMarkdownBtn').addEventListener('click', copyMarkdown);
+            document.getElementById('downloadMarkdownBtn').addEventListener('click', downloadMarkdown);
 
-            // Markdown转换tab 的可能（已移除额外容器）——只在存在时绑定
-            safeAdd('convertDownloadSvgBtn', 'click', downloadSvg);
-            safeAdd('convertDownloadPngBtn', 'click', downloadPng);
-            safeAdd('convertFullscreenBtn', 'click', toggleFullscreen);
-            safeAdd('convertCopyMarkdownBtn', 'click', copyMarkdown);
-            safeAdd('convertDownloadMarkdownBtn', 'click', downloadMarkdown);
+            // Markdown转换tab的下载按钮事件
+            document.getElementById('convertDownloadSvgBtn').addEventListener('click', downloadSvg);
+            document.getElementById('convertDownloadPngBtn').addEventListener('click', downloadPng);
+            document.getElementById('convertFullscreenBtn').addEventListener('click', toggleFullscreen);
+            document.getElementById('convertCopyMarkdownBtn').addEventListener('click', copyMarkdown);
+            document.getElementById('convertDownloadMarkdownBtn').addEventListener('click', downloadMarkdown);
 
             // Markdown示例卡片点击事件
             document.querySelectorAll('.example-card[data-markdown]').forEach(card => {
@@ -2730,9 +2720,8 @@ ${details ? `详细描述：${details}` : ''}
                 // 清空容器
                 console.log('开始清空容器...');
                 if (isConvertTab) {
-                    // 使用主容器清空渲染内容
-                    console.log('清空主思维导图容器');
-                    elements.mindmapContainer.innerHTML = '';
+                    console.log('清空convertMindmapContainer');
+                    document.getElementById('convertMindmapContainer').innerHTML = '';
                 } else {
                     console.log('清空mindmapContainer');
                     elements.mindmapContainer.innerHTML = '';
@@ -2744,7 +2733,7 @@ ${details ? `详细描述：${details}` : ''}
                 
                 // 安全地获取容器尺寸
                 console.log('获取容器尺寸...');
-                const mindmapContainer = getCurrentMindmapContainer();
+                const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
                 console.log('目标容器:', mindmapContainer);
                 const containerRect = mindmapContainer.getBoundingClientRect();
                 console.log('容器矩形信息:', containerRect);
@@ -2947,14 +2936,14 @@ ${details ? `详细描述：${details}` : ''}
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
             const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
             const isConvertTab = activeMainTab === 'markdown-convert';
-            const mindmapContainer = getCurrentMindmapContainer();
+            const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
 
             // 优先查找 SVG 元素
             const svgElement = mindmapContainer.querySelector('svg');
             if (svgElement) {
                 try {
-                    const svgData = serializeSvgForExport(svgElement);
-                    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                    const svgData = new XMLSerializer().serializeToString(svgElement);
+                    const blob = new Blob([svgData], { type: 'image/svg+xml' });
                     const url = URL.createObjectURL(blob);
 
                     const link = document.createElement('a');
@@ -2965,7 +2954,6 @@ ${details ? `详细描述：${details}` : ''}
                     URL.revokeObjectURL(url);
                     showSuccess('SVG 文件下载成功');
                 } catch (error) {
-                    console.error('SVG 导出错误:', error);
                     showError('下载失败，请稍后重试');
                 }
                 return;
@@ -3009,15 +2997,15 @@ ${details ? `详细描述：${details}` : ''}
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
             const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
             const isConvertTab = activeMainTab === 'markdown-convert';
-            const mindmapContainer = getCurrentMindmapContainer();
+            const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
 
             // 如果存在 SVG，使用原有流程
             const svgElement = mindmapContainer.querySelector('svg');
             const prepareAndExport = (svgString, width, height) => {
                 try {
-                    const scale = 3; // 默认 3x 高清
-                    const canvasWidth = Math.round(width * scale);
-                    const canvasHeight = Math.round(height * scale);
+                    const scale = 4;
+                    const canvasWidth = Math.max(width * scale, 3200);
+                    const canvasHeight = Math.max(height * scale, 2400);
 
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
@@ -3031,8 +3019,9 @@ ${details ? `详细描述：${details}` : ''}
 
                     const img = new Image();
                     img.onload = function() {
-                        // 将 SVG 拉伸到目标 canvas 尺寸，保持清晰度
-                        ctx.drawImage(this, 0, 0, canvasWidth, canvasHeight);
+                        const x = (canvasWidth - this.width * scale) / 2;
+                        const y = (canvasHeight - this.height * scale) / 2;
+                        ctx.drawImage(this, x, y, this.width * scale, this.height * scale);
                         canvas.toBlob(function(blob) {
                             const url = URL.createObjectURL(blob);
                             const link = document.createElement('a');
@@ -3043,15 +3032,13 @@ ${details ? `详细描述：${details}` : ''}
                             showSuccess('高清 PNG 文件下载成功');
                         }, 'image/png', 1.0);
                     };
-                    img.onerror = function(e) {
-                        console.error('PNG 图像加载失败:', e);
+                    img.onerror = function() {
                         showError('PNG 转换失败，请尝试下载 SVG 格式');
                     };
 
                     const svgWithHeader = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n${svgString}`;
-                    img.src = 'data:image/svg+xml;charset=utf-8;base64,' + btoa(unescape(encodeURIComponent(svgWithHeader)));
+                    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgWithHeader)));
                 } catch (error) {
-                    console.error('prepareAndExport error:', error);
                     showError('下载失败，请稍后重试');
                 }
             };
@@ -3060,7 +3047,7 @@ ${details ? `详细描述：${details}` : ''}
                 const svgRect = svgElement.getBoundingClientRect();
                 const svgWidth = svgElement.viewBox?.baseVal?.width || svgRect.width || 800;
                 const svgHeight = svgElement.viewBox?.baseVal?.height || svgRect.height || 600;
-                const svgData = serializeSvgForExport(svgElement);
+                const svgData = new XMLSerializer().serializeToString(svgElement);
                 prepareAndExport(svgData, svgWidth, svgHeight);
                 return;
             }
@@ -3073,8 +3060,12 @@ ${details ? `详细描述：${details}` : ''}
                     const width = Math.max(320, rect.width || 800);
                     const height = Math.max(240, rect.height || 600);
 
-                    // 将 jsmind DOM 克隆并内联样式，避免样式缺失导致文本堆叠
-                    const svg = serializeJsMindToSvg(jsmindContainer, width, height);
+                    const foreignHtml = jsmindContainer.outerHTML;
+                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                        `<foreignObject width="100%" height="100%">` +
+                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
+                        `</foreignObject></svg>`;
+
                     prepareAndExport(svg, width, height);
                 } catch (err) {
                     console.error('导出 JSMind PNG 失败:', err);
@@ -3094,7 +3085,7 @@ ${details ? `详细描述：${details}` : ''}
 
             // 优先选择 jsMind 容器，如果存在
             const jsmindContainer = document.getElementById('jsmind_container');
-            const container = jsmindContainer || elements.mindmapContainer;
+            const container = jsmindContainer || (isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer);
 
             if (!container) {
                 showError('未找到要全屏的容器');
@@ -3109,71 +3100,6 @@ ${details ? `详细描述：${details}` : ''}
             } else {
                 document.exitFullscreen();
             }
-        }
-
-        // 将 SVG 序列化并内联样式，确保导出时样式完整
-        function serializeSvgForExport(svgElement) {
-            const clone = svgElement.cloneNode(true);
-            // Inline computed styles for all elements inside the SVG
-            const all = clone.querySelectorAll('*');
-            const win = document.defaultView;
-            all.forEach(node => {
-                try {
-                    const cs = win.getComputedStyle(node);
-                    let styleText = '';
-                    for (let i = 0; i < cs.length; i++) {
-                        const key = cs[i];
-                        // skip inherited positioning from body
-                        styleText += `${key}:${cs.getPropertyValue(key)};`;
-                    }
-                    node.setAttribute('style', styleText);
-                } catch (e) {
-                    // ignore
-                }
-            });
-
-            // Preserve namespaces
-            if (!clone.getAttribute('xmlns')) {
-                clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-            }
-
-            // Serialize
-            const serialized = new XMLSerializer().serializeToString(clone);
-            return serialized;
-        }
-
-        // 将 JSMind 容器序列化为 SVG（使用 foreignObject）并内联子节点样式
-        function serializeJsMindToSvg(jsmindContainer, width, height) {
-            // 克隆节点，遍历并将计算样式写入 style 属性，避免缺失外部 CSS
-            const clone = jsmindContainer.cloneNode(true);
-            const win = document.defaultView;
-
-            const walk = (el) => {
-                if (el.nodeType !== 1) return;
-                try {
-                    const cs = win.getComputedStyle(el);
-                    let styleText = '';
-                    for (let i = 0; i < cs.length; i++) {
-                        const key = cs[i];
-                        styleText += `${key}:${cs.getPropertyValue(key)};`;
-                    }
-                    el.setAttribute('style', styleText);
-                } catch (e) {
-                    // ignore
-                }
-                for (let i = 0; i < el.children.length; i++) walk(el.children[i]);
-            };
-
-            try { walk(clone); } catch (e) { console.debug('serializeJsMindToSvg walk failed', e); }
-
-            const foreignHtml = clone.outerHTML;
-            const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-                `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
-                `<foreignObject width="100%" height="100%">` +
-                `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
-                `</foreignObject></svg>`;
-
-            return svg;
         }
 
         // 复制 Markdown
@@ -3303,7 +3229,7 @@ ${details ? `详细描述：${details}` : ''}
                 
                 // 获取当前容器和风格
                 const isConvertTab = document.querySelector('.main-tab-btn.active').dataset.mainTab === 'markdown-convert';
-                const container = elements.mindmapContainer;
+                const container = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
                 const currentStyle = isConvertTab ? document.getElementById('convertStyleSelect').value : document.getElementById('styleSelect').value;
                 
                 // 清空容器
