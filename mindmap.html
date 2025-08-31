@@ -3442,28 +3442,31 @@ ${details ? `详细描述：${details}` : ''}
                     }
                 };
                 
-                // 根据不同风格调整布局
-                switch (currentStyle) {
-                    case 'tree': // 从左到右树状图
-                        options.mode = 'side';
-                        options.layout.direction = 'side';
-                        break;
-                        
-                    case 'radial': // 径向树状图
-                        options.mode = 'radial';
-                        break;
-                        
-                    case 'hierarchical': // 从上到下树状图
-                        options.mode = 'top';
-                        options.layout.direction = 'top';
-                        break;
-                        
-                    default:
-                        // 默认使用从左到右树状图
-                        options.mode = 'side';
-                        options.layout.direction = 'side';
+                // 根据不同风格调整布局（映射到 jsMind 支持的 mode）
+                const styleToMode = {
+                    tree: { mode: 'side', layoutDirection: 'side' },
+                    radial: { mode: 'radial' },
+                    hierarchical: { mode: 'top', layoutDirection: 'top' }
+                };
+
+                const mapping = styleToMode[currentStyle] || styleToMode['tree'];
+                options.mode = mapping.mode;
+                if (mapping.layoutDirection) options.layout.direction = mapping.layoutDirection;
+
+                // Ensure mode is one of supported values
+                const allowedModes = ['side', 'radial', 'top', 'full'];
+                if (!allowedModes.includes(options.mode)) {
+                    console.warn('未知的 jsMind 模式，回退到 side:', options.mode);
+                    options.mode = 'side';
                 }
-                
+
+                // Diagnostic: show the exact options passed to jsMind so we can debug style issues
+                try {
+                    console.debug('jsMind 初始化选项:', JSON.parse(JSON.stringify(options)));
+                } catch (diagErr) {
+                    console.debug('jsMind 初始化选项（无法序列化）', options);
+                }
+
                 // 初始化JSMind
                 jsmindInstance = new jsMind(options);
                 currentRenderEngine = 'jsmind';
