@@ -3184,9 +3184,52 @@ ${svgData}`;
                 const jsmindData = convertToJSMindData(root);
                 console.log('JSMind数据结构:', JSON.stringify(jsmindData, null, 2));
                 
-                // 初始化JSMind实例
+                // 初始化JSMind实例 - 尝试安全清理之前的实例
                 if (jsmindInstance) {
-                    jsmindInstance.remove();
+                    try {
+                        // Diagnostic info to help debug different builds
+                        try {
+                            console.debug('清理 jsmindInstance，类型:', Object.prototype.toString.call(jsmindInstance));
+                            console.debug('jsmindInstance keys:', Object.keys(jsmindInstance || {}));
+                        } catch (diagErr) {
+                            console.debug('无法枚举 jsmindInstance:', diagErr);
+                        }
+
+                        const tryCall = (fnName) => {
+                            const fn = jsmindInstance[fnName];
+                            console.debug(`检查方法 ${fnName}:`, typeof fn);
+                            if (typeof fn === 'function') {
+                                try {
+                                    // call with correct receiver
+                                    fn.call(jsmindInstance);
+                                    console.debug(`${fnName} 调用成功`);
+                                    return true;
+                                } catch (callErr) {
+                                    console.warn(`${fnName} 调用失败:`, callErr);
+                                    return false;
+                                }
+                            }
+                            return false;
+                        };
+
+                        if (tryCall('remove')) {
+                            // removed
+                        } else if (tryCall('destroy')) {
+                            // destroyed
+                        } else if (tryCall('clear')) {
+                            // cleared
+                        } else {
+                            // 作为最后手段，清空容器 DOM
+                            const prev = document.getElementById('jsmind_container');
+                            if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+                            console.debug('使用 DOM 回退清理 jsmind_container');
+                        }
+                    } catch (cleanupError) {
+                        console.warn('清理旧的 jsmind 实例时出错，已回退到 DOM 清理：', cleanupError);
+                        const prev = document.getElementById('jsmind_container');
+                        if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+                    }
+                    jsmindInstance = null;
                 }
                 
                 // 根据不同风格配置JSMind选项
