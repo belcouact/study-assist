@@ -2959,7 +2959,7 @@ ${details ? `详细描述：${details}` : ''}
         }
 
         // Helper: clone a node and inline computed styles (useful for foreignObject exports)
-        function inlineNodeWithStyles(node) {
+    function inlineNodeWithStyles(node, options = { computeFullSize: false }) {
             try {
                 const clone = node.cloneNode(true);
 
@@ -2983,10 +2983,33 @@ ${details ? `详细描述：${details}` : ''}
                 };
 
                 walk(node, clone);
-                return clone.outerHTML;
+
+                if (options.computeFullSize) {
+                    // compute bounding rect that covers all descendants (relative to the node)
+                    const rects = [];
+                    const collectRects = (el) => {
+                        if (!el.getBoundingClientRect) return;
+                        const r = el.getBoundingClientRect();
+                        rects.push(r);
+                        for (let i = 0; i < el.children.length; i++) collectRects(el.children[i]);
+                    };
+                    collectRects(node);
+
+                    if (rects.length > 0) {
+                        const left = Math.min(...rects.map(r => r.left));
+                        const top = Math.min(...rects.map(r => r.top));
+                        const right = Math.max(...rects.map(r => r.right));
+                        const bottom = Math.max(...rects.map(r => r.bottom));
+                        const width = Math.max(1, right - left);
+                        const height = Math.max(1, bottom - top);
+                        return { html: clone.outerHTML, width, height };
+                    }
+                }
+
+                return { html: clone.outerHTML };
             } catch (e) {
                 console.warn('inlineNodeWithStyles failed, falling back to outerHTML', e);
-                return node.outerHTML;
+                return { html: node.outerHTML };
             }
         }
 
@@ -3026,11 +3049,14 @@ ${details ? `详细描述：${details}` : ''}
                     const width = Math.max(320, rect.width || 800);
                     const height = Math.max(240, rect.height || 600);
 
-                    const foreignHtml = inlineNodeWithStyles(jsmindContainer);
+                    const inlineResult = inlineNodeWithStyles(jsmindContainer, { computeFullSize: true });
+                    const foreignHtml = inlineResult.html || inlineResult;
+                    const fullWidth = inlineResult.width || width;
+                    const fullHeight = inlineResult.height || height;
                     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
-                        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                        `<svg xmlns="http://www.w3.org/2000/svg" width="${fullWidth}" height="${fullHeight}">` +
                         `<foreignObject width="100%" height="100%">` +
-                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
+                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${fullWidth}px;height:${fullHeight}px;">${foreignHtml}</div>` +
                         `</foreignObject></svg>`;
 
                     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
@@ -3121,10 +3147,13 @@ ${details ? `详细描述：${details}` : ''}
                     const width = Math.max(320, rect.width || 800);
                     const height = Math.max(240, rect.height || 600);
 
-                    const foreignHtml = inlineNodeWithStyles(jsmindContainer);
-                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                    const inlineResult = inlineNodeWithStyles(jsmindContainer, { computeFullSize: true });
+                    const foreignHtml = inlineResult.html || inlineResult;
+                    const fullWidth = inlineResult.width || width;
+                    const fullHeight = inlineResult.height || height;
+                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fullWidth}" height="${fullHeight}">` +
                         `<foreignObject width="100%" height="100%">` +
-                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
+                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${fullWidth}px;height:${fullHeight}px;">${foreignHtml}</div>` +
                         `</foreignObject></svg>`;
 
                     prepareAndExport(svg, width, height);
