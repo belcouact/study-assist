@@ -2984,6 +2984,31 @@ ${details ? `详细描述：${details}` : ''}
 
                 walk(node, clone);
 
+                // Replace cloned canvas elements with images generated from the source canvases
+                try {
+                    const sourceCanvases = Array.from(node.querySelectorAll('canvas'));
+                    const clonedCanvases = Array.from(clone.querySelectorAll('canvas'));
+                    for (let i = 0; i < clonedCanvases.length; i++) {
+                        const src = sourceCanvases[i];
+                        const cl = clonedCanvases[i];
+                        if (src && cl) {
+                            try {
+                                const dataUrl = src.toDataURL('image/png');
+                                const img = document.createElement('img');
+                                img.setAttribute('src', dataUrl);
+                                // copy dimensions from cloned canvas
+                                img.style.width = cl.style.width || (cl.width ? cl.width + 'px' : '100%');
+                                img.style.height = cl.style.height || (cl.height ? cl.height + 'px' : '100%');
+                                cl.parentNode.replaceChild(img, cl);
+                            } catch (canvasErr) {
+                                console.warn('failed to convert canvas to image for export', canvasErr);
+                            }
+                        }
+                    }
+                } catch (swapErr) {
+                    console.debug('no canvas replacement necessary or failed:', swapErr);
+                }
+
                 if (options.computeFullSize) {
                     // compute bounding rect that covers all descendants (relative to the node)
                     const rects = [];
