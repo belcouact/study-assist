@@ -1086,13 +1086,24 @@
                 await loadScriptWithFallback([
                     'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/es6/jsmind.js',
                     'https://unpkg.com/jsmind@0.4.6/es6/jsmind.js',
-                    'https://cdnjs.cloudflare.com/ajax/libs/jsmind/0.4.6/jsmind.js'
+                    'https://cdnjs.cloudflare.com/ajax/libs/jsmind/0.4.6/jsmind.js',
+                    'https://cdn.bootcdn.net/ajax/libs/jsmind/0.4.6/jsmind.js'
                 ]);
                 
                 // 加载 JSMind CSS
                 const jsmindCss = document.createElement('link');
                 jsmindCss.rel = 'stylesheet';
+                // 尝试多个CDN源
                 jsmindCss.href = 'https://cdn.jsdelivr.net/npm/jsmind@0.4.6/style/jsmind.css';
+                jsmindCss.onerror = function() {
+                    // 第一个CSS加载失败，尝试第二个
+                    this.href = 'https://unpkg.com/jsmind@0.4.6/style/jsmind.css';
+                    this.onerror = function() {
+                        // 第二个CSS加载失败，尝试第三个
+                        this.href = 'https://cdn.bootcdn.net/ajax/libs/jsmind/0.4.6/style/jsmind.css';
+                        this.onerror = null; // 不再继续尝试
+                    };
+                };
                 document.head.appendChild(jsmindCss);
                 
                 // 等待库完全加载
@@ -1115,7 +1126,7 @@
                 
                 // 检查JSMind库是否正确加载
                 if (typeof jsMind === 'undefined') {
-                    throw new Error('JSMind 加载失败');
+                    throw new Error('JSMind 库未加载');
                 }
                 
                 // 库加载验证成功，继续初始化
@@ -2280,10 +2291,17 @@
 
         // 重试加载库
         function retryLibraryLoad() {
+            // 清除错误状态
+            elements.libraryStatus.className = 'library-status';
+            elements.libraryStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 正在重新加载库...';
+            
+            // 重置状态
             window.markdownOnlyMode = false;
             elements.generateBtn.disabled = true;
             elements.generateBtn.textContent = '生成思维导图';
             librariesLoaded = false;
+            
+            // 重新加载库
             loadLibraries();
         }
 
@@ -3052,6 +3070,27 @@ ${svgData}`;
                 `;
             }
         }
+        
+        // 全局错误处理函数
+        window.addEventListener('error', function(event) {
+            if (event.message && event.message.includes('JSMind 库未加载')) {
+                console.error('JSMind库加载错误:', event);
+                // 显示更友好的错误信息
+                elements.libraryStatus.className = 'library-status error';
+                elements.libraryStatus.style.display = 'block';
+                elements.libraryStatus.innerHTML = `
+                    <div style="text-align: left;">
+                        <i class="fas fa-exclamation-triangle"></i> JSMind库加载失败<br>
+                        <small style="opacity: 0.8;">可能是网络问题或CDN服务暂时不可用</small>
+                        <br><button onclick="retryLibraryLoad()" style="margin-top: 5px; padding: 2px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">重试加载</button>
+                    </div>
+                `;
+                
+                // 阻止默认错误处理
+                event.preventDefault();
+                return true;
+            }
+        });
 
         // 显示错误消息
         function showError(message) {
@@ -3207,6 +3246,20 @@ ${svgData}`;
                 
             } catch (error) {
                 console.error('JSMind思维导图渲染失败:', error);
+                
+                // 检查是否是JSMind库未加载的错误
+                if (error.message && error.message.includes('JSMind 库未加载')) {
+                    // 显示更友好的错误信息
+                    elements.libraryStatus.className = 'library-status error';
+                    elements.libraryStatus.innerHTML = `
+                        <div style="text-align: left;">
+                            <i class="fas fa-exclamation-triangle"></i> JSMind库加载失败<br>
+                            <small style="opacity: 0.8;">可能是网络问题或CDN服务暂时不可用</small>
+                            <br><button onclick="retryLibraryLoad()" style="margin-top: 5px; padding: 2px 8px; font-size: 12px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">重试加载</button>
+                        </div>
+                    `;
+                }
+                
                 // 回退到简单SVG渲染
                 renderSimpleSVGMindmap(markdown, svg, 'tree');
             }
