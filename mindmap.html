@@ -3467,6 +3467,39 @@ ${details ? `详细描述：${details}` : ''}
                     console.debug('jsMind 初始化选项（无法序列化）', options);
                 }
 
+                // Ensure the mindmap tab is visible before initializing jsMind to avoid compatibility mode
+                const _visibleRestore = [];
+                const makeVisibleTemporarily = (el) => {
+                    try {
+                        let cur = el;
+                        while (cur && cur !== document.body) {
+                            const cs = window.getComputedStyle(cur);
+                            if (cs && cs.display === 'none') {
+                                _visibleRestore.push({ el: cur, display: cur.style.display || null, visibility: cur.style.visibility || null });
+                                cur.style.display = 'block';
+                                cur.style.visibility = 'visible';
+                            }
+                            cur = cur.parentElement;
+                        }
+                    } catch (e) {
+                        console.debug('makeVisibleTemporarily error:', e);
+                    }
+                };
+
+                try {
+                    // attempt to switch to the visible tab first (may already be visible)
+                    if (typeof switchTab === 'function') switchTab('mindmap');
+                } catch (tabErr) {
+                    console.debug('switchTab failed (ignored):', tabErr);
+                }
+
+                // Temporarily ensure outer container is visible
+                try {
+                    makeVisibleTemporarily(container);
+                } catch (visErr) {
+                    console.debug('makeVisibleTemporarily failed:', visErr);
+                }
+
                 // 初始化JSMind
                 jsmindInstance = new jsMind(options);
                 currentRenderEngine = 'jsmind';
@@ -3480,6 +3513,39 @@ ${details ? `详细描述：${details}` : ''}
                 };
 
                 jsmindInstance.show(mind);
+
+                // After show, trigger relayout/resize safely so jsMind doesn't remain in compatibility mode
+                setTimeout(() => {
+                    try {
+                        if (jsmindInstance) {
+                            if (typeof jsmindInstance.relayout === 'function') {
+                                jsmindInstance.relayout();
+                                console.debug('调用 jsmindInstance.relayout()');
+                            }
+                            if (jsmindInstance.view && typeof jsmindInstance.view.relayout === 'function') {
+                                jsmindInstance.view.relayout();
+                                console.debug('调用 jsmindInstance.view.relayout()');
+                            }
+                            if (typeof jsmindInstance.resize === 'function') {
+                                jsmindInstance.resize();
+                                console.debug('调用 jsmindInstance.resize()');
+                            }
+                        }
+                    } catch (relayoutErr) {
+                        console.debug('尝试 relayout/resize 时出错（忽略）:', relayoutErr);
+                    }
+                    // restore any styles we modified
+                    try {
+                        for (let i = 0; i < _visibleRestore.length; i++) {
+                            const item = _visibleRestore[i];
+                            if (item.display === null) item.el.style.removeProperty('display'); else item.el.style.display = item.display;
+                            if (item.visibility === null) item.el.style.removeProperty('visibility'); else item.el.style.visibility = item.visibility;
+                        }
+                        _visibleRestore.length = 0;
+                    } catch (restoreErr) {
+                        console.debug('restore visible styles failed:', restoreErr);
+                    }
+                }, 150);
 
                 // 为 JSMind 容器启用平移与缩放增强
                 try {
