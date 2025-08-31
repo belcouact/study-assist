@@ -24,6 +24,8 @@
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
 
+        
+
         * {
             margin: 0;
             padding: 0;
@@ -1006,6 +1008,10 @@
             initializeEventListeners();
             initializeExamples();
             initializeResponsiveHandling();
+            // sync style options initially (libraries may not be loaded yet)
+            setTimeout(() => {
+                try { updateStyleOptions(); } catch (e) {}
+            }, 500);
         });
         
         // 使用事件委托确保主标签按钮点击事件能正确绑定
@@ -1150,6 +1156,7 @@
                 elements.libraryStatus.className = 'library-status ready';
                 elements.libraryStatus.innerHTML = '<i class="fas fa-check-circle"></i> 思维导图库加载完成，可以开始使用！';
                 elements.generateBtn.disabled = false;
+                try { updateStyleOptions(); } catch (e) { console.warn('updateStyleOptions error', e); }
                 
                 // 3秒后隐藏状态提示
                 setTimeout(() => {
@@ -1179,6 +1186,7 @@
                     `;
                     elements.generateBtn.disabled = false;
                     elements.generateBtn.textContent = '生成思维导图内容';
+                    try { updateStyleOptions(); } catch (e) { console.warn('updateStyleOptions error', e); }
                 }
             }
         }
@@ -1327,6 +1335,32 @@
                     elements.topicInput.focus();
                 });
             });
+        }
+
+        // 根据已加载的库更新样式下拉选项（是否显示 JSMind 风格）
+        function updateStyleOptions() {
+            const styleSelect = document.getElementById('styleSelect');
+            if (!styleSelect) return;
+
+            const optionValue = 'jsmind';
+            const existing = Array.from(styleSelect.options).find(o => o.value === optionValue);
+            const haveJSMind = typeof jsMind !== 'undefined' || typeof window.jsMind !== 'undefined';
+
+            if (haveJSMind) {
+                if (!existing) {
+                    const opt = document.createElement('option');
+                    opt.value = optionValue;
+                    opt.textContent = 'JSMind 风格 (优先)';
+                    styleSelect.appendChild(opt);
+                }
+            } else {
+                if (existing) {
+                    if (styleSelect.value === optionValue) {
+                        styleSelect.value = 'tree';
+                    }
+                    existing.remove();
+                }
+            }
         }
 
         // 最后的备用markmap加载方案
