@@ -2931,127 +2931,170 @@ ${details ? `详细描述：${details}` : ''}
             }
         }
 
-        // 下载 SVG
+        // 下载 SVG（支持 SVG 渲染和 JSMind DOM 渲染）
         function downloadSvg() {
-            // 检查当前在哪个主标签页中
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
             const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
             const isConvertTab = activeMainTab === 'markdown-convert';
             const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
-            
+
+            // 优先查找 SVG 元素
             const svgElement = mindmapContainer.querySelector('svg');
-            if (!svgElement) {
-                showError('请先生成思维导图');
+            if (svgElement) {
+                try {
+                    const svgData = new XMLSerializer().serializeToString(svgElement);
+                    const blob = new Blob([svgData], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `mindmap-${Date.now()}.svg`;
+                    link.click();
+
+                    URL.revokeObjectURL(url);
+                    showSuccess('SVG 文件下载成功');
+                } catch (error) {
+                    showError('下载失败，请稍后重试');
+                }
                 return;
             }
 
-            try {
-                const svgData = new XMLSerializer().serializeToString(svgElement);
-                const blob = new Blob([svgData], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-                
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `mindmap-${Date.now()}.svg`;
-                link.click();
-                
-                URL.revokeObjectURL(url);
-                showSuccess('SVG 文件下载成功');
-            } catch (error) {
-                showError('下载失败，请稍后重试');
+            // 如果没有 SVG，尝试导出 JSMind DOM 为 SVG（使用 foreignObject）
+            const jsmindContainer = document.getElementById('jsmind_container');
+            if (jsmindContainer) {
+                try {
+                    const rect = jsmindContainer.getBoundingClientRect();
+                    const width = Math.max(320, rect.width || 800);
+                    const height = Math.max(240, rect.height || 600);
+
+                    const foreignHtml = jsmindContainer.outerHTML;
+                    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
+                        `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                        `<foreignObject width="100%" height="100%">` +
+                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
+                        `</foreignObject></svg>`;
+
+                    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `mindmap-jsmind-${Date.now()}.svg`;
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    showSuccess('JSMind SVG 导出成功');
+                } catch (err) {
+                    console.error('导出 JSMind SVG 失败:', err);
+                    showError('导出失败，请刷新页面后重试');
+                }
+                return;
             }
+
+            showError('请先生成思维导图');
         }
 
-        // 下载 PNG - 高清版本
+        // 下载 PNG - 高清版本（支持 SVG 与 JSMind DOM）
         function downloadPng() {
-            // 检查当前在哪个主标签页中
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
             const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
             const isConvertTab = activeMainTab === 'markdown-convert';
             const mindmapContainer = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
-            
-            const svgElement = mindmapContainer.querySelector('svg');
-            if (!svgElement) {
-                showError('请先生成思维导图');
-                return;
-            }
 
-            try {
-                // 获取SVG的实际尺寸
+            // 如果存在 SVG，使用原有流程
+            const svgElement = mindmapContainer.querySelector('svg');
+            const prepareAndExport = (svgString, width, height) => {
+                try {
+                    const scale = 4;
+                    const canvasWidth = Math.max(width * scale, 3200);
+                    const canvasHeight = Math.max(height * scale, 2400);
+
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = canvasWidth;
+                    canvas.height = canvasHeight;
+
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+                    const img = new Image();
+                    img.onload = function() {
+                        const x = (canvasWidth - this.width * scale) / 2;
+                        const y = (canvasHeight - this.height * scale) / 2;
+                        ctx.drawImage(this, x, y, this.width * scale, this.height * scale);
+                        canvas.toBlob(function(blob) {
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `mindmap-hd-${Date.now()}.png`;
+                            link.click();
+                            URL.revokeObjectURL(url);
+                            showSuccess('高清 PNG 文件下载成功');
+                        }, 'image/png', 1.0);
+                    };
+                    img.onerror = function() {
+                        showError('PNG 转换失败，请尝试下载 SVG 格式');
+                    };
+
+                    const svgWithHeader = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n${svgString}`;
+                    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgWithHeader)));
+                } catch (error) {
+                    showError('下载失败，请稍后重试');
+                }
+            };
+
+            if (svgElement) {
                 const svgRect = svgElement.getBoundingClientRect();
                 const svgWidth = svgElement.viewBox?.baseVal?.width || svgRect.width || 800;
                 const svgHeight = svgElement.viewBox?.baseVal?.height || svgRect.height || 600;
-                
-                // 设置高清输出尺寸（4倍分辨率）
-                const scale = 4;
-                const canvasWidth = Math.max(svgWidth * scale, 3200);
-                const canvasHeight = Math.max(svgHeight * scale, 2400);
-                
-                // 序列化SVG数据
                 const svgData = new XMLSerializer().serializeToString(svgElement);
-                
-                // 创建高分辨率canvas
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = canvasWidth;
-                canvas.height = canvasHeight;
-                
-                // 设置高质量渲染
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                
-                // 白色背景
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-                
-                const img = new Image();
-                
-                img.onload = function() {
-                    // 计算居中位置
-                    const x = (canvasWidth - this.width * scale) / 2;
-                    const y = (canvasHeight - this.height * scale) / 2;
-                    
-                    // 高质量缩放绘制
-                    ctx.drawImage(this, x, y, this.width * scale, this.height * scale);
-                    
-                    // 使用最高质量导出
-                    canvas.toBlob(function(blob) {
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `mindmap-hd-${Date.now()}.png`;
-                        link.click();
-                        URL.revokeObjectURL(url);
-                        showSuccess('高清 PNG 文件下载成功');
-                    }, 'image/png', 1.0); // 最高质量
-                };
-                
-                img.onerror = function() {
-                    showError('PNG 转换失败，请尝试下载 SVG 格式');
-                };
-                
-                // 添加XML声明和命名空间以确保兼容性
-                const svgWithHeader = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-${svgData}`;
-                
-                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgWithHeader)));
-            } catch (error) {
-                // PNG下载错误处理
-                showError('下载失败，请稍后重试');
+                prepareAndExport(svgData, svgWidth, svgHeight);
+                return;
             }
+
+            // 如果没有 SVG，尝试导出 JSMind DOM
+            const jsmindContainer = document.getElementById('jsmind_container');
+            if (jsmindContainer) {
+                try {
+                    const rect = jsmindContainer.getBoundingClientRect();
+                    const width = Math.max(320, rect.width || 800);
+                    const height = Math.max(240, rect.height || 600);
+
+                    const foreignHtml = jsmindContainer.outerHTML;
+                    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
+                        `<foreignObject width="100%" height="100%">` +
+                        `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
+                        `</foreignObject></svg>`;
+
+                    prepareAndExport(svg, width, height);
+                } catch (err) {
+                    console.error('导出 JSMind PNG 失败:', err);
+                    showError('导出失败，请刷新页面后重试');
+                }
+                return;
+            }
+
+            showError('请先生成思维导图');
         }
 
-        // 全屏显示
+        // 全屏显示（优先针对实际渲染容器）
         function toggleFullscreen() {
-            // 检查当前在哪个主标签页中
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
             const activeMainTab = activeMainTabBtn ? activeMainTabBtn.dataset.mainTab : 'ai-generate';
             const isConvertTab = activeMainTab === 'markdown-convert';
-            const container = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
-            
+
+            // 优先选择 jsMind 容器，如果存在
+            const jsmindContainer = document.getElementById('jsmind_container');
+            const container = jsmindContainer || (isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer);
+
+            if (!container) {
+                showError('未找到要全屏的容器');
+                return;
+            }
+
             if (!document.fullscreenElement) {
                 container.requestFullscreen().catch(err => {
+                    console.error('进入全屏失败:', err);
                     showError('无法进入全屏模式');
                 });
             } else {
