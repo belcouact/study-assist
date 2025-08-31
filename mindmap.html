@@ -2958,6 +2958,38 @@ ${details ? `详细描述：${details}` : ''}
             }
         }
 
+        // Helper: clone a node and inline computed styles (useful for foreignObject exports)
+        function inlineNodeWithStyles(node) {
+            try {
+                const clone = node.cloneNode(true);
+
+                const copyStyles = (source, target) => {
+                    const computed = window.getComputedStyle(source);
+                    let styleString = '';
+                    for (let i = 0; i < computed.length; i++) {
+                        const prop = computed[i];
+                        styleString += `${prop}:${computed.getPropertyValue(prop)};`;
+                    }
+                    target.setAttribute('style', styleString + (target.getAttribute('style') || ''));
+                };
+
+                const walk = (sNode, tNode) => {
+                    copyStyles(sNode, tNode);
+                    const sChildren = sNode.children || [];
+                    const tChildren = tNode.children || [];
+                    for (let i = 0; i < sChildren.length; i++) {
+                        walk(sChildren[i], tChildren[i]);
+                    }
+                };
+
+                walk(node, clone);
+                return clone.outerHTML;
+            } catch (e) {
+                console.warn('inlineNodeWithStyles failed, falling back to outerHTML', e);
+                return node.outerHTML;
+            }
+        }
+
         // 下载 SVG（支持 SVG 渲染和 JSMind DOM 渲染）
         function downloadSvg() {
             const activeMainTabBtn = document.querySelector('.main-tab-btn.active');
@@ -2994,7 +3026,7 @@ ${details ? `详细描述：${details}` : ''}
                     const width = Math.max(320, rect.width || 800);
                     const height = Math.max(240, rect.height || 600);
 
-                    const foreignHtml = jsmindContainer.outerHTML;
+                    const foreignHtml = inlineNodeWithStyles(jsmindContainer);
                     const svg = `<?xml version="1.0" encoding="UTF-8"?>\n` +
                         `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
                         `<foreignObject width="100%" height="100%">` +
@@ -3059,7 +3091,9 @@ ${details ? `详细描述：${details}` : ''}
                             showSuccess('高清 PNG 文件下载成功');
                         }, 'image/png', 1.0);
                     };
-                    img.onerror = function() {
+                    img.onerror = function(e) {
+                        console.error('PNG conversion image load error', e);
+                        try { console.debug('svgWithHeader length:', svgWithHeader.length); } catch (ex) { /* ignore */ }
                         showError('PNG 转换失败，请尝试下载 SVG 格式');
                     };
 
@@ -3087,7 +3121,7 @@ ${details ? `详细描述：${details}` : ''}
                     const width = Math.max(320, rect.width || 800);
                     const height = Math.max(240, rect.height || 600);
 
-                    const foreignHtml = jsmindContainer.outerHTML;
+                    const foreignHtml = inlineNodeWithStyles(jsmindContainer);
                     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">` +
                         `<foreignObject width="100%" height="100%">` +
                         `<div xmlns="http://www.w3.org/1999/xhtml" style="width:${width}px;height:${height}px;">${foreignHtml}</div>` +
