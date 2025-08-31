@@ -3364,6 +3364,14 @@ ${details ? `详细描述：${details}` : ''}
                 };
 
                 jsmindInstance.show(mind);
+
+                // 为 JSMind 容器启用平移与缩放增强
+                try {
+                    const jsmindContainerEl = document.getElementById('jsmind_container');
+                    setupJSMindPanZoom(jsmindContainerEl);
+                } catch (err) {
+                    console.debug('无法为 JSMind 容器启用平移缩放:', err);
+                }
                 
                 // 自动切换到思维导图标签页
                 setTimeout(() => {
@@ -3410,17 +3418,127 @@ ${details ? `详细描述：${details}` : ''}
         
         // 将解析的Markdown数据转换为JSMind格式
         function convertToJSMindData(node, depth = 0) {
+            // 为不同层级指定颜色（与 SVG 渲染颜色保持一致的配色轮）
+            const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe'];
+            const color = colors[depth % colors.length];
+
+            const rawTopic = node.content || '';
+            // 简单的 HTML 转义以避免注入
+            const safeTopic = String(rawTopic).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            // 使用 support_html=true 的能力，将 topic 包装为带背景色的标签，便于视觉区分层级
+            const htmlTopic = `<span style="display:inline-block;padding:4px 8px;border-radius:6px;background:${color};color:#ffffff;">${safeTopic}</span>`;
+
             const result = {
                 id: 'node_' + Math.random().toString(36).substr(2, 9),
-                topic: node.content || '',
+                // 使用 HTML 主题以便在 JSMind DOM 中展示彩色标签
+                topic: htmlTopic,
                 isroot: depth === 0
             };
-            
+
             if (node.children && node.children.length > 0) {
                 result.children = node.children.map(child => convertToJSMindData(child, depth + 1));
             }
-            
+
             return result;
+        }
+
+        // 为 JSMind 容器启用简单的平移与缩放（当 JSMind 本身不提供时作为增强）
+        function setupJSMindPanZoom(jsmindContainer) {
+            if (!jsmindContainer) return;
+            try {
+                const inner = jsmindContainer.firstElementChild || jsmindContainer;
+                inner.style.transformOrigin = '0 0';
+                inner.style.transition = 'transform 0.05s linear';
+
+                let state = { x: 0, y: 0, k: 1 };
+                let isPanning = false;
+                let startX = 0, startY = 0;
+
+                const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+                const apply = () => {
+                    inner.style.transform = `translate(${state.x}px, ${state.y}px) scale(${state.k})`;
+                };
+
+                // 鼠标滚轮缩放
+                jsmindContainer.addEventListener('wheel', (e) => {
+                    if (e.ctrlKey || e.metaKey || e.altKey) return; // 保留系统/浏览器快捷键
+                    e.preventDefault();
+                    const delta = e.deltaY < 0 ? 1.1 : 0.9;
+                    const newK = clamp(state.k * delta, 0.2, 3);
+                    // 为了更自然的缩放，让缩放以鼠标为中心：调整偏移
+                    const rect = jsmindContainer.getBoundingClientRect();
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+                    state.x = mx - ((mx - state.x) * (newK / state.k));
+                    state.y = my - ((my - state.y) * (newK / state.k));
+                    state.k = newK;
+                    apply();
+                }, { passive: false });
+
+                // 拖拽平移
+                jsmindContainer.addEventListener('mousedown', (e) => {
+                    if ((e.button !== 0)) return;
+                    isPanning = true;
+                    startX = e.clientX - state.x;
+                    startY = e.clientY - state.y;
+                    jsmindContainer.classList.add('grabbing');
+                    e.preventDefault();
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!isPanning) return;
+                    state.x = e.clientX - startX;
+                    state.y = e.clientY - startY;
+                    apply();
+                });
+
+                window.addEventListener('mouseup', () => {
+                    if (!isPanning) return;
+                    isPanning = false;
+                    jsmindContainer.classList.remove('grabbing');
+                });
+
+                // 触摸支持（双指缩放简单支持）
+                let lastTouch = null;
+                jsmindContainer.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        const t = e.touches[0];
+                        isPanning = true;
+                        startX = t.clientX - state.x;
+                        startY = t.clientY - state.y;
+                    } else if (e.touches.length === 2) {
+                        lastTouch = [...e.touches].map(t => ({ x: t.clientX, y: t.clientY }));
+                    }
+                }, { passive: true });
+
+                jsmindContainer.addEventListener('touchmove', (e) => {
+                    if (e.touches.length === 1 && isPanning) {
+                        const t = e.touches[0];
+                        state.x = t.clientX - startX;
+                        state.y = t.clientY - startY;
+                        apply();
+                    } else if (e.touches.length === 2 && lastTouch) {
+                        const now = [...e.touches].map(t => ({ x: t.clientX, y: t.clientY }));
+                        const prevDist = Math.hypot(lastTouch[0].x - lastTouch[1].x, lastTouch[0].y - lastTouch[1].y);
+                        const nowDist = Math.hypot(now[0].x - now[1].x, now[0].y - now[1].y);
+                        if (prevDist > 0) {
+                            const delta = nowDist / prevDist;
+                            state.k = clamp(state.k * delta, 0.2, 3);
+                            apply();
+                        }
+                        lastTouch = now;
+                    }
+                }, { passive: true });
+
+                jsmindContainer.addEventListener('touchend', () => {
+                    isPanning = false;
+                    lastTouch = null;
+                });
+
+            } catch (err) {
+                console.warn('为 JSMind 启用平移缩放时出错:', err);
+            }
         }
     </script>
 </body>
