@@ -379,10 +379,35 @@
             border-radius: 12px;
             background: var(--bg-secondary);
             position: relative;
-            overflow: hidden;
+            overflow: hidden; /* keep overflow hidden so map panning works via JS */
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: stretch; /* allow inner map to fill vertically */
+            justify-content: stretch; /* allow inner map to fill horizontally */
+        }
+
+        /* Ensure any direct child (svg or jsMind container) fills the parent */
+        .mindmap-container > * {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Specific rules for JSMind DOM wrapper and SVG output */
+        #jsmind_container, #jsmind_container > div, #jsmind_container > .jsmind {
+            width: 100% !important;
+            height: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+            overflow: visible !important; /* allow internal transform-based panning/zooming */
+        }
+
+        .mindmap-container svg {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         /* 移动端适配 */
@@ -3234,30 +3259,24 @@ ${details ? `详细描述：${details}` : ''}
                 const container = isConvertTab ? document.getElementById('convertMindmapContainer') : elements.mindmapContainer;
                 const currentStyle = isConvertTab ? document.getElementById('convertStyleSelect').value : document.getElementById('styleSelect').value;
                 
-                // 清空容器
+                // 清空容器内容，但保留容器元素本身
                 container.innerHTML = '';
-                
-                // 创建JSMind容器div
-                const jsmindContainer = document.createElement('div');
-                jsmindContainer.id = 'jsmind_container';
+
+                // 尝试复用已存在的 jsmind 容器，如果不存在则创建
+                let jsmindContainer = container.querySelector('#jsmind_container');
+                if (!jsmindContainer) {
+                    jsmindContainer = document.createElement('div');
+                    jsmindContainer.id = 'jsmind_container';
+                    container.appendChild(jsmindContainer);
+                } else {
+                    // 清空已有实例内容
+                    jsmindContainer.innerHTML = '';
+                }
+
+                // 让容器充满父级，不强制设置固定像素尺寸（由 CSS 控制）
                 jsmindContainer.style.width = '100%';
                 jsmindContainer.style.height = '100%';
-                jsmindContainer.style.minHeight = '500px';
-                container.appendChild(jsmindContainer);
-                
-                // 获取容器尺寸
-                const containerRect = container.getBoundingClientRect();
-                const isMobile = window.innerWidth < 768;
-                
-                let width = containerRect.width || 800;
-                let height = containerRect.height || 600;
-                const minSize = isMobile ? 400 : 500;
-                width = Math.max(minSize, Math.min(1400, width));
-                height = Math.max(minSize, Math.min(1400, height));
-                
-                // 设置容器尺寸
-                jsmindContainer.style.width = width + 'px';
-                jsmindContainer.style.height = height + 'px';
+                jsmindContainer.style.minHeight = '';
                 
                 // 转换数据为JSMind格式
                 const jsmindData = convertToJSMindData(root);
