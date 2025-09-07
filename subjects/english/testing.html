@@ -1289,8 +1289,8 @@
                         </div>
                         
                         <div class="form-group" style="text-align: center; margin-top: 2rem;">
-                            <button id="download-report" class="btn btn-primary">
-                                <i class="fas fa-download"></i> 下载完整报告
+                            <button id="download-report" class="btn btn-primary" onclick="generateDetailedReport()">
+                                <i class="fas fa-chart-bar"></i> 查看详细报告
                             </button>
                         </div>
                     </div>
@@ -1299,9 +1299,9 @@
         </section>
     </main>
 
-    <script src="../../js/common.js"></script>
-    <script src="../../js/navigation.js"></script>
-    <script src="../../js/profile.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/navigation.js"></script>
+    <script src="/js/profile.js"></script>
     <script>
         // AI Quiz Global Variables
         let currentQuiz = null;
@@ -2534,9 +2534,9 @@
                             <button class="btn btn-secondary" onclick="location.reload()">
                                 <i class="fas fa-redo"></i> 重新测试
                             </button>
-                            <button class="btn btn-primary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
-                                <i class="fas fa-chart-bar"></i> 查看详细报告
-                            </button>
+                            <button class="btn btn-primary" onclick="generateDetailedReport()">
+                            <i class="fas fa-chart-bar"></i> 查看详细报告
+                        </button>
                         </div>
                     </div>
                 `;
@@ -2949,7 +2949,7 @@
                         <button class="btn btn-secondary" onclick="restartAIQuiz()">
                             <i class="fas fa-redo"></i> 重新测试
                         </button>
-                        <button class="btn btn-primary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
+                        <button class="btn btn-primary" onclick="generateDetailedReport()">
                             <i class="fas fa-chart-bar"></i> 查看详细报告
                         </button>
                     </div>
@@ -3129,7 +3129,7 @@
                         <div class="score-display">75%</div>
                         <div class="level-badge">B1-B2</div>
                         <p>恭喜你完成了测试！基于你的表现，你的英语水平处于中级水平。</p>
-                        <button class="btn btn-primary" onclick="document.querySelector('[data-tab=\\'results\\']').click()">
+                        <button class="btn btn-primary" onclick="generateDetailedReport()">
                             <i class="fas fa-chart-bar"></i> 查看详细报告
                         </button>
                     </div>
@@ -3140,10 +3140,303 @@
                 document.getElementById('results-container').style.display = 'block';
             }
 
+            // Generate detailed report using API
+            async function generateDetailedReport() {
+                // Show loading overlay
+                showLoadingOverlay('正在生成详细报告，请稍候...');
+                
+                try {
+                    // Collect test data
+                    const scoreElement = document.getElementById('level-description');
+                    const levelElement = document.getElementById('overall-score');
+                    
+                    // Initialize test data
+                    const testData = {
+                        score: scoreElement ? scoreElement.textContent : '中级',
+                        level: levelElement ? levelElement.textContent : 'B1',
+                        testType: currentQuiz ? 'AI智能测试' : '阅读测试',
+                        topic: selectedTopic || '未指定',
+                        difficulty: selectedDifficulty || '未指定',
+                        userAnswers: [],
+                        questions: []
+                    };
+                    
+                    // If it's an AI quiz, use the existing data
+                    if (currentQuiz && currentQuiz.questions) {
+                        testData.userAnswers = userAnswers || [];
+                        testData.questions = currentQuiz.questions;
+                    } else {
+                        // For reading tests, collect the results from the DOM
+                        const resultItems = document.querySelectorAll('.result-item');
+                        if (resultItems.length > 0) {
+                            resultItems.forEach((item, index) => {
+                                const questionText = item.querySelector('h5')?.textContent.replace(/^[✓✗]\s*/, '') || `题目 ${index + 1}`;
+                                const userAnswerElement = item.querySelector('.user-answer span');
+                                const correctAnswerElement = item.querySelector('.correct-answer span');
+                                const explanationElement = item.querySelector('.explanation p');
+                                
+                                const userAnswerText = userAnswerElement?.textContent || '未作答';
+                                const correctAnswerText = correctAnswerElement?.textContent || '未知';
+                                const explanation = explanationElement?.textContent || '';
+                                
+                                // Determine if the answer was correct
+                                const isCorrect = userAnswerElement?.classList.contains('text-success') || false;
+                                
+                                // Extract option letter if present
+                                const userAnswerMatch = userAnswerText.match(/^([A-Z])\.\s*(.*)$/);
+                                const correctAnswerMatch = correctAnswerText.match(/^([A-Z])\.\s*(.*)$/);
+                                
+                                const userOption = userAnswerMatch ? userAnswerMatch[1].charCodeAt(0) - 65 : 
+                                                 (isCorrect ? 0 : -1); // Default to first option if correct, -1 if incorrect
+                                const correctOption = correctAnswerMatch ? correctAnswerMatch[1].charCodeAt(0) - 65 : 0;
+                                
+                                testData.questions.push({
+                                    question: questionText,
+                                    correct: correctOption,
+                                    options: [correctAnswerMatch ? correctAnswerMatch[2] : correctAnswerText],
+                                    explanation: explanation
+                                });
+                                
+                                testData.userAnswers[index] = userOption;
+                            });
+                        }
+                    }
+                    
+                    // Prepare prompt for API
+                    const prompt = createDetailedReportPrompt(testData);
+                    
+                    // Call API
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ prompt: prompt })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.error) {
+                        throw new Error(result.message || 'API调用失败');
+                    }
+                    
+                    // Parse and display the detailed report
+                    displayDetailedReport(result.output, testData);
+                    
+                    // Switch to results tab
+                    document.querySelector('[data-tab="results"]').click();
+                    
+                } catch (error) {
+                    console.error('生成详细报告失败:', error);
+                    hideLoadingOverlay();
+                    showError('生成详细报告失败: ' + error.message + '. 请检查网络连接后重试。');
+                } finally {
+                    hideLoadingOverlay();
+                }
+            }
+            
+            function createDetailedReportPrompt(testData) {
+                // Prepare detailed question analysis
+                let questionAnalysis = '';
+                let correctCount = 0;
+                let incorrectCount = 0;
+                
+                if (testData.questions && testData.questions.length > 0 && testData.userAnswers && testData.userAnswers.length > 0) {
+                    questionAnalysis = '\n\n**详细答题分析：**\n\n';
+                    
+                    testData.questions.forEach((question, index) => {
+                        const userAnswer = testData.userAnswers[index];
+                        const isCorrect = userAnswer !== undefined && userAnswer === question.correct;
+                        
+                        if (isCorrect) {
+                            correctCount++;
+                        } else if (userAnswer !== undefined) {
+                            incorrectCount++;
+                        }
+                        
+                        const questionText = question.question || `题目 ${index + 1}`;
+                        const userAnswerText = userAnswer !== undefined ? 
+                            (question.options ? question.options[userAnswer] : `选项 ${String.fromCharCode(65 + userAnswer)}`) : 
+                            '未作答';
+                        const correctAnswerText = question.correct !== undefined ? 
+                            (question.options ? question.options[question.correct] : `选项 ${String.fromCharCode(65 + question.correct)}`) : 
+                            '未知';
+                        
+                        questionAnalysis += `**题目 ${index + 1}**: ${questionText}\n`;
+                        questionAnalysis += `- 你的答案: ${userAnswerText} ${isCorrect ? '✓' : '✗'}\n`;
+                        questionAnalysis += `- 正确答案: ${correctAnswerText}\n`;
+                        
+                        if (question.explanation) {
+                            questionAnalysis += `- 解释: ${question.explanation}\n`;
+                        }
+                        
+                        questionAnalysis += '\n';
+                    });
+                    
+                    questionAnalysis += `\n**答题统计**:\n`;
+                    questionAnalysis += `- 正确题数: ${correctCount}\n`;
+                    questionAnalysis += `- 错误题数: ${incorrectCount}\n`;
+                    questionAnalysis += `- 未作答题数: ${testData.questions.length - correctCount - incorrectCount}\n`;
+                    questionAnalysis += `- 正确率: ${Math.round((correctCount / testData.questions.length) * 100)}%\n`;
+                }
+                
+                return `请基于以下测试数据，为学习者生成一份详细的英语能力评估报告：
+
+测试数据：
+- 总体得分：${testData.score}
+- 能力水平：${testData.level}
+- 测试类型：${testData.testType}
+- 测试话题：${testData.topic}
+- 难度级别：${testData.difficulty}
+${questionAnalysis}
+
+请按照以下结构生成详细报告：
+
+1. **结果评估**
+   - 对测试结果的总体评价
+   - 分析得分与能力水平的对应关系
+   - 评估学习者的英语能力现状
+   - 基于答题正确率分析学习者的实际掌握程度
+
+2. **答题详细分析**
+   - 分析正确答题的特点和模式
+   - 分析错误答题的类型和原因
+   - 识别学习者的强项和弱项
+   - 评估学习者在不同类型题目上的表现差异
+
+3. **能力评估**
+   - 基于答题情况评估学习者的词汇掌握程度
+   - 分析学习者的语法理解能力
+   - 评估学习者的阅读理解能力
+   - 分析学习者的推理和分析能力
+
+4. **优势分析**
+   - 列出学习者在英语学习中的优势
+   - 分析这些优势形成的原因
+   - 提供保持和进一步发展这些优势的建议
+
+5. **薄弱环节**
+   - 指出学习者需要改进的方面
+   - 分析这些薄弱环节的可能原因
+   - 提供针对性的改进建议
+
+6. **提升建议**
+   - 提供具体的学习方法和策略
+   - 推荐适合的学习资源和材料
+   - 制定短期和长期的学习目标
+
+7. **下一步学习计划**
+   - 建议下一阶段的学习重点
+   - 提供可执行的学习计划
+   - 推荐相关的练习和测试
+
+请使用专业、鼓励性的语言，确保报告内容全面、具体、实用，能够真正帮助学习者提高英语能力。重点关注学习者的实际答题表现，提供针对性的分析和建议。`;
+            }
+            
+            function displayDetailedReport(reportContent, testData) {
+                // Update the results panel with detailed report
+                const resultsContainer = document.getElementById('results-container');
+                
+                if (!resultsContainer) {
+                    console.error('找不到结果容器元素');
+                    return;
+                }
+                
+                resultsContainer.innerHTML = `
+                    <div class="result-summary">
+                        <h3>综合英语水平</h3>
+                        <div class="score-display" id="overall-score">${testData.level}</div>
+                        <div class="level-badge" id="level-description">${testData.score}</div>
+                        <p>基于你的测试结果，你的英语水平相当于欧洲共同语言参考框架 (CEFR) 的 <strong>${testData.level}</strong> 级别。</p>
+                    </div>
+                    
+                    <div class="detailed-report">
+                        <div class="report-section">
+                            <h3><i class="fas fa-chart-line"></i> 详细评估报告</h3>
+                            <div class="report-content">
+                                ${reportContent.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group" style="text-align: center; margin-top: 2rem;">
+                            <button id="download-report" class="btn btn-primary" onclick="downloadReport()">
+                                <i class="fas fa-download"></i> 下载完整报告
+                            </button>
+                            <button class="btn btn-secondary" onclick="location.reload()">
+                                <i class="fas fa-redo"></i> 重新测试
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add some CSS for the detailed report
+                const style = document.createElement('style');
+                style.textContent = `
+                    .detailed-report {
+                        background: #f8f9fa;
+                        border-radius: 8px;
+                        padding: 1.5rem;
+                        margin-top: 1.5rem;
+                    }
+                    .report-section {
+                        margin-bottom: 1.5rem;
+                    }
+                    .report-section h3 {
+                        color: #2c3e50;
+                        margin-bottom: 1rem;
+                        border-bottom: 2px solid #3498db;
+                        padding-bottom: 0.5rem;
+                    }
+                    .report-content {
+                        line-height: 1.6;
+                        color: #34495e;
+                    }
+                    .report-content strong {
+                        color: #2c3e50;
+                        font-weight: 600;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            function downloadReport() {
+                // Get report content
+                const reportContentElement = document.querySelector('.report-content');
+                const levelElement = document.getElementById('overall-score');
+                const scoreElement = document.getElementById('level-description');
+                
+                const reportContent = reportContentElement ? reportContentElement.innerText : '无法获取报告内容';
+                const level = levelElement ? levelElement.textContent : 'B1';
+                const score = scoreElement ? scoreElement.textContent : '中级';
+                
+                // Create report text
+                const reportText = `英语能力评估报告\n\n` +
+                    `评估日期: ${new Date().toLocaleDateString()}\n` +
+                    `能力水平: ${level}\n` +
+                    `测试得分: ${score}\n\n` +
+                    `详细评估:\n${reportContent}`;
+                
+                // Create and download file
+                const blob = new Blob([reportText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `英语能力评估报告_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
             // Make functions globally available
-            window.previousQuestion = previousQuestion;
-            window.restartAIQuiz = restartAIQuiz;
-            window.getLevelName = getLevelName;
+              window.previousQuestion = previousQuestion;
+              window.restartAIQuiz = restartAIQuiz;
+              window.getLevelName = getLevelName;
+              window.generateDetailedReport = generateDetailedReport;
         });
     </script>
 </body>
