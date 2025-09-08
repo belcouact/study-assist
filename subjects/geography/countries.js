@@ -1258,7 +1258,6 @@ function createCountryCard(country) {
     const card = document.createElement('div');
     card.className = 'country-card';
     card.setAttribute('data-country-code', country.code);
-    card.setAttribute('data-continent', country.chineseContinent);
 
     // 检测是否为移动设备
     const isMobile = isMobileDevice();
@@ -1324,7 +1323,6 @@ function createCountryCard(country) {
     // 获取中英文名称
     const chineseName = country.chineseName || country.name;
     const englishName = country.name;
-    const continentName = country.chineseContinent || 'Unknown';
 
     card.innerHTML = `
         <div class="country-flag">
@@ -1334,10 +1332,6 @@ function createCountryCard(country) {
             <div class="country-names">
                 <div class="country-name-cn">${chineseName}</div>
                 <div class="country-name-en">${englishName}</div>
-            </div>
-            <div class="country-region">
-                <i class="fas fa-globe-americas"></i>
-                <span>${continentName}</span>
             </div>
         </div>
     `;
