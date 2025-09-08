@@ -404,21 +404,65 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // 转换数据格式以适应现有代码结构
-            return data.data.map(country => ({
-                code: country.Country_Code_Alpha2,
-                fipsCode: country.Country_Code_Fips_10,
-                alpha2Code: country.Country_Code_Alpha2,
-                name: country.Country_Name_Eng,
-                chineseName: country.Country_Name_Chn,
-                continent: country.Continent_Eng,
-                chineseContinent: country.Continent_Chn,
-                flagSvg: country.Flag_SVG,
-                factbookFilePath: country.Factbook_File_Path,
-                // 为了兼容现有代码，添加一些默认值
-                capital: '未知',
-                population: '未知',
-                area: '未知'
-            }));
+            return data.data.map(country => {
+                // 验证和清理SVG数据
+                let flagSvg = country.Flag_SVG;
+                if (flagSvg && typeof flagSvg === 'string') {
+                    // 检查是否是有效的SVG
+                    if (!flagSvg.trim().startsWith('<svg')) {
+                        console.warn(`Invalid SVG data for country ${country.Country_Name_Eng}, using placeholder`);
+                        flagSvg = null;
+                    } else {
+                        // 清理SVG数据，移除可能有害的内容
+                        try {
+                            // 创建一个临时div来解析SVG
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = flagSvg;
+                            
+                            // 获取SVG元素
+                            const svgElement = tempDiv.querySelector('svg');
+                            if (!svgElement) {
+                                throw new Error('No SVG element found');
+                            }
+                            
+                            // 移除可能有害的属性和元素
+                            const harmfulAttributes = ['onload', 'onerror', 'onclick', 'onmouseover', 'script', 'iframe'];
+                            harmfulAttributes.forEach(attr => {
+                                svgElement.removeAttribute(attr);
+                                const elements = svgElement.querySelectorAll(`[${attr}]`);
+                                elements.forEach(el => el.removeAttribute(attr));
+                            });
+                            
+                            // 确保SVG有必要的属性
+                            if (!svgElement.getAttribute('viewBox')) {
+                                svgElement.setAttribute('viewBox', '0 0 100 100');
+                            }
+                            
+                            // 重新生成清理后的SVG
+                            flagSvg = svgElement.outerHTML;
+                        } catch (error) {
+                            console.error(`Error processing SVG for country ${country.Country_Name_Eng}:`, error);
+                            flagSvg = null;
+                        }
+                    }
+                }
+                
+                return {
+                    code: country.Country_Code_Alpha2,
+                    fipsCode: country.Country_Code_Fips_10,
+                    alpha2Code: country.Country_Code_Alpha2,
+                    name: country.Country_Name_Eng,
+                    chineseName: country.Country_Name_Chn,
+                    continent: country.Continent_Eng,
+                    chineseContinent: country.Continent_Chn,
+                    flagSvg: flagSvg,
+                    factbookFilePath: country.Factbook_File_Path,
+                    // 为了兼容现有代码，添加一些默认值
+                    capital: '未知',
+                    population: '未知',
+                    area: '未知'
+                };
+            });
         } catch (error) {
             console.error('从数据库加载国家数据失败:', error);
             throw error;
@@ -1223,8 +1267,51 @@ function createCountryCard(country) {
         card.style.height = '320px';
     }
 
-    // 使用Flag_SVG字段显示国旗
-    const flagSvg = country.flagSvg || `<i class="fas fa-flag country-flag-placeholder"></i>`;
+    // 使用Flag_SVG字段显示国旗，添加SVG验证和清理
+    let flagSvg = country.flagSvg;
+    
+    // 验证和清理SVG数据
+    if (flagSvg && typeof flagSvg === 'string') {
+        // 检查是否是有效的SVG
+        if (!flagSvg.trim().startsWith('<svg')) {
+            console.warn(`Invalid SVG data for country ${country.name}, using placeholder`);
+            flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+        } else {
+            // 清理SVG数据，移除可能有害的内容
+            try {
+                // 创建一个临时div来解析SVG
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = flagSvg;
+                
+                // 获取SVG元素
+                const svgElement = tempDiv.querySelector('svg');
+                if (!svgElement) {
+                    throw new Error('No SVG element found');
+                }
+                
+                // 移除可能有害的属性和元素
+                const harmfulAttributes = ['onload', 'onerror', 'onclick', 'onmouseover', 'script', 'iframe'];
+                harmfulAttributes.forEach(attr => {
+                    svgElement.removeAttribute(attr);
+                    const elements = svgElement.querySelectorAll(`[${attr}]`);
+                    elements.forEach(el => el.removeAttribute(attr));
+                });
+                
+                // 确保SVG有必要的属性
+                if (!svgElement.getAttribute('viewBox')) {
+                    svgElement.setAttribute('viewBox', '0 0 100 100');
+                }
+                
+                // 重新生成清理后的SVG
+                flagSvg = svgElement.outerHTML;
+            } catch (error) {
+                console.error(`Error processing SVG for country ${country.name}:`, error);
+                flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+            }
+        }
+    } else {
+        flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+    }
     
     // 调整SVG国旗大小，保持原始宽高比
     const adjustedFlagSvg = flagSvg.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"');
