@@ -2,13 +2,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     // DOM元素
     const searchInput = document.getElementById('country-search');
-    const countriesGrid = document.getElementById('countries-grid');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const countryModal = document.getElementById('country-modal');
-    const modalClose = document.getElementById('modal-close');
-    const modalCountryName = document.getElementById('modal-country-name');
-    const modalCountryRegion = document.getElementById('modal-country-region');
-    const modalBody = document.getElementById('modal-body');
+const countriesGrid = document.getElementById('countries-grid');
+const loadingIndicator = document.getElementById('loading-indicator');
+const countryModal = document.getElementById('country-modal');
+const modalClose = document.getElementById('modal-close');
+const modalCountryName = document.getElementById('modal-country-name');
+const modalCountryRegion = document.getElementById('modal-country-region');
+const modalBody = document.getElementById('modal-body');
+const errorMessage = document.getElementById('error-message');
+const errorDetails = document.getElementById('error-details');
+const retryButton = document.getElementById('retry-button');
+const countryDetails = document.getElementById('country-details');
     let filterChips = document.querySelectorAll('.filter-chip');
     const viewButtons = document.querySelectorAll('.view-btn');
     const cardsView = document.getElementById('cards-view');
@@ -1388,6 +1392,11 @@ async function showCountryDetails(countryCode) {
     countryModal.classList.add('active');
     document.body.style.overflow = 'hidden';
     
+    // 显示加载指示器
+    loadingIndicator.style.display = 'flex';
+    errorMessage.style.display = 'none';
+    countryDetails.style.display = 'none';
+    
     // 移动设备优化：调整模态框位置和大小
     if (isMobileDevice()) {
         adjustModalForOrientation();
@@ -1398,65 +1407,22 @@ async function showCountryDetails(countryCode) {
         setupSwipeToClose(countryModal);
     }
     
-    // 尝试从factbook.json文件加载详细信息
+    // 从restcountries.com API获取国家详细信息
     try {
-        let detailedData = null;
+        const apiResponse = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(country.name)}?fullText=true`);
         
-        // 如果有文件路径，尝试从factbook.json加载
-        if (country.factbookFilePath) {
-            detailedData = await loadCountryDetailsFromFactbook(country.factbookFilePath);
-            // 如果加载失败，使用基本数据
-            if (!detailedData) {
-                console.warn(`无法从factbook.json加载 ${country.name} 的详细信息，使用基本数据`);
-            }
+        if (!apiResponse.ok) {
+            throw new Error(`API请求失败: ${apiResponse.status}`);
         }
         
-        // 如果无法从factbook.json加载，尝试使用Factbook_File_Path字段
-        if (!detailedData && country.Factbook_File_Path) {
-            detailedData = await loadCountryDetailsFromFactbook(country.Factbook_File_Path);
-            // 如果加载失败，使用基本数据
-            if (!detailedData) {
-                console.warn(`无法从factbook.json加载 ${country.name} 的详细信息，使用基本数据`);
-            }
+        const countryData = await apiResponse.json();
+        
+        if (!countryData || countryData.length === 0) {
+            throw new Error('未找到国家数据');
         }
         
-        // 如果仍然无法从factbook.json加载，尝试使用国家代码构建路径
-        if (!detailedData && country.code) {
-            // 尝试不同的路径格式
-            const possiblePaths = [
-                `${country.code.toLowerCase()}.json`,
-                `europe/${country.code.toLowerCase()}.json`,
-                `asia/${country.code.toLowerCase()}.json`,
-                `africa/${country.code.toLowerCase()}.json`,
-                `north_america/${country.code.toLowerCase()}.json`,
-                `south_america/${country.code.toLowerCase()}.json`,
-                `oceania/${country.code.toLowerCase()}.json`
-            ];
-            
-            for (const path of possiblePaths) {
-                detailedData = await loadCountryDetailsFromFactbook(path);
-                if (detailedData) {
-                    console.log(`成功从路径 ${path} 加载 ${country.name} 的数据`);
-                    break;
-                }
-            }
-            
-            if (!detailedData) {
-                console.warn(`无法从任何路径加载 ${country.name} 的详细信息，使用基本数据`);
-            }
-        }
-        
-        // 如果仍然无法从factbook.json加载，使用基本数据
-        if (!detailedData) {
-            detailedData = {
-                ...country,
-                details: country.details || {
-                    geography: {},
-                    government: {},
-                    economy: {}
-                }
-            };
-        }
+        // 获取第一个国家对象（API返回数组）
+        const apiCountry = countryData[0];
         
         // 构建模态框内容
         let modalContent = `
@@ -1465,7 +1431,24 @@ async function showCountryDetails(countryCode) {
                     <i class="fas fa-info-circle"></i>
                     <span>国家概况</span>
                 </h3>
-                <p class="detail-content">${detailedData.description || detailedData.introduction || '暂无描述'}</p>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">中文全称</div>
+                        <div class="detail-value">${apiCountry.name.nativeName?.zho?.official || apiCountry.translations?.zho?.official || '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">中文简称</div>
+                        <div class="detail-value">${apiCountry.name.nativeName?.zho?.common || apiCountry.translations?.zho?.common || '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">英文全称</div>
+                        <div class="detail-value">${apiCountry.name.official || '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">英文简称</div>
+                        <div class="detail-value">${apiCountry.name.common || '未知'}</div>
+                    </div>
+                </div>
             </div>
 
             <div class="detail-section">
@@ -1475,139 +1458,146 @@ async function showCountryDetails(countryCode) {
                 </h3>
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <div class="detail-label">位置</div>
-                        <div class="detail-value">${detailedData.geography?.location || detailedData.details?.geography?.location || '未知'}</div>
+                        <div class="detail-label">大洲</div>
+                        <div class="detail-value">${apiCountry.continents?.join(', ') || '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">气候</div>
-                        <div class="detail-value">${detailedData.geography?.climate || detailedData.details?.geography?.climate || '未知'}</div>
+                        <div class="detail-label">地区</div>
+                        <div class="detail-value">${apiCountry.subregion || '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">地形</div>
-                        <div class="detail-value">${detailedData.geography?.terrain || detailedData.details?.geography?.terrain || '未知'}</div>
+                        <div class="detail-label">首都</div>
+                        <div class="detail-value">${apiCountry.capital?.join(', ') || '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">最高点</div>
-                        <div class="detail-value">${detailedData.geography?.elevation?.highest || detailedData.details?.geography?.elevation?.highest || '未知'}</div>
+                        <div class="detail-label">面积</div>
+                        <div class="detail-value">${apiCountry.area ? apiCountry.area.toLocaleString() + ' 平方千米' : '未知'}</div>
                     </div>
                 </div>
                 <div class="detail-content" style="margin-top: 1rem;">
-                    <strong>自然资源：</strong> ${detailedData.geography?.naturalResources || detailedData.details?.geography?.naturalResources || '未知'}
+                    <strong>坐标：</strong> ${apiCountry.latlng ? `纬度 ${apiCountry.latlng[0]}°, 经度 ${apiCountry.latlng[1]}°` : '未知'}
                 </div>
             </div>
 
             <div class="detail-section">
                 <h3 class="detail-title">
                     <i class="fas fa-users"></i>
-                    <span>人口信息</span>
+                    <span>人口与社会</span>
                 </h3>
                 <div class="detail-grid">
                     <div class="detail-item">
                         <div class="detail-label">人口</div>
-                        <div class="detail-value">${detailedData.population || country.population || '未知'}</div>
+                        <div class="detail-value">${apiCountry.population ? apiCountry.population.toLocaleString() + ' 人' : '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">国籍</div>
-                        <div class="detail-value">${detailedData.people?.nationality || detailedData.details?.people?.nationality || '未知'}</div>
+                        <div class="detail-label">基尼系数</div>
+                        <div class="detail-value">${apiCountry.gini ? Object.values(apiCountry.gini)[0] || '未知' : '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">民族</div>
-                        <div class="detail-value">${detailedData.people?.ethnicGroups || detailedData.details?.people?.ethnicGroups || '未知'}</div>
+                        <div class="detail-label">时区</div>
+                        <div class="detail-value">${apiCountry.timezones?.join(', ') || '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">语言</div>
-                        <div class="detail-value">${detailedData.people?.languages || detailedData.details?.people?.languages || detailedData.languages || '未知'}</div>
-                    </div>
-                </div>
-                <div class="detail-content" style="margin-top: 1rem;">
-                    <strong>宗教：</strong> ${detailedData.people?.religions || detailedData.details?.people?.religions || '未知'}
-                </div>
-            </div>
-
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-landmark"></i>
-                    <span>政府信息</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">政体</div>
-                        <div class="detail-value">${detailedData.government?.type || detailedData.details?.government?.type || '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">首都</div>
-                        <div class="detail-value">${detailedData.government?.capital || detailedData.capital || country.capital || '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">独立日</div>
-                        <div class="detail-value">${detailedData.government?.independence || detailedData.details?.government?.independence || '未知'}</div>
+                        <div class="detail-label">驾驶侧</div>
+                        <div class="detail-value">${apiCountry.car?.side === 'right' ? '右侧' : apiCountry.car?.side === 'left' ? '左侧' : '未知'}</div>
                     </div>
                 </div>
             </div>
 
             <div class="detail-section">
                 <h3 class="detail-title">
-                    <i class="fas fa-chart-line"></i>
-                    <span>经济概况</span>
+                    <i class="fas fa-coins"></i>
+                    <span>经济信息</span>
                 </h3>
                 <div class="detail-grid">
                     <div class="detail-item">
-                        <div class="detail-label">GDP</div>
-                        <div class="detail-value">${detailedData.economy?.gdp || detailedData.gdp || '未知'}</div>
+                        <div class="detail-label">货币</div>
+                        <div class="detail-value">${apiCountry.currencies ? Object.values(apiCountry.currencies).map(currency => `${currency.name} (${currency.symbol})`).join(', ') : '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">农业</div>
-                        <div class="detail-value">${detailedData.economy?.agriculture || detailedData.details?.economy?.agriculture || '未知'}%</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">工业</div>
-                        <div class="detail-value">${detailedData.economy?.industry || detailedData.details?.economy?.industry || '未知'}%</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">服务业</div>
-                        <div class="detail-value">${detailedData.economy?.services || detailedData.details?.economy?.services || '未知'}%</div>
+                        <div class="detail-label">国际电话代码</div>
+                        <div class="detail-value">${apiCountry.idd ? `${apiCountry.idd.root}${apiCountry.idd.suffixes?.join('')}` : '未知'}</div>
                     </div>
                 </div>
             </div>
-            
+
             <div class="detail-section">
                 <h3 class="detail-title">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>数据可视化</span>
+                    <i class="fas fa-language"></i>
+                    <span>语言与文化</span>
                 </h3>
-                <div id="country-charts-${country.code}" class="charts-container">
-                    <div class="loading-charts">加载图表中...</div>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">官方语言</div>
+                        <div class="detail-value">${apiCountry.languages ? Object.values(apiCountry.languages).join(', ') : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">民族称谓</div>
+                        <div class="detail-value">${apiCountry.demonyms?.eng ? `${apiCountry.demonyms.eng.f}/${apiCountry.demonyms.eng.m}` : '未知'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h3 class="detail-title">
+                    <i class="fas fa-flag"></i>
+                    <span>国家标识</span>
+                </h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">ISO代码</div>
+                        <div class="detail-value">${apiCountry.cca2} / ${apiCountry.cca3} / ${apiCountry.ccn3}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">顶级域名</div>
+                        <div class="detail-value">${apiCountry.tld?.join(', ') || '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">FIFA代码</div>
+                        <div class="detail-value">${apiCountry.fifa || '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">IOC代码</div>
+                        <div class="detail-value">${apiCountry.cioc || '未知'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h3 class="detail-title">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span>地图链接</span>
+                </h3>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Google地图</div>
+                        <div class="detail-value"><a href="${apiCountry.maps?.googleMaps || '#'}" target="_blank" rel="noopener noreferrer">查看地图</a></div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">OpenStreetMap</div>
+                        <div class="detail-value"><a href="${apiCountry.maps?.openStreetMaps || '#'}" target="_blank" rel="noopener noreferrer">查看地图</a></div>
+                    </div>
                 </div>
             </div>
         `;
-
-        // 设置模态框内容
-        modalBody.innerHTML = modalContent;
         
-        // 加载数据可视化图表
-        setTimeout(() => {
-            createDataVisualization(detailedData, `country-charts-${country.code}`);
-        }, 100);
+        // 更新模态框内容
+        countryDetails.innerHTML = modalContent;
+        loadingIndicator.style.display = 'none';
+        countryDetails.style.display = 'block';
         
     } catch (error) {
-        console.error('加载国家详细信息失败:', error);
-        modalBody.innerHTML = `
-            <div class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>加载国家详细信息失败: ${error.message}</p>
-                <button class="btn btn-primary retry-button" data-country-code="${countryCode}">
-                    <i class="fas fa-redo"></i> 重试
-                </button>
-            </div>
-        `;
+        console.error('获取国家详细信息失败:', error);
         
-        // 添加重试按钮事件
-        const retryButton = modalBody.querySelector('.retry-button');
-        if (retryButton) {
-            retryButton.addEventListener('click', function() {
-                showCountryDetails(countryCode);
-            });
-        }
+        // 显示错误信息
+        errorDetails.textContent = error.message;
+        loadingIndicator.style.display = 'none';
+        errorMessage.style.display = 'flex';
+        
+        // 设置重试按钮事件
+        retryButton.onclick = function() {
+            showCountryDetails(countryCode);
+        };
     }
 }
 
