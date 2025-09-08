@@ -1256,7 +1256,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 创建国家卡片
 function createCountryCard(country) {
     const card = document.createElement('div');
-    card.className = 'country-card flip-card';
+    card.className = 'country-card';
     card.setAttribute('data-country-code', country.code);
     card.setAttribute('data-continent', country.chineseContinent);
 
@@ -1270,11 +1270,6 @@ function createCountryCard(country) {
         card.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
         card.style.transition = 'transform 0.2s, box-shadow 0.2s';
         card.style.marginBottom = '15px';
-        // 为移动设备设置固定高度，确保比例正常
-        card.style.height = '280px';
-    } else {
-        // 为桌面设备设置固定高度，确保比例正常
-        card.style.height = '320px';
     }
 
     // 使用Flag_SVG字段显示国旗，添加SVG验证和清理
@@ -1326,36 +1321,23 @@ function createCountryCard(country) {
     // 调整SVG国旗大小，保持原始宽高比
     const adjustedFlagSvg = flagSvg.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"');
     
-    // 显示中英文名称
-    const countryName = country.chineseName ? `${country.chineseName} (${country.name})` : country.name;
+    // 获取中英文名称
+    const chineseName = country.chineseName || country.name;
+    const englishName = country.name;
     const continentName = country.chineseContinent || 'Unknown';
 
     card.innerHTML = `
-        <div class="flip-card-inner">
-            <div class="flip-card-front">
-                <div class="country-flag">
-                    ${adjustedFlagSvg}
-                </div>
+        <div class="country-flag">
+            ${adjustedFlagSvg}
+        </div>
+        <div class="country-info">
+            <div class="country-names">
+                <div class="country-name-cn">${chineseName}</div>
+                <div class="country-name-en">${englishName}</div>
             </div>
-            <div class="flip-card-back">
-                <h3>${countryName}</h3>
-                <div class="country-region">
-                    <i class="fas fa-globe-americas"></i>
-                    <span>${continentName}</span>
-                </div>
-                <div class="country-facts">
-                    <div class="country-fact">
-                        <span class="fact-label">FIPS代码</span>
-                        <span class="fact-value">${country.fipsCode || '未知'}</span>
-                    </div>
-                    <div class="country-fact">
-                        <span class="fact-label">Alpha2代码</span>
-                        <span class="fact-value">${country.alpha2Code || '未知'}</span>
-                    </div>
-                </div>
-                <button class="detail-link" data-country-code="${country.code}">
-                    查看详细信息
-                </button>
+            <div class="country-region">
+                <i class="fas fa-globe-americas"></i>
+                <span>${continentName}</span>
             </div>
         </div>
     `;
@@ -1373,17 +1355,9 @@ function createCountryCard(country) {
         }, { passive: true });
     }
 
-    // 添加卡片点击事件 - 翻转卡片
-    card.addEventListener('click', function(e) {
-        // 如果点击的是详情链接，不翻转卡片，而是显示详情
-        if (e.target.classList.contains('detail-link')) {
-            e.stopPropagation();
-            showCountryDetails(country.code);
-            return;
-        }
-        
-        // 翻转卡片
-        this.classList.toggle('flipped');
+    // 添加卡片点击事件 - 显示国家详情
+    card.addEventListener('click', function() {
+        showCountryDetails(country.code);
     });
 
     return card;
