@@ -85,30 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // 更新filterChips变量
         filterChips = document.querySelectorAll('.filter-chip');
         
-        // 添加"全部"筛选器
-        const allFilter = document.createElement('div');
-        allFilter.className = 'filter-chip';
-        allFilter.setAttribute('data-region', 'all');
-        allFilter.innerHTML = `<span>全部 (${countriesData.length})</span>`;
-        
-        // 添加点击事件
-        allFilter.addEventListener('click', handleRegionFilter);
-        
-        // 添加触摸事件（移动设备优化）
-        allFilter.addEventListener('touchstart', function() {
-            this.classList.add('active');
-        }, { passive: true });
-        
-        allFilter.addEventListener('touchend', function() {
-            this.classList.remove('active');
-        }, { passive: true });
-        
-        // 将"全部"筛选器插入到第一个位置
-        filterContainer.insertBefore(allFilter, filterContainer.firstChild);
-        
-        // 更新filterChips变量
-        filterChips = document.querySelectorAll('.filter-chip');
-        
         console.log('筛选器更新完成，共创建', filterChips.length, '个筛选器');
     }
     
@@ -1173,13 +1149,16 @@ function createCountryCard(country) {
     // 使用Flag_SVG字段显示国旗
     const flagSvg = country.flagSvg || `<i class="fas fa-flag country-flag-placeholder"></i>`;
     
+    // 调整SVG国旗大小
+    const adjustedFlagSvg = flagSvg.replace(/width="[^"]*"/, 'width="60"').replace(/height="[^"]*"/, 'height="40"');
+    
     // 显示中英文名称
     const countryName = country.chineseName ? `${country.chineseName} (${country.name})` : country.name;
     const continentName = country.chineseContinent || 'Unknown';
 
     card.innerHTML = `
         <div class="country-flag">
-            ${flagSvg}
+            ${adjustedFlagSvg}
         </div>
         <div class="country-info">
             <h3 class="country-name">${countryName}</h3>
@@ -1349,6 +1328,10 @@ async function showCountryDetails(countryCode) {
         // 如果有文件路径，尝试从factbook.json加载
         if (country.factbookFilePath) {
             detailedData = await loadCountryDetailsFromFactbook(country.factbookFilePath);
+            // 如果加载失败，使用基本数据
+            if (!detailedData) {
+                console.warn(`无法从factbook.json加载 ${country.name} 的详细信息，使用基本数据`);
+            }
         }
         
         // 如果无法从factbook.json加载，使用基本数据
@@ -2645,6 +2628,14 @@ async function loadCountryDetailsFromFactbook(filePath) {
             throw new Error(`无法加载 ${factbookUrl}: ${response.status} ${response.statusText}`);
         }
         
+        // 检查响应内容类型
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            console.warn(`响应不是JSON格式: ${contentType}`);
+            // 返回null，让调用者使用备用数据
+            return null;
+        }
+        
         const data = await response.json();
         
         // 格式化数据以匹配应用所需的格式
@@ -2688,7 +2679,8 @@ async function loadCountryDetailsFromFactbook(filePath) {
         };
     } catch (error) {
         console.error('从factbook.json加载国家详细信息失败:', error);
-        throw error;
+        // 返回null，让调用者使用备用数据
+        return null;
     }
 }
 
