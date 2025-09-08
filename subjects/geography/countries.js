@@ -1127,8 +1127,13 @@ document.addEventListener('DOMContentLoaded', function() {
         filterAndDisplayCountries();
         
         // 移动设备优化：添加触觉反馈
-        if (isMobileDevice() && 'vibrate' in navigator && document.hasStoredUserActivation) {
-            navigator.vibrate(5);
+        if (isMobileDevice() && 'vibrate' in navigator) {
+            // 使用try-catch来避免因用户交互限制导致的错误
+            try {
+                navigator.vibrate(5);
+            } catch (error) {
+                console.debug('Vibration not allowed:', error);
+            }
         }
     }
 
@@ -1182,8 +1187,13 @@ document.addEventListener('DOMContentLoaded', function() {
         displayCountries(filteredCountries);
         
         // 移动设备优化：添加触觉反馈
-        if (isMobileDevice() && 'vibrate' in navigator && document.hasStoredUserActivation) {
-            navigator.vibrate(5);
+        if (isMobileDevice() && 'vibrate' in navigator) {
+            // 使用try-catch来避免因用户交互限制导致的错误
+            try {
+                navigator.vibrate(5);
+            } catch (error) {
+                console.debug('Vibration not allowed:', error);
+            }
         }
     }
 
