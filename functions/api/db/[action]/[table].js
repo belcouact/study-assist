@@ -32,7 +32,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa_svg"]; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa_svg", "country_info"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -163,6 +163,25 @@ export async function onRequest(context) {
                                 row.Name || null,
                                 row.Category || null,
                                 row.Path || null
+                            );
+                        }));
+                    } else if (table === 'country_info') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO country_info (Country_Code_Fips_10, Factbook_File_Path, Country_Code_Alpha2, Continent_Eng, Country_Name_Eng, Continent_Chn, Country_Name_Chn, Flag_SVG, Other1, Other2, Other3)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                row.Country_Code_Fips_10 || null,
+                                row.Factbook_File_Path || null,
+                                row.Country_Code_Alpha2 || null,
+                                row.Continent_Eng || null,
+                                row.Country_Name_Eng || null,
+                                row.Continent_Chn || null,
+                                row.Country_Name_Chn || null,
+                                row.Flag_SVG || null,
+                                row.Other1 || null,
+                                row.Other2 || null,
+                                row.Other3 || null
                             );
                         }));
                     } else if (table === 'vocabulary') {
