@@ -1325,12 +1325,16 @@ function createCountryCard(country) {
     const englishName = country.name;
 
     card.innerHTML = `
+        <div class="country-info">
+            <div class="country-names">
+                <div class="country-name-cn">${chineseName}</div>
+            </div>
+        </div>
         <div class="country-flag">
             ${adjustedFlagSvg}
         </div>
         <div class="country-info">
             <div class="country-names">
-                <div class="country-name-cn">${chineseName}</div>
                 <div class="country-name-en">${englishName}</div>
             </div>
         </div>
