@@ -1127,7 +1127,7 @@ document.addEventListener('DOMContentLoaded', function() {
         filterAndDisplayCountries();
         
         // 移动设备优化：添加触觉反馈
-        if (isMobileDevice() && 'vibrate' in navigator) {
+        if (isMobileDevice() && 'vibrate' in navigator && document.hasStoredUserActivation) {
             navigator.vibrate(5);
         }
     }
@@ -1182,7 +1182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         displayCountries(filteredCountries);
         
         // 移动设备优化：添加触觉反馈
-        if (isMobileDevice() && 'vibrate' in navigator) {
+        if (isMobileDevice() && 'vibrate' in navigator && document.hasStoredUserActivation) {
             navigator.vibrate(5);
         }
     }
@@ -1435,6 +1435,32 @@ async function showCountryDetails(countryCode) {
             // 如果加载失败，使用基本数据
             if (!detailedData) {
                 console.warn(`无法从factbook.json加载 ${country.name} 的详细信息，使用基本数据`);
+            }
+        }
+        
+        // 如果仍然无法从factbook.json加载，尝试使用国家代码构建路径
+        if (!detailedData && country.code) {
+            // 尝试不同的路径格式
+            const possiblePaths = [
+                `${country.code.toLowerCase()}.json`,
+                `europe/${country.code.toLowerCase()}.json`,
+                `asia/${country.code.toLowerCase()}.json`,
+                `africa/${country.code.toLowerCase()}.json`,
+                `north_america/${country.code.toLowerCase()}.json`,
+                `south_america/${country.code.toLowerCase()}.json`,
+                `oceania/${country.code.toLowerCase()}.json`
+            ];
+            
+            for (const path of possiblePaths) {
+                detailedData = await loadCountryDetailsFromFactbook(path);
+                if (detailedData) {
+                    console.log(`成功从路径 ${path} 加载 ${country.name} 的数据`);
+                    break;
+                }
+            }
+            
+            if (!detailedData) {
+                console.warn(`无法从任何路径加载 ${country.name} 的详细信息，使用基本数据`);
             }
         }
         
@@ -1697,8 +1723,13 @@ async function showCountryDetails(countryCode) {
 
     // 格式化数字
     function formatNumber(numStr) {
+        // 检查输入是否为字符串，如果不是则转换为字符串
+        if (typeof numStr !== 'string') {
+            numStr = String(numStr || '');
+        }
+        
         // 移除逗号并转换为数字
-        const num = parseInt(numStr.replace(/,/g, ''));
+        const num = parseInt(numStr.replace(/,/g, '')) || 0;
         
         if (num >= 1000000000) {
             return (num / 1000000000).toFixed(1) + '亿';
@@ -2729,63 +2760,79 @@ async function showCountryDetails(countryCode) {
             const response = await fetch(factbookUrl);
             
             if (!response.ok) {
-                throw new Error(`无法加载 ${factbookUrl}: ${response.status} ${response.statusText}`);
+                console.warn(`无法加载 ${factbookUrl}: ${response.status} ${response.statusText}`);
+                return null;
             }
             
             // 检查响应内容类型
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
                 console.warn(`响应不是JSON格式: ${contentType}`);
+                // 尝试解析响应文本，看是否是JSON格式的HTML
+                try {
+                    const text = await response.text();
+                    // 尝试从HTML中提取JSON数据
+                    const jsonMatch = text.match(/<pre>([\s\S]*?)<\/pre>/);
+                    if (jsonMatch) {
+                        const jsonData = JSON.parse(jsonMatch[1]);
+                        return formatFactbookData(jsonData);
+                    }
+                } catch (parseError) {
+                    console.warn('无法从HTML响应中解析JSON:', parseError);
+                }
                 // 返回null，让调用者使用备用数据
                 return null;
             }
             
             const data = await response.json();
-            
-            // 格式化数据以匹配应用所需的格式
-            return {
-                code: data.code || '',
-                name: data.name || '',
-                chineseName: data.chineseName || '',
-                capital: data.capital || '',
-                population: data.population || '',
-                area: data.area || '',
-                gdp: data.gdp || '',
-                languages: data.languages || '',
-                currency: data.currency || '',
-                description: data.introduction || data.description || '',
-                geography: {
-                    location: data.geography?.location || '',
-                    climate: data.geography?.climate || '',
-                    terrain: data.geography?.terrain || '',
-                    naturalResources: data.geography?.naturalResources || '',
-                    elevation: {
-                        highest: data.geography?.elevation?.highest || ''
-                    }
-                },
-                people: {
-                    nationality: data.people?.nationality || '',
-                    ethnicGroups: data.people?.ethnicGroups || '',
-                    languages: data.people?.languages || data.languages || '',
-                    religions: data.people?.religions || ''
-                },
-                government: {
-                    type: data.government?.type || '',
-                    capital: data.government?.capital || data.capital || '',
-                    independence: data.government?.independence || ''
-                },
-                economy: {
-                    gdp: data.economy?.gdp || data.gdp || '',
-                    agriculture: data.economy?.agriculture || '',
-                    industry: data.economy?.industry || '',
-                    services: data.economy?.services || ''
-                }
-            };
+            return formatFactbookData(data);
         } catch (error) {
             console.error('从factbook.json加载国家详细信息失败:', error);
             // 返回null，让调用者使用备用数据
             return null;
         }
+    }
+    
+    // 格式化factbook数据
+    function formatFactbookData(data) {
+        return {
+            code: data.code || '',
+            name: data.name || '',
+            chineseName: data.chineseName || '',
+            capital: data.capital || '',
+            population: data.population || '',
+            area: data.area || '',
+            gdp: data.gdp || '',
+            languages: data.languages || '',
+            currency: data.currency || '',
+            description: data.introduction || data.description || '',
+            geography: {
+                location: data.geography?.location || '',
+                climate: data.geography?.climate || '',
+                terrain: data.geography?.terrain || '',
+                naturalResources: data.geography?.naturalResources || '',
+                elevation: {
+                    highest: data.geography?.elevation?.highest || ''
+                }
+            },
+            people: {
+                nationality: data.people?.nationality || '',
+                ethnicGroups: data.people?.ethnicGroups || '',
+                languages: data.people?.languages || data.languages || '',
+                religions: data.people?.religions || ''
+            },
+            government: {
+                type: data.government?.type || '',
+                capital: data.government?.capital || data.capital || '',
+                independence: data.government?.independence || ''
+            },
+            economy: {
+                gdp: data.economy?.gdp || data.gdp || '',
+                agriculture: data.economy?.agriculture || '',
+                industry: data.economy?.industry || '',
+                services: data.economy?.services || ''
+            }
+        };
     }
 
 // 从factbook.json仓库获取数据
