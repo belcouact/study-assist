@@ -30,15 +30,24 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        // 提取所有唯一的大洲信息
+        // 提取所有唯一的大洲信息 - 使用Continent_Chn字段
         const continents = new Set();
+        const continentCounts = {};
+        
+        console.log('开始处理国家数据，总共有', countriesData.length, '个国家');
+        
         countriesData.forEach(country => {
-            if (country.continent) {
-                continents.add(country.continent);
+            console.log('处理国家:', country.name, 'chineseContinent:', country.chineseContinent);
+            if (country.chineseContinent) {
+                continents.add(country.chineseContinent);
+                continentCounts[country.chineseContinent] = (continentCounts[country.chineseContinent] || 0) + 1;
+            } else {
+                console.warn('国家', country.name, '没有chineseContinent字段');
             }
         });
         
         console.log('发现的大洲:', Array.from(continents));
+        console.log('各大洲国家数量:', continentCounts);
         
         // 获取筛选器容器
         const filterContainer = document.querySelector('.filter-container');
@@ -56,10 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
             filterChip.className = 'filter-chip';
             filterChip.setAttribute('data-region', continent);
             
-            // 获取该大洲的中文名称
-            const chineseContinent = getChineseContinentName(continent);
-            
-            filterChip.innerHTML = `<span>${chineseContinent}</span>`;
+            filterChip.innerHTML = `<span>${continent} (${continentCounts[continent]})</span>`;
             
             // 添加点击事件
             filterChip.addEventListener('click', handleRegionFilter);
@@ -83,7 +89,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const allFilter = document.createElement('div');
         allFilter.className = 'filter-chip';
         allFilter.setAttribute('data-region', 'all');
-        allFilter.innerHTML = '<span>全部</span>';
+        allFilter.innerHTML = `<span>全部 (${countriesData.length})</span>`;
         
         // 添加点击事件
         allFilter.addEventListener('click', handleRegionFilter);
@@ -248,7 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // 加载国家数据
+    // 从Cloudflare D1数据库加载国家数据
     async function loadCountriesData() {
         try {
             // 检测是否为移动设备
@@ -316,20 +322,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             } else {
-                // 尝试从countries_info.json文件获取数据
+                // 尝试从Cloudflare D1数据库获取数据
                 try {
                     // 移动设备优化：显示正在从网络加载数据的提示
                     if (isMobile) {
                         const loadingText = loadingIndicator.querySelector('p');
                         if (loadingText) {
-                            loadingText.textContent = '正在从网络加载数据...';
+                            loadingText.textContent = '正在从数据库加载数据...';
                         }
                     }
                     
-                    countriesData = await loadCountriesInfoData();
-                    console.log('使用countries_info.json数据');
+                    countriesData = await loadCountriesFromDB();
+                    console.log('使用Cloudflare D1数据库数据');
                 } catch (error) {
-                    console.warn('无法加载countries_info.json数据，使用模拟数据:', error);
+                    console.warn('无法从Cloudflare D1数据库加载数据，使用模拟数据:', error);
                     
                     // 移动设备优化：显示正在使用模拟数据的提示
                     if (isMobile) {
@@ -339,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     }
                     
-                    // 从countries_info.json API获取数据失败，使用模拟数据
+                    // 从数据库获取数据失败，使用模拟数据
                     countriesData = getMockCountriesData();
                     console.log('使用模拟数据');
                 }
@@ -387,6 +393,41 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (error) {
             console.error('加载国家数据失败:', error);
+            throw error;
+        }
+    }
+
+    // 从Cloudflare D1数据库加载国家数据
+    async function loadCountriesFromDB() {
+        try {
+            const response = await fetch('/api/db/query/country_info');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.message || 'Failed to fetch country data');
+            }
+            
+            // 转换数据格式以适应现有代码结构
+            return data.data.map(country => ({
+                code: country.Country_Code_Alpha2,
+                fipsCode: country.Country_Code_Fips_10,
+                alpha2Code: country.Country_Code_Alpha2,
+                name: country.Country_Name_Eng,
+                chineseName: country.Country_Name_Chn,
+                continent: country.Continent_Eng,
+                chineseContinent: country.Continent_Chn,
+                flagSvg: country.Flag_SVG,
+                factbookFilePath: country.Factbook_File_Path,
+                // 为了兼容现有代码，添加一些默认值
+                capital: '未知',
+                population: '未知',
+                area: '未知'
+            }));
+        } catch (error) {
+            console.error('从数据库加载国家数据失败:', error);
             throw error;
         }
     }
@@ -1026,8 +1067,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterAndDisplayCountries(searchTerm = '') {
         // 筛选国家
         filteredCountries = countriesData.filter(country => {
-            // 地区筛选 - 使用continent字段而不是region字段
-            if (currentRegion !== 'all' && country.continent !== currentRegion) {
+            // 地区筛选 - 使用chineseContinent字段而不是continent字段
+            if (currentRegion !== 'all' && country.chineseContinent !== currentRegion) {
                 return false;
             }
 
@@ -1115,7 +1156,7 @@ function createCountryCard(country) {
     const card = document.createElement('div');
     card.className = 'country-card';
     card.setAttribute('data-country-code', country.code);
-    card.setAttribute('data-continent', country.continent);
+    card.setAttribute('data-continent', country.chineseContinent);
 
     // 检测是否为移动设备
     const isMobile = isMobileDevice();
@@ -1129,12 +1170,12 @@ function createCountryCard(country) {
         card.style.marginBottom = '15px';
     }
 
-    // 使用countries_info.json中的SVG旗帜或默认旗帜
+    // 使用Flag_SVG字段显示国旗
     const flagSvg = country.flagSvg || `<i class="fas fa-flag country-flag-placeholder"></i>`;
     
     // 显示中英文名称
     const countryName = country.chineseName ? `${country.chineseName} (${country.name})` : country.name;
-    const continentName = country.chineseContinent || country.continent || 'Unknown';
+    const continentName = country.chineseContinent || 'Unknown';
 
     card.innerHTML = `
         <div class="country-flag">
@@ -1148,16 +1189,16 @@ function createCountryCard(country) {
             </div>
             <div class="country-facts">
                 <div class="country-fact">
-                    <span class="fact-label">首都</span>
-                    <span class="fact-value">${country.capital || '未知'}</span>
+                    <span class="fact-label">FIPS代码</span>
+                    <span class="fact-value">${country.fipsCode || '未知'}</span>
                 </div>
                 <div class="country-fact">
-                    <span class="fact-label">人口</span>
-                    <span class="fact-value">${country.population || '未知'}</span>
+                    <span class="fact-label">Alpha2代码</span>
+                    <span class="fact-value">${country.alpha2Code || '未知'}</span>
                 </div>
                 <div class="country-fact">
-                    <span class="fact-label">面积</span>
-                    <span class="fact-value">${country.area || '未知'}</span>
+                    <span class="fact-label">英文名称</span>
+                    <span class="fact-value">${country.name || '未知'}</span>
                 </div>
             </div>
             <div class="card-actions">
@@ -1306,8 +1347,8 @@ async function showCountryDetails(countryCode) {
         let detailedData = null;
         
         // 如果有文件路径，尝试从factbook.json加载
-        if (country.filePath) {
-            detailedData = await loadCountryDetailsFromFactbook(country.filePath);
+        if (country.factbookFilePath) {
+            detailedData = await loadCountryDetailsFromFactbook(country.factbookFilePath);
         }
         
         // 如果无法从factbook.json加载，使用基本数据
@@ -2595,7 +2636,7 @@ async function showCountryDetails(countryCode) {
 async function loadCountryDetailsFromFactbook(filePath) {
     try {
         // 构建factbook.json文件的URL
-        const factbookUrl = `assets/data/geography/factbook/${filePath}`;
+        const factbookUrl = `factbook.json/${filePath}`;
         
         // 尝试从本地文件加载
         const response = await fetch(factbookUrl);
