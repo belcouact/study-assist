@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 数据存储
     let countriesData = [];
     let filteredCountries = [];
-    let currentRegion = '';
+    let currentRegion = 'all';
     let currentView = 'cards';
 
     // 初始化
@@ -58,6 +58,26 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 清空现有筛选器
         filterContainer.innerHTML = '';
+        
+        // 添加'全部'筛选器
+        const allFilter = document.createElement('div');
+        allFilter.className = 'filter-chip active';
+        allFilter.setAttribute('data-region', 'all');
+        allFilter.innerHTML = `<span>全部 (${countriesData.length})</span>`;
+        
+        // 添加点击事件
+        allFilter.addEventListener('click', handleRegionFilter);
+        
+        // 添加触摸事件（移动设备优化）
+        allFilter.addEventListener('touchstart', function() {
+            this.classList.add('active');
+        }, { passive: true });
+        
+        allFilter.addEventListener('touchend', function() {
+            this.classList.remove('active');
+        }, { passive: true });
+        
+        filterContainer.appendChild(allFilter);
         
         // 为每个大洲创建筛选器
         continents.forEach(continent => {
@@ -149,29 +169,26 @@ document.addEventListener('DOMContentLoaded', function() {
             // 设置事件监听器
             setupEventListeners();
             
-            // 移动设备优化：添加欢迎提示
+            // 移动设备优化：移除了欢迎提示
             if (isMobile) {
                 // 延迟显示欢迎提示，确保页面已完全加载
-                setTimeout(() => {
-                    showNotification('欢迎探索世界各国地理信息！左右滑动可切换标签。', 3000);
-                }, 500);
+                // setTimeout(() => {
+                //     showNotification('欢迎探索世界各国地理信息！左右滑动可切换标签。', 3000);
+                // }, 500);
             }
             
-            // 默认选择第一个地区
-            if (filterChips.length > 0) {
-                // 获取第一个筛选器的data-region值
-                currentRegion = filterChips[0].getAttribute('data-region');
-                
+            // 默认选择'全部'地区
+            const allFilter = document.querySelector('.filter-chip[data-region="all"]');
+            if (allFilter) {
                 // 移动设备优化：添加触摸反馈动画
                 if (isMobile) {
-                    const firstChip = filterChips[0];
-                    firstChip.style.transform = 'scale(0.95)';
+                    allFilter.style.transform = 'scale(0.95)';
                     setTimeout(() => {
-                        firstChip.style.transform = '';
-                        filterChips[0].click(); // 触发点击事件
+                        allFilter.style.transform = '';
+                        allFilter.click(); // 触发点击事件
                     }, 150);
                 } else {
-                    filterChips[0].click(); // 触发点击事件
+                    allFilter.click(); // 触发点击事件
                 }
             }
             
@@ -413,8 +430,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return [
             {
                 code: 'ch',
-                name: '中国',
+                fipsCode: 'CH',
+                alpha2Code: 'CN',
+                name: 'China',
+                chineseName: '中国',
                 region: 'asia',
+                chineseContinent: '亚洲',
                 subregion: '东亚',
                 capital: '北京',
                 population: '1,439,323,776',
@@ -444,8 +465,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'us',
-                name: '美国',
+                fipsCode: 'US',
+                alpha2Code: 'US',
+                name: 'United States',
+                chineseName: '美国',
                 region: 'americas',
+                chineseContinent: '美洲',
                 subregion: '北美洲',
                 capital: '华盛顿特区',
                 population: '332,915,073',
@@ -475,8 +500,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'gm',
-                name: '德国',
+                fipsCode: 'GM',
+                alpha2Code: 'DE',
+                name: 'Germany',
+                chineseName: '德国',
                 region: 'europe',
+                chineseContinent: '欧洲',
                 subregion: '西欧',
                 capital: '柏林',
                 population: '83,783,942',
@@ -506,8 +535,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'br',
-                name: '巴西',
+                fipsCode: 'BR',
+                alpha2Code: 'BR',
+                name: 'Brazil',
+                chineseName: '巴西',
                 region: 'americas',
+                chineseContinent: '美洲',
                 subregion: '南美洲',
                 capital: '巴西利亚',
                 population: '212,559,417',
@@ -537,8 +570,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'ng',
-                name: '尼日利亚',
+                fipsCode: 'NG',
+                alpha2Code: 'NG',
+                name: 'Nigeria',
+                chineseName: '尼日利亚',
                 region: 'africa',
+                chineseContinent: '非洲',
                 subregion: '西非',
                 capital: '阿布贾',
                 population: '206,139,589',
@@ -568,8 +605,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'au',
-                name: '澳大利亚',
+                fipsCode: 'AS',
+                alpha2Code: 'AU',
+                name: 'Australia',
+                chineseName: '澳大利亚',
                 region: 'oceania',
+                chineseContinent: '大洋洲',
                 subregion: '澳大利亚和新西兰',
                 capital: '堪培拉',
                 population: '25,499,884',
@@ -599,8 +640,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'in',
-                name: '印度',
+                fipsCode: 'IN',
+                alpha2Code: 'IN',
+                name: 'India',
+                chineseName: '印度',
                 region: 'asia',
+                chineseContinent: '亚洲',
                 subregion: '南亚',
                 capital: '新德里',
                 population: '1,380,004,385',
@@ -630,8 +675,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'fr',
-                name: '法国',
+                fipsCode: 'FR',
+                alpha2Code: 'FR',
+                name: 'France',
+                chineseName: '法国',
                 region: 'europe',
+                chineseContinent: '欧洲',
                 subregion: '西欧',
                 capital: '巴黎',
                 population: '65,273,511',
@@ -661,8 +710,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'eg',
-                name: '埃及',
+                fipsCode: 'EG',
+                alpha2Code: 'EG',
+                name: 'Egypt',
+                chineseName: '埃及',
                 region: 'africa',
+                chineseContinent: '非洲',
                 subregion: '北非',
                 capital: '开罗',
                 population: '102,334,404',
@@ -692,8 +745,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'ca',
-                name: '加拿大',
+                fipsCode: 'CA',
+                alpha2Code: 'CA',
+                name: 'Canada',
+                chineseName: '加拿大',
                 region: 'americas',
+                chineseContinent: '美洲',
                 subregion: '北美洲',
                 capital: '渥太华',
                 population: '37,742,154',
@@ -723,8 +780,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'ja',
-                name: '日本',
+                fipsCode: 'JA',
+                alpha2Code: 'JP',
+                name: 'Japan',
+                chineseName: '日本',
                 region: 'asia',
+                chineseContinent: '亚洲',
                 subregion: '东亚',
                 capital: '东京',
                 population: '126,476,461',
@@ -754,8 +815,12 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             {
                 code: 'uk',
-                name: '英国',
+                fipsCode: 'UK',
+                alpha2Code: 'GB',
+                name: 'United Kingdom',
+                chineseName: '英国',
                 region: 'europe',
+                chineseContinent: '欧洲',
                 subregion: '西欧',
                 capital: '伦敦',
                 population: '67,886,011',
@@ -1016,6 +1081,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // 重新筛选和显示国家
         filterAndDisplayCountries();
+        
+        // 移动设备优化：添加触觉反馈
+        if (isMobileDevice() && 'vibrate' in navigator) {
+            navigator.vibrate(5);
+        }
     }
 
     // 处理视图切换
@@ -1044,17 +1114,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // 筛选国家
         filteredCountries = countriesData.filter(country => {
             // 地区筛选 - 使用chineseContinent字段而不是continent字段
-            if (currentRegion !== 'all' && country.chineseContinent !== currentRegion) {
+            if (currentRegion && currentRegion !== 'all' && country.chineseContinent !== currentRegion) {
                 return false;
             }
 
-            // 搜索筛选 - 同时搜索中英文名称
+            // 搜索筛选 - 同时搜索中英文名称和国家代码
             if (searchTerm) {
                 const lowerSearchTerm = searchTerm.toLowerCase();
                 const nameMatch = country.name && country.name.toLowerCase().includes(lowerSearchTerm);
                 const chineseNameMatch = country.chineseName && country.chineseName.toLowerCase().includes(lowerSearchTerm);
+                const fipsCodeMatch = country.fipsCode && country.fipsCode.toLowerCase().includes(lowerSearchTerm);
+                const alpha2CodeMatch = country.alpha2Code && country.alpha2Code.toLowerCase().includes(lowerSearchTerm);
                 
-                if (!nameMatch && !chineseNameMatch) {
+                if (!nameMatch && !chineseNameMatch && !fipsCodeMatch && !alpha2CodeMatch) {
                     return false;
                 }
             }
@@ -1130,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 创建国家卡片
 function createCountryCard(country) {
     const card = document.createElement('div');
-    card.className = 'country-card';
+    card.className = 'country-card flip-card';
     card.setAttribute('data-country-code', country.code);
     card.setAttribute('data-continent', country.chineseContinent);
 
@@ -1150,42 +1222,25 @@ function createCountryCard(country) {
     const flagSvg = country.flagSvg || `<i class="fas fa-flag country-flag-placeholder"></i>`;
     
     // 调整SVG国旗大小
-    const adjustedFlagSvg = flagSvg.replace(/width="[^"]*"/, 'width="60"').replace(/height="[^"]*"/, 'height="40"');
+    const adjustedFlagSvg = flagSvg.replace(/width="[^"]*"/, 'width="120"').replace(/height="[^"]*"/, 'height="80"');
     
     // 显示中英文名称
     const countryName = country.chineseName ? `${country.chineseName} (${country.name})` : country.name;
     const continentName = country.chineseContinent || 'Unknown';
 
     card.innerHTML = `
-        <div class="country-flag">
-            ${adjustedFlagSvg}
-        </div>
-        <div class="country-info">
-            <h3 class="country-name">${countryName}</h3>
-            <div class="country-region">
-                <i class="fas fa-globe"></i>
-                <span>${continentName}</span>
-            </div>
-            <div class="country-facts">
-                <div class="country-fact">
-                    <span class="fact-label">FIPS代码</span>
-                    <span class="fact-value">${country.fipsCode || '未知'}</span>
-                </div>
-                <div class="country-fact">
-                    <span class="fact-label">Alpha2代码</span>
-                    <span class="fact-value">${country.alpha2Code || '未知'}</span>
-                </div>
-                <div class="country-fact">
-                    <span class="fact-label">英文名称</span>
-                    <span class="fact-value">${country.name || '未知'}</span>
+        <div class="flip-card-inner">
+            <div class="flip-card-front">
+                <div class="country-flag">
+                    ${adjustedFlagSvg}
                 </div>
             </div>
-            <div class="card-actions">
-                <button class="card-button details-button" data-country-code="${country.code}">
-                    <i class="fas fa-info-circle"></i> 详情
-                </button>
-                <button class="card-button download-button" id="download-${country.code}" data-country-code="${country.code}">
-                    <i class="fas fa-download"></i> 下载数据
+            <div class="flip-card-back">
+                <h3>${countryName}</h3>
+                <div class="country-code">FIPS代码: ${country.fipsCode || '未知'}</div>
+                <div class="country-code">Alpha2代码: ${country.alpha2Code || '未知'}</div>
+                <button class="detail-link" data-country-code="${country.code}">
+                    查看详细信息
                 </button>
             </div>
         </div>
@@ -1202,83 +1257,19 @@ function createCountryCard(country) {
             this.style.transform = '';
             this.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
         }, { passive: true });
-        
-        // 移动设备优化：调整卡片内部元素样式
-        const countryName = card.querySelector('.country-name');
-        countryName.style.fontSize = '18px';
-        countryName.style.marginBottom = '8px';
-        
-        const countryFacts = card.querySelector('.country-facts');
-        countryFacts.style.marginTop = '12px';
-        
-        const factLabels = card.querySelectorAll('.fact-label');
-        factLabels.forEach(label => {
-            label.style.fontSize = '12px';
-            label.style.color = '#666';
-        });
-        
-        const factValues = card.querySelectorAll('.fact-value');
-        factValues.forEach(value => {
-            value.style.fontSize = '14px';
-            value.style.fontWeight = '500';
-        });
-        
-        const cardActions = card.querySelector('.card-actions');
-        cardActions.style.marginTop = '15px';
-        cardActions.style.display = 'flex';
-        cardActions.style.gap = '10px';
-        
-        const cardButtons = card.querySelectorAll('.card-button');
-        cardButtons.forEach(button => {
-            button.style.flex = '1';
-            button.style.padding = '10px';
-            button.style.fontSize = '14px';
-            button.style.borderRadius = '6px';
-            button.style.display = 'flex';
-            button.style.alignItems = 'center';
-            button.style.justifyContent = 'center';
-            button.style.gap = '5px';
-        });
     }
 
-    // 添加点击事件 - 使用事件委托而不是内联onclick
-    const detailsButton = card.querySelector('.details-button');
-    const downloadButton = card.querySelector('.download-button');
-    
-    detailsButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        showCountryDetails(country.code);
-    });
-    
-    downloadButton.addEventListener('click', function(e) {
-        e.stopPropagation();
-        downloadCountryData(country.code);
-    });
-    
-    // 移动设备优化：为按钮添加触摸反馈
-    if (isMobile) {
-        detailsButton.addEventListener('touchstart', function() {
-            this.style.backgroundColor = '#f0f0f0';
-        }, { passive: true });
-        
-        detailsButton.addEventListener('touchend', function() {
-            this.style.backgroundColor = '';
-        }, { passive: true });
-        
-        downloadButton.addEventListener('touchstart', function() {
-            this.style.backgroundColor = '#f0f0f0';
-        }, { passive: true });
-        
-        downloadButton.addEventListener('touchend', function() {
-            this.style.backgroundColor = '';
-        }, { passive: true });
-    }
-
-    // 添加卡片点击事件
+    // 添加卡片点击事件 - 翻转卡片
     card.addEventListener('click', function(e) {
-        // 如果点击的是按钮，不触发卡片点击事件
-        if (e.target.closest('.card-button')) return;
-        showCountryDetails(country.code);
+        // 如果点击的是详情链接，不翻转卡片，而是显示详情
+        if (e.target.classList.contains('detail-link')) {
+            e.stopPropagation();
+            showCountryDetails(country.code);
+            return;
+        }
+        
+        // 翻转卡片
+        this.classList.toggle('flipped');
     });
 
     return card;
@@ -1334,7 +1325,16 @@ async function showCountryDetails(countryCode) {
             }
         }
         
-        // 如果无法从factbook.json加载，使用基本数据
+        // 如果无法从factbook.json加载，尝试使用Factbook_File_Path字段
+        if (!detailedData && country.Factbook_File_Path) {
+            detailedData = await loadCountryDetailsFromFactbook(country.Factbook_File_Path);
+            // 如果加载失败，使用基本数据
+            if (!detailedData) {
+                console.warn(`无法从factbook.json加载 ${country.name} 的详细信息，使用基本数据`);
+            }
+        }
+        
+        // 如果仍然无法从factbook.json加载，使用基本数据
         if (!detailedData) {
             detailedData = {
                 ...country,
@@ -2616,73 +2616,73 @@ async function showCountryDetails(countryCode) {
     }
     
     // 从factbook.json文件加载国家详细信息
-async function loadCountryDetailsFromFactbook(filePath) {
-    try {
-        // 构建factbook.json文件的URL
-        const factbookUrl = `factbook.json/${filePath}`;
-        
-        // 尝试从本地文件加载
-        const response = await fetch(factbookUrl);
-        
-        if (!response.ok) {
-            throw new Error(`无法加载 ${factbookUrl}: ${response.status} ${response.statusText}`);
-        }
-        
-        // 检查响应内容类型
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.warn(`响应不是JSON格式: ${contentType}`);
+    async function loadCountryDetailsFromFactbook(filePath) {
+        try {
+            // 构建factbook.json文件的URL
+            const factbookUrl = `factbook.json/${filePath}`;
+            
+            // 尝试从本地文件加载
+            const response = await fetch(factbookUrl);
+            
+            if (!response.ok) {
+                throw new Error(`无法加载 ${factbookUrl}: ${response.status} ${response.statusText}`);
+            }
+            
+            // 检查响应内容类型
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.warn(`响应不是JSON格式: ${contentType}`);
+                // 返回null，让调用者使用备用数据
+                return null;
+            }
+            
+            const data = await response.json();
+            
+            // 格式化数据以匹配应用所需的格式
+            return {
+                code: data.code || '',
+                name: data.name || '',
+                chineseName: data.chineseName || '',
+                capital: data.capital || '',
+                population: data.population || '',
+                area: data.area || '',
+                gdp: data.gdp || '',
+                languages: data.languages || '',
+                currency: data.currency || '',
+                description: data.introduction || data.description || '',
+                geography: {
+                    location: data.geography?.location || '',
+                    climate: data.geography?.climate || '',
+                    terrain: data.geography?.terrain || '',
+                    naturalResources: data.geography?.naturalResources || '',
+                    elevation: {
+                        highest: data.geography?.elevation?.highest || ''
+                    }
+                },
+                people: {
+                    nationality: data.people?.nationality || '',
+                    ethnicGroups: data.people?.ethnicGroups || '',
+                    languages: data.people?.languages || data.languages || '',
+                    religions: data.people?.religions || ''
+                },
+                government: {
+                    type: data.government?.type || '',
+                    capital: data.government?.capital || data.capital || '',
+                    independence: data.government?.independence || ''
+                },
+                economy: {
+                    gdp: data.economy?.gdp || data.gdp || '',
+                    agriculture: data.economy?.agriculture || '',
+                    industry: data.economy?.industry || '',
+                    services: data.economy?.services || ''
+                }
+            };
+        } catch (error) {
+            console.error('从factbook.json加载国家详细信息失败:', error);
             // 返回null，让调用者使用备用数据
             return null;
         }
-        
-        const data = await response.json();
-        
-        // 格式化数据以匹配应用所需的格式
-        return {
-            code: data.code || '',
-            name: data.name || '',
-            chineseName: data.chineseName || '',
-            capital: data.capital || '',
-            population: data.population || '',
-            area: data.area || '',
-            gdp: data.gdp || '',
-            languages: data.languages || '',
-            currency: data.currency || '',
-            description: data.introduction || data.description || '',
-            geography: {
-                location: data.geography?.location || '',
-                climate: data.geography?.climate || '',
-                terrain: data.geography?.terrain || '',
-                naturalResources: data.geography?.naturalResources || '',
-                elevation: {
-                    highest: data.geography?.elevation?.highest || ''
-                }
-            },
-            people: {
-                nationality: data.people?.nationality || '',
-                ethnicGroups: data.people?.ethnicGroups || '',
-                languages: data.people?.languages || data.languages || '',
-                religions: data.people?.religions || ''
-            },
-            government: {
-                type: data.government?.type || '',
-                capital: data.government?.capital || data.capital || '',
-                independence: data.government?.independence || ''
-            },
-            economy: {
-                gdp: data.economy?.gdp || data.gdp || '',
-                agriculture: data.economy?.agriculture || '',
-                industry: data.economy?.industry || '',
-                services: data.economy?.services || ''
-            }
-        };
-    } catch (error) {
-        console.error('从factbook.json加载国家详细信息失败:', error);
-        // 返回null，让调用者使用备用数据
-        return null;
     }
-}
 
 // 从factbook.json仓库获取数据
     async function loadFactbookData() {
