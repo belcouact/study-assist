@@ -26,11 +26,6 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     let filteredCountries = [];
     let currentRegion = 'all';
     let currentView = 'cards';
-    
-    // 地图相关变量
-    let map = null;
-    let mapInitialized = false;
-    let countryMarkers = [];
 
     // 初始化
     init();
@@ -451,9 +446,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                     // 为了兼容现有代码，添加一些默认值
                     capital: '未知',
                     population: '未知',
-                    area: '未知',
-                    // 添加坐标数据
-                    latlng: country.latlng || null
+                    area: '未知'
                 };
             });
         } catch (error) {
@@ -532,9 +525,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                     factbookFilePath: null,
                     capital: capital,
                     population: population,
-                    area: area,
-                    // 添加坐标数据
-                    latlng: country.latlng || null
+                    area: area
                 };
             });
         } catch (error) {
@@ -817,12 +808,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         } else {
             cardsView.style.display = 'none';
             mapView.style.display = 'block';
-            
-            // 如果地图尚未初始化，则初始化地图
-            if (!mapInitialized) {
-                initializeMap();
-                mapInitialized = true;
-            }
+            // 显示地图视图
+            displayMapView();
         }
 
         currentView = view;
@@ -2445,8 +2432,6 @@ async function showCountryDetails(countryCode) {
                     capital: '未知',
                     population: '未知',
                     area: '未知',
-                    // 添加坐标数据
-                    latlng: country.latlng || null,
                     // 添加详细信息占位符
                     details: {
                         geography: {},
@@ -2633,8 +2618,6 @@ async function showCountryDetails(countryCode) {
                 area: factbookData.geography?.area?.total || factbookData.area || 0,
                 flag: factbookData.country?.flag || `https://flagcdn.com/w320/${factbookData.country?.code || 'xx'}.png`,
                 description: factbookData.introduction?.background || factbookData.description || 'No description available.',
-                // 添加坐标数据
-                latlng: factbookData.geography?.coordinates || factbookData.latlng || null,
                 geography: {
                     location: factbookData.geography?.location || 'N/A',
                     climate: factbookData.geography?.climate || 'N/A',
@@ -2670,149 +2653,158 @@ async function showCountryDetails(countryCode) {
         }
     }
     
-    // 初始化2D地图
-    function initializeMap() {
-        // 移除地图占位符
-        const mapContainer = document.querySelector('.map-view-container');
-        mapContainer.innerHTML = '';
+    // 显示地图视图
+    function displayMapView() {
+        const mapViewContainer = document.getElementById('map-view');
+        if (!mapViewContainer) return;
+        
+        // 清空地图容器
+        mapViewContainer.innerHTML = '';
         
         // 创建地图容器
-        const mapDiv = document.createElement('div');
-        mapDiv.id = 'world-map';
-        mapDiv.style.height = '500px';
-        mapDiv.style.width = '100%';
-        mapDiv.style.borderRadius = '8px';
-        mapDiv.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.1)';
-        mapContainer.appendChild(mapDiv);
+        const mapContainer = document.createElement('div');
+        mapContainer.id = 'leaflet-map';
+        mapContainer.style.width = '100%';
+        mapContainer.style.height = '500px';
+        mapContainer.style.borderRadius = '8px';
+        mapViewContainer.appendChild(mapContainer);
         
-        // 初始化Leaflet地图
-        map = L.map('world-map').setView([20, 0], 2);
+        // 初始化地图 - 居中显示世界地图
+        const map = L.map('leaflet-map').setView([20, 0], 2);
         
         // 添加地图图层
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 18,
-            minZoom: 2
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 18
         }).addTo(map);
         
+        // 检测是否为移动设备
+        const isMobile = isMobileDevice();
+        
         // 添加国家标记
-        addCountryMarkers();
-        
-        // 添加地图控件
-        L.control.scale().addTo(map);
-    }
-    
-    // 添加国家标记到地图
-    function addCountryMarkers() {
-        if (!map || countriesData.length === 0) return;
-        
-        // 清除现有标记
-        countryMarkers.forEach(marker => map.removeLayer(marker));
-        countryMarkers = [];
-        
-        // 根据当前筛选条件获取国家
-        let countriesToShow = filteredCountries;
-        if (currentRegion !== 'all') {
-            countriesToShow = countriesData.filter(country => 
-                country.chineseContinent === currentRegion
-            );
+        if (window.countriesData && window.countriesData.length > 0) {
+            // 创建自定义图标
+            const countryIcon = L.divIcon({
+                className: 'country-marker',
+                html: '<div style="background-color: #4285F4; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+            
+            // 为每个国家添加标记
+            window.countriesData.forEach(country => {
+                // 尝试获取国家坐标（如果有的话）
+                let lat = country.latitude || 0;
+                let lng = country.longitude || 0;
+                
+                // 如果没有坐标，使用默认坐标（这里可以根据国家名称设置更精确的默认坐标）
+                if (lat === 0 && lng === 0) {
+                    // 根据地区设置默认坐标
+                    switch(country.region) {
+                        case 'asia':
+                            lat = 30; lng = 100;
+                            break;
+                        case 'europe':
+                            lat = 50; lng = 10;
+                            break;
+                        case 'africa':
+                            lat = 0; lng = 20;
+                            break;
+                        case 'americas':
+                            lat = 20; lng = -80;
+                            break;
+                        case 'oceania':
+                            lat = -25; lng = 140;
+                            break;
+                        default:
+                            lat = 20; lng = 0;
+                    }
+                }
+                
+                // 创建标记
+                const marker = L.marker([lat, lng], { icon: countryIcon }).addTo(map);
+                
+                // 创建弹出窗口内容
+                const popupContent = `
+                    <div style="min-width: 200px;">
+                        <h3 style="margin: 0 0 10px 0; color: #1D3557;">${country.chineseName || country.name}</h3>
+                        <p style="margin: 0 0 5px 0;"><strong>英文名称:</strong> ${country.name}</p>
+                        <p style="margin: 0 0 5px 0;"><strong>地区:</strong> ${getRegionName(country.region)}</p>
+                        <p style="margin: 0 0 10px 0;"><strong>首都:</strong> ${country.capital || '未知'}</p>
+                        <button id="view-details-${country.code}" style="background-color: #4285F4; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">查看详情</button>
+                    </div>
+                `;
+                
+                // 绑定弹出窗口
+                marker.bindPopup(popupContent);
+                
+                // 添加弹出窗口打开事件监听器
+                marker.on('popupopen', function() {
+                    // 为详情按钮添加点击事件
+                    const detailsButton = document.getElementById(`view-details-${country.code}`);
+                    if (detailsButton) {
+                        detailsButton.addEventListener('click', function() {
+                            // 关闭弹出窗口
+                            marker.closePopup();
+                            // 显示国家详情模态框
+                            showCountryDetails(country.code);
+                        });
+                    }
+                });
+                
+                // 移动设备优化：添加触摸反馈
+                if (isMobile) {
+                    marker.on('click', function() {
+                        // 在移动设备上，点击标记时自动打开弹出窗口
+                        marker.openPopup();
+                    });
+                }
+            });
         }
         
-        // 为每个国家添加标记
-        countriesToShow.forEach(country => {
-            // 尝试从不同来源获取坐标
-            let lat, lng;
+        // 添加地图控件样式
+        const style = document.createElement('style');
+        style.textContent = `
+            .country-marker {
+                background-color: #4285F4;
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
             
-            // 首先尝试从latlng字段获取
-            if (country.latlng && Array.isArray(country.latlng) && country.latlng.length >= 2) {
-                lat = country.latlng[0];
-                lng = country.latlng[1];
+            .leaflet-popup-content-wrapper {
+                border-radius: 8px;
+                box-shadow: 0 3px 14px rgba(0,0,0,0.2);
             }
-            // 然后尝试从独立的latitude和longitude字段获取
-            else if (country.latitude && country.longitude) {
-                lat = country.latitude;
-                lng = country.longitude;
+            
+            .leaflet-popup-content {
+                margin: 15px;
             }
-            // 如果都没有坐标，使用首都名称进行地理编码（这里简化处理，使用默认坐标）
-            else {
-                // 为每个大洲设置默认坐标
-                const defaultCoords = {
-                    '亚洲': [35, 105],
-                    '欧洲': [48, 16],
-                    '非洲': [0, 20],
-                    '北美洲': [40, -100],
-                    '南美洲': [-15, -60],
-                    '大洋洲': [-25, 135],
-                    '南极洲': [-80, 0]
-                };
+            
+            /* 移动设备优化 */
+            @media (max-width: 768px) {
+                .leaflet-popup-content {
+                    margin: 10px;
+                }
                 
-                const continent = country.chineseContinent || country.continent;
-                if (continent && defaultCoords[continent]) {
-                    [lat, lng] = defaultCoords[continent];
-                } else {
-                    // 如果连大洲都没有，使用全球中心坐标
-                    [lat, lng] = [20, 0];
+                .leaflet-popup-content-wrapper {
+                    border-radius: 6px;
                 }
             }
-            
-            // 创建标记
-            const marker = L.marker([lat, lng])
-                .addTo(map)
-                .bindPopup(`
-                    <div style="text-align: center; min-width: 150px;">
-                        <h4>${country.chineseName || country.name}</h4>
-                        <p><strong>首都:</strong> ${country.capital || 'N/A'}</p>
-                        <p><strong>人口:</strong> ${country.population || 'N/A'}</p>
-                        <button class="map-country-btn" 
-                                onclick="showCountryDetails('${country.code}')"
-                                style="background: #1D3557; color: white; border: none; 
-                                       padding: 5px 10px; border-radius: 4px; cursor: pointer;">
-                            查看详情
-                        </button>
-                    </div>
-                `);
-            
-            countryMarkers.push(marker);
-        });
+        `;
+        document.head.appendChild(style);
         
-        // 如果只有一个国家，自动缩放到该国家
-        if (countryMarkers.length === 1) {
-            const country = countriesToShow[0];
-            let lat, lng;
-            
-            // 获取坐标
-            if (country.latlng && Array.isArray(country.latlng) && country.latlng.length >= 2) {
-                lat = country.latlng[0];
-                lng = country.latlng[1];
-            } else if (country.latitude && country.longitude) {
-                lat = country.latitude;
-                lng = country.longitude;
-            } else {
-                // 使用默认坐标
-                lat = 20;
-                lng = 0;
-            }
-            
-            map.setView([lat, lng], 5);
+        // 响应式调整地图大小
+        function resizeMap() {
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 100);
         }
+        
+        // 监听窗口大小变化
+        window.addEventListener('resize', resizeMap);
+        
+        // 初始调整地图大小
+        resizeMap();
     }
-    
-    // 更新地图标记（用于筛选后更新）
-    function updateMapMarkers() {
-        if (mapInitialized) {
-            addCountryMarkers();
-        }
-    }
-    
-    // 修改filterAndDisplayCountries函数以包含地图更新
-    const originalFilterAndDisplayCountries = filterAndDisplayCountries;
-    filterAndDisplayCountries = function(searchTerm = '') {
-        originalFilterAndDisplayCountries(searchTerm);
-        if (currentView === 'map') {
-            updateMapMarkers();
-        }
-    };
-    
-    // 全局函数用于地图点击事件
-    window.showCountryDetails = showCountryDetails;
 });
