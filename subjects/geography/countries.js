@@ -3246,17 +3246,8 @@ async function showCountryDetails(countryCode) {
                 
                 // 添加点击事件
                 path.addEventListener('click', function() {
-                    if (countryInfo) {
-                        showCountryDetails(countryInfo.code);
-                    } else {
-                        // 如果没有详细信息，显示基本信息
-                        if (isMobile) {
-                            showCountryTooltip(e, countryId, countryName, countryInfo, tooltip);
-                            setTimeout(() => {
-                                tooltip.style.display = 'none';
-                            }, 3000);
-                        }
-                    }
+                    // 直接使用countryId（来自world_map.json的id字段）作为Country_Code_Alpha2
+                    showCountryDetails(countryId);
                 });
                 
                 // 移动设备优化：添加触摸事件
@@ -3382,8 +3373,11 @@ async function showCountryDetails(countryCode) {
     async function showCountryTooltip(event, countryId, countryName, countryInfo, tooltip) {
         if (!tooltip) return;
         
-        // 设置工具提示内容
-        let tooltipContent = `<div class="tooltip-title">${countryName}</div>`;
+        // 设置工具提示内容 - 显示来自world_map.json的name和id
+        let tooltipContent = `
+            <div class="tooltip-title">${countryName}</div>
+            <div class="tooltip-info"><strong>国家代码:</strong> ${countryId}</div>
+        `;
         
         // 尝试从country_info表获取更详细的国家信息
         let countryDetails = null;
@@ -3422,6 +3416,7 @@ async function showCountryDetails(countryCode) {
                             <div class="country-name-en">${englishName}</div>
                         </div>
                     </div>
+                    <div class="country-code">国家代码: ${countryId}</div>
                     <button class="tooltip-button" onclick="showCountryDetails('${countryId}')">查看详情</button>
                 </div>
             `;
@@ -3434,7 +3429,7 @@ async function showCountryDetails(countryCode) {
                 <button class="tooltip-button" onclick="showCountryDetails('${countryInfo.code}')">查看详情</button>
             `;
         } else {
-            tooltipContent += `<div class="tooltip-info">暂无详细信息</div>`;
+            // 不显示暂无详细信息的文本
         }
         
         tooltip.innerHTML = tooltipContent;
