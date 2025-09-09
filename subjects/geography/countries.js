@@ -2814,14 +2814,396 @@ async function showCountryDetails(countryCode) {
                 return;
             }
             
-            // 创建国家颜色映射
-            const regionColors = {
-                'africa': '#4285F4',
-                'americas': '#EA4335',
-                'asia': '#FBBC05',
-                'europe': '#34A853',
-                'oceania': '#8E44AD'
+            // 创建国家颜色映射 - 使用更多颜色确保相邻国家不同色
+        const countryColors = [
+            '#4285F4', '#EA4335', '#FBBC05', '#34A853', '#8E44AD', 
+            '#E67E22', '#1ABC9C', '#3498DB', '#9B59B6', '#2ECC71',
+            '#F1C40F', '#E74C3C', '#95A5A6', '#16A085', '#27AE60',
+            '#2980B9', '#8E44AD', '#F39C12', '#D35400', '#C0392B'
+        ];
+        
+        // 用于跟踪已分配颜色的国家
+        const coloredCountries = {};
+        
+        // 用于跟踪相邻国家
+        const adjacentCountries = {};
+        
+        // 创建缩放控制
+        const zoomControls = document.createElement('div');
+        zoomControls.className = 'map-zoom-controls';
+        zoomControls.style.position = 'absolute';
+        zoomControls.style.top = '10px';
+        zoomControls.style.right = '10px';
+        zoomControls.style.zIndex = '10';
+        
+        // 添加放大按钮
+        const zoomInBtn = document.createElement('button');
+        zoomInBtn.innerHTML = '+';
+        zoomInBtn.className = 'zoom-btn';
+        zoomInBtn.style.width = '40px';
+        zoomInBtn.style.height = '40px';
+        zoomInBtn.style.fontSize = '24px';
+        zoomInBtn.style.borderRadius = '50%';
+        zoomInBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        zoomInBtn.style.border = '1px solid #ddd';
+        zoomInBtn.style.cursor = 'pointer';
+        zoomInBtn.style.marginBottom = '10px';
+        zoomInBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        
+        // 添加缩小按钮
+        const zoomOutBtn = document.createElement('button');
+        zoomOutBtn.innerHTML = '-';
+        zoomOutBtn.className = 'zoom-btn';
+        zoomOutBtn.style.width = '40px';
+        zoomOutBtn.style.height = '40px';
+        zoomOutBtn.style.fontSize = '24px';
+        zoomOutBtn.style.borderRadius = '50%';
+        zoomOutBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        zoomOutBtn.style.border = '1px solid #ddd';
+        zoomOutBtn.style.cursor = 'pointer';
+        zoomOutBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        
+        // 添加重置按钮
+        const resetBtn = document.createElement('button');
+        resetBtn.innerHTML = '⟲';
+        resetBtn.className = 'reset-btn';
+        resetBtn.style.width = '40px';
+        resetBtn.style.height = '40px';
+        resetBtn.style.fontSize = '18px';
+        resetBtn.style.borderRadius = '50%';
+        resetBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        resetBtn.style.border = '1px solid #ddd';
+        resetBtn.style.cursor = 'pointer';
+        resetBtn.style.marginTop = '10px';
+        resetBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        
+        // 添加按钮到控制容器
+        zoomControls.appendChild(zoomInBtn);
+        zoomControls.appendChild(zoomOutBtn);
+        zoomControls.appendChild(resetBtn);
+        mapContainer.appendChild(zoomControls);
+        
+        // 初始缩放和平移参数
+        let currentScale = 1;
+        let currentTranslateX = 0;
+        let currentTranslateY = 0;
+        
+        // 缩放功能
+        zoomInBtn.addEventListener('click', function() {
+            currentScale = Math.min(currentScale * 1.2, 5); // 最大放大5倍
+            updateMapTransform();
+        });
+        
+        zoomOutBtn.addEventListener('click', function() {
+            currentScale = Math.max(currentScale / 1.2, 0.5); // 最小缩小到0.5倍
+            updateMapTransform();
+        });
+        
+        resetBtn.addEventListener('click', function() {
+            currentScale = 1;
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            updateMapTransform();
+        });
+        
+        // 更新地图变换
+        function updateMapTransform() {
+            svgMap.setAttribute('transform', `translate(${currentTranslateX}, ${currentTranslateY}) scale(${currentScale})`);
+        }
+        
+        // 添加拖拽功能
+        let isDragging = false;
+        let startX, startY;
+        
+        mapContainer.addEventListener('mousedown', function(e) {
+            if (e.target === svgMap || e.target.parentNode === svgMap) {
+                isDragging = true;
+                startX = e.clientX - currentTranslateX;
+                startY = e.clientY - currentTranslateY;
+                mapContainer.style.cursor = 'grabbing';
+            }
+        });
+        
+        mapContainer.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                currentTranslateX = e.clientX - startX;
+                currentTranslateY = e.clientY - startY;
+                updateMapTransform();
+            }
+        });
+        
+        mapContainer.addEventListener('mouseup', function() {
+            isDragging = false;
+            mapContainer.style.cursor = 'default';
+        });
+        
+        mapContainer.addEventListener('mouseleave', function() {
+            isDragging = false;
+            mapContainer.style.cursor = 'default';
+        });
+        
+        // 移动设备触摸支持
+        mapContainer.addEventListener('touchstart', function(e) {
+            if (e.target === svgMap || e.target.parentNode === svgMap) {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    startX = e.touches[0].clientX - currentTranslateX;
+                    startY = e.touches[0].clientY - currentTranslateY;
+                }
+            }
+        }, { passive: true });
+        
+        mapContainer.addEventListener('touchmove', function(e) {
+            if (isDragging && e.touches.length === 1) {
+                currentTranslateX = e.touches[0].clientX - startX;
+                currentTranslateY = e.touches[0].clientY - startY;
+                updateMapTransform();
+            }
+        }, { passive: true });
+        
+        mapContainer.addEventListener('touchend', function() {
+            isDragging = false;
+        }, { passive: true });
+        
+        // 获取国家相邻关系
+        function findAdjacentCountries() {
+            // 初始化相邻国家映射
+            worldMapData.features.forEach(feature => {
+                adjacentCountries[feature.id] = [];
+            });
+            
+            // 检查每对国家是否相邻
+            for (let i = 0; i < worldMapData.features.length; i++) {
+                const feature1 = worldMapData.features[i];
+                const countryId1 = feature1.id;
+                
+                for (let j = i + 1; j < worldMapData.features.length; j++) {
+                    const feature2 = worldMapData.features[j];
+                    const countryId2 = feature2.id;
+                    
+                    // 检查两个国家是否相邻
+                    if (areCountriesAdjacent(feature1, feature2)) {
+                        adjacentCountries[countryId1].push(countryId2);
+                        adjacentCountries[countryId2].push(countryId1);
+                    }
+                }
+            }
+        }
+        
+        // 检查两个国家是否相邻
+        function areCountriesAdjacent(feature1, feature2) {
+            // 获取两个国家的边界坐标
+            const coords1 = getBoundaryCoordinates(feature1.geometry);
+            const coords2 = getBoundaryCoordinates(feature2.geometry);
+            
+            // 如果任一国家没有坐标数据，则认为不相邻
+            if (!coords1 || !coords2) return false;
+            
+            // 检查边界是否有接触点
+            for (const coord1 of coords1) {
+                for (const coord2 of coords2) {
+                    // 如果两个坐标点非常接近，则认为国家相邻
+                    const distance = Math.sqrt(
+                        Math.pow(coord1[0] - coord2[0], 2) + 
+                        Math.pow(coord1[1] - coord2[1], 2)
+                    );
+                    
+                    // 使用较小的阈值来检测相邻关系
+                    if (distance < 0.5) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // 获取国家的边界坐标
+        function getBoundaryCoordinates(geometry) {
+            if (!geometry || !geometry.coordinates) return null;
+            
+            let boundaryCoords = [];
+            
+            // 处理多边形
+            if (geometry.type === 'Polygon') {
+                // 获取外环（第一个环）的坐标
+                const outerRing = geometry.coordinates[0];
+                boundaryCoords = outerRing;
+            } 
+            // 处理多多边形
+            else if (geometry.type === 'MultiPolygon') {
+                // 获取第一个多边形的外环坐标
+                const firstPolygon = geometry.coordinates[0];
+                if (firstPolygon && firstPolygon[0]) {
+                    boundaryCoords = firstPolygon[0];
+                }
+            }
+            
+            return boundaryCoords;
+        }
+        
+        // 为国家分配颜色，确保相邻国家不同色
+        function assignCountryColors() {
+            // 首先找到所有相邻关系
+            findAdjacentCountries();
+            
+            // 按照相邻国家数量从多到少排序，这样可以先处理相邻关系复杂的国家
+            const sortedFeatures = [...worldMapData.features].sort((a, b) => {
+                return adjacentCountries[b.id].length - adjacentCountries[a.id].length;
+            });
+            
+            // 为每个国家分配颜色
+            sortedFeatures.forEach(feature => {
+                const countryId = feature.id;
+                
+                // 获取相邻国家的颜色
+                const adjacentColors = adjacentCountries[countryId]
+                    .filter(adjId => coloredCountries[adjId])
+                    .map(adjId => coloredCountries[adjId]);
+                
+                // 找到一个未被相邻国家使用的颜色
+                let selectedColor;
+                
+                // 首先尝试从颜色数组中找到未被使用的颜色
+                for (const color of countryColors) {
+                    if (!adjacentColors.includes(color)) {
+                        selectedColor = color;
+                        break;
+                    }
+                }
+                
+                // 如果所有颜色都被使用了，尝试生成一个与相邻颜色差异较大的颜色
+                if (!selectedColor) {
+                    selectedColor = generateDistinctColor(adjacentColors);
+                }
+                
+                // 分配颜色
+                coloredCountries[countryId] = selectedColor;
+            });
+        }
+        
+        // 生成与相邻颜色差异较大的颜色
+        function generateDistinctColor(adjacentColors) {
+            // 如果没有相邻颜色，返回默认颜色
+            if (adjacentColors.length === 0) {
+                return countryColors[0];
+            }
+            
+            // 将相邻颜色转换为HSL格式以便比较
+            const adjacentHSLColors = adjacentColors.map(color => {
+                return hexToHSL(color);
+            });
+            
+            // 尝试不同的色相值，找到与相邻颜色差异最大的
+            let bestColor = countryColors[0];
+            let maxMinDistance = 0;
+            
+            for (let hue = 0; hue < 360; hue += 30) {
+                const testColor = `hsl(${hue}, 70%, 50%)`;
+                const testHSL = { h: hue, s: 70, l: 50 };
+                
+                // 计算与所有相邻颜色的最小距离
+                let minDistance = Infinity;
+                for (const adjHSL of adjacentHSLColors) {
+                    const distance = colorDistance(testHSL, adjHSL);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                    }
+                }
+                
+                // 如果这个最小距离大于当前的最大最小距离，则更新最佳颜色
+                if (minDistance > maxMinDistance) {
+                    maxMinDistance = minDistance;
+                    bestColor = testColor;
+                }
+            }
+            
+            // 将HSL颜色转换回十六进制
+            return hslToHex(bestColor);
+        }
+        
+        // 计算两个HSL颜色之间的距离
+        function colorDistance(color1, color2) {
+            // 简化的色相距离计算（不考虑饱和度和亮度）
+            let hueDiff = Math.abs(color1.h - color2.h);
+            if (hueDiff > 180) {
+                hueDiff = 360 - hueDiff;
+            }
+            return hueDiff;
+        }
+        
+        // 将十六进制颜色转换为HSL
+        function hexToHSL(hex) {
+            // 转换为RGB
+            let r = parseInt(hex.slice(1, 3), 16) / 255;
+            let g = parseInt(hex.slice(3, 5), 16) / 255;
+            let b = parseInt(hex.slice(5, 7), 16) / 255;
+            
+            // 转换为HSL
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            
+            if (max === min) {
+                h = s = 0; // 灰色
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+            
+            return { h: h * 360, s: s * 100, l: l * 100 };
+        }
+        
+        // 将HSL颜色转换为十六进制
+        function hslToHex(hslString) {
+            // 解析HSL字符串
+            const matches = hslString.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+            if (!matches) return '#000000';
+            
+            const h = parseInt(matches[1]) / 360;
+            const s = parseInt(matches[2]) / 100;
+            const l = parseInt(matches[3]) / 100;
+            
+            // 转换为RGB
+            let r, g, b;
+            
+            if (s === 0) {
+                r = g = b = l; // 灰色
+            } else {
+                const hue2rgb = (p, q, t) => {
+                    if (t < 0) t += 1;
+                    if (t > 1) t -= 1;
+                    if (t < 1/6) return p + (q - p) * 6 * t;
+                    if (t < 1/2) return q;
+                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                    return p;
+                };
+                
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                
+                r = hue2rgb(p, q, h + 1/3);
+                g = hue2rgb(p, q, h);
+                b = hue2rgb(p, q, h - 1/3);
+            }
+            
+            // 转换为十六进制
+            const toHex = x => {
+                const hex = Math.round(x * 255).toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
             };
+            
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+        
+        // 执行颜色分配
+        assignCountryColors();
             
             // 渲染地图
             worldMapData.features.forEach(feature => {
@@ -2832,11 +3214,8 @@ async function showCountryDetails(countryCode) {
                 const countryInfo = window.countriesData ? 
                     window.countriesData.find(c => c.code === countryId) : null;
                 
-                // 确定国家颜色
-                let fillColor = '#cccccc'; // 默认颜色
-                if (countryInfo && countryInfo.region) {
-                    fillColor = regionColors[countryInfo.region] || '#cccccc';
-                }
+                // 确定国家颜色 - 使用分配的颜色确保相邻国家不同色
+                let fillColor = coloredCountries[countryId] || '#cccccc'; // 默认颜色
                 
                 // 创建路径元素
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -2911,8 +3290,7 @@ async function showCountryDetails(countryCode) {
                 svgMap.appendChild(path);
             });
             
-            // 添加图例
-            createMapLegend(mapContainer, regionColors);
+            // 图例已移除，按用户要求不再显示
             
         }).catch(error => {
             console.error('加载世界地图数据时出错:', error);
@@ -2938,20 +3316,21 @@ async function showCountryDetails(countryCode) {
             }
             
             // 如果全局变量中没有数据，尝试从文件加载
-            const script = document.createElement('script');
-            script.src = 'assets/data/geography/world_map.json';
-            script.onload = function() {
-                if (typeof countries_data !== 'undefined' && countries_data) {
-                    window.worldMapData = countries_data;
-                    resolve(countries_data);
-                } else {
-                    reject(new Error('无法加载世界地图数据'));
-                }
-            };
-            script.onerror = function() {
-                reject(new Error('加载世界地图数据文件失败'));
-            };
-            document.head.appendChild(script);
+            fetch('../../assets/data/geography/world_map.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    window.worldMapData = data;
+                    resolve(data);
+                })
+                .catch(error => {
+                    console.error('加载世界地图数据时出错:', error);
+                    reject(new Error('加载世界地图数据文件失败: ' + error.message));
+                });
         });
     }
     
