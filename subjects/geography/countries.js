@@ -1189,7 +1189,7 @@ async function showCountryDetails(countryCode) {
                 <div class="detail-grid">
                     <div class="detail-item">
                         <div class="detail-label">人口</div>
-                        <div class="detail-value">${ninjasCountryData?.population ? ninjasCountryData.population.toLocaleString() + ' 百万人' : (apiCountry.population ? apiCountry.population.toLocaleString() + ' 百万人' : '未知')}</div>
+                        <div class="detail-value">${ninjasCountryData?.population ? ninjasCountryData.population.toLocaleString() + ' 千人' : (apiCountry.population ? apiCountry.population.toLocaleString() + ' 千人' : '未知')}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">人口增长率</div>
