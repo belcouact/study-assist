@@ -332,19 +332,34 @@ const countryDetails = document.getElementById('country-details');
                     countriesData = await loadCountriesFromDB();
                     console.log('使用Cloudflare D1数据库数据');
                 } catch (error) {
-                    console.warn('无法从Cloudflare D1数据库加载数据，使用模拟数据:', error);
+                    console.error('无法从Cloudflare D1数据库加载数据:', error);
                     
-                    // 移动设备优化：显示正在使用模拟数据的提示
-                    if (isMobile) {
-                        const loadingText = loadingIndicator.querySelector('p');
-                        if (loadingText) {
-                            loadingText.textContent = '正在准备模拟数据...';
+                    // 尝试使用REST Countries API作为备用数据源
+                    try {
+                        // 移动设备优化：显示正在从备用数据源加载数据的提示
+                        if (isMobile) {
+                            const loadingText = loadingIndicator.querySelector('p');
+                            if (loadingText) {
+                                loadingText.textContent = '正在从备用数据源加载数据...';
+                            }
                         }
+                        
+                        countriesData = await loadCountriesFromRestAPI();
+                        console.log('使用REST Countries API数据');
+                    } catch (apiError) {
+                        console.error('无法从REST Countries API加载数据:', apiError);
+                        
+                        // 移动设备优化：显示错误信息
+                        if (isMobile) {
+                            const loadingText = loadingIndicator.querySelector('p');
+                            if (loadingText) {
+                                loadingText.textContent = '加载数据失败，请稍后再试';
+                            }
+                        }
+                        
+                        // 所有数据源都失败，显示错误
+                        throw new Error('无法加载国家数据，请检查网络连接或稍后再试');
                     }
-                    
-                    // 从数据库获取数据失败，使用模拟数据
-                    countriesData = getMockCountriesData();
-                    console.log('使用模拟数据');
                 }
                 
                 // 缓存数据
@@ -473,431 +488,100 @@ const countryDetails = document.getElementById('country-details');
         }
     }
 
-    // 获取模拟国家数据（实际应用中应从API获取）
-    function getMockCountriesData() {
-        return [
-            {
-                code: 'ch',
-                fipsCode: 'CH',
-                alpha2Code: 'CN',
-                name: 'China',
-                chineseName: '中国',
-                region: 'asia',
-                chineseContinent: '亚洲',
-                subregion: '东亚',
-                capital: '北京',
-                population: '1,439,323,776',
-                area: '9,596,960 sq km',
-                gdp: '$14.34 trillion',
-                languages: '中文（普通话）',
-                currency: '人民币 (CNY)',
-                introduction: '中国是世界四大文明古国之一，拥有悠久的历史和丰富的文化遗产。作为世界上人口最多的国家和第二大经济体，中国在全球事务中扮演着重要角色。',
-                geography: {
-                    location: '东亚，濒临太平洋',
-                    coordinates: '35 00 N, 105 00 E',
-                    climate: '多样化，从热带到亚寒带',
-                    terrain: '多样，西部多山，东部平原',
-                    naturalResources: '煤炭、铁矿石、石油、天然气、水力资源'
-                },
-                government: {
-                    type: '社会主义共和国',
-                    capital: '北京',
-                    administrativeDivisions: '23个省，5个自治区，4个直辖市，2个特别行政区'
-                },
-                economy: {
-                    overview: '世界第二大经济体，制造业和出口大国',
-                    gdpPerCapita: '$10,500',
-                    industries: '制造业、农业、服务业、建筑业',
-                    exports: '电子产品、机械设备、纺织品、家具'
-                }
-            },
-            {
-                code: 'us',
-                fipsCode: 'US',
-                alpha2Code: 'US',
-                name: 'United States',
-                chineseName: '美国',
-                region: 'americas',
-                chineseContinent: '美洲',
-                subregion: '北美洲',
-                capital: '华盛顿特区',
-                population: '332,915,073',
-                area: '9,833,517 sq km',
-                gdp: '$21.43 trillion',
-                languages: '英语',
-                currency: '美元 (USD)',
-                introduction: '美国是世界第三大人口国家和最大的经济体。作为一个多元文化的移民国家，美国在科技、娱乐、经济和军事等领域具有全球影响力。',
-                geography: {
-                    location: '北美洲，介于加拿大和墨西哥之间',
-                    coordinates: '38 00 N, 97 00 W',
-                    climate: '多样化，大部分为温带',
-                    terrain: '广阔的中部平原，西部山脉，东部丘陵和低山',
-                    naturalResources: '煤炭、铜、铅、钼、磷酸盐、铀、铝土矿、黄金、铁、汞、镍、银、钨、锌、石油、天然气、木材'
-                },
-                government: {
-                    type: '联邦立宪共和国',
-                    capital: '华盛顿特区',
-                    administrativeDivisions: '50个州，1个特区'
-                },
-                economy: {
-                    overview: '世界最大经济体，技术和服务业主导',
-                    gdpPerCapita: '$65,280',
-                    industries: '技术、金融、医疗、娱乐、制造业',
-                    exports: '机械设备、电子产品、航空器、汽车、药品'
-                }
-            },
-            {
-                code: 'gm',
-                fipsCode: 'GM',
-                alpha2Code: 'DE',
-                name: 'Germany',
-                chineseName: '德国',
-                region: 'europe',
-                chineseContinent: '欧洲',
-                subregion: '西欧',
-                capital: '柏林',
-                population: '83,783,942',
-                area: '357,022 sq km',
-                gdp: '$3.85 trillion',
-                languages: '德语',
-                currency: '欧元 (EUR)',
-                introduction: '德国是中欧最大的经济体，以其工程、汽车工业和技术创新而闻名。作为欧盟的创始成员国之一，德国在欧洲政治和经济中扮演着核心角色。',
-                geography: {
-                    location: '中欧，濒临波罗的海和北海',
-                    coordinates: '51 00 N, 9 00 E',
-                    climate: '温带，海洋性和大陆性',
-                    terrain: '北部低地，中部高地，南部巴伐利亚阿尔卑斯山',
-                    naturalResources: '煤炭、褐煤、天然气、铁矿石、铜、镍、铀、钾碱、盐、建筑用材料、木材、耕地'
-                },
-                government: {
-                    type: '联邦议会共和国',
-                    capital: '柏林',
-                    administrativeDivisions: '16个州'
-                },
-                economy: {
-                    overview: '欧洲最大经济体，出口导向型',
-                    gdpPerCapita: '$46,560',
-                    industries: '汽车、机械、化工、电子',
-                    exports: '汽车、机械、化工产品、电子产品'
-                }
-            },
-            {
-                code: 'br',
-                fipsCode: 'BR',
-                alpha2Code: 'BR',
-                name: 'Brazil',
-                chineseName: '巴西',
-                region: 'americas',
-                chineseContinent: '美洲',
-                subregion: '南美洲',
-                capital: '巴西利亚',
-                population: '212,559,417',
-                area: '8,515,770 sq km',
-                gdp: '$1.84 trillion',
-                languages: '葡萄牙语',
-                currency: '雷亚尔 (BRL)',
-                introduction: '巴西是南美洲最大的国家和经济体，以其丰富的自然资源、多样的生态系统和充满活力的文化而闻名。巴西也是世界上生物多样性最丰富的国家之一。',
-                geography: {
-                    location: '南美洲东部，濒临大西洋',
-                    coordinates: '10 00 S, 55 00 W',
-                    climate: '大部分为热带，南部为温带',
-                    terrain: '广阔的亚马逊盆地，中部高原，南部山脉',
-                    naturalResources: '铝土矿、黄金、铁矿石、锰、镍、磷酸盐、铂、铀、石油、水力资源、木材'
-                },
-                government: {
-                    type: '联邦总统制共和国',
-                    capital: '巴西利亚',
-                    administrativeDivisions: '26个州，1个联邦区'
-                },
-                economy: {
-                    overview: '南美洲最大经济体，农业和制造业并重',
-                    gdpPerCapita: '$8,717',
-                    industries: '纺织、鞋类、化工、水泥、木材、铁矿石、锡、钢铁、飞机、汽车和零部件',
-                    exports: '铁矿石、大豆、石油、汽车、咖啡'
-                }
-            },
-            {
-                code: 'ng',
-                fipsCode: 'NG',
-                alpha2Code: 'NG',
-                name: 'Nigeria',
-                chineseName: '尼日利亚',
-                region: 'africa',
-                chineseContinent: '非洲',
-                subregion: '西非',
-                capital: '阿布贾',
-                population: '206,139,589',
-                area: '923,768 sq km',
-                gdp: '$432.3 billion',
-                languages: '英语（官方），豪萨语、约鲁巴语、伊博语',
-                currency: '奈拉 (NGN)',
-                introduction: '尼日利亚是非洲人口最多的国家和最大的经济体，以其丰富的石油资源、多样的文化和充满活力的娱乐产业而闻名。',
-                geography: {
-                    location: '西非，濒临几内亚湾',
-                    coordinates: '10 00 N, 8 00 E',
-                    climate: '热带，南部为赤道气候，北部为干旱气候',
-                    terrain: '南部低地，中部丘陵和高原，北部平原',
-                    naturalResources: '石油、天然气、锡、铁矿石、煤炭、石灰石、铅、锌、铌、耕地'
-                },
-                government: {
-                    type: '联邦总统制共和国',
-                    capital: '阿布贾',
-                    administrativeDivisions: '36个州，1个联邦首都特区'
-                },
-                economy: {
-                    overview: '非洲最大经济体，石油出口主导',
-                    gdpPerCapita: '$2,097',
-                    industries: '石油、钢铁、纺织、食品加工、建筑材料',
-                    exports: '石油和石油产品、可可、橡胶'
-                }
-            },
-            {
-                code: 'au',
-                fipsCode: 'AS',
-                alpha2Code: 'AU',
-                name: 'Australia',
-                chineseName: '澳大利亚',
-                region: 'oceania',
-                chineseContinent: '大洋洲',
-                subregion: '澳大利亚和新西兰',
-                capital: '堪培拉',
-                population: '25,499,884',
-                area: '7,741,220 sq km',
-                gdp: '$1.39 trillion',
-                languages: '英语',
-                currency: '澳元 (AUD)',
-                introduction: '澳大利亚是世界第六大国家，以其独特的野生动物、自然景观和高生活质量而闻名。作为一个发达国家，澳大利亚在教育和医疗保健方面具有高标准。',
-                geography: {
-                    location: '大洋洲，介于印度洋和南太平洋之间',
-                    coordinates: '27 00 S, 133 00 E',
-                    climate: '一般干旱到半干旱，南部和东部为温带',
-                    terrain: '主要是低高原，沙漠，肥沃的东南和西南沿海平原',
-                    naturalResources: '铝土矿、煤炭、铁矿石、铜、锡、黄金、银、铀、镍、钨、稀土矿物、铅、锌、钻石、天然气、石油'
-                },
-                government: {
-                    type: '联邦议会立宪君主制',
-                    capital: '堪培拉',
-                    administrativeDivisions: '6个州，2个主要领地'
-                },
-                economy: {
-                    overview: '发达的市场经济，服务业和资源出口主导',
-                    gdpPerCapita: '$55,060',
-                    industries: '采矿、工业和运输设备、食品加工、化工、钢铁',
-                    exports: '铁矿石、煤炭、黄金、肉类、羊毛、铝土矿、小麦、机械和运输设备'
-                }
-            },
-            {
-                code: 'in',
-                fipsCode: 'IN',
-                alpha2Code: 'IN',
-                name: 'India',
-                chineseName: '印度',
-                region: 'asia',
-                chineseContinent: '亚洲',
-                subregion: '南亚',
-                capital: '新德里',
-                population: '1,380,004,385',
-                area: '3,287,263 sq km',
-                gdp: '$2.87 trillion',
-                languages: '印地语、英语（官方）',
-                currency: '印度卢比 (INR)',
-                introduction: '印度是世界第二人口大国和第五大经济体，拥有悠久的历史和多元的文化。印度以其信息技术服务、电影产业和民主传统而闻名。',
-                geography: {
-                    location: '南亚，濒临阿拉伯海和孟加拉湾',
-                    coordinates: '20 00 N, 77 00 E',
-                    climate: '从热带季风到温带',
-                    terrain: '北部为喜马拉雅山脉，南部为德干高原，中部为恒河平原',
-                    naturalResources: '煤炭（世界第四大储量）、铁矿石、锰、云母、铝土矿、钛矿石、铬铁矿、天然气、钻石、石油、石灰石、耕地'
-                },
-                government: {
-                    type: '联邦议会民主共和国',
-                    capital: '新德里',
-                    administrativeDivisions: '28个邦，8个联邦属地'
-                },
-                economy: {
-                    overview: '世界第五大经济体，多元化发展',
-                    gdpPerCapita: '$2,100',
-                    industries: '纺织、化工、食品加工、钢铁、运输设备、水泥、采矿、石油、机械、软件',
-                    exports: '石油产品、珠宝、汽车、机械、服装、化工产品'
-                }
-            },
-            {
-                code: 'fr',
-                fipsCode: 'FR',
-                alpha2Code: 'FR',
-                name: 'France',
-                chineseName: '法国',
-                region: 'europe',
-                chineseContinent: '欧洲',
-                subregion: '西欧',
-                capital: '巴黎',
-                population: '65,273,511',
-                area: '643,801 sq km',
-                gdp: '$2.72 trillion',
-                languages: '法语',
-                currency: '欧元 (EUR)',
-                introduction: '法国是西欧最大的国家，以其文化影响力、美食、时尚和艺术而闻名。作为联合国安理会常任理事国和欧盟核心成员国，法国在国际事务中发挥着重要作用。',
-                geography: {
-                    location: '西欧，濒临大西洋、北海和地中海',
-                    coordinates: '46 00 N, 2 00 E',
-                    climate: '海洋性到大陆性，南部为地中海气候',
-                    terrain: '主要是平原或平缓起伏的丘陵，西部和南部为山脉',
-                    naturalResources: '煤炭、铁矿石、铝土矿、铀、锌、铅、铜、钾碱、木材、渔业、水力资源'
-                },
-                government: {
-                    type: '半总统制共和国',
-                    capital: '巴黎',
-                    administrativeDivisions: '18个大区'
-                },
-                economy: {
-                    overview: '高度发达的混合经济，服务业主导',
-                    gdpPerCapita: '$42,870',
-                    industries: '机械、化学品、汽车、飞机、电子产品、纺织、食品加工、旅游',
-                    exports: '机械和运输设备、飞机、塑料、化学品、药品、铁和钢、饮料'
-                }
-            },
-            {
-                code: 'eg',
-                fipsCode: 'EG',
-                alpha2Code: 'EG',
-                name: 'Egypt',
-                chineseName: '埃及',
-                region: 'africa',
-                chineseContinent: '非洲',
-                subregion: '北非',
-                capital: '开罗',
-                population: '102,334,404',
-                area: '1,001,450 sq km',
-                gdp: '$361.8 billion',
-                languages: '阿拉伯语（官方），英语和法语广泛使用',
-                currency: '埃及镑 (EGP)',
-                introduction: '埃及是世界上最古老的文明之一，以其古埃及文明、金字塔和尼罗河而闻名。作为连接非洲和亚洲的桥梁，埃及在地缘政治上具有重要地位。',
-                geography: {
-                    location: '北非，濒临地中海和红海',
-                    coordinates: '27 00 N, 30 00 E',
-                    climate: '沙漠气候，炎热干燥；夏季炎热，冬季温和',
-                    terrain: '广阔的沙漠高原，尼罗河河谷和三角洲',
-                    naturalResources: '石油、天然气、铁矿石、磷酸盐、锰、石灰石、石膏、滑石、石棉、铅、锌'
-                },
-                government: {
-                    type: '总统制共和国',
-                    capital: '开罗',
-                    administrativeDivisions: '27个省'
-                },
-                economy: {
-                    overview: '多元化经济，依赖农业、旅游业和能源',
-                    gdpPerCapita: '$3,514',
-                    industries: '纺织、食品加工、旅游、化工、制药、石油和天然气',
-                    exports: '原油、石油产品、棉花、纺织品、金属制品、化工产品'
-                }
-            },
-            {
-                code: 'ca',
-                fipsCode: 'CA',
-                alpha2Code: 'CA',
-                name: 'Canada',
-                chineseName: '加拿大',
-                region: 'americas',
-                chineseContinent: '美洲',
-                subregion: '北美洲',
-                capital: '渥太华',
-                population: '37,742,154',
-                area: '9,984,670 sq km',
-                gdp: '$1.74 trillion',
-                languages: '英语、法语（官方）',
-                currency: '加元 (CAD)',
-                introduction: '加拿大是世界第二大国家，以其自然美景、多元文化和高生活质量而闻名。作为G7成员国，加拿大拥有发达的经济和稳定的社会政治环境。',
-                geography: {
-                    location: '北美洲，北部濒临北冰洋，东部濒临大西洋，西部濒临太平洋',
-                    coordinates: '60 00 N, 95 00 W',
-                    climate: '从温带到极地，南部为温带，北部为寒带',
-                    terrain: '主要是平原，西部有山脉，北部为苔原',
-                    naturalResources: '铁矿石、镍、锌、铜、黄金、铅、钼、铝土矿、钾碱、钻石、银、渔业、煤炭、石油、天然气、水力资源、木材'
-                },
-                government: {
-                    type: '联邦议会立宪君主制',
-                    capital: '渥太华',
-                    administrativeDivisions: '10个省，3个地区'
-                },
-                economy: {
-                    overview: '高度发达的技术导向型市场经济',
-                    gdpPerCapita: '$46,230',
-                    industries: '运输设备、化工、加工和非矿物金属产品、食品、木材和纸张产品、石油和天然气',
-                    exports: '汽车及零部件、工业机械、飞机、电信设备、电子设备、化学品、塑料、化肥、木材'
-                }
-            },
-            {
-                code: 'ja',
-                fipsCode: 'JA',
-                alpha2Code: 'JP',
-                name: 'Japan',
-                chineseName: '日本',
-                region: 'asia',
-                chineseContinent: '亚洲',
-                subregion: '东亚',
-                capital: '东京',
-                population: '126,476,461',
-                area: '377,915 sq km',
-                gdp: '$5.08 trillion',
-                languages: '日语',
-                currency: '日元 (JPY)',
-                introduction: '日本是东亚的岛国，以其先进的技术、独特的文化和悠久的历史而闻名。作为世界第三大经济体，日本在汽车、电子和机器人技术等领域处于领先地位。',
-                geography: {
-                    location: '东亚，位于太平洋上的岛链',
-                    coordinates: '36 00 N, 138 00 E',
-                    climate: '从温带到热带，南部为亚热带',
-                    terrain: '多为山地和丘陵，沿海平原狭窄',
-                    naturalResources: '鱼类，森林资源，少量矿产'
-                },
-                government: {
-                    type: '议会立宪君主制',
-                    capital: '东京',
-                    administrativeDivisions: '47个都道府县'
-                },
-                economy: {
-                    overview: '高度发达的自由市场经济，技术先进',
-                    gdpPerCapita: '$40,190',
-                    industries: '汽车、电子产品、机械、钢铁、金属加工、化工、纺织品、食品加工',
-                    exports: '汽车、电子产品、钢铁、机械、化学品'
-                }
-            },
-            {
-                code: 'uk',
-                fipsCode: 'UK',
-                alpha2Code: 'GB',
-                name: 'United Kingdom',
-                chineseName: '英国',
-                region: 'europe',
-                chineseContinent: '欧洲',
-                subregion: '西欧',
-                capital: '伦敦',
-                population: '67,886,011',
-                area: '243,610 sq km',
-                gdp: '$2.83 trillion',
-                languages: '英语',
-                currency: '英镑 (GBP)',
-                introduction: '英国是由英格兰、苏格兰、威尔士和北爱尔兰组成的岛国，对世界历史、文化和政治产生了深远影响。作为联合国安理会常任理事国和主要金融中心，英国在国际事务中保持重要地位。',
-                geography: {
-                    location: '西欧，包括大不列颠岛东北部的三分之一和爱尔兰岛北部',
-                    coordinates: '54 00 N, 2 00 W',
-                    climate: '温带，海洋性，多雨',
-                    terrain: '多为低地，西部和北部为山地',
-                    naturalResources: '煤炭、石油、天然气、石灰石、铁矿石、盐、粘土、白垩、石膏、铅、硅、耕地'
-                },
-                government: {
-                    type: '议会立宪君主制',
-                    capital: '伦敦',
-                    administrativeDivisions: '4个构成国'
-                },
-                economy: {
-                    overview: '高度发达的多元化经济，服务业主导',
-                    gdpPerCapita: '$42,330',
-                    industries: '机械和运输设备、石油、化工、食品加工、纺织、服装、其他消费品',
-                    exports: '机械、汽车、航空航天设备、电子产品、化工产品、金属制品'
-                }
+    // 从REST Countries API加载国家数据
+    async function loadCountriesFromRestAPI() {
+        try {
+            console.log('尝试从REST Countries API加载国家数据...');
+            
+            // 尝试使用v2版本的API，它更稳定
+            // 添加必需的fields参数
+            const response = await fetch('https://restcountries.com/v2/all?fields=name,alpha2Code,region,translations,flag,capital,population,area');
+            
+            console.log('API响应状态:', response.status);
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API响应错误内容:', errorText);
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
             }
-        ];
+            
+            const data = await response.json();
+            console.log('成功获取到国家数据，数量:', data.length);
+            
+            // 转换数据格式以适应现有代码结构
+            return data.map(country => {
+                // 获取中文名称（如果没有则使用英文名称）
+                let chineseName = country.name;
+                
+                // 获取中文名称（如果有）
+                if (country.translations && country.translations.zh) {
+                    chineseName = country.translations.zh;
+                }
+                
+                // 获取大陆名称（如果有）
+                let chineseContinent = getChineseContinentName(country.region);
+                
+                // 获取国旗SVG
+                let flagSvg = null;
+                if (country.flag) {
+                    // 使用国旗图片URL而不是SVG，因为REST Countries API只提供图片URL
+                    flagSvg = `<img src="${country.flag}" alt="${country.name} flag" style="width: 100%; height: 100%; object-fit: contain;">`;
+                }
+                
+                // 获取首都
+                let capital = '未知';
+                if (country.capital) {
+                    capital = country.capital;
+                }
+                
+                // 获取人口
+                let population = '未知';
+                if (country.population) {
+                    population = country.population.toLocaleString();
+                }
+                
+                // 获取面积
+                let area = '未知';
+                if (country.area) {
+                    area = country.area.toLocaleString() + ' km²';
+                }
+                
+                return {
+                    code: country.alpha2Code,
+                    fipsCode: country.alpha2Code,
+                    alpha2Code: country.alpha2Code,
+                    name: country.name,
+                    chineseName: chineseName,
+                    continent: country.region,
+                    chineseContinent: chineseContinent,
+                    flagSvg: flagSvg,
+                    factbookFilePath: null,
+                    capital: capital,
+                    population: population,
+                    area: area
+                };
+            });
+        } catch (error) {
+            console.error('从REST Countries API加载国家数据失败:', error);
+            throw error;
+        }
     }
+    
+    // 获取大陆中文名称
+    function getChineseContinentName(continent) {
+        const continentMap = {
+            'Africa': '非洲',
+            'Americas': '美洲',
+            'Asia': '亚洲',
+            'Europe': '欧洲',
+            'Oceania': '大洋洲',
+            'Antarctic': '南极洲'
+        };
+        
+        return continentMap[continent] || continent;
+    }
+
+
 
     // 设置事件监听器
     function setupEventListeners() {
@@ -2023,14 +1707,26 @@ async function showCountryDetails(countryCode) {
         }
     }
     
-    // 从factbook.json API获取特定国家的数据
+    // 从restcountries API获取特定国家的数据
     async function fetchCountryData(countryCode) {
         try {
-            // 模拟API调用 - 实际应用中应替换为真实的API调用
-            // 例如: const response = await fetch(`https://api.example.com/factbook/${countryCode}`);
+            // 首先获取国家名称
+            const countryNameResponse = await fetch(`https://restcountries.com/v3.1/alpha/${countryCode}`);
+            if (!countryNameResponse.ok) {
+                throw new Error(`无法获取国家 ${countryCode} 的基本信息`);
+            }
             
-            // 返回模拟数据
-            return getMockCountryData(countryCode);
+            const countryInfo = await countryNameResponse.json();
+            const countryName = countryInfo[0].name.common;
+            
+            // 使用国家名称获取详细信息
+            const response = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(countryName)}?fullText=true`);
+            if (!response.ok) {
+                throw new Error(`无法获取国家 ${countryName} 的详细信息`);
+            }
+            
+            const countryData = await response.json();
+            return countryData[0];
         } catch (error) {
             console.error(`获取国家 ${countryCode} 数据失败:`, error);
             throw error;
@@ -2038,11 +1734,7 @@ async function showCountryDetails(countryCode) {
     }
     
     // 获取模拟国家数据
-    function getMockCountryData(countryCode) {
-        // 从模拟数据中查找指定国家
-        const allCountries = getMockCountriesData();
-        return allCountries.find(country => country.code === countryCode) || null;
-    }
+
     
     // 创建数据可视化图表
     function createDataVisualization(countryData, containerId) {
