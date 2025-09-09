@@ -427,8 +427,11 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             
             // 转换数据格式以适应现有代码结构
             return data.data.map(country => {
-                // 使用简单的国旗占位符
-                let flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+                // 使用Flag_SVG字段显示国旗，如果有问题则使用占位符
+                let flagSvg = country.Flag_SVG;
+                if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
+                    flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+                }
                 
                 return {
                     code: country.Country_Code_Alpha2,
@@ -923,8 +926,11 @@ function createCountryCard(country) {
         card.style.marginBottom = '15px';
     }
 
-    // 使用简单的国旗占位符
-    let flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+    // 使用Flag_SVG字段显示国旗，如果有问题则使用占位符
+    let flagSvg = country.flagSvg;
+    if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
+        flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+    }
     
     // 获取中英文名称
     const chineseName = country.chineseName || country.name;
