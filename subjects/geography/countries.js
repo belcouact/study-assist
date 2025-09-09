@@ -1,7 +1,7 @@
 // 世界各国地理信息探索页面脚本
 document.addEventListener('DOMContentLoaded', function() {
     // DOM元素
-    const searchInput = document.getElementById('country-search');
+const searchInput = document.getElementById('country-search');
 const countriesGrid = document.getElementById('countries-grid');
 const loadingIndicator = document.getElementById('loading-indicator');
 const countryModal = document.getElementById('country-modal');
@@ -13,6 +13,9 @@ const errorMessage = document.getElementById('error-message');
 const errorDetails = document.getElementById('error-details');
 const retryButton = document.getElementById('retry-button');
 const countryDetails = document.getElementById('country-details');
+
+// 模态框内的加载指示器
+const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     let filterChips = document.querySelectorAll('.filter-chip');
     const viewButtons = document.querySelectorAll('.view-btn');
     const cardsView = document.getElementById('cards-view');
@@ -1064,20 +1067,12 @@ async function showCountryDetails(countryCode) {
     modalCountryName.textContent = countryName;
     modalCountryRegion.textContent = continentName;
     
-    // 显示加载指示器
-    modalBody.innerHTML = `
-        <div class="loading-indicator">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>正在加载国家详细信息...</p>
-        </div>
-    `;
-    
     // 显示模态框
     countryModal.classList.add('active');
     document.body.style.overflow = 'hidden';
     
     // 显示加载指示器
-    loadingIndicator.style.display = 'flex';
+    modalLoadingIndicator.style.display = 'flex';
     errorMessage.style.display = 'none';
     countryDetails.style.display = 'none';
     
@@ -1267,7 +1262,7 @@ async function showCountryDetails(countryCode) {
         
         // 更新模态框内容
         countryDetails.innerHTML = modalContent;
-        loadingIndicator.style.display = 'none';
+        modalLoadingIndicator.style.display = 'none';
         countryDetails.style.display = 'block';
         
     } catch (error) {
@@ -1275,7 +1270,7 @@ async function showCountryDetails(countryCode) {
         
         // 显示错误信息
         errorDetails.textContent = error.message;
-        loadingIndicator.style.display = 'none';
+        modalLoadingIndicator.style.display = 'none';
         errorMessage.style.display = 'flex';
         
         // 设置重试按钮事件
