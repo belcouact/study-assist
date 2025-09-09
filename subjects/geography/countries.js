@@ -1435,6 +1435,16 @@ async function showCountryDetails(countryCode) {
                     </div>
                 </div>
             </div>
+            
+            <div class="detail-section">
+                <h3 class="detail-title">
+                    <i class="fas fa-code"></i>
+                    <span>完整JSON数据</span>
+                </h3>
+                <div class="json-data-container" style="max-height: 300px; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px; white-space: pre-wrap; scrollbar-width: none; -ms-overflow-style: none;">
+                    ${JSON.stringify(ninjasCountryData, null, 2)}
+                </div>
+            </div>
             ` : ''}
         `;
         
