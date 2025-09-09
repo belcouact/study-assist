@@ -1107,7 +1107,8 @@ async function showCountryDetails(countryCode) {
         let ninjasCountryData = null;
         try {
             // 确保使用英文国家名称格式 'Country_Name_Eng' 调用Ninjas API
-            const ninjasResponse = await fetch(`/api/ninjas?endpoint=country&name=${country.name}`);
+            console.log('Calling Ninjas API with country name:', country.name);
+            const ninjasResponse = await fetch(`/api/ninjas?endpoint=country&name=${encodeURIComponent(country.name)}`);
             
             if (ninjasResponse.ok) {
                 const ninjasData = await ninjasResponse.json();
