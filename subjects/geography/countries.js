@@ -3379,13 +3379,54 @@ async function showCountryDetails(countryCode) {
     }
     
     // 显示国家工具提示
-    function showCountryTooltip(event, countryId, countryName, countryInfo, tooltip) {
+    async function showCountryTooltip(event, countryId, countryName, countryInfo, tooltip) {
         if (!tooltip) return;
         
         // 设置工具提示内容
         let tooltipContent = `<div class="tooltip-title">${countryName}</div>`;
         
-        if (countryInfo) {
+        // 尝试从country_info表获取更详细的国家信息
+        let countryDetails = null;
+        try {
+            // 使用countryId作为Country_Code_Alpha2查询country_info表
+            const response = await fetch(`/api/db/query/country_info?filter=Country_Code_Alpha2:eq:${countryId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.length > 0) {
+                    countryDetails = data[0];
+                }
+            }
+        } catch (error) {
+            console.error('获取国家详细信息失败:', error);
+        }
+        
+        if (countryDetails) {
+            // 使用country_info表中的数据创建卡片样式的内容
+            const chineseName = countryDetails.Country_Name_Chn || countryName;
+            const englishName = countryDetails.Country_Name_Eng || countryName;
+            const flagSvg = countryDetails.Flag_SVG || '';
+            
+            // 创建卡片样式的工具提示
+            tooltipContent = `
+                <div class="country-card-tooltip">
+                    <div class="country-info">
+                        <div class="country-names">
+                            <div class="country-name-cn">${chineseName}</div>
+                        </div>
+                    </div>
+                    <div class="country-flag">
+                        ${flagSvg}
+                    </div>
+                    <div class="country-info">
+                        <div class="country-names">
+                            <div class="country-name-en">${englishName}</div>
+                        </div>
+                    </div>
+                    <button class="tooltip-button" onclick="showCountryDetails('${countryId}')">查看详情</button>
+                </div>
+            `;
+        } else if (countryInfo) {
+            // 如果无法从country_info表获取数据，则使用原有数据
             tooltipContent += `
                 <div class="tooltip-info"><strong>英文名称:</strong> ${countryInfo.name}</div>
                 <div class="tooltip-info"><strong>地区:</strong> ${getRegionName(countryInfo.region)}</div>
