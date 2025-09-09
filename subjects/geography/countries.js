@@ -1158,19 +1158,24 @@ async function showCountryDetails(countryCode) {
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">地区</div>
-                        <div class="detail-value">${apiCountry.subregion || '未知'}</div>
+                        <div class="detail-value">${apiCountry.subregion || ninjasCountryData?.region || '未知'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">首都</div>
-                        <div class="detail-value">${apiCountry.capital?.join(', ') || '未知'}</div>
+                        <div class="detail-value">${apiCountry.capital?.join(', ') || ninjasCountryData?.capital || '未知'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">面积</div>
-                        <div class="detail-value">${apiCountry.area ? apiCountry.area.toLocaleString() + ' 平方千米' : '未知'}</div>
+                        <div class="detail-value">${ninjasCountryData?.surface_area ? ninjasCountryData.surface_area.toLocaleString() + ' 平方千米' : (apiCountry.area ? apiCountry.area.toLocaleString() + ' 平方千米' : '未知')}</div>
                     </div>
-                </div>
-                <div class="detail-content" style="margin-top: 1rem;">
-                    <strong>坐标：</strong> ${apiCountry.latlng ? `纬度 ${apiCountry.latlng[0]}°, 经度 ${apiCountry.latlng[1]}°` : '未知'}
+                    <div class="detail-item">
+                        <div class="detail-label">人口密度</div>
+                        <div class="detail-value">${ninjasCountryData?.pop_density ? ninjasCountryData.pop_density + ' 人/平方千米' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">坐标</div>
+                        <div class="detail-value">${apiCountry.latlng ? `纬度 ${apiCountry.latlng[0]}°, 经度 ${apiCountry.latlng[1]}°` : '未知'}</div>
+                    </div>
                 </div>
             </div>
 
@@ -1182,19 +1187,51 @@ async function showCountryDetails(countryCode) {
                 <div class="detail-grid">
                     <div class="detail-item">
                         <div class="detail-label">人口</div>
-                        <div class="detail-value">${apiCountry.population ? apiCountry.population.toLocaleString() + ' 人' : '未知'}</div>
+                        <div class="detail-value">${ninjasCountryData?.population ? ninjasCountryData.population.toLocaleString() + ' 人' : (apiCountry.population ? apiCountry.population.toLocaleString() + ' 人' : '未知')}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">基尼系数</div>
-                        <div class="detail-value">${apiCountry.gini ? Object.values(apiCountry.gini)[0] || '未知' : '未知'}</div>
+                        <div class="detail-label">人口增长率</div>
+                        <div class="detail-value">${ninjasCountryData?.pop_growth ? ninjasCountryData.pop_growth + '%' : '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">时区</div>
-                        <div class="detail-value">${apiCountry.timezones?.join(', ') || '未知'}</div>
+                        <div class="detail-label">城市人口比例</div>
+                        <div class="detail-value">${ninjasCountryData?.urban_population ? ninjasCountryData.urban_population + '%' : '未知'}</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">驾驶侧</div>
-                        <div class="detail-value">${apiCountry.car?.side === 'right' ? '右侧' : apiCountry.car?.side === 'left' ? '左侧' : '未知'}</div>
+                        <div class="detail-label">城市人口增长率</div>
+                        <div class="detail-value">${ninjasCountryData?.urban_population_growth ? ninjasCountryData.urban_population_growth + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">性别比例</div>
+                        <div class="detail-value">${ninjasCountryData?.sex_ratio ? ninjasCountryData.sex_ratio + ' (男/女)' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">生育率</div>
+                        <div class="detail-value">${ninjasCountryData?.fertility ? ninjasCountryData.fertility + ' (每名女性)' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">男性预期寿命</div>
+                        <div class="detail-value">${ninjasCountryData?.life_expectancy_male ? ninjasCountryData.life_expectancy_male + '岁' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">女性预期寿命</div>
+                        <div class="detail-value">${ninjasCountryData?.life_expectancy_female ? ninjasCountryData.life_expectancy_female + '岁' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">婴儿死亡率</div>
+                        <div class="detail-value">${ninjasCountryData?.infant_mortality ? ninjasCountryData.infant_mortality + '‰' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">凶杀率</div>
+                        <div class="detail-value">${ninjasCountryData?.homicide_rate ? ninjasCountryData.homicide_rate + ' (每10万人)' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">难民数量</div>
+                        <div class="detail-value">${ninjasCountryData?.refugees ? ninjasCountryData.refugees + '千人' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">游客数量</div>
+                        <div class="detail-value">${ninjasCountryData?.tourists ? ninjasCountryData.tourists + '千人' : '未知'}</div>
                     </div>
                 </div>
             </div>
@@ -1206,12 +1243,48 @@ async function showCountryDetails(countryCode) {
                 </h3>
                 <div class="detail-grid">
                     <div class="detail-item">
+                        <div class="detail-label">GDP</div>
+                        <div class="detail-value">${ninjasCountryData?.gdp ? '$' + formatNumber(ninjasCountryData.gdp) + '百万' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">人均GDP</div>
+                        <div class="detail-value">${ninjasCountryData?.gdp_per_capita ? '$' + formatNumber(ninjasCountryData.gdp_per_capita) : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">GDP增长率</div>
+                        <div class="detail-value">${ninjasCountryData?.gdp_growth ? ninjasCountryData.gdp_growth + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">失业率</div>
+                        <div class="detail-value">${ninjasCountryData?.unemployment ? ninjasCountryData.unemployment + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">农业就业比例</div>
+                        <div class="detail-value">${ninjasCountryData?.employment_agriculture ? ninjasCountryData.employment_agriculture + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">工业就业比例</div>
+                        <div class="detail-value">${ninjasCountryData?.employment_industry ? ninjasCountryData.employment_industry + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">服务业就业比例</div>
+                        <div class="detail-value">${ninjasCountryData?.employment_services ? ninjasCountryData.employment_services + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">进口额</div>
+                        <div class="detail-value">${ninjasCountryData?.imports ? '$' + formatNumber(ninjasCountryData.imports) + '百万' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">出口额</div>
+                        <div class="detail-value">${ninjasCountryData?.exports ? '$' + formatNumber(ninjasCountryData.exports) + '百万' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
                         <div class="detail-label">货币</div>
-                        <div class="detail-value">${apiCountry.currencies ? Object.values(apiCountry.currencies).map(currency => `${currency.name} (${currency.symbol})`).join(', ') : '未知'}</div>
+                        <div class="detail-value">${ninjasCountryData?.currency ? `${ninjasCountryData.currency.name} (${ninjasCountryData.currency.code})` : (apiCountry.currencies ? Object.values(apiCountry.currencies).map(currency => `${currency.name} (${currency.symbol})`).join(', ') : '未知')}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">国际电话代码</div>
-                        <div class="detail-value">${apiCountry.idd ? `${apiCountry.idd.root}${apiCountry.idd.suffixes?.join('')}` : '未知'}</div>
+                        <div class="detail-value">${ninjasCountryData?.telephone_country_codes ? ninjasCountryData.telephone_country_codes.join(', ') : (apiCountry.idd ? `${apiCountry.idd.root}${apiCountry.idd.suffixes?.join('')}` : '未知')}</div>
                     </div>
                 </div>
             </div>
@@ -1230,6 +1303,30 @@ async function showCountryDetails(countryCode) {
                         <div class="detail-label">民族称谓</div>
                         <div class="detail-value">${apiCountry.demonyms?.eng ? `${apiCountry.demonyms.eng.f}/${apiCountry.demonyms.eng.m}` : '未知'}</div>
                     </div>
+                    <div class="detail-item">
+                        <div class="detail-label">男性小学入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.primary_school_enrollment_male ? ninjasCountryData.primary_school_enrollment_male + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">女性小学入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.primary_school_enrollment_female ? ninjasCountryData.primary_school_enrollment_female + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">男性中学入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.secondary_school_enrollment_male ? ninjasCountryData.secondary_school_enrollment_male + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">女性中学入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.secondary_school_enrollment_female ? ninjasCountryData.secondary_school_enrollment_female + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">男性高等教育入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.post_secondary_enrollment_male ? ninjasCountryData.post_secondary_enrollment_male + '%' : '未知'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">女性高等教育入学率</div>
+                        <div class="detail-value">${ninjasCountryData?.post_secondary_enrollment_female ? ninjasCountryData.post_secondary_enrollment_female + '%' : '未知'}</div>
+                    </div>
                 </div>
             </div>
 
@@ -1241,7 +1338,7 @@ async function showCountryDetails(countryCode) {
                 <div class="detail-grid">
                     <div class="detail-item">
                         <div class="detail-label">ISO代码</div>
-                        <div class="detail-value">${apiCountry.cca2} / ${apiCountry.cca3} / ${apiCountry.ccn3}</div>
+                        <div class="detail-value">${ninjasCountryData?.iso2 || apiCountry.cca2} / ${apiCountry.cca3} / ${apiCountry.ccn3}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">顶级域名</div>
@@ -1274,178 +1371,7 @@ async function showCountryDetails(countryCode) {
                     </div>
                 </div>
             </div>
-            ${ninjasCountryData ? `
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>经济与人口统计</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">GDP</div>
-                        <div class="detail-value">${ninjasCountryData.gdp ? '$' + formatNumber(ninjasCountryData.gdp) + '百万' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">人均GDP</div>
-                        <div class="detail-value">${ninjasCountryData.gdp_per_capita ? '$' + formatNumber(ninjasCountryData.gdp_per_capita) : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">GDP增长率</div>
-                        <div class="detail-value">${ninjasCountryData.gdp_growth ? ninjasCountryData.gdp_growth + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">人口</div>
-                        <div class="detail-value">${ninjasCountryData.population ? formatNumber(ninjasCountryData.population) + '人' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">人口增长率</div>
-                        <div class="detail-value">${ninjasCountryData.pop_growth ? ninjasCountryData.pop_growth + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">人口密度</div>
-                        <div class="detail-value">${ninjasCountryData.pop_density ? ninjasCountryData.pop_density + '人/平方千米' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">城市人口比例</div>
-                        <div class="detail-value">${ninjasCountryData.urban_population ? ninjasCountryData.urban_population + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">失业率</div>
-                        <div class="detail-value">${ninjasCountryData.unemployment ? ninjasCountryData.unemployment + '%' : '未知'}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-heartbeat"></i>
-                    <span>社会指标</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">男性预期寿命</div>
-                        <div class="detail-value">${ninjasCountryData.life_expectancy_male ? ninjasCountryData.life_expectancy_male + '岁' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">女性预期寿命</div>
-                        <div class="detail-value">${ninjasCountryData.life_expectancy_female ? ninjasCountryData.life_expectancy_female + '岁' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">婴儿死亡率</div>
-                        <div class="detail-value">${ninjasCountryData.infant_mortality ? ninjasCountryData.infant_mortality + '‰' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">性别比例</div>
-                        <div class="detail-value">${ninjasCountryData.sex_ratio ? ninjasCountryData.sex_ratio + ' (男/女)' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">生育率</div>
-                        <div class="detail-value">${ninjasCountryData.fertility ? ninjasCountryData.fertility + ' (每名女性)' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">凶杀率</div>
-                        <div class="detail-value">${ninjasCountryData.homicide_rate ? ninjasCountryData.homicide_rate + ' (每10万人)' : '未知'}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-briefcase"></i>
-                    <span>就业与经济结构</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">农业就业比例</div>
-                        <div class="detail-value">${ninjasCountryData.employment_agriculture ? ninjasCountryData.employment_agriculture + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">工业就业比例</div>
-                        <div class="detail-value">${ninjasCountryData.employment_industry ? ninjasCountryData.employment_industry + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">服务业就业比例</div>
-                        <div class="detail-value">${ninjasCountryData.employment_services ? ninjasCountryData.employment_services + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">进口额</div>
-                        <div class="detail-value">${ninjasCountryData.imports ? '$' + formatNumber(ninjasCountryData.imports) + '百万' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">出口额</div>
-                        <div class="detail-value">${ninjasCountryData.exports ? '$' + formatNumber(ninjasCountryData.exports) + '百万' : '未知'}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-graduation-cap"></i>
-                    <span>教育指标</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">男性小学入学率</div>
-                        <div class="detail-value">${ninjasCountryData.primary_school_enrollment_male ? ninjasCountryData.primary_school_enrollment_male + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">女性小学入学率</div>
-                        <div class="detail-value">${ninjasCountryData.primary_school_enrollment_female ? ninjasCountryData.primary_school_enrollment_female + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">男性中学入学率</div>
-                        <div class="detail-value">${ninjasCountryData.secondary_school_enrollment_male ? ninjasCountryData.secondary_school_enrollment_male + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">女性中学入学率</div>
-                        <div class="detail-value">${ninjasCountryData.secondary_school_enrollment_female ? ninjasCountryData.secondary_school_enrollment_female + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">男性高等教育入学率</div>
-                        <div class="detail-value">${ninjasCountryData.post_secondary_enrollment_male ? ninjasCountryData.post_secondary_enrollment_male + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">女性高等教育入学率</div>
-                        <div class="detail-value">${ninjasCountryData.post_secondary_enrollment_female ? ninjasCountryData.post_secondary_enrollment_female + '%' : '未知'}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-leaf"></i>
-                    <span>环境指标</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">二氧化碳排放量</div>
-                        <div class="detail-value">${ninjasCountryData.co2_emissions ? ninjasCountryData.co2_emissions + ' (百万吨)' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">森林覆盖率</div>
-                        <div class="detail-value">${ninjasCountryData.forested_area ? ninjasCountryData.forested_area + '%' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">受威胁物种数量</div>
-                        <div class="detail-value">${ninjasCountryData.threatened_species ? ninjasCountryData.threatened_species + '种' : '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">互联网用户比例</div>
-                        <div class="detail-value">${ninjasCountryData.internet_users ? ninjasCountryData.internet_users + '%' : '未知'}</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-code"></i>
-                    <span>完整JSON数据</span>
-                </h3>
-                <div class="json-data-container" style="max-height: 300px; overflow-y: auto; background-color: #f5f5f5; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 14px; white-space: pre-wrap; scrollbar-width: none; -ms-overflow-style: none;">
-                    ${JSON.stringify(ninjasCountryData, null, 2)}
-                </div>
-            </div>
-            ` : ''}
+
         `;
         
         // 更新模态框内容
