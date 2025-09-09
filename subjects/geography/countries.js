@@ -2663,148 +2663,442 @@ async function showCountryDetails(countryCode) {
         
         // 创建地图容器
         const mapContainer = document.createElement('div');
-        mapContainer.id = 'leaflet-map';
+        mapContainer.className = 'svg-map-container';
         mapContainer.style.width = '100%';
         mapContainer.style.height = '500px';
         mapContainer.style.borderRadius = '8px';
+        mapContainer.style.overflow = 'hidden';
+        mapContainer.style.position = 'relative';
         mapViewContainer.appendChild(mapContainer);
         
-        // 初始化地图 - 居中显示世界地图
-        const map = L.map('leaflet-map').setView([20, 0], 2);
+        // 创建加载指示器
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'map-loading';
+        loadingIndicator.innerHTML = '<div class="loading-spinner"></div><p>正在加载地图数据...</p>';
+        loadingIndicator.style.position = 'absolute';
+        loadingIndicator.style.top = '0';
+        loadingIndicator.style.left = '0';
+        loadingIndicator.style.width = '100%';
+        loadingIndicator.style.height = '100%';
+        loadingIndicator.style.display = 'flex';
+        loadingIndicator.style.flexDirection = 'column';
+        loadingIndicator.style.alignItems = 'center';
+        loadingIndicator.style.justifyContent = 'center';
+        loadingIndicator.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        loadingIndicator.style.zIndex = '10';
+        mapContainer.appendChild(loadingIndicator);
         
-        // 添加地图图层
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            maxZoom: 18
-        }).addTo(map);
+        // 创建SVG地图元素
+        const svgMap = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgMap.setAttribute('width', '100%');
+        svgMap.setAttribute('height', '100%');
+        svgMap.setAttribute('viewBox', '-180 -90 360 180'); // 世界地图的视图框
+        svgMap.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svgMap.style.backgroundColor = '#e0f2fe';
+        mapContainer.appendChild(svgMap);
         
-        // 检测是否为移动设备
-        const isMobile = isMobileDevice();
-        
-        // 添加国家标记
-        if (window.countriesData && window.countriesData.length > 0) {
-            // 创建自定义图标
-            const countryIcon = L.divIcon({
-                className: 'country-marker',
-                html: '<div style="background-color: #4285F4; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            });
+        // 添加地图样式
+        const mapStyle = document.createElement('style');
+        mapStyle.textContent = `
+            .svg-map-container {
+                position: relative;
+            }
             
-            // 为每个国家添加标记
-            window.countriesData.forEach(country => {
-                // 尝试获取国家坐标（如果有的话）
-                let lat = country.latitude || 0;
-                let lng = country.longitude || 0;
-                
-                // 如果没有坐标，使用默认坐标（这里可以根据国家名称设置更精确的默认坐标）
-                if (lat === 0 && lng === 0) {
-                    // 根据地区设置默认坐标
-                    switch(country.region) {
-                        case 'asia':
-                            lat = 30; lng = 100;
-                            break;
-                        case 'europe':
-                            lat = 50; lng = 10;
-                            break;
-                        case 'africa':
-                            lat = 0; lng = 20;
-                            break;
-                        case 'americas':
-                            lat = 20; lng = -80;
-                            break;
-                        case 'oceania':
-                            lat = -25; lng = 140;
-                            break;
-                        default:
-                            lat = 20; lng = 0;
-                    }
-                }
-                
-                // 创建标记
-                const marker = L.marker([lat, lng], { icon: countryIcon }).addTo(map);
-                
-                // 创建弹出窗口内容
-                const popupContent = `
-                    <div style="min-width: 200px;">
-                        <h3 style="margin: 0 0 10px 0; color: #1D3557;">${country.chineseName || country.name}</h3>
-                        <p style="margin: 0 0 5px 0;"><strong>英文名称:</strong> ${country.name}</p>
-                        <p style="margin: 0 0 5px 0;"><strong>地区:</strong> ${getRegionName(country.region)}</p>
-                        <p style="margin: 0 0 10px 0;"><strong>首都:</strong> ${country.capital || '未知'}</p>
-                        <button id="view-details-${country.code}" style="background-color: #4285F4; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;">查看详情</button>
-                    </div>
-                `;
-                
-                // 绑定弹出窗口
-                marker.bindPopup(popupContent);
-                
-                // 添加弹出窗口打开事件监听器
-                marker.on('popupopen', function() {
-                    // 为详情按钮添加点击事件
-                    const detailsButton = document.getElementById(`view-details-${country.code}`);
-                    if (detailsButton) {
-                        detailsButton.addEventListener('click', function() {
-                            // 关闭弹出窗口
-                            marker.closePopup();
-                            // 显示国家详情模态框
-                            showCountryDetails(country.code);
-                        });
-                    }
-                });
-                
-                // 移动设备优化：添加触摸反馈
-                if (isMobile) {
-                    marker.on('click', function() {
-                        // 在移动设备上，点击标记时自动打开弹出窗口
-                        marker.openPopup();
-                    });
-                }
-            });
-        }
-        
-        // 添加地图控件样式
-        const style = document.createElement('style');
-        style.textContent = `
-            .country-marker {
-                background-color: #4285F4;
+            .map-loading {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background-color: rgba(255, 255, 255, 0.9);
+                z-index: 10;
+            }
+            
+            .loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid rgba(66, 133, 244, 0.2);
                 border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                border-top-color: #4285F4;
+                animation: spin 1s ease-in-out infinite;
+                margin-bottom: 10px;
             }
             
-            .leaflet-popup-content-wrapper {
-                border-radius: 8px;
-                box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+            @keyframes spin {
+                to { transform: rotate(360deg); }
             }
             
-            .leaflet-popup-content {
-                margin: 15px;
+            .country-path {
+                stroke: #ffffff;
+                stroke-width: 0.5;
+                transition: fill 0.3s ease;
+                cursor: pointer;
+            }
+            
+            .country-path:hover {
+                stroke-width: 1;
+                filter: brightness(0.9);
+            }
+            
+            .country-tooltip {
+                position: absolute;
+                background-color: rgba(255, 255, 255, 0.95);
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                padding: 10px;
+                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+                pointer-events: none;
+                z-index: 100;
+                max-width: 250px;
+                font-size: 14px;
+                display: none;
+            }
+            
+            .tooltip-title {
+                font-weight: bold;
+                margin-bottom: 5px;
+                color: #1D3557;
+            }
+            
+            .tooltip-info {
+                margin: 3px 0;
+            }
+            
+            .tooltip-button {
+                margin-top: 8px;
+                background-color: #4285F4;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 13px;
+                width: 100%;
             }
             
             /* 移动设备优化 */
             @media (max-width: 768px) {
-                .leaflet-popup-content {
-                    margin: 10px;
+                .country-path {
+                    stroke-width: 1;
                 }
                 
-                .leaflet-popup-content-wrapper {
-                    border-radius: 6px;
+                .country-tooltip {
+                    max-width: 200px;
+                    font-size: 12px;
+                    padding: 8px;
                 }
             }
         `;
-        document.head.appendChild(style);
+        document.head.appendChild(mapStyle);
         
-        // 响应式调整地图大小
-        function resizeMap() {
-            setTimeout(() => {
-                map.invalidateSize();
-            }, 100);
+        // 创建工具提示元素
+        const tooltip = document.createElement('div');
+        tooltip.className = 'country-tooltip';
+        mapContainer.appendChild(tooltip);
+        
+        // 检测是否为移动设备
+        const isMobile = isMobileDevice();
+        
+        // 加载世界地图数据
+        loadWorldMapData().then(worldMapData => {
+            // 隐藏加载指示器
+            loadingIndicator.style.display = 'none';
+            
+            if (!worldMapData || !worldMapData.features) {
+                console.error('无法加载世界地图数据');
+                mapContainer.innerHTML = '<div class="map-error"><p>无法加载地图数据，请刷新页面重试。</p></div>';
+                return;
+            }
+            
+            // 创建国家颜色映射
+            const regionColors = {
+                'africa': '#4285F4',
+                'americas': '#EA4335',
+                'asia': '#FBBC05',
+                'europe': '#34A853',
+                'oceania': '#8E44AD'
+            };
+            
+            // 渲染地图
+            worldMapData.features.forEach(feature => {
+                const countryId = feature.id;
+                const countryName = feature.properties.name;
+                
+                // 查找国家详细信息
+                const countryInfo = window.countriesData ? 
+                    window.countriesData.find(c => c.code === countryId) : null;
+                
+                // 确定国家颜色
+                let fillColor = '#cccccc'; // 默认颜色
+                if (countryInfo && countryInfo.region) {
+                    fillColor = regionColors[countryInfo.region] || '#cccccc';
+                }
+                
+                // 创建路径元素
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', convertGeoJSONToSVGPath(feature.geometry));
+                path.setAttribute('fill', fillColor);
+                path.setAttribute('class', 'country-path');
+                path.setAttribute('data-country-id', countryId);
+                path.setAttribute('data-country-name', countryName);
+                
+                // 添加鼠标事件
+                path.addEventListener('mouseenter', function(e) {
+                    if (!isMobile) {
+                        showCountryTooltip(e, countryId, countryName, countryInfo, tooltip);
+                    }
+                });
+                
+                path.addEventListener('mousemove', function(e) {
+                    if (!isMobile) {
+                        updateTooltipPosition(e, tooltip);
+                    }
+                });
+                
+                path.addEventListener('mouseleave', function() {
+                    if (!isMobile) {
+                        tooltip.style.display = 'none';
+                    }
+                });
+                
+                // 添加点击事件
+                path.addEventListener('click', function() {
+                    if (countryInfo) {
+                        showCountryDetails(countryInfo.code);
+                    } else {
+                        // 如果没有详细信息，显示基本信息
+                        if (isMobile) {
+                            showCountryTooltip(e, countryId, countryName, countryInfo, tooltip);
+                            setTimeout(() => {
+                                tooltip.style.display = 'none';
+                            }, 3000);
+                        }
+                    }
+                });
+                
+                // 移动设备优化：添加触摸事件
+                if (isMobile) {
+                    path.addEventListener('touchstart', function(e) {
+                        e.preventDefault();
+                        this.style.strokeWidth = '2';
+                    }, { passive: false });
+                    
+                    path.addEventListener('touchend', function(e) {
+                        e.preventDefault();
+                        this.style.strokeWidth = '0.5';
+                        
+                        // 显示工具提示
+                        const touch = e.changedTouches[0];
+                        const rect = mapContainer.getBoundingClientRect();
+                        const x = touch.clientX - rect.left;
+                        const y = touch.clientY - rect.top;
+                        
+                        showCountryTooltip({ clientX: touch.clientX, clientY: touch.clientY }, 
+                                           countryId, countryName, countryInfo, tooltip);
+                        
+                        // 3秒后自动隐藏工具提示
+                        setTimeout(() => {
+                            tooltip.style.display = 'none';
+                        }, 3000);
+                    }, { passive: false });
+                }
+                
+                // 将路径添加到SVG地图
+                svgMap.appendChild(path);
+            });
+            
+            // 添加图例
+            createMapLegend(mapContainer, regionColors);
+            
+        }).catch(error => {
+            console.error('加载世界地图数据时出错:', error);
+            loadingIndicator.style.display = 'none';
+            mapContainer.innerHTML = '<div class="map-error"><p>加载地图数据失败，请刷新页面重试。</p></div>';
+        });
+    }
+    
+    // 加载世界地图数据
+    function loadWorldMapData() {
+        return new Promise((resolve, reject) => {
+            // 检查是否已经加载了地图数据
+            if (window.worldMapData) {
+                resolve(window.worldMapData);
+                return;
+            }
+            
+            // 尝试从全局变量获取地图数据
+            if (typeof countries_data !== 'undefined' && countries_data) {
+                window.worldMapData = countries_data;
+                resolve(countries_data);
+                return;
+            }
+            
+            // 如果全局变量中没有数据，尝试从文件加载
+            const script = document.createElement('script');
+            script.src = 'assets/data/geography/world_map.json';
+            script.onload = function() {
+                if (typeof countries_data !== 'undefined' && countries_data) {
+                    window.worldMapData = countries_data;
+                    resolve(countries_data);
+                } else {
+                    reject(new Error('无法加载世界地图数据'));
+                }
+            };
+            script.onerror = function() {
+                reject(new Error('加载世界地图数据文件失败'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+    
+    // 将GeoJSON几何图形转换为SVG路径
+    function convertGeoJSONToSVGPath(geometry) {
+        if (!geometry || !geometry.coordinates) return '';
+        
+        let path = '';
+        
+        // 处理多边形
+        if (geometry.type === 'Polygon') {
+            path += processPolygon(geometry.coordinates);
+        } 
+        // 处理多多边形
+        else if (geometry.type === 'MultiPolygon') {
+            geometry.coordinates.forEach(polygon => {
+                path += processPolygon(polygon);
+            });
         }
         
-        // 监听窗口大小变化
-        window.addEventListener('resize', resizeMap);
+        return path;
+    }
+    
+    // 处理多边形坐标
+    function processPolygon(coordinates) {
+        let path = '';
         
-        // 初始调整地图大小
-        resizeMap();
+        coordinates.forEach((ring, ringIndex) => {
+            if (ring.length === 0) return;
+            
+            // 移动到第一个点
+            path += (ringIndex === 0 ? 'M' : 'M') + ring[0][0] + ',' + (-ring[0][1]);
+            
+            // 绘制线条到其余点
+            for (let i = 1; i < ring.length; i++) {
+                path += 'L' + ring[i][0] + ',' + (-ring[i][1]);
+            }
+            
+            // 闭合路径
+            if (ringIndex === 0) {
+                path += 'Z';
+            }
+        });
+        
+        return path;
+    }
+    
+    // 显示国家工具提示
+    function showCountryTooltip(event, countryId, countryName, countryInfo, tooltip) {
+        if (!tooltip) return;
+        
+        // 设置工具提示内容
+        let tooltipContent = `<div class="tooltip-title">${countryName}</div>`;
+        
+        if (countryInfo) {
+            tooltipContent += `
+                <div class="tooltip-info"><strong>英文名称:</strong> ${countryInfo.name}</div>
+                <div class="tooltip-info"><strong>地区:</strong> ${getRegionName(countryInfo.region)}</div>
+                <div class="tooltip-info"><strong>首都:</strong> ${countryInfo.capital || '未知'}</div>
+                <button class="tooltip-button" onclick="showCountryDetails('${countryInfo.code}')">查看详情</button>
+            `;
+        } else {
+            tooltipContent += `<div class="tooltip-info">暂无详细信息</div>`;
+        }
+        
+        tooltip.innerHTML = tooltipContent;
+        tooltip.style.display = 'block';
+        
+        // 更新工具提示位置
+        updateTooltipPosition(event, tooltip);
+    }
+    
+    // 更新工具提示位置
+    function updateTooltipPosition(event, tooltip) {
+        if (!tooltip) return;
+        
+        const mapContainer = tooltip.parentElement;
+        const rect = mapContainer.getBoundingClientRect();
+        
+        let x = event.clientX - rect.left;
+        let y = event.clientY - rect.top;
+        
+        // 确保工具提示不会超出地图容器边界
+        const tooltipRect = tooltip.getBoundingClientRect();
+        
+        if (x + tooltipRect.width > rect.width) {
+            x = rect.width - tooltipRect.width - 10;
+        }
+        
+        if (y + tooltipRect.height > rect.height) {
+            y = rect.height - tooltipRect.height - 10;
+        }
+        
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+    }
+    
+    // 创建地图图例
+    function createMapLegend(mapContainer, regionColors) {
+        const legend = document.createElement('div');
+        legend.className = 'map-legend';
+        legend.style.position = 'absolute';
+        legend.style.bottom = '10px';
+        legend.style.right = '10px';
+        legend.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+        legend.style.borderRadius = '6px';
+        legend.style.padding = '10px';
+        legend.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)';
+        legend.style.zIndex = '5';
+        
+        const legendTitle = document.createElement('div');
+        legendTitle.textContent = '地区图例';
+        legendTitle.style.fontWeight = 'bold';
+        legendTitle.style.marginBottom = '8px';
+        legend.appendChild(legendTitle);
+        
+        // 添加地区图例项
+        const regionNames = {
+            'africa': '非洲',
+            'americas': '美洲',
+            'asia': '亚洲',
+            'europe': '欧洲',
+            'oceania': '大洋洲'
+        };
+        
+        Object.entries(regionColors).forEach(([region, color]) => {
+            const item = document.createElement('div');
+            item.style.display = 'flex';
+            item.style.alignItems = 'center';
+            item.style.marginBottom = '5px';
+            
+            const colorBox = document.createElement('div');
+            colorBox.style.width = '16px';
+            colorBox.style.height = '16px';
+            colorBox.style.backgroundColor = color;
+            colorBox.style.marginRight = '8px';
+            colorBox.style.border = '1px solid #ddd';
+            
+            const label = document.createElement('span');
+            label.textContent = regionNames[region] || region;
+            label.style.fontSize = '14px';
+            
+            item.appendChild(colorBox);
+            item.appendChild(label);
+            legend.appendChild(item);
+        });
+        
+        mapContainer.appendChild(legend);
     }
 });
