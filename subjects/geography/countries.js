@@ -3265,9 +3265,36 @@ async function showCountryDetails(countryCode) {
                 const countryId = feature.id;
                 const countryName = feature.properties.name;
                 
-                // 查找国家详细信息
-                const countryInfo = window.countriesData ? 
-                    window.countriesData.find(c => c.code === countryId) : null;
+                // 查找国家详细信息 - 尝试多种匹配方式
+                let countryInfo = null;
+                if (window.countriesData) {
+                    // 首先尝试直接匹配 code 字段
+                    countryInfo = window.countriesData.find(c => c.code === countryId);
+                    
+                    // 如果没有找到，尝试匹配 alpha2Code 字段
+                    if (!countryInfo) {
+                        countryInfo = window.countriesData.find(c => c.alpha2Code === countryId);
+                    }
+                    
+                    // 如果仍然没有找到，尝试不区分大小写的匹配
+                    if (!countryInfo) {
+                        countryInfo = window.countriesData.find(c => 
+                            c.code && countryId && c.code.toLowerCase() === countryId.toLowerCase()
+                        );
+                    }
+                    
+                    // 最后尝试匹配 alpha2Code 不区分大小写
+                    if (!countryInfo) {
+                        countryInfo = window.countriesData.find(c => 
+                            c.alpha2Code && countryId && c.alpha2Code.toLowerCase() === countryId.toLowerCase()
+                        );
+                    }
+                }
+                
+                // 调试信息
+                if (countryId === 'US' || countryId === 'CN' || countryId === 'JP') {
+                    console.log(`国家ID: ${countryId}, 找到国家信息:`, countryInfo);
+                }
                 
                 // 确定国家颜色 - 基于大陆筛选器
                 let fillColor;
