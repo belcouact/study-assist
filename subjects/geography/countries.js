@@ -2943,26 +2943,81 @@ async function showCountryDetails(countryCode) {
         });
         
         // 移动设备触摸支持
+        let initialPinchDistance = 0;
+        let initialScale = 1;
+        
         mapContainer.addEventListener('touchstart', function(e) {
             if (e.target === svgMap || e.target.parentNode === svgMap) {
                 if (e.touches.length === 1) {
+                    // 单点触摸 - 拖拽模式
                     isDragging = true;
                     startX = e.touches[0].clientX - currentTranslateX;
                     startY = e.touches[0].clientY - currentTranslateY;
+                } else if (e.touches.length === 2) {
+                    // 双点触摸 - 缩放模式
+                    isDragging = false;
+                    
+                    // 计算两点之间的初始距离
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    initialPinchDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    // 保存当前缩放级别
+                    initialScale = currentScale;
+                    
+                    // 阻止默认行为，防止页面缩放
+                    e.preventDefault();
                 }
             }
-        }, { passive: true });
+        }, { passive: false });
         
         mapContainer.addEventListener('touchmove', function(e) {
-            if (isDragging && e.touches.length === 1) {
-                currentTranslateX = e.touches[0].clientX - startX;
-                currentTranslateY = e.touches[0].clientY - startY;
-                updateMapTransform();
+            if (e.target === svgMap || e.target.parentNode === svgMap) {
+                if (isDragging && e.touches.length === 1) {
+                    // 单点触摸移动 - 拖拽地图
+                    currentTranslateX = e.touches[0].clientX - startX;
+                    currentTranslateY = e.touches[0].clientY - startY;
+                    updateMapTransform();
+                } else if (e.touches.length === 2) {
+                    // 双点触摸移动 - 缩放地图
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    
+                    // 计算当前两点之间的距离
+                    const currentPinchDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    // 计算缩放比例
+                    const scaleChange = currentPinchDistance / initialPinchDistance;
+                    
+                    // 应用新的缩放级别，限制在最小和最大值之间
+                    currentScale = Math.max(0.5, Math.min(5, initialScale * scaleChange));
+                    
+                    // 更新地图变换
+                    updateMapTransform();
+                    
+                    // 阻止默认行为，防止页面缩放
+                    e.preventDefault();
+                }
             }
-        }, { passive: true });
+        }, { passive: false });
         
-        mapContainer.addEventListener('touchend', function() {
-            isDragging = false;
+        mapContainer.addEventListener('touchend', function(e) {
+            // 如果触摸点数量减少到1个，切换到拖拽模式
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - currentTranslateX;
+                startY = e.touches[0].clientY - currentTranslateY;
+            } else if (e.touches.length === 0) {
+                // 所有触摸点都离开，重置状态
+                isDragging = false;
+                initialPinchDistance = 0;
+            }
         }, { passive: true });
         
         // 获取国家相邻关系
