@@ -3269,8 +3269,25 @@ async function showCountryDetails(countryCode) {
                 const countryInfo = window.countriesData ? 
                     window.countriesData.find(c => c.code === countryId) : null;
                 
-                // 确定国家颜色 - 使用分配的颜色确保相邻国家不同色
-                let fillColor = coloredCountries[countryId] || '#cccccc'; // 默认颜色
+                // 确定国家颜色 - 基于大陆筛选器
+                let fillColor;
+                
+                // 检查是否选择了大陆筛选器
+                if (currentRegion && currentRegion !== 'all') {
+                    // 查找国家详细信息以确定其所属大陆
+                    const countryContinent = countryInfo ? countryInfo.chineseContinent : null;
+                    
+                    if (countryContinent === currentRegion) {
+                        // 如果国家属于所选大陆，使用分配的颜色确保相邻国家不同色
+                        fillColor = coloredCountries[countryId] || '#cccccc';
+                    } else {
+                        // 如果国家不属于所选大陆，使用浅灰色
+                        fillColor = '#e0e0e0';
+                    }
+                } else {
+                    // 如果没有选择大陆筛选器，所有国家使用蓝色
+                    fillColor = '#4285F4';
+                }
                 
                 // 创建路径元素
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
