@@ -254,7 +254,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         }
     }
 
-    // 从Cloudflare D1数据库加载国家数据
+    // 从本地JSON文件加载国家数据
     async function loadCountriesData() {
         try {
             // 检测是否为移动设备
@@ -322,47 +322,31 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                     }
                 }
             } else {
-                // 尝试从Cloudflare D1数据库获取数据
+                // 从本地JSON文件加载数据
                 try {
-                    // 移动设备优化：显示正在从网络加载数据的提示
+                    // 移动设备优化：显示正在从本地文件加载数据的提示
                     if (isMobile) {
                         const loadingText = loadingIndicator.querySelector('p');
                         if (loadingText) {
-                            loadingText.textContent = '正在从数据库加载数据...';
+                            loadingText.textContent = '正在从本地文件加载数据...';
                         }
                     }
                     
-                    countriesData = await loadCountriesFromDB();
-                    console.log('使用Cloudflare D1数据库数据');
+                    countriesData = await loadCountriesFromJSON();
+                    console.log('使用本地JSON文件数据');
                 } catch (error) {
-                    console.error('无法从Cloudflare D1数据库加载数据:', error);
+                    console.error('无法从本地JSON文件加载数据:', error);
                     
-                    // 尝试使用REST Countries API作为备用数据源
-                    try {
-                        // 移动设备优化：显示正在从备用数据源加载数据的提示
-                        if (isMobile) {
-                            const loadingText = loadingIndicator.querySelector('p');
-                            if (loadingText) {
-                                loadingText.textContent = '正在从备用数据源加载数据...';
-                            }
+                    // 移动设备优化：显示错误信息
+                    if (isMobile) {
+                        const loadingText = loadingIndicator.querySelector('p');
+                        if (loadingText) {
+                            loadingText.textContent = '加载数据失败，请稍后再试';
                         }
-                        
-                        countriesData = await loadCountriesFromRestAPI();
-                        console.log('使用REST Countries API数据');
-                    } catch (apiError) {
-                        console.error('无法从REST Countries API加载数据:', apiError);
-                        
-                        // 移动设备优化：显示错误信息
-                        if (isMobile) {
-                            const loadingText = loadingIndicator.querySelector('p');
-                            if (loadingText) {
-                                loadingText.textContent = '加载数据失败，请稍后再试';
-                            }
-                        }
-                        
-                        // 所有数据源都失败，显示错误
-                        throw new Error('无法加载国家数据，请检查网络连接或稍后再试');
                     }
+                    
+                    // 数据加载失败，显示错误
+                    throw new Error('无法加载国家数据，请检查文件是否存在或稍后再试');
                 }
                 
                 // 缓存数据
@@ -412,37 +396,33 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         }
     }
 
-    // 从Cloudflare D1数据库加载国家数据
-    async function loadCountriesFromDB() {
+    // 从本地JSON文件加载国家数据
+    async function loadCountriesFromJSON() {
         try {
-            const response = await fetch('/api/db/query/country_info');
+            const response = await fetch('../../assets/data/geography/country_basic.json');
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
             
-            if (!data.success) {
-                throw new Error(data.message || 'Failed to fetch country data');
-            }
-            
             // 转换数据格式以适应现有代码结构
-            return data.data.map(country => {
-                // 使用Flag_SVG字段显示国旗，如果有问题则使用占位符
-                let flagSvg = country.Flag_SVG;
+            return data.map(country => {
+                // 使用Flag svg字段显示国旗，如果有问题则使用占位符
+                let flagSvg = country["Flag svg"];
                 if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
                     flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
                 }
                 
                 return {
-                    code: country.Country_Code_Alpha2,
-                    fipsCode: country.Country_Code_Fips_10,
-                    alpha2Code: country.Country_Code_Alpha2,
-                    name: country.Country_Name_Eng,
-                    chineseName: country.Country_Name_Chn,
-                    continent: country.Continent_Eng,
-                    chineseContinent: country.Continent_Chn,
+                    code: country["Country code"],
+                    fipsCode: country["Country code"],
+                    alpha2Code: country["Country code"],
+                    name: country["Country name"],
+                    chineseName: country["国家名称"],
+                    continent: country["Continent"],
+                    chineseContinent: country["洲"],
                     flagSvg: flagSvg,
-                    factbookFilePath: country.Factbook_File_Path,
+                    factbookFilePath: country["File Path"],
                     // 为了兼容现有代码，添加一些默认值
                     capital: '未知',
                     population: '未知',
@@ -450,7 +430,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 };
             });
         } catch (error) {
-            console.error('从数据库加载国家数据失败:', error);
+            console.error('从本地JSON文件加载国家数据失败:', error);
             throw error;
         }
     }
@@ -764,6 +744,11 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     function handleSearch() {
         const searchTerm = searchInput.value.toLowerCase().trim();
         filterAndDisplayCountries(searchTerm);
+        
+        // 如果地图视图可见，更新地图视图
+        if (mapView.style.display !== 'none') {
+            displayMapView();
+        }
     }
 
     // 处理地区筛选
@@ -780,6 +765,11 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
 
         // 重新筛选和显示国家
         filterAndDisplayCountries();
+        
+        // 如果地图视图可见，更新地图视图
+        if (mapView.style.display !== 'none') {
+            displayMapView();
+        }
         
         // 移动设备优化：添加触觉反馈
         if (isMobileDevice() && 'vibrate' in navigator) {
@@ -842,6 +832,11 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
 
         // 显示国家
         displayCountries(filteredCountries);
+        
+        // 如果地图视图可见，更新地图视图
+        if (mapView.style.display !== 'none') {
+            displayMapView();
+        }
         
         // 移动设备优化：添加触觉反馈
         if (isMobileDevice() && 'vibrate' in navigator) {
@@ -3296,8 +3291,22 @@ async function showCountryDetails(countryCode) {
                     console.log(`国家ID: ${countryId}, 找到国家信息:`, countryInfo);
                 }
                 
-                // 确定国家颜色 - 基于大陆筛选器
+                // 确定国家颜色 - 基于大陆筛选器和搜索词
                 let fillColor;
+                let isHighlighted = false;
+                
+                // 获取当前搜索词
+                const currentSearchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+                
+                // 检查是否匹配搜索词
+                if (currentSearchTerm && countryInfo) {
+                    const nameMatch = countryInfo.name && countryInfo.name.toLowerCase().includes(currentSearchTerm);
+                    const chineseNameMatch = countryInfo.chineseName && countryInfo.chineseName.toLowerCase().includes(currentSearchTerm);
+                    const fipsCodeMatch = countryInfo.fipsCode && countryInfo.fipsCode.toLowerCase().includes(currentSearchTerm);
+                    const alpha2CodeMatch = countryInfo.alpha2Code && countryInfo.alpha2Code.toLowerCase().includes(currentSearchTerm);
+                    
+                    isHighlighted = nameMatch || chineseNameMatch || fipsCodeMatch || alpha2CodeMatch;
+                }
                 
                 // 检查是否选择了大陆筛选器
                 if (currentRegion && currentRegion !== 'all') {
@@ -3311,8 +3320,11 @@ async function showCountryDetails(countryCode) {
                         // 如果国家不属于所选大陆，使用浅灰色
                         fillColor = '#e0e0e0';
                     }
+                } else if (isHighlighted) {
+                    // 如果没有选择大陆筛选器但匹配搜索词，使用绿色高亮
+                    fillColor = '#34A853';
                 } else {
-                    // 如果没有选择大陆筛选器，所有国家使用蓝色
+                    // 如果没有选择大陆筛选器且不匹配搜索词，所有国家使用蓝色
                     fillColor = '#4285F4';
                 }
                 
