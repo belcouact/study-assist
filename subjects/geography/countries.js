@@ -502,7 +502,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         if (!countriesData || countriesData.length === 0) return;
         
         // 首先尝试从country_stats.json加载统计数据
-        fetch('../assets/data/geography/country_stats.json')
+        fetch('/assets/data/geography/country_stats.json')
             .then(response => {
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -529,17 +529,23 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                     }
                 });
                 
-                // 为每个国家分配颜色（基于统计值）
+                // 首先将所有国家路径设置为浅灰色（无数据状态）
+                document.querySelectorAll('.country-path').forEach(path => {
+                    path.style.fill = '#e0e0e0'; // 浅灰色表示无数据
+                    // 清除之前的统计值和键
+                    path.removeAttribute('data-stat-value');
+                    path.removeAttribute('data-stat-key');
+                });
+                
+                // 为有数据的国家分配颜色（基于统计值）
                 statsData.forEach(country => {
                     const value = country[statKey];
                     if (value !== null && value !== undefined && !isNaN(value) && country.iso2) {
                         // 归一化值到0-1范围
                         const normalizedValue = (value - minValue) / (maxValue - minValue);
                         
-                        // 根据归一化值计算颜色（从浅到深）
-                        const hue = 220; // 蓝色色调
-                        const saturation = 70 + normalizedValue * 30; // 饱和度从70%到100%
-                        const lightness = 50 - normalizedValue * 20; // 亮度从50%到30%
+                        // 使用与图例相同的颜色方案
+                        const color = getColorForValue(normalizedValue);
                         
                         // 更新国家颜色 - 尝试多种选择器
                         let countryPath = document.querySelector(`path[data-country="${country.iso2}"]`);
@@ -548,7 +554,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                         }
                         
                         if (countryPath) {
-                            countryPath.style.fill = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+                            countryPath.style.fill = color;
                             countryPath.setAttribute('data-stat-value', value);
                             
                             // 存储统计值以便在工具提示中使用
@@ -571,49 +577,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     function formatStatValue(value, statKey) {
         if (value === null || value === undefined || isNaN(value)) return '无数据';
         
-        // 根据不同的统计类型进行格式化
-        switch (statKey) {
-            case 'population':
-            case 'urban_population':
-                return (value / 1000000).toFixed(2) + ' 百万';
-            case 'surface_area':
-                return (value / 1000).toFixed(2) + ' 千平方公里';
-            case 'pop_density':
-                return value.toFixed(2) + ' 人/平方公里';
-            case 'pop_growth':
-            case 'urban_population_growth':
-            case 'gdp_growth':
-                return value.toFixed(2) + '%';
-            case 'life_expectancy_male':
-            case 'life_expectancy_female':
-                return value.toFixed(1) + ' 岁';
-            case 'fertility':
-                return value.toFixed(2);
-            case 'infant_mortality':
-                return value.toFixed(2) + ' / 1000 活产儿';
-            case 'gdp':
-                return (value / 1000000000).toFixed(2) + ' 十亿美元';
-            case 'gdp_per_capita':
-                return '$' + value.toFixed(2);
-            case 'unemployment':
-            case 'employment_agriculture':
-            case 'employment_industry':
-            case 'employment_services':
-                return value.toFixed(2) + '%';
-            case 'imports':
-            case 'exports':
-                return (value / 1000000000).toFixed(2) + ' 十亿美元';
-            case 'tourists':
-                return (value / 1000000).toFixed(2) + ' 百万';
-            case 'internet_users':
-                return (value / 1000000).toFixed(2) + ' 百万';
-            case 'co2_emissions':
-                return (value / 1000000).toFixed(2) + ' 百万吨';
-            case 'forested_area':
-                return value.toFixed(2) + '%';
-            default:
-                return value.toString();
-        }
+        // 返回保留一位小数的数值，不添加任何单位
+        return parseFloat(value).toFixed(1);
     }
     
     // 更新地图图例
@@ -627,30 +592,127 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         let legendHTML = `<div class="legend-title">${statName}</div>`;
         legendHTML += '<div class="legend-scale">';
         
-        // 创建5个颜色等级
-        for (let i = 0; i < 5; i++) {
-            const normalizedValue = i / 4;
-            const hue = 220; // 蓝色色调
-            const saturation = 70 + normalizedValue * 30;
-            const lightness = 50 - normalizedValue * 20;
-            const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-            
-            // 计算该等级对应的值
-            const value = minValue + normalizedValue * (maxValue - minValue);
-            
-            legendHTML += `
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: ${color}"></div>
-                    <div class="legend-value">${formatStatValue(value, statKey)}</div>
-                </div>
-            `;
+        // 创建连续颜色渐变 - 增加颜色梯度数量以提供更平滑的过渡
+        const gradientSteps = 50; // 从20增加到50以获得更平滑的颜色过渡
+        
+        // 添加渐变色条
+        legendHTML += '<div class="gradient-bar-container">';
+        legendHTML += '<div class="gradient-bar" id="gradient-bar"></div>';
+        legendHTML += '</div>';
+        
+        // 添加刻度值
+        legendHTML += '<div class="legend-ticks">';
+        
+        // 动态确定刻度位置和数量
+        const tickCount = Math.min(5, Math.max(3, Math.floor((maxValue - minValue) / getOptimalTickInterval(minValue, maxValue))));
+        const tickPositions = [];
+        
+        for (let i = 0; i <= tickCount; i++) {
+            tickPositions.push(i / tickCount);
         }
         
+        tickPositions.forEach(position => {
+            const value = minValue + position * (maxValue - minValue);
+            const formattedValue = formatStatValue(value, statKey);
+            
+            legendHTML += `
+                <div class="legend-tick" style="left: ${position * 100}%">
+                    <div class="tick-line"></div>
+                    <div class="tick-label">${formattedValue}</div>
+                </div>
+            `;
+        });
+        
+        legendHTML += '</div>';
         legendHTML += '</div>';
         
         // 更新图例内容
         legend.innerHTML = legendHTML;
         legend.style.display = 'block';
+        
+        // 创建CSS渐变
+        createGradientBar(minValue, maxValue, statKey);
+    }
+    
+    // 创建渐变色条的CSS渐变
+    function createGradientBar(minValue, maxValue, statKey) {
+        const gradientBar = document.getElementById('gradient-bar');
+        if (!gradientBar) return;
+        
+        // 创建渐变色标 - 增加梯度数量以获得更平滑的过渡
+        const gradientSteps = 50; // 从20增加到50以获得更平滑的颜色过渡
+        let gradientStops = [];
+        
+        for (let i = 0; i < gradientSteps; i++) {
+            const normalizedValue = i / (gradientSteps - 1);
+            const color = getColorForValue(normalizedValue);
+            gradientStops.push(`${color} ${normalizedValue * 100}%`);
+        }
+        
+        // 应用CSS渐变
+        gradientBar.style.background = `linear-gradient(to right, ${gradientStops.join(', ')})`;
+    }
+    
+    // 根据归一化值获取颜色
+    function getColorForValue(normalizedValue) {
+        // 使用更丰富的颜色方案，提供更好的视觉区分
+        // 采用多色渐变：从浅黄到橙到红到紫到深蓝
+        let hue, saturation, lightness;
+        
+        if (normalizedValue < 0.2) {
+            // 从浅黄到橙 (0-0.2)
+            const adjustedValue = normalizedValue / 0.2;
+            hue = 60 - adjustedValue * 15; // 从60(黄)到45(橙)
+            saturation = 70 + adjustedValue * 30; // 从70%到100%
+            lightness = 80 - adjustedValue * 20; // 从80%到60%
+        } else if (normalizedValue < 0.4) {
+            // 从橙到红 (0.2-0.4)
+            const adjustedValue = (normalizedValue - 0.2) / 0.2;
+            hue = 45 - adjustedValue * 45; // 从45(橙)到0(红)
+            saturation = 100;
+            lightness = 60 - adjustedValue * 15; // 从60%到45%
+        } else if (normalizedValue < 0.6) {
+            // 从红到紫 (0.4-0.6)
+            const adjustedValue = (normalizedValue - 0.4) / 0.2;
+            hue = 360 - adjustedValue * 120; // 从0(红)到240(紫)
+            saturation = 100;
+            lightness = 45 - adjustedValue * 10; // 从45%到35%
+        } else if (normalizedValue < 0.8) {
+            // 从紫到深蓝 (0.6-0.8)
+            const adjustedValue = (normalizedValue - 0.6) / 0.2;
+            hue = 240 - adjustedValue * 40; // 从240(紫)到200(深蓝)
+            saturation = 100;
+            lightness = 35 - adjustedValue * 10; // 从35%到25%
+        } else {
+            // 从深蓝到更深蓝 (0.8-1.0)
+            const adjustedValue = (normalizedValue - 0.8) / 0.2;
+            hue = 200 - adjustedValue * 20; // 从200(深蓝)到180(更深蓝)
+            saturation = 100;
+            lightness = 25 - adjustedValue * 10; // 从25%到15%
+        }
+        
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    }
+    
+    // 计算最优刻度间隔
+    function getOptimalTickInterval(minValue, maxValue) {
+        const range = maxValue - minValue;
+        const roughStep = range / 4;
+        const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+        const normalizedStep = roughStep / magnitude;
+        
+        let step;
+        if (normalizedStep <= 1) {
+            step = 1;
+        } else if (normalizedStep <= 2) {
+            step = 2;
+        } else if (normalizedStep <= 5) {
+            step = 5;
+        } else {
+            step = 10;
+        }
+        
+        return step * magnitude;
     }
 
     // 从REST Countries API加载国家数据
@@ -1190,8 +1252,28 @@ function createCountryCard(country) {
 
     // 显示国家详情
 async function showCountryDetails(countryCode) {
-    // 查找国家数据
-    const country = countriesData.find(c => c.code === countryCode);
+    // 查找国家数据 - 尝试多种匹配方式
+    let country = countriesData.find(c => c.code === countryCode);
+    
+    // 如果没有找到，尝试匹配 alpha2Code 字段
+    if (!country) {
+        country = countriesData.find(c => c.alpha2Code === countryCode);
+    }
+    
+    // 如果仍然没有找到，尝试不区分大小写的匹配
+    if (!country) {
+        country = countriesData.find(c => 
+            c.code && countryCode && c.code.toLowerCase() === countryCode.toLowerCase()
+        );
+    }
+    
+    // 最后尝试匹配 alpha2Code 不区分大小写
+    if (!country) {
+        country = countriesData.find(c => 
+            c.alpha2Code && countryCode && c.alpha2Code.toLowerCase() === countryCode.toLowerCase()
+        );
+    }
+    
     if (!country) {
         console.error(`未找到国家代码为 ${countryCode} 的国家数据`);
         return;
@@ -2871,18 +2953,35 @@ async function showCountryDetails(countryCode) {
         const mapViewContainer = document.getElementById('map-view');
         if (!mapViewContainer) return;
         
-        // 清空地图容器
+        // 保存地图控件（包含stats-dropdown）
+        const mapControls = mapViewContainer.querySelector('.map-controls');
+        
+        // 保存地图图例
+        const mapLegend = mapViewContainer.querySelector('#map-legend');
+        
+        // 清空地图容器，但保留地图控件和图例
         mapViewContainer.innerHTML = '';
         
-        // 创建地图容器
+        // 如果存在地图控件，重新添加到地图容器
+        if (mapControls) {
+            mapViewContainer.appendChild(mapControls);
+        }
+        
+        // 创建地图视图容器
         const mapContainer = document.createElement('div');
-        mapContainer.className = 'svg-map-container';
+        mapContainer.className = 'map-view-container';
         mapContainer.style.width = '100%';
         mapContainer.style.height = '500px';
+        mapContainer.style.backgroundColor = 'var(--geography-light)';
         mapContainer.style.borderRadius = '8px';
         mapContainer.style.overflow = 'hidden';
         mapContainer.style.position = 'relative';
         mapViewContainer.appendChild(mapContainer);
+        
+        // 如果存在地图图例，重新添加到地图容器
+        if (mapLegend) {
+            mapViewContainer.appendChild(mapLegend);
+        }
         
         // 创建加载指示器
         const loadingIndicator = document.createElement('div');
@@ -3720,7 +3819,7 @@ async function showCountryDetails(countryCode) {
                 const statName = statsDropdown.options[statsDropdown.selectedIndex].text;
                 
                 // 尝试从country_stats.json获取统计数据
-                const statsResponse = await fetch('../assets/data/geography/country_stats.json');
+                const statsResponse = await fetch('/assets/data/geography/country_stats.json');
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json();
                     const countryStat = statsData.find(c => c.iso2 === countryId);
@@ -3732,6 +3831,11 @@ async function showCountryDetails(countryCode) {
                         // 添加统计信息到工具提示
                         tooltipContent += `
                             <div class="tooltip-info"><strong>${statName}:</strong> ${formattedValue}</div>
+                        `;
+                    } else {
+                        // 显示无数据信息
+                        tooltipContent += `
+                            <div class="tooltip-info"><strong>${statName}:</strong> 无数据</div>
                         `;
                     }
                 }
@@ -3790,7 +3894,7 @@ async function showCountryDetails(countryCode) {
                     const statName = statsDropdown.options[statsDropdown.selectedIndex].text;
                     
                     // 尝试从country_stats.json获取统计数据
-                    const statsResponse = await fetch('../assets/data/geography/country_stats.json');
+                    const statsResponse = await fetch('/assets/data/geography/country_stats.json');
                     if (statsResponse.ok) {
                         const statsData = await statsResponse.json();
                         const countryStat = statsData.find(c => c.iso2 === countryId);
@@ -3803,6 +3907,12 @@ async function showCountryDetails(countryCode) {
                             const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
                             if (statInfoElement) {
                                 statInfoElement.innerHTML = `<strong>${statName}:</strong> ${formattedValue}`;
+                            }
+                        } else {
+                            // 显示无数据信息
+                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
+                            if (statInfoElement) {
+                                statInfoElement.innerHTML = `<strong>${statName}:</strong> 无数据`;
                             }
                         }
                     }
