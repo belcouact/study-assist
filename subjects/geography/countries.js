@@ -419,11 +419,67 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         console.log('Using placeholder flag for:', country["国家名称"]);
         flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
     } else {
-        // 使用Blob URL来安全地渲染SVG
+        // 使用Blob URL来安全地渲染SVG，并确保4:3的宽高比
         try {
-            const blob = new Blob([flagSvg], { type: 'image/svg+xml' });
+            // 修改SVG的viewBox以确保4:3的宽高比
+            let processedSvg = flagSvg;
+            
+            // 检查SVG是否已有viewBox
+            const viewBoxMatch = processedSvg.match(/viewBox="([^"]*)"/);
+            if (!viewBoxMatch) {
+                // 如果没有viewBox，尝试从width/height属性提取
+                const widthMatch = processedSvg.match(/width="([^"]*)"/);
+                const heightMatch = processedSvg.match(/height="([^"]*)"/);
+                
+                if (widthMatch && heightMatch) {
+                    const width = parseFloat(widthMatch[1]);
+                    const height = parseFloat(heightMatch[1]);
+                    
+                    // 计算保持4:3比例的viewBox
+                    if (width / height > 4/3) {
+                        // SVG比4:3更宽，需要裁剪宽度
+                        const newWidth = height * 4/3;
+                        const xOffset = (width - newWidth) / 2;
+                        processedSvg = processedSvg.replace(/<svg/, `<svg viewBox="${xOffset} 0 ${newWidth} ${height}"`);
+                    } else {
+                        // SVG比4:3更高，需要裁剪高度
+                        const newHeight = width * 3/4;
+                        const yOffset = (height - newHeight) / 2;
+                        processedSvg = processedSvg.replace(/<svg/, `<svg viewBox="0 ${yOffset} ${width} ${newHeight}"`);
+                    }
+                } else {
+                    // 如果没有width/height属性，添加默认的4:3 viewBox
+                    processedSvg = processedSvg.replace(/<svg/, '<svg viewBox="0 0 640 480"');
+                }
+            } else {
+                // 如果已有viewBox，检查是否需要调整为4:3比例
+                const viewBoxParts = viewBoxMatch[1].split(' ');
+                if (viewBoxParts.length >= 4) {
+                    const x = parseFloat(viewBoxParts[0]);
+                    const y = parseFloat(viewBoxParts[1]);
+                    const width = parseFloat(viewBoxParts[2]);
+                    const height = parseFloat(viewBoxParts[3]);
+                    
+                    // 计算保持4:3比例的新viewBox
+                    if (width / height > 4/3) {
+                        // SVG比4:3更宽，需要裁剪宽度
+                        const newWidth = height * 4/3;
+                        const xOffset = x + (width - newWidth) / 2;
+                        const newViewBox = `${xOffset} ${y} ${newWidth} ${height}`;
+                        processedSvg = processedSvg.replace(/viewBox="[^"]*"/, `viewBox="${newViewBox}"`);
+                    } else {
+                        // SVG比4:3更高，需要裁剪高度
+                        const newHeight = width * 3/4;
+                        const yOffset = y + (height - newHeight) / 2;
+                        const newViewBox = `${x} ${yOffset} ${width} ${newHeight}`;
+                        processedSvg = processedSvg.replace(/viewBox="[^"]*"/, `viewBox="${newViewBox}"`);
+                    }
+                }
+            }
+            
+            const blob = new Blob([processedSvg], { type: 'image/svg+xml' });
             const url = URL.createObjectURL(blob);
-            flagSvg = `<img src="${url}" alt="Flag" class="flag-svg-img" />`;
+            flagSvg = `<img src="${url}" alt="Flag" class="flag-svg-img" style="aspect-ratio: 4/3;" />`;
             console.log('Created blob URL for flag of:', country["国家名称"]);
         } catch (error) {
             console.error('Error creating blob URL for SVG:', error);
@@ -766,7 +822,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 let flagSvg = null;
                 if (country.flag) {
                     // 使用国旗图片URL而不是SVG，因为REST Countries API只提供图片URL
-                    flagSvg = `<img src="${country.flag}" alt="${country.name} flag" style="width: 100%; height: 100%; object-fit: contain;">`;
+                    // 添加aspect-ratio: 4/3确保4:3的宽高比
+                    flagSvg = `<img src="${country.flag}" alt="${country.name} flag" style="width: 100%; height: 100%; object-fit: contain; aspect-ratio: 4/3;">`;
                 }
                 
                 // 获取首都
