@@ -3076,6 +3076,10 @@ async function showCountryDetails(countryCode) {
         mapContainer.style.borderRadius = '8px';
         mapContainer.style.overflow = 'hidden';
         mapContainer.style.position = 'relative';
+        mapContainer.style.touchAction = 'none'; // 防止默认触摸行为
+        mapContainer.style.webkitUserSelect = 'none'; // 防止文本选择
+        mapContainer.style.userSelect = 'none'; // 防止文本选择
+        mapContainer.style.webkitTouchCallout = 'none'; // 禁用长按菜单
         mapViewContainer.appendChild(mapContainer);
         
         // 如果存在地图图例，重新添加到地图容器
@@ -3107,6 +3111,9 @@ async function showCountryDetails(countryCode) {
         svgMap.setAttribute('viewBox', '-180 -90 360 180'); // 世界地图的视图框
         svgMap.setAttribute('preserveAspectRatio', 'xMidYMid meet');
         svgMap.style.backgroundColor = '#e0f2fe';
+        svgMap.style.touchAction = 'none'; // 防止默认触摸行为
+        svgMap.style.webkitUserSelect = 'none'; // 防止文本选择
+        svgMap.style.userSelect = 'none'; // 防止文本选择
         mapContainer.appendChild(svgMap);
         
         // 添加地图样式
@@ -3243,51 +3250,29 @@ async function showCountryDetails(countryCode) {
         // 创建缩放控制
         const zoomControls = document.createElement('div');
         zoomControls.className = 'map-zoom-controls';
-        zoomControls.style.position = 'absolute';
-        zoomControls.style.top = '10px';
-        zoomControls.style.right = '10px';
-        zoomControls.style.zIndex = '10';
+        
+        // 如果是移动设备，添加移动特定类
+        if (isMobile) {
+            zoomControls.classList.add('mobile-zoom-controls');
+        }
         
         // 添加放大按钮
         const zoomInBtn = document.createElement('button');
         zoomInBtn.innerHTML = '+';
         zoomInBtn.className = 'zoom-btn';
-        zoomInBtn.style.width = '40px';
-        zoomInBtn.style.height = '40px';
-        zoomInBtn.style.fontSize = '24px';
-        zoomInBtn.style.borderRadius = '50%';
-        zoomInBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        zoomInBtn.style.border = '1px solid #ddd';
-        zoomInBtn.style.cursor = 'pointer';
-        zoomInBtn.style.marginBottom = '10px';
-        zoomInBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        zoomInBtn.setAttribute('aria-label', '放大地图');
         
         // 添加缩小按钮
         const zoomOutBtn = document.createElement('button');
         zoomOutBtn.innerHTML = '-';
         zoomOutBtn.className = 'zoom-btn';
-        zoomOutBtn.style.width = '40px';
-        zoomOutBtn.style.height = '40px';
-        zoomOutBtn.style.fontSize = '24px';
-        zoomOutBtn.style.borderRadius = '50%';
-        zoomOutBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        zoomOutBtn.style.border = '1px solid #ddd';
-        zoomOutBtn.style.cursor = 'pointer';
-        zoomOutBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        zoomOutBtn.setAttribute('aria-label', '缩小地图');
         
         // 添加重置按钮
         const resetBtn = document.createElement('button');
         resetBtn.innerHTML = '⟲';
         resetBtn.className = 'reset-btn';
-        resetBtn.style.width = '40px';
-        resetBtn.style.height = '40px';
-        resetBtn.style.fontSize = '18px';
-        resetBtn.style.borderRadius = '50%';
-        resetBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        resetBtn.style.border = '1px solid #ddd';
-        resetBtn.style.cursor = 'pointer';
-        resetBtn.style.marginTop = '10px';
-        resetBtn.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+        resetBtn.setAttribute('aria-label', '重置地图视图');
         
         // 添加按钮到控制容器
         zoomControls.appendChild(zoomInBtn);
@@ -3301,22 +3286,64 @@ async function showCountryDetails(countryCode) {
         let currentTranslateY = 0;
         
         // 缩放功能
-        zoomInBtn.addEventListener('click', function() {
+        zoomInBtn.addEventListener('click', function(e) {
+            e.preventDefault();
             currentScale = Math.min(currentScale * 1.2, 5); // 最大放大5倍
             updateMapTransform();
         });
         
-        zoomOutBtn.addEventListener('click', function() {
+        zoomOutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
             currentScale = Math.max(currentScale / 1.2, 0.5); // 最小缩小到0.5倍
             updateMapTransform();
         });
         
-        resetBtn.addEventListener('click', function() {
+        resetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
             currentScale = 1;
             currentTranslateX = 0;
             currentTranslateY = 0;
             updateMapTransform();
         });
+        
+        // 添加触摸事件支持到缩放按钮
+        zoomInBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            this.classList.add('active');
+        }, { passive: false });
+        
+        zoomInBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+            currentScale = Math.min(currentScale * 1.2, 5);
+            updateMapTransform();
+        }, { passive: false });
+        
+        zoomOutBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            this.classList.add('active');
+        }, { passive: false });
+        
+        zoomOutBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+            currentScale = Math.max(currentScale / 1.2, 0.5);
+            updateMapTransform();
+        }, { passive: false });
+        
+        resetBtn.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            this.classList.add('active');
+        }, { passive: false });
+        
+        resetBtn.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            this.classList.remove('active');
+            currentScale = 1;
+            currentTranslateX = 0;
+            currentTranslateY = 0;
+            updateMapTransform();
+        }, { passive: false });
         
         // 更新地图变换
         function updateMapTransform() {
@@ -3360,12 +3387,16 @@ async function showCountryDetails(countryCode) {
         let touchStartDistance = 0;
         
         mapContainer.addEventListener('touchstart', function(e) {
+            // 阻止默认行为，防止页面滚动和缩放
+            e.preventDefault();
+            
             if (e.target === svgMap || e.target.parentNode === svgMap) {
                 if (e.touches.length === 1) {
                     // 单点触摸 - 拖拽模式
                     isDragging = true;
                     startX = e.touches[0].clientX - currentTranslateX;
                     startY = e.touches[0].clientY - currentTranslateY;
+                    mapContainer.style.cursor = 'grabbing';
                 } else if (e.touches.length === 2) {
                     // 双点触摸 - 缩放模式
                     isDragging = false;
@@ -3381,14 +3412,14 @@ async function showCountryDetails(countryCode) {
                     // 保存当前缩放级别
                     initialScale = currentScale;
                     touchStartDistance = initialPinchDistance;
-                    
-                    // 阻止默认行为，防止页面缩放
-                    e.preventDefault();
                 }
             }
         }, { passive: false });
         
         mapContainer.addEventListener('touchmove', function(e) {
+            // 阻止默认行为，防止页面滚动和缩放
+            e.preventDefault();
+            
             if (e.target === svgMap || e.target.parentNode === svgMap) {
                 if (isDragging && e.touches.length === 1) {
                     // 单点触摸移动 - 拖拽地图
@@ -3417,9 +3448,6 @@ async function showCountryDetails(countryCode) {
                         // 更新地图变换
                         updateMapTransform();
                     }
-                    
-                    // 阻止默认行为，防止页面缩放
-                    e.preventDefault();
                 }
             }
         }, { passive: false });
@@ -3430,13 +3458,15 @@ async function showCountryDetails(countryCode) {
                 isDragging = true;
                 startX = e.touches[0].clientX - currentTranslateX;
                 startY = e.touches[0].clientY - currentTranslateY;
+                mapContainer.style.cursor = 'grabbing';
             } else if (e.touches.length === 0) {
                 // 所有触摸点都离开，重置状态
                 isDragging = false;
                 initialPinchDistance = 0;
                 touchStartDistance = 0;
+                mapContainer.style.cursor = 'grab';
             }
-        }, { passive: true });
+        }, { passive: false });
         
         // 获取国家相邻关系
         function findAdjacentCountries() {
