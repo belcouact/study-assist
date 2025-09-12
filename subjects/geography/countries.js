@@ -412,10 +412,24 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             // 转换数据格式以适应现有代码结构
             return data.map(country => {
                 // 使用Flag svg字段显示国旗，如果有问题则使用占位符
-                let flagSvg = country["Flag svg"];
-                if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
-                    flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
-                }
+    let flagSvg = country["Flag svg"];
+    console.log('Processing flag for country:', country["国家名称"], 'flagSvg type:', typeof flagSvg, 'flagSvg length:', flagSvg ? flagSvg.length : 0);
+    
+    if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
+        console.log('Using placeholder flag for:', country["国家名称"]);
+        flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+    } else {
+        // 使用Blob URL来安全地渲染SVG
+        try {
+            const blob = new Blob([flagSvg], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            flagSvg = `<img src="${url}" alt="Flag" class="flag-svg-img" />`;
+            console.log('Created blob URL for flag of:', country["国家名称"]);
+        } catch (error) {
+            console.error('Error creating blob URL for SVG:', error);
+            flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
+        }
+    }
                 
                 return {
                     code: country["Country code"],
@@ -1203,11 +1217,9 @@ function createCountryCard(country) {
         card.style.marginBottom = '15px';
     }
 
-    // 使用Flag_SVG字段显示国旗，如果有问题则使用占位符
-    let flagSvg = country.flagSvg;
-    if (!flagSvg || typeof flagSvg !== 'string' || !flagSvg.trim().startsWith('<svg')) {
-        flagSvg = `<i class="fas fa-flag country-flag-placeholder"></i>`;
-    }
+    // 使用预处理的flagSvg字段显示国旗
+    const flagSvg = country.flagSvg;
+    console.log('Creating card for:', country.chineseName, 'using pre-processed flagSvg');
     
     // 获取中英文名称
     const chineseName = country.chineseName || country.name;
@@ -1341,30 +1353,44 @@ async function showCountryDetails(countryCode) {
         
         // 构建模态框内容
         let modalContent = `
-            <div class="detail-section">
-                <h3 class="detail-title">
-                    <i class="fas fa-info-circle"></i>
-                    <span>国家概况</span>
-                </h3>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <div class="detail-label">中文全称</div>
-                        <div class="detail-value">${apiCountry.name.nativeName?.zho?.official || apiCountry.translations?.zho?.official || '未知'}</div>
+            <div class="modal-header">
+                <div class="modal-header-bg"></div>
+                <div class="modal-header-content">
+                    <div class="modal-country-flag">
+                        ${country.flagSvg || `<i class="fas fa-flag"></i>`}
                     </div>
-                    <div class="detail-item">
-                        <div class="detail-label">中文简称</div>
-                        <div class="detail-value">${apiCountry.name.nativeName?.zho?.common || apiCountry.translations?.zho?.common || '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">英文全称</div>
-                        <div class="detail-value">${apiCountry.name.official || '未知'}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">英文简称</div>
-                        <div class="detail-value">${apiCountry.name.common || '未知'}</div>
+                    <h2 class="modal-country-name">${countryName}</h2>
+                    <div class="modal-country-region">${continentName}</div>
+                </div>
+                <button class="modal-close" id="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-section">
+                    <h3 class="detail-title">
+                        <i class="fas fa-info-circle"></i>
+                        <span>国家概况</span>
+                    </h3>
+                    <div class="detail-grid">
+                        <div class="detail-item">
+                            <div class="detail-label">中文全称</div>
+                            <div class="detail-value">${apiCountry.name.nativeName?.zho?.official || apiCountry.translations?.zho?.official || '未知'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">中文简称</div>
+                            <div class="detail-value">${apiCountry.name.nativeName?.zho?.common || apiCountry.translations?.zho?.common || '未知'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">英文全称</div>
+                            <div class="detail-value">${apiCountry.name.official || '未知'}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">英文简称</div>
+                            <div class="detail-value">${apiCountry.name.common || '未知'}</div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
             <div class="detail-section">
                 <h3 class="detail-title">
@@ -1590,6 +1616,7 @@ async function showCountryDetails(countryCode) {
                         <div class="detail-value"><a href="${apiCountry.maps?.openStreetMaps || '#'}" target="_blank" rel="noopener noreferrer">查看地图</a></div>
                     </div>
                 </div>
+            </div>
             </div>
 
         `;
@@ -3844,26 +3871,15 @@ async function showCountryDetails(countryCode) {
             }
         }
         
-        // 尝试从country_info表获取更详细的国家信息
-        let countryDetails = null;
-        try {
-            // 使用countryId作为Country_Code_Alpha2查询country_info表
-            const response = await fetch(`/api/db/query/country_info?filter=Country_Code_Alpha2:eq:${countryId}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    countryDetails = data[0];
-                }
-            }
-        } catch (error) {
-            console.error('获取国家详细信息失败:', error);
-        }
-        
-        if (countryDetails) {
-            // 使用country_info表中的数据创建卡片样式的内容
-            const chineseName = countryDetails.Country_Name_Chn || countryName;
-            const englishName = countryDetails.Country_Name_Eng || countryName;
-            const flagSvg = countryDetails.Flag_SVG || '';
+        // 尝试从countriesData中获取更多信息
+        const countryData = countriesData.find(c => c.code === countryId);
+        if (countryData) {
+            // 使用预处理的flagSvg字段显示国旗
+            const flagSvg = countryData.flagSvg;
+            
+            // 获取中英文名称
+            const chineseName = countryData.chineseName || countryData.name;
+            const englishName = countryData.name;
             
             // 创建卡片样式的工具提示
             tooltipContent = `
@@ -3921,7 +3937,7 @@ async function showCountryDetails(countryCode) {
                 }
             }
         } else if (countryInfo) {
-            // 如果无法从country_info表获取数据，则使用原有数据
+            // 如果无法从countriesData获取数据，则使用原有数据
             tooltipContent += `
                 <div class="tooltip-info"><strong>英文名称:</strong> ${countryInfo.name}</div>
                 <div class="tooltip-info"><strong>地区:</strong> ${getRegionName(countryInfo.region)}</div>
