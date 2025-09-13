@@ -3128,86 +3128,142 @@ async function showCountryDetails(countryCode) {
         
         const mapping = {};
         
-        // 从countriesData创建映射
+        // 从countriesData创建映射，使用"Country code"字段
         if (window.countriesData && window.countriesData.length > 0) {
             window.countriesData.forEach(country => {
-                const countryCode = country.code || country.alpha2Code;
+                // 使用"Country code"字段作为主键
+                const countryCode = country["Country code"];
                 const flagCode = country.flagCode || countryCode;
                 const alpha2Code = country.alpha2Code || countryCode;
                 
-                // 使用countryCode作为主键
-                if (!mapping[countryCode]) {
-                    mapping[countryCode] = {
-                        mainId: countryCode,
-                        iso2: alpha2Code,
-                        flagCode: flagCode,
-                        worldMapId: countryCode, // 默认使用countryCode
-                        name: country.name,
-                        chineseName: country.chineseName
-                    };
-                }
-                
-                // 如果有其他ID，添加到映射中
-                if (flagCode && flagCode !== countryCode) {
-                    mapping[flagCode] = mapping[countryCode];
-                }
-                
-                if (alpha2Code && alpha2Code !== countryCode) {
-                    mapping[alpha2Code] = mapping[countryCode];
+                if (countryCode) {
+                    // 使用countryCode作为主键
+                    if (!mapping[countryCode]) {
+                        mapping[countryCode] = {
+                            mainId: countryCode,
+                            iso2: alpha2Code,
+                            flagCode: flagCode,
+                            worldMapId: countryCode, // 默认使用countryCode
+                            name: country["Country name"] || country.name,
+                            chineseName: country["国家名称"] || country.chineseName
+                        };
+                    }
+                    
+                    // 如果有其他ID，添加到映射中
+                    if (flagCode && flagCode !== countryCode) {
+                        mapping[flagCode] = mapping[countryCode];
+                    }
+                    
+                    if (alpha2Code && alpha2Code !== countryCode) {
+                        mapping[alpha2Code] = mapping[countryCode];
+                    }
                 }
             });
         }
         
-        // 从worldMapData补充映射
+        // 从worldMapData补充映射，使用"Country code"字段
         if (window.worldMapData && window.worldMapData.features) {
             window.worldMapData.features.forEach(feature => {
+                // 使用"Country code"字段作为主键
+                const countryCode = feature["Country code"];
                 const worldMapId = feature.id;
                 const countryName = feature.properties.name;
                 
-                // 如果已存在此ID的映射，更新worldMapId
-                if (mapping[worldMapId]) {
-                    mapping[worldMapId].worldMapId = worldMapId;
-                } else {
-                    // 创建新映射条目
-                    mapping[worldMapId] = {
-                        mainId: worldMapId,
-                        iso2: worldMapId,
-                        flagCode: worldMapId,
-                        worldMapId: worldMapId,
-                        name: countryName,
-                        chineseName: countryName
-                    };
+                if (countryCode) {
+                    // 如果已存在此国家代码的映射，更新worldMapId
+                    if (mapping[countryCode]) {
+                        mapping[countryCode].worldMapId = worldMapId;
+                        // 如果worldMapId与countryCode不同，也添加映射
+                        if (worldMapId !== countryCode) {
+                            mapping[worldMapId] = mapping[countryCode];
+                        }
+                    } else {
+                        // 创建新映射条目
+                        mapping[countryCode] = {
+                            mainId: countryCode,
+                            iso2: countryCode,
+                            flagCode: countryCode,
+                            worldMapId: worldMapId,
+                            name: countryName,
+                            chineseName: countryName
+                        };
+                        
+                        // 如果worldMapId与countryCode不同，也添加映射
+                        if (worldMapId !== countryCode) {
+                            mapping[worldMapId] = mapping[countryCode];
+                        }
+                    }
+                } else if (worldMapId) {
+                    // 如果没有Country code但有worldMapId，创建基本映射
+                    if (!mapping[worldMapId]) {
+                        mapping[worldMapId] = {
+                            mainId: worldMapId,
+                            iso2: worldMapId,
+                            flagCode: worldMapId,
+                            worldMapId: worldMapId,
+                            name: countryName,
+                            chineseName: countryName
+                        };
+                    }
                 }
             });
         }
         
-        // 从countryStatsData补充映射
+        // 从countryStatsData补充映射，使用"Country code"字段
         if (window.countryStatsData && window.countryStatsData.length > 0) {
             window.countryStatsData.forEach(country => {
+                // 使用"Country code"字段作为主键
+                const countryCode = country["Country code"];
                 const iso2 = country.iso2;
                 const countryName = country.name;
                 
-                // 如果已存在此ID的映射，更新信息
-                if (mapping[iso2]) {
-                    // 更新统计信息
-                    mapping[iso2].stats = country;
-                } else {
-                    // 创建新映射条目
-                    mapping[iso2] = {
-                        mainId: iso2,
-                        iso2: iso2,
-                        flagCode: iso2,
-                        worldMapId: iso2,
-                        name: countryName,
-                        chineseName: countryName,
-                        stats: country
-                    };
+                if (countryCode) {
+                    // 如果已存在此国家代码的映射，更新统计信息
+                    if (mapping[countryCode]) {
+                        // 更新统计信息
+                        mapping[countryCode].stats = country;
+                        // 如果iso2与countryCode不同，也添加映射
+                        if (iso2 && iso2 !== countryCode) {
+                            mapping[iso2] = mapping[countryCode];
+                        }
+                    } else {
+                        // 创建新映射条目
+                        mapping[countryCode] = {
+                            mainId: countryCode,
+                            iso2: iso2 || countryCode,
+                            flagCode: countryCode,
+                            worldMapId: countryCode,
+                            name: countryName,
+                            chineseName: countryName,
+                            stats: country
+                        };
+                        
+                        // 如果iso2与countryCode不同，也添加映射
+                        if (iso2 && iso2 !== countryCode) {
+                            mapping[iso2] = mapping[countryCode];
+                        }
+                    }
+                } else if (iso2) {
+                    // 如果没有Country code但有iso2，创建基本映射
+                    if (!mapping[iso2]) {
+                        mapping[iso2] = {
+                            mainId: iso2,
+                            iso2: iso2,
+                            flagCode: iso2,
+                            worldMapId: iso2,
+                            name: countryName,
+                            chineseName: countryName,
+                            stats: country
+                        };
+                    }
                 }
             });
         }
         
         // 保存映射到全局变量
         window.countryIdMapping = mapping;
+        
+        console.log('国家ID映射系统已更新，使用Country code字段:', mapping);
         
         return mapping;
     }
