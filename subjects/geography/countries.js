@@ -1,5 +1,105 @@
 // 世界各国地理信息探索页面脚本
 document.addEventListener('DOMContentLoaded', function() {
+    // 调试信息显示功能
+    const debugInfo = document.getElementById('debug-info');
+    const debugContent = document.getElementById('debug-content');
+    const clearDebugBtn = document.getElementById('clear-debug');
+    
+    // 显示调试信息
+    window.showDebugInfo = function() {
+        if (debugInfo) {
+            debugInfo.style.display = 'block';
+        }
+    };
+    
+    // 隐藏调试信息
+    window.hideDebugInfo = function() {
+        if (debugInfo) {
+            debugInfo.style.display = 'none';
+        }
+    };
+    
+    // 添加调试信息
+    window.addDebugMessage = function(message, type = 'log') {
+        if (!debugContent) return;
+        
+        const timestamp = new Date().toLocaleTimeString();
+        const messageElement = document.createElement('div');
+        messageElement.style.marginBottom = '5px';
+        
+        if (type === 'error') {
+            messageElement.style.color = 'red';
+        } else if (type === 'warn') {
+            messageElement.style.color = 'orange';
+        } else {
+            messageElement.style.color = 'black';
+        }
+        
+        messageElement.textContent = `[${timestamp}] ${message}`;
+        debugContent.appendChild(messageElement);
+        
+        // 自动滚动到底部
+        debugContent.scrollTop = debugContent.scrollHeight;
+    };
+    
+    // 清除调试信息
+    if (clearDebugBtn) {
+        clearDebugBtn.addEventListener('click', function() {
+            if (debugContent) {
+                debugContent.innerHTML = '';
+            }
+        });
+    }
+    
+    // 重写console方法以同时显示在调试区域
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    
+    console.log = function(...args) {
+        originalConsoleLog.apply(console, args);
+        window.addDebugMessage(args.join(' '), 'log');
+    };
+    
+    console.error = function(...args) {
+        originalConsoleError.apply(console, args);
+        window.addDebugMessage(args.join(' '), 'error');
+    };
+    
+    console.warn = function(...args) {
+        originalConsoleWarn.apply(console, args);
+        window.addDebugMessage(args.join(' '), 'warn');
+    };
+    
+    // 添加调试开关按钮
+    const debugToggle = document.createElement('button');
+    debugToggle.textContent = '调试开关';
+    debugToggle.style.position = 'fixed';
+    debugToggle.style.bottom = '20px';
+    debugToggle.style.left = '20px';
+    debugToggle.style.padding = '8px 16px';
+    debugToggle.style.backgroundColor = '#6c757d';
+    debugToggle.style.color = 'white';
+    debugToggle.style.border = 'none';
+    debugToggle.style.borderRadius = '4px';
+    debugToggle.style.fontSize = '14px';
+    debugToggle.style.cursor = 'pointer';
+    debugToggle.style.zIndex = '9999';
+    
+    debugToggle.addEventListener('click', function() {
+        if (debugInfo.style.display === 'none' || !debugInfo.style.display) {
+            window.showDebugInfo();
+            debugToggle.textContent = '隐藏调试';
+            debugToggle.style.backgroundColor = '#dc3545';
+        } else {
+            window.hideDebugInfo();
+            debugToggle.textContent = '显示调试';
+            debugToggle.style.backgroundColor = '#6c757d';
+        }
+    });
+    
+    document.body.appendChild(debugToggle);
+    
     // DOM元素
 const searchInput = document.getElementById('country-search');
 const countriesGrid = document.getElementById('countries-grid');
@@ -27,9 +127,124 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     let filteredCountries = [];
     let currentRegion = 'all';
     let currentView = 'cards';
+    let coloredCountries = {}; // 用于跟踪已分配颜色的国家
+
+    // 高亮匹配的国家
+    function highlightCountries(countryIds) {
+        console.log('DEBUG: highlightCountries called with countryIds:', countryIds);
+        
+        // 检查地图容器是否存在
+        const mapContainer = document.getElementById('map-view');
+        console.log('DEBUG: mapContainer:', mapContainer);
+        
+        if (!mapContainer) {
+            console.error('DEBUG: mapContainer not found');
+            return;
+        }
+        
+        console.log('DEBUG: mapContainer display style:', mapContainer.style.display);
+        
+        if (mapContainer.style.display === 'none') {
+            console.warn('DEBUG: mapContainer is not visible');
+            return;
+        }
+        
+        // 重置所有国家的高亮状态
+        console.log('DEBUG: resetting country highlights');
+        resetCountryHighlights();
+        
+        // 如果没有匹配的国家，直接返回
+        if (!countryIds || countryIds.length === 0) {
+            console.warn('DEBUG: No countryIds provided or empty array');
+            return;
+        }
+        
+        console.log(`DEBUG: Attempting to highlight ${countryIds.length} countries`);
+        
+        // 高亮匹配的国家
+        let highlightedCount = 0;
+        countryIds.forEach(countryId => {
+            console.log(`DEBUG: Looking for country with ID: ${countryId} (type: ${typeof countryId})`);
+            
+            // 确保countryId是字符串
+            const stringCountryId = typeof countryId === 'string' ? countryId : String(countryId);
+            console.log(`DEBUG: Using string country ID: ${stringCountryId}`);
+            
+            const countryPath = document.querySelector(`.country-path[data-country-id="${stringCountryId}"]`);
+            console.log(`DEBUG: countryPath for ${stringCountryId}:`, countryPath);
+            
+            if (countryPath) {
+                console.log(`DEBUG: Highlighting country ${stringCountryId}`);
+                // 使用高亮颜色
+                countryPath.style.fill = '#ff6b6b';
+                countryPath.style.stroke = '#ff4757';
+                countryPath.style.strokeWidth = '2';
+                countryPath.style.filter = 'drop-shadow(0 0 3px rgba(255, 107, 107, 0.5))';
+                highlightedCount++;
+            } else {
+                console.warn(`DEBUG: Country path not found for ID: ${stringCountryId}`);
+                
+                // 尝试查找带有不同属性的国家路径
+                const alternativeSelectors = [
+                    `.country-path[id="${stringCountryId}"]`,
+                    `.country-path[title*="${stringCountryId}"]`,
+                    `path[data-country-id="${stringCountryId}"]`,
+                    `path[id="${stringCountryId}"]`,
+                    `path[title*="${stringCountryId}"]`
+                ];
+                
+                for (const selector of alternativeSelectors) {
+                    const altPath = document.querySelector(selector);
+                    if (altPath) {
+                        console.log(`DEBUG: Found country path with alternative selector: ${selector}`);
+                        altPath.style.fill = '#ff6b6b';
+                        altPath.style.stroke = '#ff4757';
+                        altPath.style.strokeWidth = '2';
+                        altPath.style.filter = 'drop-shadow(0 0 3px rgba(255, 107, 107, 0.5))';
+                        highlightedCount++;
+                        break;
+                    }
+                }
+            }
+        });
+        
+        console.log(`DEBUG: Successfully highlighted ${highlightedCount} out of ${countryIds.length} countries`);
+    }
+    
+    // 重置所有国家的高亮状态
+    function resetCountryHighlights() {
+        console.log('DEBUG: resetCountryHighlights called');
+        
+        const countryPaths = document.querySelectorAll('.country-path');
+        console.log(`DEBUG: Found ${countryPaths.length} country paths to reset`);
+        
+        countryPaths.forEach(path => {
+            const countryId = path.getAttribute('data-country-id');
+            console.log(`DEBUG: Resetting country path with ID: ${countryId} (type: ${typeof countryId})`);
+            
+            // 确保countryId是字符串
+            const stringCountryId = typeof countryId === 'string' ? countryId : String(countryId);
+            
+            // 恢复原始颜色
+            if (coloredCountries && coloredCountries[stringCountryId]) {
+                console.log(`DEBUG: Restoring color for ${stringCountryId}: ${coloredCountries[stringCountryId]}`);
+                path.style.fill = coloredCountries[stringCountryId];
+            } else {
+                console.log(`DEBUG: Setting default color for ${stringCountryId}`);
+                path.style.fill = '#e0e0e0';
+            }
+            path.style.stroke = '#ffffff';
+            path.style.strokeWidth = '1';
+            path.style.filter = 'none';
+        });
+        
+        console.log('DEBUG: resetCountryHighlights completed');
+    }
 
     // 初始化
+    console.log('DEBUG: Starting initialization');
     init();
+    console.log('DEBUG: Initialization function called');
 
     // 从countriesData中提取所有大洲信息并更新筛选器
     async function updateRegionFiltersFromData() {
@@ -137,12 +352,16 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     
     // 初始化函数
     async function init() {
+        console.log('DEBUG: init function called');
+        
         try {
             // 检测是否为移动设备
             const isMobile = isMobileDevice();
+            console.log('DEBUG: isMobile:', isMobile);
             
             // 移动设备优化：添加加载状态提示
             if (isMobile) {
+                console.log('DEBUG: Setting up mobile loading indicator');
                 // 确保加载指示器在移动设备上可见
                 loadingIndicator.style.display = 'flex';
                 loadingIndicator.style.position = 'fixed';
@@ -169,19 +388,26 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             }
             
             // 加载国家数据
+            console.log('DEBUG: Loading countries data');
             await loadCountriesData();
+            console.log('DEBUG: Countries data loaded, countriesData length:', window.countriesData ? window.countriesData.length : 'undefined');
             
             // 从countriesData中提取所有大洲信息并更新筛选器
+            console.log('DEBUG: Updating region filters from data');
             await updateRegionFiltersFromData();
             
             // 加载并填充统计数据下拉列表
+            console.log('DEBUG: Populating stats dropdown');
             await populateStatsDropdown();
             
             // 设置事件监听器
+            console.log('DEBUG: Setting up event listeners');
             setupEventListeners();
             
             // 初始化国家ID映射系统
+            console.log('DEBUG: Initializing country ID mapping system');
             createCountryIdMapping();
+            console.log('DEBUG: Country ID mapping system initialized');
             
             // 移动设备优化：移除了欢迎提示
             if (isMobile) {
@@ -192,8 +418,10 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             }
             
             // 默认选择'全部'地区
+            console.log('DEBUG: Setting default filter to "all"');
             const allFilter = document.querySelector('.filter-chip[data-region="all"]');
             if (allFilter) {
+                console.log('DEBUG: Found "all" filter, clicking it');
                 // 移动设备优化：添加触摸反馈动画
                 if (isMobile) {
                     allFilter.style.transform = 'scale(0.95)';
@@ -204,61 +432,25 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 } else {
                     allFilter.click(); // 触发点击事件
                 }
+            } else {
+                console.error('DEBUG: Could not find "all" filter');
             }
             
-            // 移动设备优化：添加页面可见性变化监听
-            if (isMobile) {
-                document.addEventListener('visibilitychange', function() {
-                    if (!document.hidden) {
-                        // 页面重新可见时，刷新数据
-                        console.log('页面重新可见，刷新数据');
-                        // 可以在这里添加数据刷新逻辑
-                    }
-                });
-            }
+            console.log('DEBUG: init function completed successfully');
         } catch (error) {
-            console.error('初始化失败:', error);
-            showError('加载国家数据失败，请稍后再试。');
-            
-            // 移动设备优化：添加重试按钮
-            const isMobile = isMobileDevice();
-            if (isMobile) {
-                setTimeout(() => {
-                    const retryButton = document.createElement('button');
-                    retryButton.textContent = '重试';
-                    retryButton.style.position = 'fixed';
-                    retryButton.style.bottom = '20px';
-                    retryButton.style.right = '20px';
-                    retryButton.style.padding = '12px 24px';
-                    retryButton.style.backgroundColor = '#4285f4';
-                    retryButton.style.color = 'white';
-                    retryButton.style.border = 'none';
-                    retryButton.style.borderRadius = '24px';
-                    retryButton.style.fontSize = '16px';
-                    retryButton.style.fontWeight = 'bold';
-                    retryButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-                    retryButton.style.zIndex = '1000';
-                    retryButton.style.cursor = 'pointer';
-                    
-                    // 添加触摸反馈
-                    retryButton.addEventListener('touchstart', function() {
-                        this.style.transform = 'scale(0.95)';
-                    }, { passive: true });
-                    
-                    retryButton.addEventListener('touchend', function() {
-                        this.style.transform = '';
-                    }, { passive: true });
-                    
-                    // 添加点击事件
-                    retryButton.addEventListener('click', function() {
-                        document.body.removeChild(retryButton);
-                        init(); // 重新初始化
-                    });
-                    
-                    document.body.appendChild(retryButton);
-                }, 1000);
-            }
+            console.error('DEBUG: Error in init function:', error);
         }
+    }
+
+    // 移动设备优化：添加页面可见性变化监听
+    if (isMobile) {
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // 页面重新可见时，刷新数据
+                console.log('页面重新可见，刷新数据');
+                // 可以在这里添加数据刷新逻辑
+            }
+        });
     }
 
     // 从本地JSON文件加载国家数据
@@ -620,8 +812,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                         // 使用与图例相同的颜色方案
                         const color = getColorForValue(normalizedValue);
                         
-                        // 使用映射系统获取国家ID
-                        const countryId = getWorldMapId(country.iso2);
+                        // 直接使用Country code而不是通过getWorldMapId转换
+                        const countryId = country.iso2;
                         
                         // 更新国家颜色 - 尝试多种选择器
                         let countryPath = document.querySelector(`path[data-country="${country.iso2}"]`);
@@ -1131,8 +1323,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                         (country.code && country.code.toLowerCase().includes(searchTerm)) ||
                         (country.alpha2Code && country.alpha2Code.toLowerCase().includes(searchTerm)) ||
                         (country.fipsCode && country.fipsCode.toLowerCase().includes(searchTerm))) {
-                        // 获取国家的主要ID
-                        const mainId = getMainCountryId(country);
+                        // 直接使用Country code而不是通过getMainCountryId转换
+                        const mainId = country.code;
                         if (mainId && !matchedCountries.includes(mainId)) {
                             matchedCountries.push(mainId);
                         }
@@ -1147,8 +1339,12 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
 
     // 处理地区筛选 - 使用映射系统处理不同ID格式
     function handleRegionFilter(e) {
+        console.log('DEBUG: handleRegionFilter called with event:', e);
+        
         const chip = e.currentTarget;
         const region = chip.getAttribute('data-region');
+        
+        console.log('DEBUG: Selected region:', region);
 
         // 更新活动状态
         filterChips.forEach(c => c.classList.remove('active'));
@@ -1156,39 +1352,130 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
 
         // 更新当前地区
         currentRegion = region;
+        console.log('DEBUG: currentRegion set to:', currentRegion);
 
         // 重新筛选和显示国家
         filterAndDisplayCountries();
         
+        // 检查地图视图是否可见
+        console.log('DEBUG: mapView.style.display:', mapView.style.display);
+        
         // 如果地图视图可见，更新地图视图
         if (mapView.style.display !== 'none') {
+            console.log('DEBUG: Map view is visible, proceeding with country highlighting');
+            
+            // 确保国家ID映射已创建
+            console.log('DEBUG: Creating country ID mapping');
+            const mapping = createCountryIdMapping();
+            console.log('DEBUG: Created mapping with', Object.keys(mapping).length, 'countries');
+            
             // 使用映射系统查找匹配地区的国家
             const matchedCountries = [];
             
             // 遍历所有国家映射
-            for (const [countryId, countryInfo] of Object.entries(countryIdMapping)) {
+            console.log('DEBUG: Searching for countries in mapping');
+            for (const [countryId, countryInfo] of Object.entries(mapping)) {
                 // 检查国家是否属于选定的地区
                 if (region === 'all' || countryInfo.chineseContinent === region) {
+                    console.log(`DEBUG: Found matching country: ${countryId}, continent: ${countryInfo.chineseContinent}`);
                     matchedCountries.push(countryId);
                 }
             }
             
+            console.log(`DEBUG: Found ${matchedCountries.length} countries in mapping for region: ${region}`);
+            
             // 如果映射系统中没有找到，尝试在原始数据中查找
             if (matchedCountries.length === 0 && window.countriesData) {
+                console.log('DEBUG: No countries found in mapping, searching in original data');
+                
                 for (const country of window.countriesData) {
                     // 检查国家是否属于选定的地区
                     if (region === 'all' || country.chineseContinent === region) {
-                        // 获取国家的主要ID
-                        const mainId = getMainCountryId(country);
+                        // 直接使用Country code而不是通过getMainCountryId转换
+                        const mainId = country.code;
+                        console.log(`DEBUG: Found country in original data: ${country.name}, mainId: ${mainId}`);
+                        
                         if (mainId && !matchedCountries.includes(mainId)) {
                             matchedCountries.push(mainId);
                         }
                     }
                 }
+                
+                console.log(`DEBUG: Found ${matchedCountries.length} countries in original data for region: ${region}`);
             }
             
+            // 如果没有找到匹配的国家，尝试使用更宽松的匹配条件
+            if (matchedCountries.length === 0 && region !== 'all') {
+                console.warn(`DEBUG: No countries found for ${region}, trying relaxed matching`);
+                
+                // 尝试匹配部分名称
+                for (const country of countriesData) {
+                    if (country.chineseContinent && country.chineseContinent.includes(region)) {
+                        // 直接使用Country code而不是通过getMainCountryId转换
+                        const mainId = country.code;
+                        console.log(`DEBUG: Found country with relaxed matching: ${country.name}, mainId: ${mainId}`);
+                        
+                        if (mainId && !matchedCountries.includes(mainId)) {
+                            matchedCountries.push(mainId);
+                        }
+                    }
+                }
+                
+                console.log(`DEBUG: Found ${matchedCountries.length} countries with relaxed matching for region: ${region}`);
+            }
+            
+            // 如果仍然没有找到匹配的国家，尝试使用英文名称匹配
+            if (matchedCountries.length === 0 && region !== 'all') {
+                console.warn(`DEBUG: Still no countries found for ${region}, trying English name matching`);
+                
+                // 英文大洲名称映射
+                const continentNameMap = {
+                    '欧洲': 'europe',
+                    '亚洲': 'asia',
+                    '非洲': 'africa',
+                    '美洲': 'americas',
+                    '大洋洲': 'oceania',
+                    '北美洲': 'north-america',
+                    '南美洲': 'south-america'
+                };
+                
+                const englishRegion = continentNameMap[region];
+                if (englishRegion) {
+                    for (const country of countriesData) {
+                        if (country.continent && country.continent.toLowerCase() === englishRegion) {
+                            // 直接使用Country code而不是通过getMainCountryId转换
+                            const mainId = country.code;
+                            console.log(`DEBUG: Found country with English name matching: ${country.name}, mainId: ${mainId}`);
+                            
+                            if (mainId && !matchedCountries.includes(mainId)) {
+                                matchedCountries.push(mainId);
+                            }
+                        }
+                    }
+                }
+                
+                console.log(`DEBUG: Found ${matchedCountries.length} countries with English name matching for region: ${region}`);
+            }
+            
+            console.log(`DEBUG: Total matched countries for ${region}: ${matchedCountries.length}`);
+            console.log('DEBUG: Matched country IDs:', matchedCountries);
+            
             // 高亮匹配的国家
-            highlightCountries(matchedCountries);
+            console.log('DEBUG: Calling highlightCountries with matched countries');
+            
+            // 确保所有国家ID都是字符串类型
+            const stringCountryIds = matchedCountries.map(id => {
+                if (typeof id !== 'string') {
+                    console.warn('DEBUG: Converting non-string country ID to string:', id);
+                    return String(id);
+                }
+                return id;
+            });
+            
+            console.log('DEBUG: Final country IDs for highlighting:', stringCountryIds);
+            highlightCountries(stringCountryIds);
+        } else {
+            console.log('DEBUG: Map view is not visible, skipping country highlighting');
         }
         
         // 移动设备优化：添加触觉反馈
@@ -1390,8 +1677,8 @@ function createCountryCard(country) {
 
     // 显示国家详情
 async function showCountryDetails(countryCode) {
-    // 使用映射系统查找国家数据
-    let country = getCountryInfoById(countryCode);
+    // 直接使用Country code而不是通过getCountryInfoById转换
+    let country = countriesData.find(c => c.code === countryCode);
     
     // 如果映射系统中没有找到，尝试原始方法
     if (!country) {
@@ -3119,183 +3406,203 @@ async function showCountryDetails(countryCode) {
         }
     }
     
-    // 创建国家ID映射系统，处理不同数据源之间的ID不一致问题
+    // 创建国家ID映射系统，直接使用Country code作为主键
     function createCountryIdMapping() {
+        console.log('DEBUG: createCountryIdMapping called');
+        
         // 如果映射已存在，直接返回
         if (window.countryIdMapping) {
+            console.log('DEBUG: Using existing countryIdMapping with', Object.keys(window.countryIdMapping).length, 'countries');
             return window.countryIdMapping;
         }
         
+        console.log('DEBUG: Creating new countryIdMapping');
         const mapping = {};
         
-        // 从countriesData创建映射，使用"Country code"字段
+        // 从countriesData创建映射，直接使用Country code作为主键
         if (window.countriesData && window.countriesData.length > 0) {
+            console.log('DEBUG: Processing countriesData with', window.countriesData.length, 'countries');
+            
             window.countriesData.forEach(country => {
-                // 使用"Country code"字段作为主键
-                const countryCode = country["Country code"];
-                const flagCode = country.flagCode || countryCode;
-                const alpha2Code = country.alpha2Code || countryCode;
+                const countryCode = country.code || country.alpha2Code || country.fipsCode;
                 
-                if (countryCode) {
-                    // 使用countryCode作为主键
-                    if (!mapping[countryCode]) {
-                        mapping[countryCode] = {
-                            mainId: countryCode,
-                            iso2: alpha2Code,
-                            flagCode: flagCode,
-                            worldMapId: countryCode, // 默认使用countryCode
-                            name: country["Country name"] || country.name,
-                            chineseName: country["国家名称"] || country.chineseName
-                        };
-                    }
+                console.log(`DEBUG: Processing country: ${country.name}, code: ${countryCode}, chineseContinent: ${country.chineseContinent}`);
+                
+                // 使用countryCode作为主键
+                if (!mapping[countryCode]) {
+                    mapping[countryCode] = {
+                        mainId: countryCode,
+                        iso2: country.alpha2Code || countryCode,
+                        flagCode: country.flagCode || countryCode,
+                        worldMapId: countryCode, // 默认使用countryCode
+                        name: country.name,
+                        chineseName: country.chineseName,
+                        chineseContinent: country.chineseContinent
+                    };
                     
-                    // 如果有其他ID，添加到映射中
-                    if (flagCode && flagCode !== countryCode) {
-                        mapping[flagCode] = mapping[countryCode];
-                    }
-                    
-                    if (alpha2Code && alpha2Code !== countryCode) {
-                        mapping[alpha2Code] = mapping[countryCode];
-                    }
+                    console.log(`DEBUG: Created mapping for ${countryCode}:`, mapping[countryCode]);
                 }
             });
+        } else {
+            console.warn('DEBUG: countriesData is empty or not available');
         }
         
-        // 从worldMapData补充映射，使用"Country code"字段
+        // 从worldMapData补充映射，使用Country code作为主键
         if (window.worldMapData && window.worldMapData.features) {
+            console.log('DEBUG: Processing worldMapData with', window.worldMapData.features.length, 'features');
+            
             window.worldMapData.features.forEach(feature => {
-                // 使用"Country code"字段作为主键
-                const countryCode = feature["Country code"];
                 const worldMapId = feature.id;
                 const countryName = feature.properties.name;
                 
-                if (countryCode) {
-                    // 如果已存在此国家代码的映射，更新worldMapId
-                    if (mapping[countryCode]) {
-                        mapping[countryCode].worldMapId = worldMapId;
-                        // 如果worldMapId与countryCode不同，也添加映射
-                        if (worldMapId !== countryCode) {
-                            mapping[worldMapId] = mapping[countryCode];
-                        }
-                    } else {
-                        // 创建新映射条目
-                        mapping[countryCode] = {
-                            mainId: countryCode,
-                            iso2: countryCode,
-                            flagCode: countryCode,
-                            worldMapId: worldMapId,
-                            name: countryName,
-                            chineseName: countryName
-                        };
-                        
-                        // 如果worldMapId与countryCode不同，也添加映射
-                        if (worldMapId !== countryCode) {
-                            mapping[worldMapId] = mapping[countryCode];
-                        }
-                    }
-                } else if (worldMapId) {
-                    // 如果没有Country code但有worldMapId，创建基本映射
-                    if (!mapping[worldMapId]) {
-                        mapping[worldMapId] = {
-                            mainId: worldMapId,
-                            iso2: worldMapId,
-                            flagCode: worldMapId,
-                            worldMapId: worldMapId,
-                            name: countryName,
-                            chineseName: countryName
-                        };
+                console.log(`DEBUG: Processing worldMap feature: ${countryName}, id: ${worldMapId}`);
+                
+                // 尝试从countriesData中找到对应的Country code
+                let countryCode = null;
+                for (const code in mapping) {
+                    if (mapping[code].name === countryName || mapping[code].chineseName === countryName) {
+                        countryCode = code;
+                        break;
                     }
                 }
+                
+                // 如果找到匹配的国家，更新映射
+                if (countryCode && mapping[countryCode]) {
+                    mapping[countryCode].worldMapId = worldMapId;
+                    console.log(`DEBUG: Updated worldMapId for ${countryCode}: ${worldMapId}`);
+                    
+                    // 同时将worldMapId映射到countryCode
+                    if (worldMapId !== countryCode) {
+                        mapping[worldMapId] = mapping[countryCode];
+                        console.log(`DEBUG: Added worldMapId mapping: ${worldMapId} -> ${countryCode}`);
+                    }
+                } else {
+                    // 如果没有找到匹配的国家，创建新映射条目，使用worldMapId作为主键
+                    mapping[worldMapId] = {
+                        mainId: worldMapId,
+                        iso2: worldMapId,
+                        flagCode: worldMapId,
+                        worldMapId: worldMapId,
+                        name: countryName,
+                        chineseName: countryName
+                    };
+                    
+                    console.log(`DEBUG: Created new mapping for worldMap feature: ${worldMapId}`);
+                }
             });
+        } else {
+            console.warn('DEBUG: worldMapData is empty or not available');
         }
         
-        // 从countryStatsData补充映射，使用"Country code"字段
+        // 从countryStatsData补充映射，使用Country code作为主键
         if (window.countryStatsData && window.countryStatsData.length > 0) {
+            console.log('DEBUG: Processing countryStatsData with', window.countryStatsData.length, 'countries');
+            
             window.countryStatsData.forEach(country => {
-                // 使用"Country code"字段作为主键
-                const countryCode = country["Country code"];
                 const iso2 = country.iso2;
                 const countryName = country.name;
                 
-                if (countryCode) {
-                    // 如果已存在此国家代码的映射，更新统计信息
-                    if (mapping[countryCode]) {
-                        // 更新统计信息
-                        mapping[countryCode].stats = country;
-                        // 如果iso2与countryCode不同，也添加映射
-                        if (iso2 && iso2 !== countryCode) {
-                            mapping[iso2] = mapping[countryCode];
-                        }
-                    } else {
-                        // 创建新映射条目
-                        mapping[countryCode] = {
-                            mainId: countryCode,
-                            iso2: iso2 || countryCode,
-                            flagCode: countryCode,
-                            worldMapId: countryCode,
-                            name: countryName,
-                            chineseName: countryName,
-                            stats: country
-                        };
-                        
-                        // 如果iso2与countryCode不同，也添加映射
-                        if (iso2 && iso2 !== countryCode) {
-                            mapping[iso2] = mapping[countryCode];
-                        }
-                    }
-                } else if (iso2) {
-                    // 如果没有Country code但有iso2，创建基本映射
-                    if (!mapping[iso2]) {
-                        mapping[iso2] = {
-                            mainId: iso2,
-                            iso2: iso2,
-                            flagCode: iso2,
-                            worldMapId: iso2,
-                            name: countryName,
-                            chineseName: countryName,
-                            stats: country
-                        };
+                console.log(`DEBUG: Processing countryStats country: ${countryName}, iso2: ${iso2}`);
+                
+                // 尝试从countriesData中找到对应的Country code
+                let countryCode = null;
+                for (const code in mapping) {
+                    if (mapping[code].name === countryName || mapping[code].chineseName === countryName || 
+                        mapping[code].iso2 === iso2) {
+                        countryCode = code;
+                        break;
                     }
                 }
+                
+                // 如果找到匹配的国家，更新映射
+                if (countryCode && mapping[countryCode]) {
+                    // 更新统计信息
+                    mapping[countryCode].stats = country;
+                    console.log(`DEBUG: Updated stats for ${countryCode}`);
+                    
+                    // 同时将iso2映射到countryCode
+                    if (iso2 !== countryCode) {
+                        mapping[iso2] = mapping[countryCode];
+                        console.log(`DEBUG: Added iso2 mapping: ${iso2} -> ${countryCode}`);
+                    }
+                } else {
+                    // 如果没有找到匹配的国家，创建新映射条目，使用iso2作为主键
+                    mapping[iso2] = {
+                        mainId: iso2,
+                        iso2: iso2,
+                        flagCode: iso2,
+                        worldMapId: iso2,
+                        name: countryName,
+                        chineseName: countryName,
+                        stats: country
+                    };
+                    
+                    console.log(`DEBUG: Created new mapping for countryStats country: ${iso2}`);
+                }
             });
+        } else {
+            console.warn('DEBUG: countryStatsData is empty or not available');
         }
         
         // 保存映射到全局变量
         window.countryIdMapping = mapping;
-        
-        console.log('国家ID映射系统已更新，使用Country code字段:', mapping);
+        console.log(`DEBUG: Created countryIdMapping with ${Object.keys(mapping).length} total entries`);
         
         return mapping;
     }
     
-    // 根据任意ID获取国家信息
+    // 根据Country code获取国家信息
     function getCountryInfoById(countryId) {
+        console.log(`DEBUG: getCountryInfoById called with ${countryId} (type: ${typeof countryId})`);
+        
+        // 确保countryId是字符串
+        const stringCountryId = typeof countryId === 'string' ? countryId : String(countryId);
+        console.log(`DEBUG: Using string country ID: ${stringCountryId}`);
+        
         const mapping = createCountryIdMapping();
-        return mapping[countryId] || null;
+        const result = mapping[stringCountryId] || null;
+        
+        console.log(`DEBUG: getCountryInfoById result for ${stringCountryId}:`, result ? 'Found' : 'Not found');
+        return result;
     }
     
-    // 根据任意ID获取主ID
+    // 根据任意ID获取Country code
     function getMainCountryId(countryId) {
-        const countryInfo = getCountryInfoById(countryId);
-        return countryInfo ? countryInfo.mainId : countryId;
+        console.log(`DEBUG: getMainCountryId called with ${countryId} (type: ${typeof countryId})`);
+        
+        // 确保countryId是字符串
+        const stringCountryId = typeof countryId === 'string' ? countryId : String(countryId);
+        console.log(`DEBUG: Using string country ID: ${stringCountryId}`);
+        
+        const countryInfo = getCountryInfoById(stringCountryId);
+        if (countryInfo && countryInfo.mainId) {
+            console.log(`DEBUG: Found Country code ${countryInfo.mainId} for ${stringCountryId}`);
+            return countryInfo.mainId;
+        }
+        
+        console.log(`DEBUG: No Country code found for ${stringCountryId}, returning original ID`);
+        return stringCountryId;
     }
     
-    // 根据任意ID获取world_map.json中的ID
+    // 根据任意ID获取world_map.json中的ID，但优先使用Country code
     function getWorldMapId(countryId) {
         const countryInfo = getCountryInfoById(countryId);
-        return countryInfo ? countryInfo.worldMapId : countryId;
+        // 优先返回Country code，如果没有则返回worldMapId
+        return countryInfo ? (countryInfo.mainId || countryInfo.worldMapId) : countryId;
     }
     
-    // 根据任意ID获取country_stats.json中的ISO2代码
+    // 根据任意ID获取country_stats.json中的ISO2代码，但优先使用Country code
     function getStatsIso2Code(countryId) {
         const countryInfo = getCountryInfoById(countryId);
-        return countryInfo ? countryInfo.iso2 : countryId;
+        // 优先返回Country code，如果没有则返回iso2
+        return countryInfo ? (countryInfo.mainId || countryInfo.iso2) : countryId;
     }
     
-    // 根据任意ID获取country_basic.json中的Flag代码
+    // 根据任意ID获取country_basic.json中的Flag代码，但优先使用Country code
     function getFlagCode(countryId) {
         const countryInfo = getCountryInfoById(countryId);
-        return countryInfo ? countryInfo.flagCode : countryId;
+        // 优先返回Country code，如果没有则返回flagCode
+        return countryInfo ? (countryInfo.mainId || countryInfo.flagCode) : countryId;
     }
 
     // 显示地图视图
@@ -3494,8 +3801,8 @@ async function showCountryDetails(countryCode) {
             '#2980B9', '#8E44AD', '#F39C12', '#D35400', '#C0392B'
         ];
         
-        // 用于跟踪已分配颜色的国家
-        const coloredCountries = {};
+        // 重置全局coloredCountries对象
+        coloredCountries = {};
         
         // 用于跟踪相邻国家
         const adjacentCountries = {};
@@ -3725,21 +4032,17 @@ async function showCountryDetails(countryCode) {
         function findAdjacentCountries() {
             // 初始化相邻国家映射
             worldMapData.features.forEach(feature => {
-                // 使用映射系统获取正确的国家代码
-                const mappedCountryId = getMainCountryId(feature.id);
-                adjacentCountries[mappedCountryId] = [];
+                adjacentCountries[feature.id] = [];
             });
             
             // 检查每对国家是否相邻
             for (let i = 0; i < worldMapData.features.length; i++) {
                 const feature1 = worldMapData.features[i];
-                // 使用映射系统获取正确的国家代码
-                const countryId1 = getMainCountryId(feature1.id);
+                const countryId1 = feature1.id;
                 
                 for (let j = i + 1; j < worldMapData.features.length; j++) {
                     const feature2 = worldMapData.features[j];
-                    // 使用映射系统获取正确的国家代码
-                    const countryId2 = getMainCountryId(feature2.id);
+                    const countryId2 = feature2.id;
                     
                     // 检查两个国家是否相邻
                     if (areCountriesAdjacent(feature1, feature2)) {
@@ -3809,16 +4112,12 @@ async function showCountryDetails(countryCode) {
             
             // 按照相邻国家数量从多到少排序，这样可以先处理相邻关系复杂的国家
             const sortedFeatures = [...worldMapData.features].sort((a, b) => {
-                // 使用映射系统获取正确的国家代码
-                const mappedIdA = getMainCountryId(a.id);
-                const mappedIdB = getMainCountryId(b.id);
-                return adjacentCountries[mappedIdB].length - adjacentCountries[mappedIdA].length;
+                return adjacentCountries[b.id].length - adjacentCountries[a.id].length;
             });
             
             // 为每个国家分配颜色
             sortedFeatures.forEach(feature => {
-                // 使用映射系统获取正确的国家代码
-                const countryId = getMainCountryId(feature.id);
+                const countryId = feature.id;
                 
                 // 获取相邻国家的颜色
                 const adjacentColors = adjacentCountries[countryId]
@@ -3969,50 +4268,7 @@ async function showCountryDetails(countryCode) {
         // 执行颜色分配
         assignCountryColors();
         
-        // 高亮匹配的国家
-        function highlightCountries(countryIds) {
-            // 重置所有国家的高亮状态
-            resetCountryHighlights();
-            
-            // 如果没有匹配的国家，直接返回
-            if (!countryIds || countryIds.length === 0) {
-                return;
-            }
-            
-            // 使用映射系统获取正确的国家代码
-            const mappedCountryIds = countryIds.map(id => getMainCountryId(id));
-            
-            // 高亮匹配的国家
-            mappedCountryIds.forEach(countryId => {
-                const countryPath = document.querySelector(`.country-path[data-country-id="${countryId}"]`);
-                if (countryPath) {
-                    // 使用高亮颜色
-                    countryPath.style.fill = '#ff6b6b';
-                    countryPath.style.stroke = '#ff4757';
-                    countryPath.style.strokeWidth = '2';
-                    countryPath.style.filter = 'drop-shadow(0 0 3px rgba(255, 107, 107, 0.5))';
-                }
-            });
-        }
         
-        // 重置所有国家的高亮状态
-        function resetCountryHighlights() {
-            const countryPaths = document.querySelectorAll('.country-path');
-            countryPaths.forEach(path => {
-                const countryId = path.getAttribute('data-country-id');
-                // 使用映射系统获取正确的国家代码
-                const mappedCountryId = getMainCountryId(countryId);
-                // 恢复原始颜色
-                if (coloredCountries[mappedCountryId]) {
-                    path.style.fill = coloredCountries[mappedCountryId];
-                } else {
-                    path.style.fill = '#e0e0e0';
-                }
-                path.style.stroke = '#ffffff';
-                path.style.strokeWidth = '1';
-                path.style.filter = 'none';
-            });
-        }
             
             // 渲染地图
             worldMapData.features.forEach(feature => {
@@ -4022,8 +4278,8 @@ async function showCountryDetails(countryCode) {
                 // 查找国家详细信息 - 使用映射系统处理不同ID格式
                 let countryInfo = null;
                 if (window.countriesData) {
-                    // 使用映射系统获取国家信息
-                    countryInfo = getCountryInfoById(countryId);
+                    // 直接使用Country code而不是通过getCountryInfoById转换
+                    countryInfo = countriesData.find(c => c.code === countryId);
                     
                     // 如果没有找到，尝试使用原始方法
                     if (!countryInfo) {
@@ -4076,9 +4332,7 @@ async function showCountryDetails(countryCode) {
                     
                     if (countryContinent === currentRegion) {
                         // 如果国家属于所选大陆，使用分配的颜色确保相邻国家不同色
-                        // 使用映射系统获取正确的国家代码
-                        const mappedCountryId = getMainCountryId(countryId);
-                        fillColor = coloredCountries[mappedCountryId] || '#cccccc';
+                        fillColor = coloredCountries[countryId] || '#cccccc';
                     } else {
                         // 如果国家不属于所选大陆，使用浅灰色
                         fillColor = '#e0e0e0';
@@ -4120,8 +4374,8 @@ async function showCountryDetails(countryCode) {
                 
                 // 添加点击事件
                 path.addEventListener('click', function() {
-                    // 使用映射系统获取正确的国家代码
-                    const countryCode = getMainCountryId(countryId);
+                    // 直接使用Country code而不是通过getMainCountryId转换
+                    const countryCode = countryId;
                     // 使用映射后的国家代码显示国家详情
                     showCountryDetails(countryCode);
                 });
@@ -4249,9 +4503,6 @@ async function showCountryDetails(countryCode) {
     async function showCountryTooltip(event, countryId, countryName, countryInfo, tooltip) {
         if (!tooltip) return;
         
-        // 使用映射系统获取正确的国家代码
-        const countryCode = getMainCountryId(countryId);
-        
         // 检查是否在统计视图模式
         const statsDropdown = document.getElementById('stats-dropdown');
         const isStatsView = statsDropdown && statsDropdown.value !== '';
@@ -4259,7 +4510,7 @@ async function showCountryDetails(countryCode) {
         // 设置工具提示内容 - 显示来自world_map.json的name和id
         let tooltipContent = `
             <div class="tooltip-title">${countryName}</div>
-            <div class="tooltip-info"><strong>国家代码:</strong> ${countryCode}</div>
+            <div class="tooltip-info"><strong>国家代码:</strong> ${countryId}</div>
         `;
         
         // 如果在统计视图模式，尝试获取统计数据
@@ -4273,8 +4524,7 @@ async function showCountryDetails(countryCode) {
                 const statsResponse = await fetch('/assets/data/geography/country_stats.json');
                 if (statsResponse.ok) {
                     const statsData = await statsResponse.json();
-                    // 使用映射后的国家代码查找统计数据
-                    const countryStat = statsData.find(c => c.iso2 === countryCode);
+                    const countryStat = statsData.find(c => c.iso2 === countryId);
                     
                     if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
                         const statValue = countryStat[statKey];
@@ -4296,8 +4546,8 @@ async function showCountryDetails(countryCode) {
             }
         }
         
-        // 使用映射系统获取国家信息
-        const countryData = getCountryInfoById(countryCode);
+        // 尝试从countriesData中获取更多信息
+        const countryData = countriesData.find(c => c.code === countryId);
         if (countryData) {
             // 使用预处理的flagSvg字段显示国旗
             const flagSvg = countryData.flagSvg;
@@ -4322,9 +4572,9 @@ async function showCountryDetails(countryCode) {
                             <div class="country-name-en">${englishName}</div>
                         </div>
                     </div>
-                    <div class="country-code">国家代码: ${countryCode}</div>
-                    ${isStatsView ? `<div class="stat-info" id="tooltip-stat-info-${countryCode}"></div>` : ''}
-                    <button class="tooltip-button" onclick="showCountryDetails('${countryCode}')">查看详情</button>
+                    <div class="country-code">国家代码: ${countryId}</div>
+                    ${isStatsView ? `<div class="stat-info" id="tooltip-stat-info-${countryId}"></div>` : ''}
+                    <button class="tooltip-button" onclick="showCountryDetails('${countryId}')">查看详情</button>
                 </div>
             `;
             
@@ -4338,21 +4588,20 @@ async function showCountryDetails(countryCode) {
                     const statsResponse = await fetch('/assets/data/geography/country_stats.json');
                     if (statsResponse.ok) {
                         const statsData = await statsResponse.json();
-                        // 使用映射后的国家代码查找统计数据
-                        const countryStat = statsData.find(c => c.iso2 === countryCode);
+                        const countryStat = statsData.find(c => c.iso2 === countryId);
                         
                         if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
                             const statValue = countryStat[statKey];
                             const formattedValue = formatStatValue(statValue, statKey);
                             
                             // 更新统计信息
-                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryCode}`);
+                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
                             if (statInfoElement) {
                                 statInfoElement.innerHTML = `<strong>${statName}:</strong> ${formattedValue}`;
                             }
                         } else {
                             // 显示无数据信息
-                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryCode}`);
+                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
                             if (statInfoElement) {
                                 statInfoElement.innerHTML = `<strong>${statName}:</strong> 无数据`;
                             }
@@ -4363,7 +4612,7 @@ async function showCountryDetails(countryCode) {
                 }
             }
         } else if (countryInfo) {
-            // 如果无法从映射系统获取数据，则使用原有数据
+            // 如果无法从countriesData获取数据，则使用原有数据
             tooltipContent += `
                 <div class="tooltip-info"><strong>英文名称:</strong> ${countryInfo.name}</div>
                 <div class="tooltip-info"><strong>地区:</strong> ${getRegionName(countryInfo.region)}</div>
