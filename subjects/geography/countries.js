@@ -409,6 +409,29 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             console.log('DEBUG: Setting up event listeners');
             setupEventListeners();
             
+            // 加载世界地图数据
+            console.log('DEBUG: Loading world map data');
+            try {
+                await loadWorldMapData();
+                console.log('DEBUG: World map data loaded, features count:', window.worldMapData && window.worldMapData.features ? window.worldMapData.features.length : 'undefined');
+            } catch (error) {
+                console.error('DEBUG: Error loading world map data:', error);
+            }
+            
+            // 加载国家统计数据
+            console.log('DEBUG: Loading country stats data');
+            try {
+                const statsResponse = await fetch('/assets/data/geography/country_stats.json');
+                if (statsResponse.ok) {
+                    window.countryStatsData = await statsResponse.json();
+                    console.log('DEBUG: Country stats data loaded, countries count:', window.countryStatsData ? window.countryStatsData.length : 'undefined');
+                } else {
+                    console.warn('DEBUG: Failed to load country stats data, HTTP status:', statsResponse.status);
+                }
+            } catch (error) {
+                console.error('DEBUG: Error loading country stats data:', error);
+            }
+            
             // 初始化国家ID映射系统
             console.log('DEBUG: Initializing country ID mapping system');
             createCountryIdMapping();
@@ -773,82 +796,74 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
     function updateMapForStat(statKey) {
         if (!countriesData || countriesData.length === 0) return;
         
-        // 首先尝试从country_stats.json加载统计数据
-        fetch('/assets/data/geography/country_stats.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+        // 使用已经加载的countryStatsData
+        if (window.countryStatsData) {
+            // 获取所有国家该统计数据的值
+            const statValues = window.countryStatsData
+                .map(country => country[statKey])
+                .filter(value => value !== null && value !== undefined && !isNaN(value));
+            
+            if (statValues.length === 0) return;
+            
+            // 计算最小值和最大值
+            const minValue = Math.min(...statValues);
+            const maxValue = Math.max(...statValues);
+            
+            // 创建一个ISO2代码到统计数据的映射
+            const statsMap = {};
+            window.countryStatsData.forEach(country => {
+                if (country["Country code"] && country[statKey] !== null && country[statKey] !== undefined && !isNaN(country[statKey])) {
+                    statsMap[country["Country code"]] = country[statKey];
                 }
-                return response.json();
-            })
-            .then(statsData => {
-                // 获取所有国家该统计数据的值
-                const statValues = statsData
-                    .map(country => country[statKey])
-                    .filter(value => value !== null && value !== undefined && !isNaN(value));
-                
-                if (statValues.length === 0) return;
-                
-                // 计算最小值和最大值
-                const minValue = Math.min(...statValues);
-                const maxValue = Math.max(...statValues);
-                
-                // 创建一个ISO2代码到统计数据的映射
-                const statsMap = {};
-                statsData.forEach(country => {
-                    if (country["Country code"] && country[statKey] !== null && country[statKey] !== undefined && !isNaN(country[statKey])) {
-                        statsMap[country["Country code"]] = country[statKey];
-                    }
-                });
-                
-                // 首先将所有国家路径设置为浅灰色（无数据状态）
-                document.querySelectorAll('.country-path').forEach(path => {
-                    path.style.fill = '#e0e0e0'; // 浅灰色表示无数据
-                    // 清除之前的统计值和键
-                    path.removeAttribute('data-stat-value');
-                    path.removeAttribute('data-stat-key');
-                });
-                
-                // 为有数据的国家分配颜色（基于统计值）
-                statsData.forEach(country => {
-                    const value = country[statKey];
-                    if (value !== null && value !== undefined && !isNaN(value) && country["Country code"]) {
-                        // 归一化值到0-1范围
-                        const normalizedValue = (value - minValue) / (maxValue - minValue);
-                        
-                        // 使用与图例相同的颜色方案
-                        const color = getColorForValue(normalizedValue);
-                        
-                        // 直接使用Country code而不是通过getWorldMapId转换
-                        const countryId = country["Country code"];
-                        
-                        // 更新国家颜色 - 尝试多种选择器
-                        let countryPath = document.querySelector(`path[data-country="${country["Country code"]}"]`);
-                        if (!countryPath) {
-                            countryPath = document.querySelector(`path[data-country-id="${country["Country code"]}"]`);
-                        }
-                        if (!countryPath && countryId) {
-                            countryPath = document.querySelector(`path[data-country-id="${countryId}"]`);
-                        }
-                        
-                        if (countryPath) {
-                            countryPath.style.fill = color;
-                            countryPath.setAttribute('data-stat-value', value);
-                            
-                            // 存储统计值以便在工具提示中使用
-                            countryPath.setAttribute('data-stat-key', statKey);
-                        }
-                    }
-                });
-                
-                // 更新图例
-                updateMapLegend(statKey, minValue, maxValue);
-            })
-            .catch(error => {
-                console.error('加载统计数据失败:', error);
-                // 显示错误通知
-                showNotification('无法加载统计数据，请稍后再试', 3000);
             });
+            
+            // 首先将所有国家路径设置为浅灰色（无数据状态）
+            document.querySelectorAll('.country-path').forEach(path => {
+                path.style.fill = '#e0e0e0'; // 浅灰色表示无数据
+                // 清除之前的统计值和键
+                path.removeAttribute('data-stat-value');
+                path.removeAttribute('data-stat-key');
+            });
+            
+            // 为有数据的国家分配颜色（基于统计值）
+            window.countryStatsData.forEach(country => {
+                const value = country[statKey];
+                if (value !== null && value !== undefined && !isNaN(value) && country["Country code"]) {
+                    // 归一化值到0-1范围
+                    const normalizedValue = (value - minValue) / (maxValue - minValue);
+                    
+                    // 使用与图例相同的颜色方案
+                    const color = getColorForValue(normalizedValue);
+                    
+                    // 直接使用Country code而不是通过getWorldMapId转换
+                    const countryId = country["Country code"];
+                    
+                    // 更新国家颜色 - 尝试多种选择器
+                    let countryPath = document.querySelector(`path[data-country="${country["Country code"]}"]`);
+                    if (!countryPath) {
+                        countryPath = document.querySelector(`path[data-country-id="${country["Country code"]}"]`);
+                    }
+                    if (!countryPath && countryId) {
+                        countryPath = document.querySelector(`path[data-country-id="${countryId}"]`);
+                    }
+                    
+                    if (countryPath) {
+                        countryPath.style.fill = color;
+                        countryPath.setAttribute('data-stat-value', value);
+                        
+                        // 存储统计值以便在工具提示中使用
+                        countryPath.setAttribute('data-stat-key', statKey);
+                    }
+                }
+            });
+            
+            // 更新图例
+            updateMapLegend(statKey, minValue, maxValue);
+        } else {
+            console.error('统计数据未加载');
+            // 显示错误通知
+            showNotification('统计数据未加载，请刷新页面重试', 3000);
+        }
     }
     
     // 格式化统计值显示
@@ -1776,13 +1791,12 @@ async function showCountryDetails(countryCode) {
         // 从country_stats.json获取统计数据
         let countryStatsData = null;
         try {
-            console.log('Loading country stats from country_stats.json for:', country.name);
-            const statsResponse = await fetch('/assets/data/geography/country_stats.json');
+            console.log('Loading country stats from window.countryStatsData for:', country.name);
             
-            if (statsResponse.ok) {
-                const statsData = await statsResponse.json();
+            // 使用已经加载的countryStatsData
+            if (window.countryStatsData && window.countryStatsData.length > 0) {
                 // 尝试通过多种方式匹配国家
-                countryStatsData = statsData.find(stats => 
+                countryStatsData = window.countryStatsData.find(stats => 
                     stats["Country code"] === country["Country code"] || 
                     stats.name.toLowerCase() === country.name.toLowerCase()
                 );
@@ -3509,13 +3523,13 @@ async function showCountryDetails(countryCode) {
                 const fetchedCountryCode = country["Country code"];
                 const countryName = country.name;
                 
-                console.log(`DEBUG: Processing countryStats country: ${countryName}, iso2: ${iso2}`);
+                console.log(`DEBUG: Processing countryStats country: ${countryName}, Country code: ${fetchedCountryCode}`);
                 
                 // 尝试从countriesData中找到对应的Country code
                 let countryCode = null;
                 for (const code in mapping) {
                     if (mapping[code].name === countryName || mapping[code].chineseName === countryName || 
-                        mapping[code]["Country code"] === countryCode) {
+                        mapping[code]["Country code"] === fetchedCountryCode) {
                         countryCode = code;
                         break;
                     }
@@ -3534,17 +3548,17 @@ async function showCountryDetails(countryCode) {
                     }
                 } else {
                     // 如果没有找到匹配的国家，创建新映射条目，使用Country code作为主键
-                    mapping[countryCode] = {
-                        mainId: countryCode,
-                        iso2: countryCode,
-                        flagCode: countryCode,
-                        worldMapId: countryCode,
+                    mapping[fetchedCountryCode] = {
+                        mainId: fetchedCountryCode,
+                        iso2: fetchedCountryCode,
+                        flagCode: fetchedCountryCode,
+                        worldMapId: fetchedCountryCode,
                         name: countryName,
                         chineseName: countryName,
                         stats: country
                     };
                     
-                    console.log(`DEBUG: Created new mapping for countryStats country: ${countryCode}`);
+                    console.log(`DEBUG: Created new mapping for countryStats country: ${fetchedCountryCode}`);
                 }
             });
         } else {
@@ -4543,32 +4557,28 @@ async function showCountryDetails(countryCode) {
         }
         
         // 如果在统计视图模式，尝试获取统计数据
-        if (isStatsView) {
+        if (isStatsView && window.countryStatsData) {
             try {
                 // 获取当前选中的统计指标
                 const statKey = statsDropdown.value;
                 const statName = statsDropdown.options[statsDropdown.selectedIndex].text;
                 
-                // 尝试从country_stats.json获取统计数据
-                const statsResponse = await fetch('/assets/data/geography/country_stats.json');
-                if (statsResponse.ok) {
-                    const statsData = await statsResponse.json();
-                    const countryStat = statsData.find(c => c["Country code"] === countryId);
+                // 使用已经加载的countryStatsData
+                const countryStat = window.countryStatsData.find(c => c["Country code"] === countryId);
+                
+                if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
+                    const statValue = countryStat[statKey];
+                    const formattedValue = formatStatValue(statValue, statKey);
                     
-                    if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
-                        const statValue = countryStat[statKey];
-                        const formattedValue = formatStatValue(statValue, statKey);
-                        
-                        // 添加统计信息到工具提示
-                        tooltipContent += `
-                            <div class="tooltip-info"><strong>${statName}:</strong> ${formattedValue}</div>
-                        `;
-                    } else {
-                        // 显示无数据信息
-                        tooltipContent += `
-                            <div class="tooltip-info"><strong>${statName}:</strong> 无数据</div>
-                        `;
-                    }
+                    // 添加统计信息到工具提示
+                    tooltipContent += `
+                        <div class="tooltip-info"><strong>${statName}:</strong> ${formattedValue}</div>
+                    `;
+                } else {
+                    // 显示无数据信息
+                    tooltipContent += `
+                        <div class="tooltip-info"><strong>${statName}:</strong> 无数据</div>
+                    `;
                 }
             } catch (error) {
                 console.error('获取统计数据失败:', error);
@@ -4608,32 +4618,28 @@ async function showCountryDetails(countryCode) {
             `;
             
             // 如果在统计视图模式，添加统计信息
-            if (isStatsView) {
+            if (isStatsView && window.countryStatsData) {
                 try {
                     const statKey = statsDropdown.value;
                     const statName = statsDropdown.options[statsDropdown.selectedIndex].text;
                     
-                    // 尝试从country_stats.json获取统计数据
-                    const statsResponse = await fetch('/assets/data/geography/country_stats.json');
-                    if (statsResponse.ok) {
-                        const statsData = await statsResponse.json();
-                        const countryStat = statsData.find(c => c["Country code"] === countryId);
+                    // 使用已经加载的countryStatsData
+                    const countryStat = window.countryStatsData.find(c => c["Country code"] === countryId);
+                    
+                    if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
+                        const statValue = countryStat[statKey];
+                        const formattedValue = formatStatValue(statValue, statKey);
                         
-                        if (countryStat && countryStat[statKey] !== null && countryStat[statKey] !== undefined) {
-                            const statValue = countryStat[statKey];
-                            const formattedValue = formatStatValue(statValue, statKey);
-                            
-                            // 更新统计信息
-                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
-                            if (statInfoElement) {
-                                statInfoElement.innerHTML = `<strong>${statName}:</strong> ${formattedValue}`;
-                            }
-                        } else {
-                            // 显示无数据信息
-                            const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
-                            if (statInfoElement) {
-                                statInfoElement.innerHTML = `<strong>${statName}:</strong> 无数据`;
-                            }
+                        // 更新统计信息
+                        const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
+                        if (statInfoElement) {
+                            statInfoElement.innerHTML = `<strong>${statName}:</strong> ${formattedValue}`;
+                        }
+                    } else {
+                        // 显示无数据信息
+                        const statInfoElement = document.getElementById(`tooltip-stat-info-${countryId}`);
+                        if (statInfoElement) {
+                            statInfoElement.innerHTML = `<strong>${statName}:</strong> 无数据`;
                         }
                     }
                 } catch (error) {
