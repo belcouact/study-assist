@@ -442,7 +442,7 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             
             // 尝试使用v2版本的API，它更稳定
             // 添加必需的fields参数
-            const response = await fetch('https://restcountries.com/v2/all?fields=name,alpha2Code,region,translations,flag,capital,population,area');
+            const response = await fetch('https://restcountries.com/v3.1/all?fields=name,alpha2Code,region,translations,flag,capital,population,area');
             
             console.log('API响应状态:', response.status);
             
