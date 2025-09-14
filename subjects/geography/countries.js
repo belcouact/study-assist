@@ -2622,6 +2622,21 @@ async function showCountryDetails(countryCode) {
         // 清空地图容器
         mapViewContainer.innerHTML = '';
         
+        // 创建地图控制区域
+        const mapControls = document.createElement('div');
+        mapControls.className = 'map-controls';
+        mapControls.innerHTML = `
+            <div class="map-type-toggle">
+                <button class="map-type-btn active" data-map-type="normal">
+                    <i class="fas fa-map"></i> 普通地图
+                </button>
+                <button class="map-type-btn" data-map-type="satellite">
+                    <i class="fas fa-satellite"></i> 卫星地图
+                </button>
+            </div>
+        `;
+        mapViewContainer.appendChild(mapControls);
+        
         // 创建地图容器
         const mapContainer = document.createElement('div');
         mapContainer.id = 'leaflet-map';
@@ -2634,10 +2649,52 @@ async function showCountryDetails(countryCode) {
         const map = L.map('leaflet-map').setView([20, 0], 2);
         
         // 添加地图图层
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        const normalLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 18
-        }).addTo(map);
+        });
+        
+        // 添加卫星地图图层
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+            maxZoom: 18
+        });
+        
+        // 默认添加普通地图图层
+        normalLayer.addTo(map);
+        
+        // 当前地图类型
+        let currentMapType = 'normal';
+        
+        // 地图类型切换事件
+        const mapTypeButtons = mapControls.querySelectorAll('.map-type-btn');
+        mapTypeButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const mapType = this.getAttribute('data-map-type');
+                
+                // 更新按钮状态
+                mapTypeButtons.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                
+                // 切换地图图层
+                if (mapType === 'normal' && currentMapType !== 'normal') {
+                    map.removeLayer(satelliteLayer);
+                    map.addLayer(normalLayer);
+                    currentMapType = 'normal';
+                } else if (mapType === 'satellite' && currentMapType !== 'satellite') {
+                    map.removeLayer(normalLayer);
+                    map.addLayer(satelliteLayer);
+                    currentMapType = 'satellite';
+                }
+                
+                // 移动设备优化：添加触觉反馈
+                if (isMobileDevice()) {
+                    if ('vibrate' in navigator) {
+                        navigator.vibrate(50);
+                    }
+                }
+            });
+        });
         
         // 检测是否为移动设备
         const isMobile = isMobileDevice();
