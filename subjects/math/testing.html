@@ -1714,7 +1714,7 @@
         </div>
     </footer>
 
-    <script src="../../js/common.js"></script>
+    <script src="../../js/common.js?v=2"></script>
     <script src="../../js/navigation.js"></script>
     <script src="../../js/profile.js"></script>
     <script>
@@ -3204,6 +3204,14 @@
             document.getElementById('print-report').onclick = function() {
                 printReport();
             };
+            
+            // Generate detailed report
+            const detailedReportBtn = document.getElementById('generate-detailed-report');
+            if (detailedReportBtn) {
+                detailedReportBtn.onclick = function() {
+                    generateDetailedReport();
+                };
+            }
         }
 
         function generatePDFReport() {
@@ -4429,9 +4437,255 @@
             return levelMap[level] || '初中';
         }
 
+        // Generate detailed report using API
+        async function generateDetailedReport() {
+            // Show loading overlay
+            showLoadingOverlay('正在生成详细报告，请稍候...');
+            
+            try {
+                // Collect test data
+                const scoreElement = document.getElementById('overall-score');
+                const percentageElement = document.getElementById('overall-percentage');
+                const levelElement = document.getElementById('performance-level');
+                const difficultyElement = document.getElementById('test-difficulty');
+                
+                // Initialize test data
+                const testData = {
+                    score: scoreElement ? scoreElement.textContent : '0/0',
+                    percentage: percentageElement ? percentageElement.textContent : '0%',
+                    level: levelElement ? levelElement.textContent : '中等',
+                    difficulty: difficultyElement ? difficultyElement.textContent : '中难度',
+                    questions: [],
+                    userAnswers: []
+                };
+                
+                // Try to collect question and answer data if available
+                const testResultsContainer = document.getElementById('results-container');
+                if (testResultsContainer) {
+                    const resultItems = testResultsContainer.querySelectorAll('.result-item');
+                    if (resultItems.length > 0) {
+                        resultItems.forEach((item, index) => {
+                            const questionElement = item.querySelector('.result-header h5');
+                            const questionText = questionElement ? questionElement.textContent : `问题 ${index + 1}`;
+                            
+                            const answerElements = item.querySelectorAll('.answer-comparison div');
+                            let userAnswer = '';
+                            let correctAnswer = '';
+                            let explanation = '';
+                            
+                            if (answerElements.length >= 2) {
+                                userAnswer = answerElements[0].textContent.replace('你的答案: ', '');
+                                correctAnswer = answerElements[1].textContent.replace('正确答案: ', '');
+                            }
+                            
+                            const explanationElement = item.querySelector('.explanation');
+                            if (explanationElement) {
+                                explanation = explanationElement.textContent;
+                            }
+                            
+                            testData.questions.push({
+                                question: questionText,
+                                correct: correctAnswer,
+                                explanation: explanation
+                            });
+                            
+                            testData.userAnswers[index] = userAnswer;
+                        });
+                    }
+                }
+                
+                // Prepare prompt for API
+                const prompt = createDetailedReportPrompt(testData);
+                
+                // Call API
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt: prompt })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.message || 'API调用失败');
+                }
+                
+                // Parse and display the detailed report
+                displayDetailedReport(result.output, testData);
+                
+                // Switch to results tab
+                document.querySelector('[data-tab="results"]').click();
+                
+            } catch (error) {
+                console.error('生成详细报告失败:', error);
+                hideLoadingOverlay();
+                showError('生成详细报告失败: ' + error.message + '. 请检查网络连接后重试。');
+            } finally {
+                hideLoadingOverlay();
+            }
+        }
+        
+        function createDetailedReportPrompt(testData) {
+            // Prepare detailed question analysis
+            let questionAnalysis = '';
+            let correctCount = 0;
+            let incorrectCount = 0;
+            
+            if (testData.questions && testData.questions.length > 0 && testData.userAnswers && testData.userAnswers.length > 0) {
+                questionAnalysis = '\n\n**详细答题分析：**\n\n';
+                
+                testData.questions.forEach((question, index) => {
+                    const userAnswer = testData.userAnswers[index];
+                    const isCorrect = userAnswer !== undefined && userAnswer === question.correct;
+                    
+                    if (isCorrect) {
+                        correctCount++;
+                    } else if (userAnswer !== undefined) {
+                        incorrectCount++;
+                    }
+                    
+                    questionAnalysis += `问题 ${index + 1}: ${question.question}\n`;
+                    questionAnalysis += `- 学生答案: ${userAnswer || '未作答'}\n`;
+                    questionAnalysis += `- 正确答案: ${question.correct}\n`;
+                    questionAnalysis += `- 解答情况: ${isCorrect ? '正确' : '错误'}\n`;
+                    if (question.explanation) {
+                        questionAnalysis += `- 解析: ${question.explanation}\n`;
+                    }
+                    questionAnalysis += '\n';
+                });
+            }
+            
+            // Create the detailed report prompt
+            return `请根据以下数学测试数据生成一份详细的数学能力评估报告：
+
+**测试基本信息：**
+- 总体得分: ${testData.score}
+- 正确率: ${testData.percentage}
+- 能力水平: ${testData.level}
+- 测试难度: ${testData.difficulty}
+${questionAnalysis}
+
+请根据以上数据生成一份详细的数学能力评估报告，包含以下部分：
+
+1. **综合评估**
+   - 对学生的数学能力进行总体评价
+   - 分析学生在当前难度水平下的表现
+   - 与同年级学生水平进行对比分析
+
+2. **优势分析**
+   - 指出学生在数学学习中的优势领域
+   - 分析这些优势形成的原因
+   - 提供保持和进一步发展这些优势的建议
+
+3. **薄弱环节**
+   - 指出学生需要改进的方面
+   - 分析这些薄弱环节的可能原因
+   - 提供针对性的改进建议
+
+4. **知识点掌握情况**
+   - 分析学生对各知识点的掌握程度
+   - 指出掌握牢固和薄弱的知识点
+   - 提供针对性的复习建议
+
+5. **解题能力分析**
+   - 评估学生的计算能力、逻辑思维能力和空间想象能力
+   - 分析学生在解题过程中的思维特点
+   - 提供提升解题能力的方法
+
+6. **提升建议**
+   - 提供具体的学习方法和策略
+   - 推荐适合的学习资源和材料
+   - 制定短期和长期的学习目标
+
+7. **下一步学习计划**
+   - 建议下一阶段的学习重点
+   - 提供可执行的学习计划
+   - 推荐相关的练习和测试
+
+请使用专业、鼓励性的语言，确保报告内容全面、具体、实用，能够真正帮助学习者提高数学能力。重点关注学习者的实际答题表现，提供针对性的分析和建议。`;
+        }
+        
+        function displayDetailedReport(reportContent, testData) {
+            // Update the results panel with detailed report
+            const resultsContainer = document.getElementById('results-container');
+            
+            if (!resultsContainer) {
+                console.error('找不到结果容器元素');
+                return;
+            }
+            
+            resultsContainer.innerHTML = `
+                <div class="result-summary">
+                    <h3>数学能力评估报告</h3>
+                    <div class="score-display" id="overall-score">${testData.level}</div>
+                    <div class="level-badge">${testData.percentage}</div>
+                    <p>基于你的测试表现生成的详细评估报告</p>
+                    <div class="result-actions">
+                        <button id="download-report" class="btn btn-primary">
+                            <i class="fas fa-download"></i> 下载报告
+                        </button>
+                        <button id="share-report" class="btn btn-secondary">
+                            <i class="fas fa-share-alt"></i> 分享报告
+                        </button>
+                        <button id="print-report" class="btn btn-secondary">
+                            <i class="fas fa-print"></i> 打印报告
+                        </button>
+                        <button id="generate-detailed-report" class="btn btn-primary">
+                            <i class="fas fa-chart-bar"></i> 查看详细报告
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="detailed-report">
+                    <div class="report-content">
+                        ${reportContent.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+            
+            // Add styles for the detailed report
+            const style = document.createElement('style');
+            style.textContent = `
+                .detailed-report {
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    padding: 1.5rem;
+                    margin-top: 1.5rem;
+                }
+                .report-section {
+                    margin-bottom: 1.5rem;
+                }
+                .report-section h3 {
+                    color: #2c3e50;
+                    margin-bottom: 1rem;
+                    border-bottom: 2px solid #3498db;
+                    padding-bottom: 0.5rem;
+                }
+                .report-content {
+                    line-height: 1.6;
+                    color: #34495e;
+                }
+                .report-content strong {
+                    color: #2c3e50;
+                    font-weight: 600;
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // Re-setup report actions
+            setupReportActions();
+        }
+
         // Make functions globally available
         window.previousQuestion = previousQuestion;
         window.restartAIQuiz = restartAIQuiz;
+        window.generateDetailedReport = generateDetailedReport;
 
         function fixLatexSyntax(jsonStr) {
             // This function fixes common LaTeX syntax issues in JSON strings

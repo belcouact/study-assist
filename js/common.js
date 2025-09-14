@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (typeof initializeChatWithFloatingButton === 'undefined') {
         // Load the chat-modal.js script dynamically
         const script = document.createElement('script');
-        script.src = '../js/chat-modal.js';
+        script.src = getBaseUrl() + 'js/chat-modal.js';
         script.onload = function() {
             // Initialize chat once the script is loaded
             if (typeof initializeChatWithFloatingButton === 'function') {
