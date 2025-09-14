@@ -308,74 +308,57 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 }
             }
             
-            // 首先尝试从本地缓存加载数据
-            const cachedData = loadCachedData();
-            if (cachedData) {
-                countriesData = cachedData;
-                console.log('使用本地缓存数据');
-                
-                // 移动设备优化：更新加载进度
+            // 缓存功能已禁用，直接从数据源获取最新数据
+            console.log('缓存功能已禁用，正在获取最新数据...');
+            
+            // 尝试从Cloudflare D1数据库获取数据
+            try {
+                // 移动设备优化：显示正在从网络加载数据的提示
                 if (isMobile) {
-                    const progressBar = document.querySelector('.progress-bar');
-                    if (progressBar) {
-                        progressBar.style.width = '100%';
+                    const loadingText = loadingIndicator.querySelector('p');
+                    if (loadingText) {
+                        loadingText.textContent = '正在从数据库加载数据...';
                     }
                 }
-            } else {
-                // 尝试从Cloudflare D1数据库获取数据
+                
+                countriesData = await loadCountriesFromDB();
+                console.log('使用Cloudflare D1数据库数据');
+            } catch (error) {
+                console.error('无法从Cloudflare D1数据库加载数据:', error);
+                console.log('开始尝试从REST Countries API加载数据...');
+                
+                // 尝试使用REST Countries API作为备用数据源
                 try {
-                    // 移动设备优化：显示正在从网络加载数据的提示
+                    console.log('即将调用loadCountriesFromRestAPI函数...');
+                    // 移动设备优化：显示正在从备用数据源加载数据的提示
                     if (isMobile) {
                         const loadingText = loadingIndicator.querySelector('p');
                         if (loadingText) {
-                            loadingText.textContent = '正在从数据库加载数据...';
+                            loadingText.textContent = '正在从备用数据源加载数据...';
                         }
                     }
                     
-                    countriesData = await loadCountriesFromDB();
-                    console.log('使用Cloudflare D1数据库数据');
-                } catch (error) {
-                    console.error('无法从Cloudflare D1数据库加载数据:', error);
+                    console.log('正在调用loadCountriesFromRestAPI函数...');
+                    countriesData = await loadCountriesFromRestAPI();
+                    console.log('成功从REST Countries API加载数据');
+                } catch (apiError) {
+                    console.error('无法从REST Countries API加载数据:', apiError);
                     
-                    // 尝试使用REST Countries API作为备用数据源
-                    try {
-                        // 移动设备优化：显示正在从备用数据源加载数据的提示
-                        if (isMobile) {
-                            const loadingText = loadingIndicator.querySelector('p');
-                            if (loadingText) {
-                                loadingText.textContent = '正在从备用数据源加载数据...';
-                            }
+                    // 移动设备优化：显示错误信息
+                    if (isMobile) {
+                        const loadingText = loadingIndicator.querySelector('p');
+                        if (loadingText) {
+                            loadingText.textContent = '加载数据失败，请稍后再试';
                         }
-                        
-                        countriesData = await loadCountriesFromRestAPI();
-                        console.log('使用REST Countries API数据');
-                    } catch (apiError) {
-                        console.error('无法从REST Countries API加载数据:', apiError);
-                        
-                        // 移动设备优化：显示错误信息
-                        if (isMobile) {
-                            const loadingText = loadingIndicator.querySelector('p');
-                            if (loadingText) {
-                                loadingText.textContent = '加载数据失败，请稍后再试';
-                            }
-                        }
-                        
-                        // 所有数据源都失败，显示错误
-                        throw new Error('无法加载国家数据，请检查网络连接或稍后再试');
                     }
-                }
-                
-                // 缓存数据
-                cacheData(countriesData);
-                
-                // 移动设备优化：更新加载进度
-                if (isMobile) {
-                    const progressBar = document.querySelector('.progress-bar');
-                    if (progressBar) {
-                        progressBar.style.width = '100%';
-                    }
+                    
+                    // 所有数据源都失败，显示错误
+                    throw new Error('无法加载国家数据，请检查网络连接或稍后再试');
                 }
             }
+            
+            // 缓存功能已禁用，不再缓存数据
+            console.log('缓存功能已禁用，数据未保存到本地存储');
             
             // 移动设备优化：添加加载完成动画
             if (isMobile) {
@@ -460,11 +443,15 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
         try {
             console.log('尝试从REST Countries API加载国家数据...');
             
-            // 尝试使用v2版本的API，它更稳定
+            // 尝试使用v3.1版本的API，它更稳定且支持CORS
             // 添加必需的fields参数
-            const response = await fetch('https://restcountries.com/v2/all?fields=name,alpha2Code,region,translations,flag,capital,population,area');
+            const apiUrl = 'https://restcountries.com/v3.1/all?fields=name,cca2,region,translations,flags,capital,population,area';
+            console.log('API URL:', apiUrl);
+            
+            const response = await fetch(apiUrl);
             
             console.log('API响应状态:', response.status);
+            console.log('API响应头:', response.headers);
             
             if (!response.ok) {
                 const errorText = await response.text();
@@ -474,15 +461,16 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             
             const data = await response.json();
             console.log('成功获取到国家数据，数量:', data.length);
+            console.log('第一条数据示例:', data[0]);
             
             // 转换数据格式以适应现有代码结构
             return data.map(country => {
                 // 获取中文名称（如果没有则使用英文名称）
-                let chineseName = country.name;
+                let chineseName = country.name.common;
                 
                 // 获取中文名称（如果有）
-                if (country.translations && country.translations.zh) {
-                    chineseName = country.translations.zh;
+                if (country.translations && country.translations.zho) {
+                    chineseName = country.translations.zho.common;
                 }
                 
                 // 获取大陆名称（如果有）
@@ -490,15 +478,15 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 
                 // 获取国旗SVG
                 let flagSvg = null;
-                if (country.flag) {
+                if (country.flags && country.flags.svg) {
                     // 使用国旗图片URL而不是SVG，因为REST Countries API只提供图片URL
-                    flagSvg = `<img src="${country.flag}" alt="${country.name} flag" style="width: 100%; height: 100%; object-fit: contain;">`;
+                    flagSvg = `<img src="${country.flags.svg}" alt="${country.name.common} flag" style="width: 100%; height: 100%; object-fit: contain;">`;
                 }
                 
                 // 获取首都
                 let capital = '未知';
-                if (country.capital) {
-                    capital = country.capital;
+                if (country.capital && country.capital.length > 0) {
+                    capital = country.capital[0];
                 }
                 
                 // 获取人口
@@ -514,10 +502,10 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
                 }
                 
                 return {
-                    code: country.alpha2Code,
-                    fipsCode: country.alpha2Code,
-                    alpha2Code: country.alpha2Code,
-                    name: country.name,
+                    code: country.cca2,
+                    fipsCode: country.cca2,
+                    alpha2Code: country.cca2,
+                    name: country.name.common,
                     chineseName: chineseName,
                     continent: country.region,
                     chineseContinent: chineseContinent,
@@ -530,6 +518,8 @@ const modalLoadingIndicator = modalBody.querySelector('.loading-indicator');
             });
         } catch (error) {
             console.error('从REST Countries API加载国家数据失败:', error);
+            console.error('错误详情:', error.message);
+            console.error('错误堆栈:', error.stack);
             throw error;
         }
     }
@@ -1710,35 +1700,16 @@ async function showCountryDetails(countryCode) {
 
     // 从本地缓存加载数据
     function loadCachedData() {
-        try {
-            const cachedData = localStorage.getItem('countriesData');
-            if (cachedData) {
-                const parsedData = JSON.parse(cachedData);
-                // 检查缓存是否过期（设置为7天）
-                const cacheTime = localStorage.getItem('countriesDataTime');
-                if (cacheTime && (Date.now() - parseInt(cacheTime)) < 7 * 24 * 60 * 60 * 1000) {
-                    return parsedData;
-                } else {
-                    // 缓存过期，清除
-                    localStorage.removeItem('countriesData');
-                    localStorage.removeItem('countriesDataTime');
-                }
-            }
-            return null;
-        } catch (error) {
-            console.error('加载缓存数据失败:', error);
-            return null;
-        }
+        // 缓存功能已禁用，始终返回null以确保每次都从API获取最新数据
+        console.log("缓存功能已禁用，将始终从API获取最新数据");
+        return null;
     }
     
     // 缓存数据
     function cacheData(data) {
-        try {
-            localStorage.setItem('countriesData', JSON.stringify(data));
-            localStorage.setItem('countriesDataTime', Date.now().toString());
-        } catch (error) {
-            console.error('缓存数据失败:', error);
-        }
+        // 缓存功能已禁用，不再保存数据到localStorage
+        console.log("缓存功能已禁用，数据不会保存到本地存储");
+        return;
     }
     
     // 从restcountries API获取特定国家的数据
@@ -2667,13 +2638,14 @@ async function showCountryDetails(countryCode) {
         mapContainer.style.width = '100%';
         mapContainer.style.height = '500px';
         mapContainer.style.borderRadius = '8px';
+        mapContainer.style.marginBottom = '30px'; // 添加地图下方间距
         mapViewContainer.appendChild(mapContainer);
         
         // 初始化地图 - 居中显示世界地图
         const map = L.map('leaflet-map').setView([20, 0], 2);
         
-        // 添加地图图层
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // 添加地图图层 - 使用中文语言参数
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png?lang=zh', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             maxZoom: 18
         }).addTo(map);
