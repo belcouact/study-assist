@@ -2637,6 +2637,29 @@ async function showCountryDetails(countryCode) {
         `;
         mapViewContainer.appendChild(mapControls);
         
+        // 创建地点搜索界面
+        const locationSearchContainer = document.createElement('div');
+        locationSearchContainer.className = 'location-search-container';
+        locationSearchContainer.innerHTML = `
+            <div class="location-search">
+                <input type="text" class="location-search-input" id="location-search-input" placeholder="输入地点名称（如：北京、纽约、巴黎）">
+                <button class="location-search-btn" id="location-search-btn">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+            <div class="search-status" id="search-status" style="display: none;">
+                <div class="search-loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>正在搜索位置...</span>
+                </div>
+                <div class="search-error" style="display: none;">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span>未找到该位置，请尝试其他关键词</span>
+                </div>
+            </div>
+        `;
+        mapViewContainer.appendChild(locationSearchContainer);
+        
         // 创建地图容器
         const mapContainer = document.createElement('div');
         mapContainer.id = 'leaflet-map';
@@ -2695,6 +2718,115 @@ async function showCountryDetails(countryCode) {
                 }
             });
         });
+        
+        // 地点搜索功能
+        const searchInput = locationSearchContainer.querySelector('#location-search-input');
+        const searchButton = locationSearchContainer.querySelector('#location-search-btn');
+        const searchStatus = locationSearchContainer.querySelector('#search-status');
+        const searchLoading = searchStatus.querySelector('.search-loading');
+        const searchError = searchStatus.querySelector('.search-error');
+        
+        // 存储搜索标记
+        let searchMarker = null;
+        
+        // 搜索位置函数
+        async function searchLocation(query) {
+            if (!query.trim()) {
+                return;
+            }
+            
+            // 显示加载状态
+            searchStatus.style.display = 'block';
+            searchLoading.style.display = 'flex';
+            searchError.style.display = 'none';
+            
+            try {
+                // 使用Nominatim API进行地理编码
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const location = data[0];
+                    const lat = parseFloat(location.lat);
+                    const lon = parseFloat(location.lon);
+                    
+                    // 移除之前的搜索标记
+                    if (searchMarker) {
+                        map.removeLayer(searchMarker);
+                    }
+                    
+                    // 创建自定义图标
+                    const searchIcon = L.divIcon({
+                        className: 'search-marker',
+                        html: '<div style="background-color: #ea4335; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4);"></div>',
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    
+                    // 添加新标记
+                    searchMarker = L.marker([lat, lon], { icon: searchIcon }).addTo(map);
+                    
+                    // 创建弹出窗口内容
+                    const popupContent = `
+                        <div style="min-width: 200px;">
+                            <h3 style="margin: 0 0 10px 0; color: #1D3557;">${location.display_name}</h3>
+                            <p style="margin: 0 0 5px 0;"><strong>坐标:</strong> ${lat.toFixed(6)}, ${lon.toFixed(6)}</p>
+                            <p style="margin: 0 0 10px 0;"><strong>类型:</strong> ${location.type || '未知'}</p>
+                        </div>
+                    `;
+                    
+                    // 绑定弹出窗口
+                    searchMarker.bindPopup(popupContent).openPopup();
+                    
+                    // 移动地图到搜索位置
+                    map.setView([lat, lon], Math.max(map.getZoom(), 10));
+                    
+                    // 隐藏搜索状态
+                    setTimeout(() => {
+                        searchStatus.style.display = 'none';
+                    }, 500);
+                } else {
+                    // 未找到位置
+                    searchLoading.style.display = 'none';
+                    searchError.style.display = 'flex';
+                    
+                    // 5秒后隐藏错误信息
+                    setTimeout(() => {
+                        searchStatus.style.display = 'none';
+                    }, 5000);
+                }
+            } catch (error) {
+                console.error('搜索位置时出错:', error);
+                searchLoading.style.display = 'none';
+                searchError.style.display = 'flex';
+                
+                // 5秒后隐藏错误信息
+                setTimeout(() => {
+                    searchStatus.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        // 搜索按钮点击事件
+        searchButton.addEventListener('click', function() {
+            searchLocation(searchInput.value);
+        });
+        
+        // 输入框回车事件
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchLocation(searchInput.value);
+            }
+        });
+        
+        // 移动设备优化：添加触觉反馈
+        if (isMobileDevice()) {
+            searchButton.addEventListener('touchstart', function() {
+                if ('vibrate' in navigator) {
+                    navigator.vibrate(30);
+                }
+            });
+        }
         
         // 检测是否为移动设备
         const isMobile = isMobileDevice();
@@ -2799,6 +2931,50 @@ async function showCountryDetails(countryCode) {
                 margin: 15px;
             }
             
+            /* 地图控制区域 */
+            .map-controls {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 1rem;
+                z-index: 1000;
+                position: relative;
+            }
+            
+            .map-type-toggle {
+                display: flex;
+                background-color: var(--world-geography-light);
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+            
+            .map-type-btn {
+                padding: 0.75rem 1.5rem;
+                border: none;
+                background-color: transparent;
+                color: var(--world-geography-secondary);
+                font-size: 0.9rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .map-type-btn i {
+                font-size: 1rem;
+            }
+            
+            .map-type-btn.active {
+                background-color: var(--world-geography-accent);
+                color: white;
+            }
+            
+            .map-type-btn:hover:not(.active) {
+                background-color: rgba(0, 0, 0, 0.05);
+            }
+            
             /* 移动设备优化 */
             @media (max-width: 768px) {
                 .leaflet-popup-content {
@@ -2807,6 +2983,22 @@ async function showCountryDetails(countryCode) {
                 
                 .leaflet-popup-content-wrapper {
                     border-radius: 6px;
+                }
+                
+                .map-type-toggle {
+                    width: 100%;
+                    max-width: 300px;
+                }
+                
+                .map-type-btn {
+                    flex: 1;
+                    justify-content: center;
+                    padding: 0.6rem 1rem;
+                    font-size: 0.85rem;
+                }
+                
+                .map-type-btn i {
+                    font-size: 0.9rem;
                 }
             }
         `;
