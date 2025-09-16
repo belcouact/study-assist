@@ -2607,7 +2607,7 @@ function initializeTooltips() {
       }
     }
     
-    // Perform location search using Nominatim API
+    // Perform location search using Nominatim API with fallback
     async function performLocationSearch() {
       const searchInput = document.getElementById('location-search');
       const searchResults = document.getElementById('search-results');
@@ -2622,58 +2622,139 @@ function initializeTooltips() {
       searchResults.innerHTML = '<p>Searching...</p>';
       
       try {
-        // Use Nominatim API for geocoding
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=en,zh`);
+        // Try primary API (Nominatim)
+        const result = await tryNominatimSearch(query);
+        if (result) {
+          displaySearchResult(result);
+          return;
+        }
+        
+        // If primary API fails, try fallback API
+        searchResults.innerHTML = '<p>Primary service unavailable, trying alternative...</p>';
+        const fallbackResult = await tryFallbackSearch(query);
+        if (fallbackResult) {
+          displaySearchResult(fallbackResult);
+          return;
+        }
+        
+        // If both APIs fail
+        searchResults.innerHTML = '<p>No results found for your search. Please try a different location name.</p>';
+        
+      } catch (error) {
+        console.error('Error searching for location:', error);
+        
+        // Provide more specific error messages based on the error type
+        let errorMessage = 'Error searching for location. Please try again later.';
+        
+        if (error.name === 'AbortError') {
+          errorMessage = 'Search request timed out. Please check your internet connection and try again.';
+        } else if (error.message.includes('Network response was not ok')) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        searchResults.innerHTML = `<p>${errorMessage}</p>`;
+      }
+    }
+    
+    // Try to search using Nominatim API
+    async function tryNominatimSearch(query) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=en,zh`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`Network response was not ok: ${response.status}`);
         }
         
         const data = await response.json();
         
         if (data.length === 0) {
-          searchResults.innerHTML = '<p>No results found for your search.</p>';
-          return;
+          return null;
         }
         
-        // Clear existing markers
-        clearMarkers();
-        
-        // Display search results
-        searchResults.innerHTML = '';
-        
-        // Get the first (most relevant) result
-        const result = data[0];
-        const displayName = result.display_name;
-        const lat = parseFloat(result.lat);
-        const lon = parseFloat(result.lon);
-        
-        // Create result item
-        const resultItem = document.createElement('div');
-        resultItem.className = 'search-result-item';
-        
-        resultItem.innerHTML = `
-          <div class="search-result-name">${result.display_name.split(',')[0]}</div>
-          <div class="search-result-details">${result.display_name}</div>
-        `;
-        
-        searchResults.appendChild(resultItem);
-        
-        // Add marker to map
-        const marker = L.marker([lat, lon]).addTo(map);
-        marker.bindPopup(`<strong>${displayName}</strong><br>Lat: ${lat.toFixed(4)}<br>Lon: ${lon.toFixed(4)}`);
-        marker.openPopup();
-        
-        // Add marker to array for later removal
-        markers.push(marker);
-        
-        // Zoom to the exact coordinates of the searched location
-        map.setView([lat, lon], 15);
-        
+        return {
+          displayName: data[0].display_name,
+          lat: parseFloat(data[0].lat),
+          lon: parseFloat(data[0].lon)
+        };
       } catch (error) {
-        console.error('Error searching for location:', error);
-        searchResults.innerHTML = '<p>Error searching for location. Please try again later.</p>';
+        console.error('Nominatim search failed:', error);
+        return null;
       }
+    }
+    
+    // Try to search using a fallback API (OpenCage)
+    async function tryFallbackSearch(query) {
+      try {
+        // Using a free demo key for OpenCage Geocoding API
+        // Note: In production, you should use your own API key
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        
+        const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=demo&limit=1&no_annotations=1`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          throw new Error(`Fallback API response was not ok: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.results.length === 0) {
+          return null;
+        }
+        
+        return {
+          displayName: data.results[0].formatted,
+          lat: data.results[0].geometry.lat,
+          lon: data.results[0].geometry.lng
+        };
+      } catch (error) {
+        console.error('Fallback search failed:', error);
+        return null;
+      }
+    }
+    
+    // Display the search result on the map
+    function displaySearchResult(result) {
+      const searchResults = document.getElementById('search-results');
+      
+      // Clear existing markers
+      clearMarkers();
+      
+      // Display search results
+      searchResults.innerHTML = '';
+      
+      // Create result item
+      const resultItem = document.createElement('div');
+      resultItem.className = 'search-result-item';
+      
+      resultItem.innerHTML = `
+        <div class="search-result-name">${result.displayName.split(',')[0]}</div>
+        <div class="search-result-details">${result.displayName}</div>
+      `;
+      
+      searchResults.appendChild(resultItem);
+      
+      // Add marker to map
+      const marker = L.marker([result.lat, result.lon]).addTo(map);
+      marker.bindPopup(`<strong>${result.displayName}</strong><br>Lat: ${result.lat.toFixed(4)}<br>Lon: ${result.lon.toFixed(4)}`);
+      marker.openPopup();
+      
+      // Add marker to array for later removal
+      markers.push(marker);
+      
+      // Zoom to the exact coordinates of the searched location
+      map.setView([result.lat, result.lon], 15);
     }
     
     // Focus map on a specific location
