@@ -17,7 +17,7 @@
             crossorigin=""></script>
     
     <!-- ECharts Library -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     
     <style>
     .tooltip {
@@ -966,9 +966,44 @@
         color: #666;
       }
       
+      /* Base styles for bar chart */
       .bar-chart {
         width: 100%;
         height: 600px;
+      }
+      
+      /* Base styles for echart container */
+      .echart-container {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        padding: 20px;
+        margin-top: 20px;
+        border: 1px solid #e0e0e0;
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .echart-container .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #eee;
+      }
+      
+      .echart-container .chart-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+      }
+      
+      .echart-container .bar-chart {
+        width: 100%;
+        height: 350px;
+        flex-grow: 1;
       }
       
       /* Responsive Design for Bar Chart */
@@ -997,6 +1032,8 @@
         }
         
         .echart-container {
+          padding: 15px;
+          margin-top: 15px;
           min-height: 500px;
         }
         
@@ -1012,51 +1049,24 @@
         }
         
         .echart-container {
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        padding: 20px;
-        margin-top: 20px;
-        border: 1px solid #e0e0e0;
-        min-height: 500px;
-        display: flex;
-        flex-direction: column;
-      }
-      
-      @media (max-width: 768px) {
-        .echart-container {
-          padding: 15px;
-          margin-top: 15px;
-        }
-      }
-      
-      @media (max-width: 480px) {
-        .echart-container {
           padding: 12px;
           margin-top: 10px;
+          min-height: 400px;
         }
-      }
-      
-      .echart-container .chart-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #eee;
-      }
-      
-      .echart-container .chart-header h3 {
-        margin: 0;
-        font-size: 18px;
-        color: #333;
-      }
-      
-      .echart-container .bar-chart {
-        width: 100%;
-        height: 350px;
-        flex-grow: 1;
-      }
+        
+        .echart-container .chart-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        
+        .echart-container .chart-header h3 {
+          font-size: 16px;
+        }
+        
+        .echart-container .bar-chart {
+          height: 300px;
+        }
         
         .chart-header h3 {
           font-size: 14px;
@@ -1120,26 +1130,6 @@
       
       .header p {
         font-size: 14px;
-      }
-      
-      .echart-container {
-        padding: 15px;
-        margin-top: 15px;
-        min-height: 400px;
-      }
-      
-      .echart-container .chart-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-      }
-      
-      .echart-container .chart-header h3 {
-        font-size: 16px;
-      }
-      
-      .echart-container .bar-chart {
-        height: 300px;
       }
     }
   </style>
@@ -1686,11 +1676,24 @@ function formatCountryStats(countryCode) {
       console.log('Bar chart container dimensions:', containerRect);
       console.log('Bar chart container visibility:', chartDom.offsetParent !== null);
       
-      // If the container has no dimensions, try to set a minimum height
-      if (containerRect.width === 0 || containerRect.height === 0) {
-        console.warn('Bar chart container has no dimensions, setting minimum height');
+      // If the container has no dimensions or is not visible, try to set a minimum height
+      if (containerRect.width === 0 || containerRect.height === 0 || chartDom.offsetParent === null) {
+        console.warn('Bar chart container has no dimensions or is not visible, setting minimum height');
         chartDom.style.height = '400px';
         chartDom.style.width = '100%';
+        
+        // Force a reflow to ensure the dimensions are applied
+        chartDom.offsetHeight;
+        
+        // If the container is still not visible, delay initialization
+        if (chartDom.offsetParent === null) {
+          console.log('Bar chart container is still not visible, delaying initialization...');
+          setTimeout(() => {
+            console.log('Retrying bar chart initialization...');
+            initializeBarChart();
+          }, 500);
+          return;
+        }
       }
       
       // If chart is already initialized, just resize it
@@ -1752,6 +1755,14 @@ function formatCountryStats(countryCode) {
       try {
         barChart.setOption(option);
         console.log('Bar chart options set successfully');
+        
+        // Force a resize after a short delay to ensure the container is properly sized
+        setTimeout(() => {
+          if (barChart) {
+            console.log('Forcing resize after initialization...');
+            barChart.resize();
+          }
+        }, 100);
       } catch (error) {
         console.error('Error setting bar chart options:', error);
         chartDom.innerHTML = '<p>Error setting up chart. Please refresh the page.</p>';
@@ -2032,8 +2043,18 @@ function initializeTooltips() {
       await loadCountryStats();
       loadSVGFromPath();
       
-      // Initialize ECharts when library is loaded
-      initializeEChartsWhenReady();
+      // Ensure SVG tab is active before initializing bar chart
+      const svgTab = document.querySelector('.tab-button[data-tab="svg-view"]');
+      if (svgTab && !svgTab.classList.contains('active')) {
+        console.log('Activating SVG tab...');
+        svgTab.click();
+      }
+      
+      // Initialize ECharts after a short delay to ensure the container is properly sized
+      console.log('Initializing ECharts after a short delay...');
+      setTimeout(() => {
+        initializeBarChart();
+      }, 300);
     });
     
     // Function to initialize ECharts when the library is ready
@@ -2130,6 +2151,13 @@ function initializeTooltips() {
                 if (selectedStatistic) {
                   updateBarChart();
                 }
+                // Force a resize after a short delay to ensure the container is properly sized
+                setTimeout(() => {
+                  if (barChart) {
+                    console.log('Forcing resize after tab switch...');
+                    barChart.resize();
+                  }
+                }, 100);
               } else {
                 console.log('ECharts not ready yet, will initialize when loaded');
                 // The chart will be initialized when ECharts loads via initializeEChartsWhenReady
