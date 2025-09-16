@@ -17,7 +17,7 @@
             crossorigin=""></script>
     
     <!-- ECharts Library -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js" async></script>
     
     <style>
     .tooltip {
@@ -196,6 +196,43 @@
       color: #333;
       font-size: 16px;
       margin-bottom: 10px;
+    }
+    
+    /* Loading state styles */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    
+    .loading-spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid #3498db;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .chart-loading {
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     
     .legend-scale {
@@ -1226,8 +1263,8 @@
           
           <!-- Map Mode Toggle -->
           <div class="map-mode-toggle">
-            <button id="satellite-mode" class="mode-button active">Satellite</button>
-            <button id="normal-mode" class="mode-button">Normal</button>
+            <button id="normal-mode" class="mode-button active">Normal</button>
+            <button id="satellite-mode" class="mode-button">Satellite</button>
           </div>
         </div>
         
@@ -1663,12 +1700,16 @@ function formatCountryStats(countryCode) {
         return;
       }
       
+      // Clear any loading state
+      chartDom.innerHTML = '';
+      
       // Initialize ECharts instance
       try {
         barChart = echarts.init(chartDom);
         console.log('Bar chart initialized successfully');
       } catch (error) {
         console.error('Error initializing bar chart:', error);
+        chartDom.innerHTML = '<p>Error initializing chart. Please refresh the page.</p>';
         return;
       }
       
@@ -1713,6 +1754,7 @@ function formatCountryStats(countryCode) {
         console.log('Bar chart options set successfully');
       } catch (error) {
         console.error('Error setting bar chart options:', error);
+        chartDom.innerHTML = '<p>Error setting up chart. Please refresh the page.</p>';
       }
       
       // Add resize handler for responsive design
@@ -1967,20 +2009,64 @@ function initializeTooltips() {
     }
     
     // Load data and SVG when page loads
-    window.onload = async function() {
-      console.log('Window loaded, starting data loading...');
-      // First load country statistics
+    document.addEventListener('DOMContentLoaded', async function() {
+      console.log('DOM content loaded, starting initialization...');
+      
+      // Initialize tabs first
+      initializeTabs();
+      
+      // Show loading state for charts
+      const chartContainer = document.getElementById('bar-chart');
+      if (chartContainer) {
+        chartContainer.innerHTML = `
+          <div class="chart-loading">
+            <div class="loading-container">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Loading chart library...</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Load country statistics and SVG map
       await loadCountryStats();
-      console.log('Country stats loaded, now loading SVG...');
-      // Then load the SVG map
       loadSVGFromPath();
       
-      // Initialize the bar chart after a short delay to ensure DOM is ready
-      setTimeout(() => {
-        console.log('Initializing bar chart after page load...');
+      // Initialize ECharts when library is loaded
+      initializeEChartsWhenReady();
+    });
+    
+    // Function to initialize ECharts when the library is ready
+    function initializeEChartsWhenReady() {
+      console.log('Checking if ECharts is ready...');
+      
+      if (typeof echarts !== 'undefined') {
+        console.log('ECharts library is loaded, initializing...');
         initializeBarChart();
-      }, 500);
-    };
+      } else {
+        console.log('ECharts library not yet loaded, setting up listener...');
+        // Set up a listener for when ECharts loads
+        const checkEChartsInterval = setInterval(() => {
+          if (typeof echarts !== 'undefined') {
+            clearInterval(checkEChartsInterval);
+            console.log('ECharts library detected, initializing...');
+            initializeBarChart();
+          }
+        }, 100);
+        
+        // Fallback timeout in case ECharts never loads
+        setTimeout(() => {
+          clearInterval(checkEChartsInterval);
+          if (typeof echarts === 'undefined') {
+            console.error('ECharts library failed to load');
+            const chartContainer = document.getElementById('bar-chart');
+            if (chartContainer) {
+              chartContainer.innerHTML = '<p>Error: ECharts library failed to load. Please refresh the page.</p>';
+            }
+          }
+        }, 10000); // 10 second timeout
+      }
+    }
     
     // Function to test dropdown population
     function testDropdown() {
@@ -2036,15 +2122,18 @@ function initializeTooltips() {
             
             // If SVG view is selected, initialize the bar chart
             if (tabId === 'svg-view') {
-              console.log('SVG view tab selected, initializing bar chart...');
-              // Make sure the bar chart container is visible before initializing
-              setTimeout(() => {
+              console.log('SVG view tab selected, checking bar chart...');
+              // Initialize bar chart if ECharts is ready
+              if (typeof echarts !== 'undefined') {
                 initializeBarChart();
                 // If a statistic is already selected, update the chart
                 if (selectedStatistic) {
                   updateBarChart();
                 }
-              }, 100);
+              } else {
+                console.log('ECharts not ready yet, will initialize when loaded');
+                // The chart will be initialized when ECharts loads via initializeEChartsWhenReady
+              }
             }
           }
         });
@@ -2323,28 +2412,7 @@ function initializeTooltips() {
     }
     
     // Initialize tabs when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM content loaded, initializing tabs...');
-      initializeTabs();
-      
-      // Initialize bar chart after a short delay to ensure everything is ready
-      setTimeout(() => {
-        console.log('Initializing bar chart after DOM content loaded...');
-        if (typeof echarts !== 'undefined') {
-          initializeBarChart();
-        } else {
-          console.warn('ECharts library not yet loaded, will try again later');
-          // Try again after a longer delay
-          setTimeout(() => {
-            if (typeof echarts !== 'undefined') {
-              initializeBarChart();
-            } else {
-              console.error('ECharts library still not loaded after delay');
-            }
-          }, 2000);
-        }
-      }, 1000);
-    });
+    // Note: Tabs initialization is now handled in the main DOMContentLoaded event above
     
     // Map functionality
     let map;
