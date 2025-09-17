@@ -2607,7 +2607,7 @@ function initializeTooltips() {
       }
     }
     
-    // Perform location search using Nominatim API with fallback
+    // Perform location search using geocode.maps.co API
     async function performLocationSearch() {
       const searchInput = document.getElementById('location-search');
       const searchResults = document.getElementById('search-results');
@@ -2622,23 +2622,15 @@ function initializeTooltips() {
       searchResults.innerHTML = '<p>Searching...</p>';
       
       try {
-        // Try primary API (Nominatim)
-        const result = await tryNominatimSearch(query);
-        if (result) {
-          displaySearchResult(result);
-          return;
-        }
+        // Use geocode.maps.co API
+        const apiKey = "68cabd7193331556752131jakae988d";
+        const result = await tryGeocodeSearch(query, apiKey);
         
-        // If primary API fails, try fallback API
-        searchResults.innerHTML = '<p>Primary service unavailable, trying alternative...</p>';
-        const fallbackResult = await tryFallbackSearch(query);
-        if (fallbackResult) {
-          displaySearchResult(fallbackResult);
-          return;
+        if (result && result.length > 0) {
+          displaySearchResults(result);
+        } else {
+          searchResults.innerHTML = '<p>No results found for your search. Please try a different location name.</p>';
         }
-        
-        // If both APIs fail
-        searchResults.innerHTML = '<p>No results found for your search. Please try a different location name.</p>';
         
       } catch (error) {
         console.error('Error searching for location:', error);
@@ -2656,13 +2648,13 @@ function initializeTooltips() {
       }
     }
     
-    // Try to search using Nominatim API
-    async function tryNominatimSearch(query) {
+    // Try to search using geocode.maps.co API
+    async function tryGeocodeSearch(query, apiKey) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
         
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=en,zh`, {
+        const response = await fetch(`https://geocode.maps.co/search?q=${encodeURIComponent(query)}&api_key=${apiKey}`, {
           signal: controller.signal
         });
         
@@ -2678,53 +2670,60 @@ function initializeTooltips() {
           return null;
         }
         
-        return {
-          displayName: data[0].display_name,
-          lat: parseFloat(data[0].lat),
-          lon: parseFloat(data[0].lon)
-        };
+        return data;
       } catch (error) {
-        console.error('Nominatim search failed:', error);
+        console.error('Geocode search failed:', error);
         return null;
       }
     }
     
-    // Try to search using a fallback API (OpenCage)
-    async function tryFallbackSearch(query) {
-      try {
-        // Using a free demo key for OpenCage Geocoding API
-        // Note: In production, you should use your own API key
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    // Display the search results on the map
+    function displaySearchResults(results) {
+      const searchResults = document.getElementById('search-results');
+      
+      // Clear existing markers
+      clearMarkers();
+      
+      // Display search results
+      searchResults.innerHTML = '';
+      
+      // Add each result to the list
+      results.forEach((result, index) => {
+        const resultItem = document.createElement('div');
+        resultItem.className = 'search-result-item';
         
-        const response = await fetch(`https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=demo&limit=1&no_annotations=1`, {
-          signal: controller.signal
+        // Extract display name and details
+        const displayName = result.display_name || result.display_name;
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        
+        resultItem.innerHTML = `
+          <div class="search-result-name">${displayName.split(',')[0]}</div>
+          <div class="search-result-details">${displayName}</div>
+        `;
+        
+        // Add click event to focus on this location
+        resultItem.addEventListener('click', () => {
+          focusOnLocation(lat, lon, displayName);
         });
         
-        clearTimeout(timeoutId);
+        searchResults.appendChild(resultItem);
         
-        if (!response.ok) {
-          throw new Error(`Fallback API response was not ok: ${response.status}`);
+        // Add marker to map (but don't open popup yet)
+        const marker = L.marker([lat, lon]).addTo(map);
+        marker.bindPopup(`<strong>${displayName}</strong><br>Lat: ${lat.toFixed(4)}<br>Lon: ${lon.toFixed(4)}`);
+        
+        // Add marker to array for later removal
+        markers.push(marker);
+        
+        // If this is the first result, center the map on it but don't zoom in yet
+        if (index === 0) {
+          map.setView([lat, lon], 10);
         }
-        
-        const data = await response.json();
-        
-        if (data.results.length === 0) {
-          return null;
-        }
-        
-        return {
-          displayName: data.results[0].formatted,
-          lat: data.results[0].geometry.lat,
-          lon: data.results[0].geometry.lng
-        };
-      } catch (error) {
-        console.error('Fallback search failed:', error);
-        return null;
-      }
+      });
     }
     
-    // Display the search result on the map
+    // Display a single search result on the map (for backward compatibility)
     function displaySearchResult(result) {
       const searchResults = document.getElementById('search-results');
       
@@ -2768,10 +2767,11 @@ function initializeTooltips() {
       markers = [];
     }
     
-    // Focus map on a specific location
+    // Focus map on a specific location and zoom in
     function focusOnLocation(lat, lon, name) {
       if (!map) return;
       
+      // Zoom to the exact coordinates of the selected location
       map.setView([lat, lon], 15);
       
       // Find and open the popup for this location
