@@ -22,15 +22,14 @@
     <style>
     /* Language Switcher Styles */
     .language-switcher {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 1000;
       display: flex;
       background-color: white;
       border-radius: 8px;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
       overflow: hidden;
+      margin: 15px auto 0;
+      justify-content: center;
+      width: fit-content;
     }
     
     .lang-btn {
@@ -54,13 +53,23 @@
     
     @media (max-width: 768px) {
       .language-switcher {
-        top: 10px;
-        right: 10px;
+        margin: 12px auto 0;
       }
       
       .lang-btn {
         padding: 6px 12px;
         font-size: 12px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      .language-switcher {
+        margin: 10px auto 0;
+      }
+      
+      .lang-btn {
+        padding: 5px 10px;
+        font-size: 11px;
       }
     }
     
@@ -1089,6 +1098,17 @@
         background-color: #5a6268;
       }
       
+      .loading-interpretation {
+        margin-top: 15px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #6a11cb;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
       /* Responsive Design for Bar Chart */
       @media (max-width: 768px) {
         .chart-container {
@@ -1404,16 +1424,16 @@
   </style>
 </head>
 <body>
-  <!-- Language Switcher -->
-  <div class="language-switcher">
-    <button class="lang-btn active" data-lang="en">EN</button>
-    <button class="lang-btn" data-lang="zh">中文</button>
-  </div>
-  
   <!-- Header -->
   <div class="header">
     <h1>Interactive World Map with Country Statistics</h1>
     <p>Hover over any country to view detailed statistics and information</p>
+    
+    <!-- Language Switcher -->
+    <div class="language-switcher">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="zh">中文</button>
+    </div>
   </div>
   
   <!-- Modal for country details -->
@@ -1768,8 +1788,49 @@
       document.getElementById('satellite-mode-btn').textContent = t.satelliteModeButton;
       
       // Update statistics dropdown options
-      updateStatisticsDropdownOptions();
+    updateStatisticsDropdownOptions();
+    
+    // Update region and subregion filter options
+    updateRegionFilterOptions();
+    updateSubregionFilterOptions();
+    
+    // If country data is already loaded, refresh the card view to apply translations
+    if (Object.keys(countryBasics).length > 0) {
+      populateCardView();
     }
+  }
+  
+  // Update region filter options with translations
+  function updateRegionFilterOptions() {
+    const regionFilter = document.getElementById('region-filter');
+    if (!regionFilter) return;
+    
+    const t = translations[currentLanguage];
+    
+    // Update the default option
+    if (regionFilter.options[0]) {
+      regionFilter.options[0].textContent = t.regionFilterDefault;
+    }
+    
+    // Note: Region options are populated dynamically from the data,
+    // so they will be updated when the data is loaded
+  }
+  
+  // Update subregion filter options with translations
+  function updateSubregionFilterOptions() {
+    const subregionFilter = document.getElementById('subregion-filter');
+    if (!subregionFilter) return;
+    
+    const t = translations[currentLanguage];
+    
+    // Update the default option
+    if (subregionFilter.options[0]) {
+      subregionFilter.options[0].textContent = t.subregionFilterDefault;
+    }
+    
+    // Note: Subregion options are populated dynamically from the data,
+    // so they will be updated when the data is loaded
+  }
     
     // Update statistics dropdown options with translations
     function updateStatisticsDropdownOptions() {
@@ -2734,7 +2795,8 @@ function initializeTooltips() {
       
       // Populate region filter
       const regionFilter = document.getElementById('region-filter');
-      // Keep the default "All Regions" option
+      // Update the default "All Regions" option with translation
+      regionFilter.options[0].textContent = t.regionFilterDefault;
       Array.from(regions).sort().forEach(region => {
         const option = document.createElement('option');
         option.value = region;
@@ -2744,7 +2806,8 @@ function initializeTooltips() {
       
       // Populate subregion filter
       const subregionFilter = document.getElementById('subregion-filter');
-      // Keep the default "All Subregions" option
+      // Update the default "All Subregions" option with translation
+      subregionFilter.options[0].textContent = t.subregionFilterDefault;
       Array.from(subregions).sort().forEach(subregion => {
         const option = document.createElement('option');
         option.value = subregion;
@@ -2984,10 +3047,22 @@ ${countryData.map(country => `${country.name}: ${country.value}`).join('\n')}
 请用中文回答，并提供专业、全面的分析。
       `;
       
-      // Show loading state
-      const chartInfo = document.getElementById('chart-info');
-      const originalContent = chartInfo.innerHTML;
-      chartInfo.innerHTML = '<div class="loading-spinner"></div> 正在生成数据解读...';
+      // Show loading state below the data interpretation button
+      const chartActions = document.querySelector('.chart-actions');
+      
+      // Remove any existing loading or interpretation result
+      const existingResult = document.querySelector('.interpretation-result, .loading-interpretation');
+      if (existingResult) {
+        existingResult.remove();
+      }
+      
+      // Create and add the loading indicator
+      const loadingIndicator = document.createElement('div');
+      loadingIndicator.className = 'loading-interpretation';
+      loadingIndicator.innerHTML = '<div class="loading-spinner"></div> 正在生成数据解读...';
+      
+      // Insert the loading indicator after the chart actions
+      chartActions.parentNode.insertBefore(loadingIndicator, chartActions.nextSibling);
       
       // Simulate API call to GLM-4.5 (in a real implementation, this would be an actual API call)
       setTimeout(() => {
@@ -3020,22 +3095,32 @@ ${countryData.map(country => `${country.name}: ${country.value}`).join('\n')}
 这份分析基于当前可用的数据，实际解读可能需要更多背景信息和专业领域的知识。
         `;
         
-        // Display the interpretation
-        chartInfo.innerHTML = `
-          <div class="interpretation-result">
-            <h4>数据解读</h4>
-            <div class="interpretation-content">${interpretation.replace(/\n/g, '<br>')}</div>
-          </div>
+        // Display the interpretation below the data interpretation button
+        const chartActions = document.querySelector('.chart-actions');
+        
+        // Remove any existing loading or interpretation result
+        const existingResult = document.querySelector('.interpretation-result, .loading-interpretation');
+        if (existingResult) {
+          existingResult.remove();
+        }
+        
+        // Create and add the interpretation result
+        const interpretationResult = document.createElement('div');
+        interpretationResult.className = 'interpretation-result';
+        interpretationResult.innerHTML = `
+          <h4>数据解读</h4>
+          <div class="interpretation-content">${interpretation.replace(/\n/g, '<br>')}</div>
+          <button class="close-interpretation-btn">关闭解读</button>
         `;
         
-        // Add a button to close the interpretation
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'close-interpretation-btn';
-        closeBtn.textContent = '关闭解读';
+        // Add event listener to close button
+        const closeBtn = interpretationResult.querySelector('.close-interpretation-btn');
         closeBtn.addEventListener('click', () => {
-          chartInfo.innerHTML = originalContent;
+          interpretationResult.remove();
         });
-        chartInfo.appendChild(closeBtn);
+        
+        // Insert the interpretation result after the chart actions
+        chartActions.parentNode.insertBefore(interpretationResult, chartActions.nextSibling);
         
       }, 2000); // Simulate API delay
     }
