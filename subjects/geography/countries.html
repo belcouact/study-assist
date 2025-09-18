@@ -1770,18 +1770,6 @@
     </div>
   </div>
   
-  <!-- Modal for data interpretation -->
-  <div id="interpretation-modal" class="interpretation-modal">
-    <div class="interpretation-modal-content">
-      <div class="interpretation-modal-header">
-        <span class="interpretation-close">&times;</span>
-      </div>
-      <div id="interpretation-content" class="interpretation-content">
-        <!-- Interpretation results will be displayed here -->
-      </div>
-    </div>
-  </div>
-  
   <!-- Tab Navigation -->
   <div class="tab-container">
     <div class="tab-nav">
@@ -3674,8 +3662,22 @@ function initializeTooltips() {
       const interpretationBtn = document.getElementById('interpretation-btn');
       const interpretationResults = document.getElementById('interpretation-results');
       
+      if (!interpretationBtn) {
+        console.error('Interpretation button not found');
+        return;
+      }
+      
+      if (!interpretationResults) {
+        console.error('Interpretation results container not found');
+        return;
+      }
+      
+      console.log('Interpretation button and results container found');
+      
       // Add click event to the interpretation button
       interpretationBtn.addEventListener('click', async function() {
+        console.log('Interpretation button clicked');
+        
         // Show loading state
         interpretationResults.style.display = 'block';
         interpretationResults.innerHTML = `
@@ -3688,13 +3690,20 @@ function initializeTooltips() {
         try {
           // Get the current selected statistic
           const statSelect = document.getElementById('stat-select');
+          if (!statSelect) {
+            throw new Error('Statistics dropdown not found');
+          }
+          
           const selectedStat = statSelect.value;
+          console.log('Selected statistic:', selectedStat);
           
           // Get country data for interpretation
           const countryDataForAnalysis = prepareCountryDataForAnalysis(selectedStat);
+          console.log('Country data for analysis:', countryDataForAnalysis);
           
           // Call GLM-4.5 API for data interpretation
           const interpretationResult = await callGLMAPIForDataInterpretation(countryDataForAnalysis, selectedStat);
+          console.log('Interpretation result received');
           
           // Display the interpretation result
           interpretationResults.innerHTML = `
@@ -3716,6 +3725,8 @@ function initializeTooltips() {
           `;
         }
       });
+      
+      console.log('Data interpretation initialized successfully');
     }
     
     // Format markdown text to HTML
@@ -3754,23 +3765,50 @@ function initializeTooltips() {
       // If no statistic is selected, use population as default
       const statKey = selectedStat || 'population';
       
-      // Get top 20 countries by the selected statistic
-      const sortedCountries = [...Object.values(countryBasics)].sort((a, b) => {
-        const aValue = parseFloat(a[statKey]) || 0;
-        const bValue = parseFloat(b[statKey]) || 0;
-        return bValue - aValue;
-      }).slice(0, 20);
+      // Check if we have countryStats data
+      if (!countryStats || Object.keys(countryStats).length === 0) {
+        console.error('No country statistics data available');
+        return {
+          statistic: statKey,
+          statisticName: translations[currentLanguage][statKey] || statKey,
+          countries: [],
+          error: 'No country statistics data available'
+        };
+      }
+      
+      // Get top 20 countries by the selected statistic from countryStats
+      const sortedCountries = Object.entries(countryStats)
+        .map(([code, data]) => {
+          // Ensure the data has the required statistic
+          if (data[statKey] === undefined || data[statKey] === null) {
+            return null;
+          }
+          
+          return {
+            code: code,
+            name: data.name,
+            value: parseFloat(data[statKey]) || 0,
+            region: data.region,
+            // Get additional country details from countryBasics if available
+            ...(countryBasics[code] || {})
+          };
+        })
+        .filter(country => country !== null) // Filter out countries without the required statistic
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 20);
+      
+      console.log(`Prepared data for analysis: ${sortedCountries.length} countries with ${statKey} data`);
       
       // Prepare data for analysis
       const analysisData = {
         statistic: statKey,
         statisticName: translations[currentLanguage][statKey] || statKey,
         countries: sortedCountries.map(country => ({
-          name: country['name.common'],
-          nameChinese: country['name.common.chn'],
-          value: country[statKey],
+          name: country.name,
+          nameChinese: country['name.common.chn'] || country.name,
+          value: country.value,
           region: country.region,
-          subregion: country.subregion
+          subregion: country.subregion || 'N/A'
         }))
       };
       
@@ -3779,6 +3817,13 @@ function initializeTooltips() {
     
     // Call GLM-4.5 API for data interpretation
     async function callGLMAPIForDataInterpretation(data, statistic) {
+      // Check if there's an error or no countries data
+      if (data.error || !data.countries || data.countries.length === 0) {
+        const errorMessage = data.error || 'No country data available for analysis';
+        console.error(errorMessage);
+        return `抱歉，无法获取${data.statisticName}数据进行分析。${errorMessage}`;
+      }
+      
       // Prepare the prompt for the GLM-4.5 API
       const systemMessage = {
         role: "system",
