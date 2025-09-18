@@ -1944,22 +1944,13 @@
         }
       } catch (error) {
         console.error('Error loading country statistics:', error);
-        console.log('Using sample data for testing');
-        // Use sample data for testing
-        countryStats = sampleCountryStats;
+        console.error('Failed to load country statistics data');
         
-        // Extract available statistics from the sample data
-        const firstCountry = Object.keys(sampleCountryStats)[0];
-        console.log('Sample first country:', firstCountry);
-        console.log('Sample first country data:', sampleCountryStats[firstCountry]);
-        
-        availableStats = Object.keys(sampleCountryStats[firstCountry])
-          .filter(key => !['name', 'region'].includes(key)); // Exclude non-numeric fields
-        
-        console.log('Available statistics from sample data:', availableStats);
-        
-        // Populate the dropdown with available statistics
-        populateStatsDropdown();
+        // Show error message to user
+        const selectElement = document.getElementById('stat-select');
+        if (selectElement) {
+          selectElement.innerHTML = '<option value="">Error loading data</option>';
+        }
       }
     }
     
@@ -3066,61 +3057,33 @@ ${countryData.map(country => `${country.name}: ${country.value}`).join('\n')}
       
       // Simulate API call to GLM-4.5 (in a real implementation, this would be an actual API call)
       setTimeout(() => {
-        // Mock response from GLM-4.5
-        const interpretation = `
-根据${statName}数据分析，以下是详细解读：
-
-1. **整体趋势**：
-   - 数据显示${countryData[0].name}在${statName}方面表现最为突出，数值为${countryData[0].value}。
-   - 排名前20的国家之间存在显著差异，最高值与最低值之间相差${(countryData[0].value / countryData[countryData.length - 1].value).toFixed(1)}倍。
-   - 数据分布呈现${countryData.length > 10 ? "相对均匀" : "不均匀"}的分布模式。
-
-2. **异常值分析**：
-   - ${countryData[0].name}的数值明显高于其他国家，可能与其特殊的地理或经济条件有关。
-   - ${countryData[Math.floor(countryData.length / 2)].name}处于中间位置，代表了该统计数据的平均水平。
-
-3. **影响因素**：
-   - 地理位置对这些数据有显著影响，特别是${countryData.slice(0, 3).map(c => c.name).join('、')}等地区。
-   - 经济发展水平与${statName}呈现${statName.includes('GDP') ? "高度相关" : "一定关联"}。
-   - 历史文化因素也在一定程度上影响了这些数据的分布。
-
-4. **比较分析**：
-   - 排名前5的国家(${countryData.slice(0, 5).map(c => c.name).join('、')})占据了总量的显著份额。
-   - 不同地区之间的数据差异反映了区域发展不平衡的现状。
-
-5. **有趣发现**：
-   - ${countryData.find(c => c.name.includes('岛') || c.name.includes('Island'))?.name || '某些岛国'}在${statName}方面表现${Math.random() > 0.5 ? "超出预期" : "低于预期"}。
-   - 数据显示${statName.includes('人口') ? "人口密度与经济发展水平" : "经济发展与资源分配"}之间存在有趣的相关性。
-
-这份分析基于当前可用的数据，实际解读可能需要更多背景信息和专业领域的知识。
-        `;
-        
-        // Display the interpretation below the data interpretation button
-        const chartActions = document.querySelector('.chart-actions');
-        
-        // Remove any existing loading or interpretation result
-        const existingResult = document.querySelector('.interpretation-result, .loading-interpretation');
-        if (existingResult) {
-          existingResult.remove();
+        // Remove loading indicator
+        const loadingIndicator = document.querySelector('.loading-interpretation');
+        if (loadingIndicator) {
+          loadingIndicator.remove();
         }
         
-        // Create and add the interpretation result
-        const interpretationResult = document.createElement('div');
-        interpretationResult.className = 'interpretation-result';
-        interpretationResult.innerHTML = `
+        // Show error message
+        const chartActions = document.querySelector('.chart-actions');
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'interpretation-result';
+        errorMessage.innerHTML = `
           <h4>数据解读</h4>
-          <div class="interpretation-content">${interpretation.replace(/\n/g, '<br>')}</div>
+          <div class="interpretation-content">
+            <p>抱歉，数据解读功能暂时不可用。请稍后再试。</p>
+            <p>Sorry, the data interpretation feature is currently unavailable. Please try again later.</p>
+          </div>
           <button class="close-interpretation-btn">关闭解读</button>
         `;
         
         // Add event listener to close button
-        const closeBtn = interpretationResult.querySelector('.close-interpretation-btn');
+        const closeBtn = errorMessage.querySelector('.close-interpretation-btn');
         closeBtn.addEventListener('click', () => {
-          interpretationResult.remove();
+          errorMessage.remove();
         });
         
-        // Insert the interpretation result after the chart actions
-        chartActions.parentNode.insertBefore(interpretationResult, chartActions.nextSibling);
+        // Insert the error message after the chart actions
+        chartActions.parentNode.insertBefore(errorMessage, chartActions.nextSibling);
         
       }, 2000); // Simulate API delay
     }
