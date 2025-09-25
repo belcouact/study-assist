@@ -363,6 +363,32 @@
             margin-top: 1rem;
         }
 
+        .tts-container {
+            display: flex;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .tts-container i {
+            color: var(--primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            padding: 0.5rem;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .tts-container i:hover {
+            color: var(--secondary);
+            transform: scale(1.1);
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .tts-container i:active {
+            transform: scale(0.95);
+        }
+
         .loading {
             display: flex;
             flex-direction: column;
@@ -498,6 +524,9 @@
 
             <div class="quote-container">
                 <div class="chinese-quote" id="chineseQuote"></div>
+                <div class="tts-container">
+                    <i class="fas fa-volume-up" id="ttsIcon" title="播放朗读"></i>
+                </div>
                 <div class="english-quote" id="englishQuote"></div>
                 <div class="date" id="date"></div>
             </div>
@@ -514,6 +543,8 @@
                 this.englishQuote = document.getElementById('englishQuote');
                 this.dateElement = document.getElementById('date');
                 this.datePicker = document.getElementById('datePicker');
+                this.ttsIcon = document.getElementById('ttsIcon');
+                this.currentTtsUrl = null;
                 
                 // API地址
                 this.apiUrl = 'https://daily-quote.study-llm.me';
@@ -529,6 +560,9 @@
                 
                 // 日期选择事件监听
                 this.datePicker.addEventListener('change', () => this.fetchData());
+                
+                // TTS图标点击事件监听
+                this.ttsIcon.addEventListener('click', () => this.playTts());
                 
                 // 初始加载数据
                 this.fetchData();
@@ -627,6 +661,9 @@
                         
                         // 显示日期
                         this.dateElement.textContent = data.data.date;
+                        
+                        // 保存TTS URL
+                        this.currentTtsUrl = data.data.tts;
                     } else {
                         throw new Error('API返回数据格式不正确');
                     }
@@ -642,6 +679,37 @@
                     `;
                     console.error('获取数据时出错:', error);
                 });
+            },
+
+            // 播放TTS音频
+            playTts() {
+                if (!this.currentTtsUrl) {
+                    console.warn('没有可用的TTS音频');
+                    return;
+                }
+
+                // 创建音频元素
+                const audio = new Audio(this.currentTtsUrl);
+                
+                // 更新图标状态
+                this.ttsIcon.classList.remove('fa-volume-up');
+                this.ttsIcon.classList.add('fa-volume-mute');
+                
+                // 播放音频
+                audio.play();
+                
+                // 音频播放结束后恢复图标状态
+                audio.onended = () => {
+                    this.ttsIcon.classList.remove('fa-volume-mute');
+                    this.ttsIcon.classList.add('fa-volume-up');
+                };
+                
+                // 处理播放错误
+                audio.onerror = () => {
+                    console.error('TTS音频播放失败');
+                    this.ttsIcon.classList.remove('fa-volume-mute');
+                    this.ttsIcon.classList.add('fa-volume-up');
+                };
             }
         };
 
