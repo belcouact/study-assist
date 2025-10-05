@@ -132,6 +132,7 @@
             margin-bottom: 0.5rem;
             font-weight: bold;
             color: #2c3e50;
+            font-size: 1rem;
         }
         
         .required {
@@ -228,6 +229,7 @@
             width: 100%;
             height: 100%;
             cursor: pointer;
+            font-size: 1rem;
         }
         
         .file-upload-label {
@@ -238,6 +240,7 @@
             text-align: center;
             background-color: #f9f9f9;
             transition: border-color 0.3s, background-color 0.3s;
+            font-size: 1rem;
         }
         
         .file-upload-container:hover .file-upload-label {
@@ -265,6 +268,12 @@
         
         .file-name {
             flex: 1;
+            font-size: 1rem;
+        }
+        
+        .file-size {
+            color: #7f8c8d;
+            font-size: 1rem;
         }
         
         .file-remove {
@@ -518,7 +527,6 @@
                                     <option value="pending">待处理</option>
                                     <option value="processing">处理中</option>
                                     <option value="resolved">已解决</option>
-                                    <option value="completed">已完成</option>
                                 </select>
                             </div>
                         </div>
@@ -601,8 +609,8 @@
                 </div>
                 
                 <div class="form-actions">
-                    <button type="button" class="form-button form-button-secondary" id="cancelButton">取消</button>
                     <button type="submit" class="form-button" id="submitButton">提交</button>
+                    <button type="button" class="form-button form-button-secondary" id="cancelButton">取消</button>
                 </div>
                 
                 <!-- 隐藏的故障ID字段，用于编辑模式 -->
@@ -635,8 +643,29 @@
         const faultId = urlParams.get('id');
         let isEditMode = false;
         
-        // 设置当前时间为默认报告时间
-        document.getElementById('reportTime').value = new Date().toISOString().slice(0, 16);
+        // 转换为北京时间
+        function getBeijingTime(date = new Date()) {
+            // 创建一个新的Date对象，避免修改原始对象
+            const beijingDate = new Date(date);
+            // 北京时间是UTC+8
+            const utcOffset = beijingDate.getTimezoneOffset() * 60000; // 获取本地时区与UTC的毫秒差
+            const beijingOffset = 8 * 3600000; // 北京时区与UTC的毫秒差（UTC+8）
+            beijingDate.setTime(beijingDate.getTime() + utcOffset + beijingOffset);
+            return beijingDate;
+        }
+        
+        // 格式化日期时间为datetime-local输入格式
+        function formatDateTimeLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        }
+        
+        // 设置当前北京时间为默认报告时间
+        document.getElementById('reportTime').value = formatDateTimeLocal(getBeijingTime());
         
         // 如果有故障ID，则为编辑模式，加载故障数据
         if (faultId) {
@@ -671,8 +700,8 @@
                 document.getElementById('faultCategory').value = fault.faultCategory || '';
                 document.getElementById('faultLevel').value = fault.faultLevel || '';
                 document.getElementById('reportTime').value = fault.reportTime ? 
-                    new Date(fault.reportTime).toISOString().slice(0, 16) : 
-                    new Date().toISOString().slice(0, 16);
+                    formatDateTimeLocal(getBeijingTime(new Date(fault.reportTime))) : 
+                    formatDateTimeLocal(getBeijingTime());
                 document.getElementById('reporter').value = fault.reporter || '';
                 document.getElementById('status').value = fault.status || 'pending';
                 document.getElementById('faultDescription').value = fault.faultDescription || '';
