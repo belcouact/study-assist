@@ -490,7 +490,22 @@
                     <option value="中">中</option>
                     <option value="低">低</option>
                 </select>
-                <input type="text" id="search-input" class="search-box" placeholder="搜索设备名称、故障类型...">
+                <select id="plant-filter" class="filter-select">
+                    <option value="">所有工厂</option>
+                </select>
+                <select id="category-filter" class="filter-select">
+                    <option value="">所有分类</option>
+                </select>
+                <select id="equipment-filter" class="filter-select">
+                    <option value="">所有设备</option>
+                </select>
+                <select id="area-filter" class="filter-select">
+                    <option value="">所有区域</option>
+                </select>
+                <select id="reporter-filter" class="filter-select">
+                    <option value="">所有报告人</option>
+                </select>
+                <input type="text" id="search-input" class="search-box" placeholder="搜索设备名称、故障类型、故障描述...">
                 <button class="filter-button" onclick="filterFaults()">筛选</button>
             </div>
             
@@ -580,13 +595,27 @@ async function loadFaultData() {
         
         const faults = await response.json();
         console.log('获取到的故障数据:', faults);
-                
-                // 清空表格
-                tableBody.innerHTML = '';
+        
+        // 清空表格
+        tableBody.innerHTML = '';
+        
+        // 收集所有可能的选项用于筛选器
+        const plants = new Set();
+        const categories = new Set();
+        const equipments = new Set();
+        const areas = new Set();
+        const reporters = new Set();
                 
                 if (faults && faults.length > 0) {
-                    // 渲染故障数据
+                    // 渲染故障数据并收集筛选器选项
                     faults.forEach(fault => {
+                        // 收集筛选器选项
+                        if (fault.plant) plants.add(fault.plant);
+                        if (fault.faultCategory) categories.add(fault.faultCategory);
+                        if (fault.equipmentName) equipments.add(fault.equipmentName);
+                        if (fault.faultArea) areas.add(fault.faultArea);
+                        if (fault.reporter) reporters.add(fault.reporter);
+                        
                         const row = document.createElement('tr');
                         
                         // 格式化状态标签
@@ -662,6 +691,13 @@ async function loadFaultData() {
                         
                         tableBody.appendChild(row);
                     });
+                    
+                    // 填充筛选器选项
+                    populateFilterOptions('plant-filter', plants);
+                    populateFilterOptions('category-filter', categories);
+                    populateFilterOptions('equipment-filter', equipments);
+                    populateFilterOptions('area-filter', areas);
+                    populateFilterOptions('reporter-filter', reporters);
                 } else {
                     // 没有数据时显示提示
                     if (noDataMessage) noDataMessage.style.display = 'block';
@@ -682,6 +718,32 @@ async function loadFaultData() {
                 // 隐藏加载指示器
                 if (loadingIndicator) loadingIndicator.style.display = 'none';
             }
+        }
+        
+        // 填充筛选器选项
+        function populateFilterOptions(filterId, optionsSet) {
+            const filterElement = document.getElementById(filterId);
+            if (!filterElement) return;
+            
+            // 保存当前选中的值
+            const currentValue = filterElement.value;
+            
+            // 清空现有选项，保留第一个"所有"选项
+            while (filterElement.children.length > 1) {
+                filterElement.removeChild(filterElement.lastChild);
+            }
+            
+            // 添加新的选项
+            const sortedOptions = Array.from(optionsSet).sort();
+            sortedOptions.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                filterElement.appendChild(optionElement);
+            });
+            
+            // 恢复之前选中的值
+            filterElement.value = currentValue;
         }
 
         // 查看故障详情（新页面）
@@ -988,6 +1050,11 @@ async function viewFault(faultId) {
         function filterFaults() {
             const statusFilter = document.getElementById('status-filter').value;
             const levelFilter = document.getElementById('level-filter').value;
+            const plantFilter = document.getElementById('plant-filter').value;
+            const categoryFilter = document.getElementById('category-filter').value;
+            const equipmentFilter = document.getElementById('equipment-filter').value;
+            const areaFilter = document.getElementById('area-filter').value;
+            const reporterFilter = document.getElementById('reporter-filter').value;
             const searchInput = document.getElementById('search-input').value.toLowerCase();
             
             const rows = document.querySelectorAll('#fault-table-body tr');
@@ -999,6 +1066,8 @@ async function viewFault(faultId) {
                 const equipmentCell = row.querySelector('td:nth-child(3)');
                 const areaCell = row.querySelector('td:nth-child(4)');
                 const categoryCell = row.querySelector('td:nth-child(5)');
+                const reporterCell = row.querySelector('td:nth-child(9)');
+                const descriptionCell = row.querySelector('td:nth-child(7)');
                 
                 const status = statusCell ? statusCell.textContent : '';
                 const level = levelCell ? levelCell.textContent : '';
@@ -1006,16 +1075,24 @@ async function viewFault(faultId) {
                 const equipment = equipmentCell ? equipmentCell.textContent : '';
                 const area = areaCell ? areaCell.textContent : '';
                 const category = categoryCell ? categoryCell.textContent : '';
+                const reporter = reporterCell ? reporterCell.textContent : '';
+                const description = descriptionCell ? descriptionCell.textContent : '';
                 
                 const statusMatch = !statusFilter || status === statusFilter;
                 const levelMatch = !levelFilter || level === levelFilter;
+                const plantMatch = !plantFilter || plant === plantFilter;
+                const categoryMatch = !categoryFilter || category === categoryFilter;
+                const equipmentMatch = !equipmentFilter || equipment === equipmentFilter;
+                const areaMatch = !areaFilter || area === areaFilter;
+                const reporterMatch = !reporterFilter || reporter === reporterFilter;
                 const searchMatch = !searchInput || 
                     plant.toLowerCase().includes(searchInput) || 
                     equipment.toLowerCase().includes(searchInput) ||
                     area.toLowerCase().includes(searchInput) ||
-                    category.toLowerCase().includes(searchInput);
+                    category.toLowerCase().includes(searchInput) ||
+                    description.toLowerCase().includes(searchInput);
                 
-                if (statusMatch && levelMatch && searchMatch) {
+                if (statusMatch && levelMatch && plantMatch && categoryMatch && equipmentMatch && areaMatch && reporterMatch && searchMatch) {
                     row.style.display = '';
                 } else {
                     row.style.display = 'none';
@@ -1029,10 +1106,20 @@ async function viewFault(faultId) {
             
             const statusFilter = document.getElementById('status-filter');
             const levelFilter = document.getElementById('level-filter');
+            const plantFilter = document.getElementById('plant-filter');
+            const categoryFilter = document.getElementById('category-filter');
+            const equipmentFilter = document.getElementById('equipment-filter');
+            const areaFilter = document.getElementById('area-filter');
+            const reporterFilter = document.getElementById('reporter-filter');
             const searchInput = document.getElementById('search-input');
             
             if (statusFilter) statusFilter.addEventListener('change', filterFaults);
             if (levelFilter) levelFilter.addEventListener('change', filterFaults);
+            if (plantFilter) plantFilter.addEventListener('change', filterFaults);
+            if (categoryFilter) categoryFilter.addEventListener('change', filterFaults);
+            if (equipmentFilter) equipmentFilter.addEventListener('change', filterFaults);
+            if (areaFilter) areaFilter.addEventListener('change', filterFaults);
+            if (reporterFilter) reporterFilter.addEventListener('change', filterFaults);
             if (searchInput) searchInput.addEventListener('input', filterFaults);
             
             // 加载故障数据
