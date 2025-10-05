@@ -419,8 +419,6 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
     const faultId = path.split('/').pop();
     console.log('更新故障状态:', faultId);
     
-    const requestBody = await request.json();
-    
     // 获取现有故障数据
     const existingData = await env.KV_WS_HUB.get(`fault_${faultId}`);
     if (!existingData) {
@@ -437,6 +435,69 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
     }
 
     const faultData = JSON.parse(existingData);
+    
+    // 检查内容类型以确定如何处理请求
+    const contentType = request.headers.get('content-type') || '';
+    let requestBody;
+    let uploadedFiles = [];
+    
+    if (contentType.includes('multipart/form-data')) {
+      // 处理FormData（包含文件上传）
+      const formData = await request.formData();
+      
+      // 提取文本字段
+      requestBody = {
+        plant: formData.get('plant'),
+        equipmentName: formData.get('equipmentName'),
+        faultArea: formData.get('faultArea'),
+        faultCategory: formData.get('faultCategory'),
+        faultLevel: formData.get('faultLevel'),
+        reportTime: formData.get('reportTime'),
+        reporter: formData.get('reporter'),
+        faultDescription: formData.get('faultDescription'),
+        troubleshootingSteps: formData.get('troubleshootingSteps'),
+        rootCause: formData.get('rootCause'),
+        resolution: formData.get('resolution'),
+        additionalInfo: formData.get('additionalInfo'),
+        status: formData.get('status'),
+        handler: formData.get('handler'),
+        handleDescription: formData.get('handleDescription')
+      };
+      
+      // 处理文件上传
+      const files = formData.getAll('fileUpload');
+      for (const file of files) {
+        if (file instanceof File && file.size > 0) {
+          // 生成唯一文件ID
+          const fileId = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+          const fileKey = `file_${fileId}`;
+          
+          // 读取文件内容
+          const fileBuffer = await file.arrayBuffer();
+          
+          // 存储文件到KV
+          await env.KV_WS_HUB.put(fileKey, fileBuffer);
+          
+          // 记录文件信息
+          uploadedFiles.push({
+            id: fileId,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            key: fileKey
+          });
+        }
+      }
+      
+      // 如果有新上传的文件，更新文件列表
+      if (uploadedFiles.length > 0) {
+        // 保留原有文件，添加新文件
+        requestBody.fileUpload = [...(faultData.fileUpload || []), ...uploadedFiles];
+      }
+    } else {
+      // 处理JSON数据（无文件上传）
+      requestBody = await request.json();
+    }
     
     // 更新字段
     if (requestBody.plant !== undefined) faultData.plant = requestBody.plant;
