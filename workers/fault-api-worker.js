@@ -141,6 +141,63 @@ export default {
         });
       }
 
+      // 获取单个故障详情
+      if (path.startsWith('/ws/api/faults/') && request.method === 'GET') {
+        if (!env.KV_WS_HUB) {
+          return new Response(JSON.stringify({
+            error: 'KV_WS_HUB not bound'
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+
+        try {
+          const faultId = path.split('/').pop();
+          console.log('获取故障详情:', faultId);
+
+          // 获取故障数据
+          const faultData = await env.KV_WS_HUB.get(`fault_${faultId}`);
+          if (!faultData) {
+            return new Response(JSON.stringify({
+              error: '故障不存在',
+              faultId: faultId
+            }), {
+              status: 404,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            });
+          }
+
+          const fault = JSON.parse(faultData);
+          
+          return new Response(JSON.stringify(fault), {
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+
+        } catch (error) {
+          console.error('获取故障详情失败:', error);
+          return new Response(JSON.stringify({
+            error: 'Failed to get fault',
+            message: error.message
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // 创建新故障
       if (path === '/ws/api/faults' && request.method === 'POST') {
         if (!env.KV_WS_HUB) {
