@@ -669,12 +669,12 @@
                 
                 // 如果有文件上传信息，显示文件列表
                 if (fault.fileUpload && fault.fileUpload.length > 0) {
-                    fault.fileUpload.forEach(fileName => {
+                    fault.fileUpload.forEach(fileInfo => {
                         // 创建一个模拟的File对象
                         const mockFile = {
-                            name: fileName,
-                            size: 0,
-                            type: 'application/octet-stream'
+                            name: fileInfo.name,
+                            size: fileInfo.size || 0,
+                            type: fileInfo.type || 'application/octet-stream'
                         };
                         uploadedFiles.push(mockFile);
                         addFileToList(mockFile);
@@ -690,37 +690,57 @@
         }
         
         // 文件上传处理
-        const fileUpload = document.getElementById('fileUpload');
-        const fileList = document.getElementById('fileList');
-        let uploadedFiles = [];
+const fileUpload = document.getElementById('fileUpload');
+const fileList = document.getElementById('fileList');
+let uploadedFiles = [];
+
+fileUpload.addEventListener('change', function(e) {
+    const files = Array.from(e.target.files);
+    
+    files.forEach(file => {
+        uploadedFiles.push(file);
+        addFileToList(file);
+    });
+    
+    // 清空input以允许重复选择相同文件
+    fileUpload.value = '';
+});
+
+function addFileToList(file) {
+    const fileItem = document.createElement('div');
+    fileItem.className = 'file-item';
+    fileItem.innerHTML = `
+        <span class="file-icon">📄</span>
+        <span class="file-name">${file.name}</span>
+        <span class="file-size">(${formatFileSize(file.size)})</span>
+        <button type="button" class="file-remove" data-file-name="${file.name}">×</button>
+    `;
+    
+    fileList.appendChild(fileItem);
+    
+    // 添加删除文件事件
+    fileItem.querySelector('.file-remove').addEventListener('click', function() {
+        const fileName = this.getAttribute('data-file-name');
+        uploadedFiles = uploadedFiles.filter(f => f.name !== fileName);
         
-        fileUpload.addEventListener('change', function(e) {
-            const files = Array.from(e.target.files);
-            
-            files.forEach(file => {
-                uploadedFiles.push(file);
-                addFileToList(file);
-            });
+        // 重新渲染文件列表
+        fileList.innerHTML = '';
+        uploadedFiles.forEach(file => {
+            addFileToList(file);
         });
-        
-        function addFileToList(file) {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'file-item';
-            fileItem.innerHTML = `
-                <span class="file-icon">📄</span>
-                <span class="file-name">${file.name}</span>
-                <button type="button" class="file-remove" data-file-name="${file.name}">×</button>
-            `;
-            
-            fileList.appendChild(fileItem);
-            
-            // 添加删除文件事件
-            fileItem.querySelector('.file-remove').addEventListener('click', function() {
-                const fileName = this.getAttribute('data-file-name');
-                uploadedFiles = uploadedFiles.filter(f => f.name !== fileName);
-                fileList.removeChild(fileItem);
-            });
-        }
+    });
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
         
         // 显示提示消息
         function showToast(message, type = 'success') {
@@ -745,83 +765,77 @@
         }
         
         // 表单提交处理
-        document.getElementById('fault-form').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            // 获取表单数据
-            const formData = {
-                plant: document.getElementById('plant').value,
-                equipmentName: document.getElementById('equipmentName').value,
-                faultArea: document.getElementById('faultArea').value,
-                faultCategory: document.getElementById('faultCategory').value,
-                faultLevel: document.getElementById('faultLevel').value,
-                reportTime: document.getElementById('reportTime').value,
-                reporter: document.getElementById('reporter').value,
-                faultDescription: document.getElementById('faultDescription').value,
-                troubleshootingSteps: document.getElementById('troubleshootingSteps').value,
-                rootCause: document.getElementById('rootCause').value,
-                resolution: document.getElementById('resolution').value,
-                additionalInfo: document.getElementById('additionalInfo').value,
-                status: 'pending',
-                createTime: new Date().toISOString()
-            };
-            
-            // 处理文件上传
-            if (uploadedFiles.length > 0) {
-                // 在实际应用中，这里应该上传文件并获取URL
-                // 这里简化处理，只记录文件名
-                const fileNames = uploadedFiles.map(file => file.name);
-                formData.fileUpload = fileNames;
-            }
-            
-            try {
-                showLoading();
-                
-                let response;
-                let successMessage;
-                
-                // 判断是创建还是编辑
-                if (isEditMode) {
-                    // 编辑模式，发送PUT请求
-                    const faultId = document.getElementById('faultId').value;
-                    response = await fetch(`https://study-llm.me/ws/api/faults/${faultId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
-                    });
-                    successMessage = '故障信息已成功更新！';
-                } else {
-                    // 创建模式，发送POST请求
-                    response = await fetch('https://study-llm.me/ws/api/faults', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(formData)
-                    });
-                    successMessage = '故障报告已成功提交！';
-                }
-                
-                if (response.ok) {
-                    // 成功创建或更新故障，跳转到故障列表页面
-                    showToast(successMessage);
-                    setTimeout(() => {
-                        window.location.href = 'fault-list.html';
-                    }, 1500);
-                } else {
-                    // 处理错误
-                    const errorData = await response.json();
-                    showToast(`提交失败: ${errorData.error || '未知错误'}`, 'error');
-                }
-            } catch (error) {
-                console.error('提交故障报告时出错:', error);
-                showToast('提交故障报告时出错，请稍后重试', 'error');
-            } finally {
-                hideLoading();
-            }
+    document.getElementById('fault-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // 创建FormData对象以支持文件上传
+        const formData = new FormData();
+        
+        // 添加表单字段
+        formData.append('plant', document.getElementById('plant').value);
+        formData.append('equipmentName', document.getElementById('equipmentName').value);
+        formData.append('faultArea', document.getElementById('faultArea').value);
+        formData.append('faultCategory', document.getElementById('faultCategory').value);
+        formData.append('faultLevel', document.getElementById('faultLevel').value);
+        formData.append('reportTime', document.getElementById('reportTime').value);
+        formData.append('reporter', document.getElementById('reporter').value);
+        formData.append('faultDescription', document.getElementById('faultDescription').value);
+        formData.append('troubleshootingSteps', document.getElementById('troubleshootingSteps').value);
+        formData.append('rootCause', document.getElementById('rootCause').value);
+        formData.append('resolution', document.getElementById('resolution').value);
+        formData.append('additionalInfo', document.getElementById('additionalInfo').value);
+        formData.append('status', 'pending');
+        formData.append('createTime', new Date().toISOString());
+        
+        // 添加文件
+        uploadedFiles.forEach(file => {
+            formData.append('fileUpload', file);
         });
+        
+        try {
+            showLoading();
+            
+            let response;
+            let successMessage;
+            
+            // 判断是创建还是编辑
+            if (isEditMode) {
+                // 编辑模式，发送PUT请求
+                const faultId = document.getElementById('faultId').value;
+                response = await fetch(`https://study-llm.me/ws/api/faults/${faultId}`, {
+                    method: 'PUT',
+                    body: formData
+                    // 注意：使用FormData时不要设置Content-Type头，浏览器会自动设置
+                });
+                successMessage = '故障信息已成功更新！';
+            } else {
+                // 创建模式，发送POST请求
+                response = await fetch('https://study-llm.me/ws/api/faults', {
+                    method: 'POST',
+                    body: formData
+                    // 注意：使用FormData时不要设置Content-Type头，浏览器会自动设置
+                });
+                successMessage = '故障报告已成功提交！';
+            }
+            
+            if (response.ok) {
+                // 成功创建或更新故障，跳转到故障列表页面
+                showToast(successMessage);
+                setTimeout(() => {
+                    window.location.href = 'fault-list.html';
+                }, 1500);
+            } else {
+                // 处理错误
+                const errorData = await response.json();
+                showToast(`提交失败: ${errorData.error || '未知错误'}`, 'error');
+            }
+        } catch (error) {
+            console.error('提交故障报告时出错:', error);
+            showToast('提交故障报告时出错，请稍后重试', 'error');
+        } finally {
+            hideLoading();
+        }
+    });
         
         // 取消按钮处理
         document.getElementById('cancelButton').addEventListener('click', function() {

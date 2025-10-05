@@ -632,7 +632,7 @@
             }
             
             try {
-                const response = await fetch(`https://study-llm.me/ws/api/faults/${faultId}`);
+                const response = await fetch(`/ws/api/faults/${faultId}`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
@@ -737,74 +737,147 @@
         }
         
         // 显示附件信息
-        function displayAttachments(attachments) {
-            const attachmentsContainer = document.getElementById('detail-attachments');
-            
-            if (!attachments || attachments.length === 0) {
-                attachmentsContainer.innerHTML = '<div class="no-attachments">暂无附件</div>';
-                return;
-            }
-            
-            // 分离图片文件和其他文件
-            const imageFiles = attachments.filter(file => {
-                const extension = file.split('.').pop().toLowerCase();
-                return ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension);
-            });
-            
-            const otherFiles = attachments.filter(file => {
-                const extension = file.split('.').pop().toLowerCase();
-                return !['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(extension);
-            });
-            
-            let html = '';
-            
-            // 显示图片文件
-            if (imageFiles.length > 0) {
-                html += '<h4>图片文件</h4>';
-                html += '<div class="image-gallery">';
-                imageFiles.forEach((fileName, index) => {
-                    // 使用文件名作为标识，而不是占位图片
-                    html += `
-                        <div class="image-item">
-                            <div class="image-placeholder">
-                                <span class="file-icon">🖼️</span>
-                                <div class="file-name">${fileName}</div>
-                            </div>
-                            <div class="image-name">${fileName}</div>
-                        </div>
-                    `;
-                });
-                html += '</div>';
-            }
-            
-            // 显示其他文件
-            if (otherFiles.length > 0) {
-                html += '<h4>其他文件</h4>';
-                html += '<ul class="file-list">';
-                otherFiles.forEach(fileName => {
-                    const extension = fileName.split('.').pop().toLowerCase();
-                    let icon = '📄';
-                    
-                    // 根据文件类型设置图标
-                    if (['pdf'].includes(extension)) icon = '📕';
-                    else if (['doc', 'docx'].includes(extension)) icon = '📘';
-                    else if (['xls', 'xlsx'].includes(extension)) icon = '📗';
-                    else if (['ppt', 'pptx'].includes(extension)) icon = '📙';
-                    else if (['txt'].includes(extension)) icon = '📝';
-                    else if (['zip', 'rar', '7z'].includes(extension)) icon = '📦';
-                    
-                    html += `
-                        <li class="file-item">
-                            <span class="file-icon">${icon}</span>
-                            <span class="file-name">${fileName}</span>
-                        </li>
-                    `;
-                });
-                html += '</ul>';
-            }
-            
-            attachmentsContainer.innerHTML = html;
+function displayAttachments(attachments) {
+    const attachmentsContainer = document.getElementById('detail-attachments');
+    attachmentsContainer.innerHTML = '';
+    
+    if (!attachments || attachments.length === 0) {
+        attachmentsContainer.innerHTML = '<div class="no-attachments">暂无附件</div>';
+        return;
+    }
+    
+    // 分离图片和其他文件
+    const images = [];
+    const otherFiles = [];
+    
+    attachments.forEach(attachment => {
+        // 检查是否是图片文件
+        const isImage = attachment.type && attachment.type.startsWith('image/');
+        
+        if (isImage) {
+            images.push(attachment);
+        } else {
+            otherFiles.push(attachment);
         }
+    });
+    
+    // 显示图片
+    if (images.length > 0) {
+        const imageGallery = document.createElement('div');
+        imageGallery.className = 'image-gallery';
+        
+        images.forEach(image => {
+            const imageItem = document.createElement('div');
+            imageItem.className = 'image-item';
+            
+            // 创建图片链接
+            const imageLink = document.createElement('a');
+            imageLink.href = `https://study-llm.me/ws/api/files/${image.id}`;
+            imageLink.target = '_blank';
+            imageLink.className = 'image-link';
+            
+            // 创建图片元素
+            const img = document.createElement('img');
+            img.src = `https://study-llm.me/ws/api/files/${image.id}`;
+            img.alt = image.name;
+            img.className = 'attachment-image';
+            img.title = image.name;
+            
+            imageLink.appendChild(img);
+            
+            // 创建图片名称
+            const imageName = document.createElement('div');
+            imageName.className = 'image-name';
+            imageName.textContent = image.name;
+            
+            imageItem.appendChild(imageLink);
+            imageItem.appendChild(imageName);
+            imageGallery.appendChild(imageItem);
+        });
+        
+        attachmentsContainer.appendChild(imageGallery);
+    }
+    
+    // 显示其他文件
+    if (otherFiles.length > 0) {
+        const fileList = document.createElement('div');
+        fileList.className = 'file-list';
+        
+        otherFiles.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            
+            // 创建文件链接
+            const fileLink = document.createElement('a');
+            fileLink.href = `https://study-llm.me/ws/api/files/${file.id}`;
+            fileLink.target = '_blank';
+            fileLink.className = 'file-link';
+            
+            // 创建文件图标
+            const fileIcon = document.createElement('span');
+            fileIcon.className = 'file-icon';
+            
+            // 根据文件类型设置图标
+            if (file.type) {
+                if (file.type.includes('pdf')) {
+                    fileIcon.textContent = '📄';
+                } else if (file.type.includes('word')) {
+                    fileIcon.textContent = '📝';
+                } else if (file.type.includes('excel') || file.type.includes('spreadsheet')) {
+                    fileIcon.textContent = '📊';
+                } else if (file.type.includes('text')) {
+                    fileIcon.textContent = '📃';
+                } else {
+                    fileIcon.textContent = '📎';
+                }
+            } else {
+                // 根据文件扩展名设置图标
+                const extension = file.name.split('.').pop().toLowerCase();
+                if (['pdf'].includes(extension)) {
+                    fileIcon.textContent = '📄';
+                } else if (['doc', 'docx'].includes(extension)) {
+                    fileIcon.textContent = '📝';
+                } else if (['xls', 'xlsx'].includes(extension)) {
+                    fileIcon.textContent = '📊';
+                } else if (['txt'].includes(extension)) {
+                    fileIcon.textContent = '📃';
+                } else {
+                    fileIcon.textContent = '📎';
+                }
+            }
+            
+            // 创建文件名
+            const fileName = document.createElement('span');
+            fileName.className = 'file-name';
+            fileName.textContent = file.name;
+            
+            // 创建文件大小
+            const fileSize = document.createElement('span');
+            fileSize.className = 'file-size';
+            fileSize.textContent = formatFileSize(file.size);
+            
+            fileLink.appendChild(fileIcon);
+            fileLink.appendChild(fileName);
+            fileLink.appendChild(fileSize);
+            
+            fileItem.appendChild(fileLink);
+            fileList.appendChild(fileItem);
+        });
+        
+        attachmentsContainer.appendChild(fileList);
+    }
+}
+
+// 格式化文件大小
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
         
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {

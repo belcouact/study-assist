@@ -198,6 +198,62 @@ export default {
         }
       }
 
+      // 获取文件内容
+      if (path.match(/^\/ws\/api\/files\/\w+$/) && request.method === 'GET') {
+        if (!env.KV_WS_HUB) {
+          return new Response(JSON.stringify({
+            error: 'KV_WS_HUB not bound'
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+
+        try {
+          const fileId = path.split('/').pop();
+          const fileKey = `file_${fileId}`;
+          const fileData = await env.KV_WS_HUB.get(fileKey, { type: 'arrayBuffer' });
+
+          if (!fileData) {
+            return new Response(JSON.stringify({
+              error: 'File not found'
+            }), {
+              status: 404,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            });
+          }
+
+          // 从文件ID中获取原始文件名（假设文件ID格式为 timestamp_random）
+          // 注意：实际应用中应该从故障记录中获取文件信息
+          const headers = {
+            ...corsHeaders,
+            'Cache-Control': 'public, max-age=3600' // 缓存1小时
+          };
+
+          return new Response(fileData, {
+            headers: headers
+          });
+        } catch (error) {
+          console.error('获取文件失败:', error);
+          return new Response(JSON.stringify({
+            error: 'Failed to get file',
+            message: error.message
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
+      }
+
       // 创建新故障
       if (path === '/ws/api/faults' && request.method === 'POST') {
         if (!env.KV_WS_HUB) {
@@ -213,7 +269,64 @@ export default {
         }
 
         try {
-          const faultData = await request.json();
+          const contentType = request.headers.get('content-type') || '';
+          
+          let faultData;
+          let uploadedFiles = [];
+          
+          // 检查是否是multipart/form-data（包含文件上传）
+          if (contentType.includes('multipart/form-data')) {
+            const formData = await request.formData();
+            
+            // 提取文本字段
+            faultData = {
+              plant: formData.get('plant'),
+              equipmentName: formData.get('equipmentName'),
+              faultArea: formData.get('faultArea'),
+              faultCategory: formData.get('faultCategory'),
+              faultLevel: formData.get('faultLevel'),
+              reportTime: formData.get('reportTime'),
+              reporter: formData.get('reporter'),
+              faultDescription: formData.get('faultDescription'),
+              troubleshootingSteps: formData.get('troubleshootingSteps'),
+              rootCause: formData.get('rootCause'),
+              resolution: formData.get('resolution'),
+              additionalInfo: formData.get('additionalInfo') || '',
+              status: formData.get('status') || 'pending',
+              handler: formData.get('handler') || '',
+              handleTime: formData.get('handleTime') || '',
+              handleDescription: formData.get('handleDescription') || ''
+            };
+            
+            // 处理文件上传
+            const files = formData.getAll('fileUpload');
+            for (const file of files) {
+              if (file instanceof File && file.size > 0) {
+                // 生成唯一文件ID
+                const fileId = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+                const fileKey = `file_${fileId}`;
+                
+                // 读取文件内容
+                const fileBuffer = await file.arrayBuffer();
+                
+                // 存储文件到KV
+                await env.KV_WS_HUB.put(fileKey, fileBuffer);
+                
+                // 记录文件信息
+                uploadedFiles.push({
+                  id: fileId,
+                  name: file.name,
+                  size: file.size,
+                  type: file.type,
+                  key: fileKey
+                });
+              }
+            }
+            
+          } else {
+            // 处理JSON数据（无文件上传）
+            faultData = await request.json();
+          }
           
           // 验证必填字段
           const requiredFields = ['plant', 'equipmentName', 'faultArea', 'faultCategory', 'faultLevel', 'reportTime', 'reporter', 'faultDescription', 'troubleshootingSteps', 'rootCause', 'resolution'];
@@ -246,7 +359,7 @@ export default {
             rootCause: faultData.rootCause,
             resolution: faultData.resolution,
             additionalInfo: faultData.additionalInfo || '',
-            fileUpload: faultData.fileUpload || [],
+            fileUpload: uploadedFiles.length > 0 ? uploadedFiles : (faultData.fileUpload || []),
             status: faultData.status || 'pending',
             handler: faultData.handler || '',
             handleTime: faultData.handleTime || '',
