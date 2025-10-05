@@ -148,6 +148,127 @@
             cursor: pointer;
         }
         
+        /* 登录窗口样式 */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .login-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            padding: 2rem;
+            width: 90%;
+            max-width: 400px;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .login-header h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-header p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
+        .login-button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.8rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .login-button:hover {
+            background-color: #2980b9;
+        }
+        
+        .login-error {
+            color: #e74c3c;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 0.5rem;
+            display: none;
+        }
+        
+        .login-loading {
+            display: none;
+            text-align: center;
+            margin-top: 0.5rem;
+        }
+        
+        .login-loading::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
         @media (max-width: 768px) {
             .nav-container {
                 flex-direction: column;
@@ -207,9 +328,33 @@
                 <a href="new-fault.html">新建故障</a>
                 <a href="fault-statistics.html">故障统计</a>
                 <a href="info-management.html">信息管理</a>
+                <a href="#" id="logoutLink" style="display: none;">退出登录</a>
             </nav>
         </div>
     </header>
+    
+    <!-- 登录窗口 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-container">
+            <div class="login-header">
+                <h2>系统登录</h2>
+                <p>请输入您的凭据以访问系统</p>
+            </div>
+            <form class="login-form" id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" value="ws" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="login-button">登录</button>
+                <div class="login-error" id="loginError">用户名或密码错误，请重试</div>
+                <div class="login-loading" id="loginLoading"></div>
+            </form>
+        </div>
+    </div>
     
     <main>
         <div class="cards-container">
@@ -248,6 +393,91 @@
         document.getElementById('mobileMenuToggle').addEventListener('click', function() {
             const navMenu = document.getElementById('navMenu');
             navMenu.classList.toggle('active');
+        });
+        
+        // 登录功能
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginOverlay = document.getElementById('loginOverlay');
+            const loginForm = document.getElementById('loginForm');
+            const loginError = document.getElementById('loginError');
+            const loginLoading = document.getElementById('loginLoading');
+            const logoutLink = document.getElementById('logoutLink');
+            
+            // 检查是否已经登录
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn === 'true') {
+                loginOverlay.style.display = 'none';
+                logoutLink.style.display = 'block';
+            } else {
+                loginOverlay.style.display = 'flex';
+                logoutLink.style.display = 'none';
+            }
+            
+            // 处理登录表单提交
+            loginForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                // 显示加载状态
+                loginError.style.display = 'none';
+                loginLoading.style.display = 'block';
+                
+                // 模拟API请求延迟
+                setTimeout(function() {
+                    // 获取环境变量中的密码
+                    // 尝试从服务器获取环境变量
+                    fetch('http://localhost:3001/api/env/ws-login-pwd')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to fetch password');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const envPassword = data.value || 'ws'; // 默认密码，如果获取失败则使用默认值
+                            
+                            // 验证用户名和密码
+                            if (username === 'ws' && password === envPassword) {
+                                // 登录成功
+                                localStorage.setItem('isLoggedIn', 'true');
+                                loginOverlay.style.display = 'none';
+                                logoutLink.style.display = 'block';
+                            } else {
+                                // 登录失败
+                                loginError.style.display = 'block';
+                                loginLoading.style.display = 'none';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error fetching password:', error);
+                            // 如果获取环境变量失败，使用默认密码
+                            const envPassword = 'ws123';
+                            
+                            // 验证用户名和密码
+                            if (username === 'ws' && password === envPassword) {
+                                // 登录成功
+                                localStorage.setItem('isLoggedIn', 'true');
+                                loginOverlay.style.display = 'none';
+                                logoutLink.style.display = 'block';
+                            } else {
+                                // 登录失败
+                                loginError.style.display = 'block';
+                                loginLoading.style.display = 'none';
+                            }
+                        });
+                }, 1000);
+            });
+            
+            // 处理退出登录
+            logoutLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                localStorage.removeItem('isLoggedIn');
+                loginOverlay.style.display = 'flex';
+                logoutLink.style.display = 'none';
+                document.getElementById('password').value = '';
+            });
         });
     </script>
 </body>

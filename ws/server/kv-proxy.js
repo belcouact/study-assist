@@ -22,6 +22,23 @@ const headers = {
     'Authorization': `Bearer ${KV_CONFIG.apiToken}`
 };
 
+// 获取环境变量
+app.get('/api/env/:key', (req, res) => {
+    try {
+        const { key } = req.params;
+        const envValue = process.env[key];
+        
+        if (envValue !== undefined) {
+            res.json({ key, value: envValue });
+        } else {
+            res.status(404).json({ error: `Environment variable ${key} not found` });
+        }
+    } catch (error) {
+        console.error('Error getting environment variable:', error);
+        res.status(500).json({ error: 'Failed to get environment variable' });
+    }
+});
+
 // 获取KV值
 app.get('/api/kv/:key', async (req, res) => {
     try {
