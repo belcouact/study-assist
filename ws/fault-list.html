@@ -120,6 +120,31 @@
             background-color: #2980b9;
         }
         
+        .filter-select {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .action-btn {
+            padding: 0.25rem 0.5rem;
+            margin-right: 0.25rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .view-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .process-btn {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
         .fault-table {
             width: 100%;
             border-collapse: collapse;
@@ -259,9 +284,22 @@
         
         <div class="fault-list-container">
             <div class="filter-bar">
-                <input type="text" class="search-box" placeholder="搜索设备名称、故障类型或处理人员...">
+                <input type="text" class="search-box" id="search" placeholder="搜索设备名称、故障类型或处理人员...">
+                <select id="status-filter" class="filter-select">
+                    <option value="">所有状态</option>
+                    <option value="pending">待处理</option>
+                    <option value="processing">处理中</option>
+                    <option value="completed">已完成</option>
+                </select>
+                <select id="type-filter" class="filter-select">
+                    <option value="">所有类型</option>
+                    <option value="机械故障">机械故障</option>
+                    <option value="电气故障">电气故障</option>
+                    <option value="软件故障">软件故障</option>
+                </select>
                 <button class="filter-button">筛选</button>
             </div>
+            <div id="loading-indicator" style="display: none; text-align: center; padding: 20px;">加载中...</div>
             
             <table class="fault-table">
                 <thead>
@@ -275,34 +313,8 @@
                         <th>操作</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr>
-                        <td>EQ001</td>
-                        <td>生产线A</td>
-                        <td>机械故障</td>
-                        <td>2023-06-15 09:30</td>
-                        <td><span class="status-badge status-completed">已完成</span></td>
-                        <td>张工</td>
-                        <td><a href="#">查看详情</a></td>
-                    </tr>
-                    <tr>
-                        <td>EQ002</td>
-                        <td>检测仪B</td>
-                        <td>电气故障</td>
-                        <td>2023-06-16 14:20</td>
-                        <td><span class="status-badge status-processing">处理中</span></td>
-                        <td>李工</td>
-                        <td><a href="#">查看详情</a></td>
-                    </tr>
-                    <tr>
-                        <td>EQ003</td>
-                        <td>传送带C</td>
-                        <td>软件故障</td>
-                        <td>2023-06-17 10:45</td>
-                        <td><span class="status-badge status-pending">待处理</span></td>
-                        <td>-</td>
-                        <td><a href="#">查看详情</a></td>
-                    </tr>
+                <tbody id="fault-table-body">
+                    <!-- 数据将通过JavaScript动态加载 -->
                 </tbody>
             </table>
         </div>
@@ -313,7 +325,182 @@
         <div class="footer-text">网页基于智谱大模型GLM-4.5创建</div>
     </footer>
     
+    <script src="js/config.js"></script>
+    <script src="js/kv-storage.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化故障数据管理器
+            const faultManager = new FaultDataManager();
+            
+            // 获取DOM元素
+            const searchInput = document.getElementById('search');
+            const statusFilter = document.getElementById('status-filter');
+            const typeFilter = document.getElementById('type-filter');
+            const faultTableBody = document.getElementById('fault-table-body');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            // 显示加载指示器
+            loadingIndicator.style.display = 'block';
+            
+            // 获取并渲染故障数据
+            faultManager.getAllFaults()
+                .then(faults => {
+                    renderFaultTable(faults);
+                    loadingIndicator.style.display = 'none';
+                })
+                .catch(error => {
+                    console.error('获取故障数据失败:', error);
+                    loadingIndicator.style.display = 'none';
+                    // 显示错误消息
+                    faultTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: #e74c3c;">
+                                获取故障数据失败，请稍后再试
+                            </td>
+                        </tr>
+                    `;
+                });
+            
+            // 搜索和筛选功能
+            searchInput.addEventListener('input', filterFaults);
+            statusFilter.addEventListener('change', filterFaults);
+            typeFilter.addEventListener('change', filterFaults);
+            
+            // 筛选故障数据
+            function filterFaults() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const statusValue = statusFilter.value;
+                const typeValue = typeFilter.value;
+                
+                faultManager.getAllFaults()
+                    .then(faults => {
+                        const filteredFaults = faults.filter(fault => {
+                            const matchesSearch = 
+                                fault.equipmentId.toLowerCase().includes(searchTerm) ||
+                                fault.equipmentName.toLowerCase().includes(searchTerm) ||
+                                fault.faultType.toLowerCase().includes(searchTerm) ||
+                                (fault.handler && fault.handler.toLowerCase().includes(searchTerm));
+                            
+                            const matchesStatus = !statusValue || fault.status === statusValue;
+                            const matchesType = !typeValue || fault.faultType === typeValue;
+                            
+                            return matchesSearch && matchesStatus && matchesType;
+                        });
+                        
+                        renderFaultTable(filteredFaults);
+                    })
+                    .catch(error => {
+                        console.error('筛选故障数据失败:', error);
+                    });
+            }
+            
+            // 渲染故障表格
+            function renderFaultTable(faults) {
+                faultTableBody.innerHTML = '';
+                
+                if (faults.length === 0) {
+                    faultTableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center;">
+                                没有找到匹配的故障记录
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                faults.forEach(fault => {
+                    const row = document.createElement('tr');
+                    
+                    // 设置状态标签样式
+                    let statusClass = '';
+                    let statusText = '';
+                    
+                    switch(fault.status) {
+                        case 'completed':
+                            statusClass = 'status-completed';
+                            statusText = '已完成';
+                            break;
+                        case 'processing':
+                            statusClass = 'status-processing';
+                            statusText = '处理中';
+                            break;
+                        case 'pending':
+                            statusClass = 'status-pending';
+                            statusText = '待处理';
+                            break;
+                        default:
+                            statusClass = '';
+                            statusText = '未知';
+                    }
+                    
+                    row.innerHTML = `
+                        <td>${fault.equipmentId}</td>
+                        <td>${fault.equipmentName}</td>
+                        <td>${fault.faultType}</td>
+                        <td>${fault.reportTime}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${fault.handler || '-'}</td>
+                        <td>
+                            <button class="action-btn view-btn" data-id="${fault.id}">查看</button>
+                            ${fault.status === 'pending' ? `<button class="action-btn process-btn" data-id="${fault.id}">处理</button>` : ''}
+                        </td>
+                    `;
+                    
+                    faultTableBody.appendChild(row);
+                });
+                
+                // 添加按钮事件监听
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const faultId = this.getAttribute('data-id');
+                        viewFaultDetails(faultId);
+                    });
+                });
+                
+                document.querySelectorAll('.process-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const faultId = this.getAttribute('data-id');
+                        processFault(faultId);
+                    });
+                });
+            }
+            
+            // 查看故障详情
+            function viewFaultDetails(faultId) {
+                faultManager.getAllFaults()
+                    .then(faults => {
+                        const fault = faults.find(f => f.id === faultId);
+                        if (fault) {
+                            alert(`故障详情：\n\n设备ID: ${fault.equipmentId}\n设备名称: ${fault.equipmentName}\n故障类型: ${fault.faultType}\n报告时间: ${fault.reportTime}\n状态: ${fault.status}\n处理人: ${fault.handler || '未分配'}\n描述: ${fault.description}\n完成时间: ${fault.completionTime || '未完成'}`);
+                        } else {
+                            alert('未找到故障记录');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('获取故障详情失败:', error);
+                        alert('获取故障详情失败，请稍后再试');
+                    });
+            }
+            
+            // 处理故障
+            function processFault(faultId) {
+                const handler = prompt('请输入处理人姓名:');
+                if (handler) {
+                    faultManager.updateFaultStatus(faultId, 'processing', handler)
+                        .then(updatedFault => {
+                            alert(`故障已分配给 ${handler}，状态更新为处理中`);
+                            // 刷新表格
+                            filterFaults();
+                        })
+                        .catch(error => {
+                            console.error('更新故障状态失败:', error);
+                            alert('更新故障状态失败，请稍后再试');
+                        });
+                }
+            }
+        });
+        
         // 移动端菜单切换
         document.getElementById('mobileMenuToggle').addEventListener('click', function() {
             const navMenu = document.getElementById('navMenu');
