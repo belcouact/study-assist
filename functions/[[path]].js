@@ -22,6 +22,26 @@ export async function onRequest(context) {
   if (pathname.startsWith('/api/')) {
     // Handle API routes
     
+    // Environment variable API
+    if (pathname.startsWith('/api/env/')) {
+      // Forward the request to the env handler
+      return await import('./api/env.js')
+        .then(module => module.onRequest(context))
+        .catch(error => {
+          console.error('Error loading env module:', error);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'Internal server error loading env module' 
+          }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            }
+          });
+        });
+    }
+    
     // Edge TTS API
     if (pathname === '/api/edge-tts') {
       // Forward the request to the edge-tts handler
