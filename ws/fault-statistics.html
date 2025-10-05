@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故障统计 - 戈尔设备故障管理</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/responsive.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* 导航栏样式 */
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .nav-menu {
+            display: flex;
+            gap: 1.5rem;
+        }
+        
+        .nav-menu a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-menu a:hover {
+            background-color: #34495e;
+        }
+        
+        /* 主内容区域 */
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .content-header {
+            margin-bottom: 2rem;
+        }
+        
+        .content-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .content-description {
+            color: #7f8c8d;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .chart-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        
+        .chart-filter {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .filter-button {
+            padding: 0.5rem 1rem;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .filter-button:hover {
+            background-color: #e9ecef;
+        }
+        
+        .filter-button.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .chart-placeholder {
+            height: 300px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #7f8c8d;
+        }
+        
+        .table-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+        
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .stats-table th, .stats-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .stats-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .stats-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .trend-up {
+            color: #e74c3c;
+        }
+        
+        .trend-down {
+            color: #2ecc71;
+        }
+        
+        /* 页脚样式 */
+        footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        
+        .footer-divider {
+            border-top: 1px solid #34495e;
+            margin-bottom: 1rem;
+        }
+        
+        .footer-text {
+            font-size: 0.9rem;
+            color: #ecf0f1;
+        }
+        
+        /* 移动端响应式设计 */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .mobile-menu-toggle {
+                display: block;
+                position: absolute;
+                right: 1rem;
+                top: 1rem;
+            }
+            
+            .nav-menu {
+                flex-direction: column;
+                width: 100%;
+                margin-top: 1rem;
+                display: none;
+            }
+            
+            .nav-menu.active {
+                display: flex;
+            }
+            
+            .stats-container {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                gap: 1rem;
+            }
+            
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .chart-filter {
+                width: 100%;
+                overflow-x: auto;
+            }
+            
+            main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="nav-container">
+            <div class="page-title">戈尔设备故障管理</div>
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+            <nav class="nav-menu" id="navMenu">
+                <a href="index.html">首页</a>
+                <a href="fault-list.html">故障列表</a>
+                <a href="new-fault.html">新建故障</a>
+                <a href="fault-statistics.html">故障统计</a>
+                <a href="info-management.html">信息管理</a>
+            </nav>
+        </div>
+    </header>
+    
+    <main>
+        <div class="content-header">
+            <h1 class="content-title">故障统计</h1>
+            <p class="content-description">查看设备故障数据分析与趋势</p>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">24</div>
+                <div class="stat-label">本月故障总数</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-value">2.5天</div>
+                <div class="stat-label">平均处理时间</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">🔧</div>
+                <div class="stat-value">18</div>
+                <div class="stat-label">已处理故障</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-value">6</div>
+                <div class="stat-label">待处理故障</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">故障趋势分析</h2>
+                <div class="chart-filter">
+                    <button class="filter-button active">本月</button>
+                    <button class="filter-button">本季度</button>
+                    <button class="filter-button">本年度</button>
+                </div>
+            </div>
+            <div class="chart-placeholder">
+                <p>故障趋势图表将显示在这里</p>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">故障类型分布</h2>
+            </div>
+            <div class="chart-placeholder">
+                <p>故障类型分布图表将显示在这里</p>
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <div class="chart-header">
+                <h2 class="chart-title">设备故障排行</h2>
+            </div>
+            <table class="stats-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>设备名称</th>
+                        <th>故障次数</th>
+                        <th>占比</th>
+                        <th>趋势</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>生产线A</td>
+                        <td>8</td>
+                        <td>33.3%</td>
+                        <td><span class="trend-up">↑ 12%</span></td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>检测仪B</td>
+                        <td>6</td>
+                        <td>25%</td>
+                        <td><span class="trend-down">↓ 5%</span></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>传送带C</td>
+                        <td>4</td>
+                        <td>16.7%</td>
+                        <td><span class="trend-up">↑ 3%</span></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>包装机D</td>
+                        <td>3</td>
+                        <td>12.5%</td>
+                        <td><span class="trend-down">↓ 8%</span></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>控制器E</td>
+                        <td>3</td>
+                        <td>12.5%</td>
+                        <td><span class="trend-up">↑ 2%</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+    
+    <footer>
+        <div class="footer-divider"></div>
+        <div class="footer-text">网页基于智谱大模型GLM-4.5创建</div>
+    </footer>
+    
+    <script>
+        // 移动端菜单切换
+        document.getElementById('mobileMenuToggle').addEventListener('click', function() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.classList.toggle('active');
+        });
+        
+        // 图表筛选按钮切换
+        document.querySelectorAll('.filter-button').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.filter-button').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
