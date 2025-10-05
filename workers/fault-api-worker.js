@@ -105,7 +105,8 @@ export default {
               const fault = JSON.parse(faultData);
               
               // 验证故障数据的基本结构
-              if (fault && typeof fault === 'object' && fault.id) {
+              if (fault && typeof fault === 'object' && fault.id && fault.plant && fault.equipmentName && fault.faultArea && 
+                  fault.faultCategory && fault.faultLevel && fault.reportTime && fault.reporter) {
                 faults.push(fault);
               } else {
                 console.warn(`故障 ${id} 数据结构无效:`, fault);
@@ -156,18 +157,39 @@ export default {
 
         try {
           const faultData = await request.json();
+          
+          // 验证必填字段
+          const requiredFields = ['plant', 'equipmentName', 'faultArea', 'faultCategory', 'faultLevel', 'reportTime', 'reporter', 'faultDescription', 'troubleshootingSteps', 'rootCause', 'resolution'];
+          for (const field of requiredFields) {
+            if (!faultData[field]) {
+              return new Response(JSON.stringify({ error: `缺少必填字段: ${field}` }), {
+                status: 400,
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...corsHeaders
+                }
+              });
+            }
+          }
+          
           const faultId = Date.now().toString();
           
           // 添加默认字段
           const newFault = {
             id: faultId,
-            equipmentId: faultData.equipmentId || '',
-            equipmentName: faultData.equipmentName || '',
-            faultType: faultData.faultType || '',
-            faultLevel: faultData.faultLevel || 'medium',
-            reportTime: faultData.reportTime || new Date().toISOString(),
-            reporter: faultData.reporter || '',
-            faultDescription: faultData.faultDescription || '',
+            plant: faultData.plant,
+            equipmentName: faultData.equipmentName,
+            faultArea: faultData.faultArea,
+            faultCategory: faultData.faultCategory,
+            faultLevel: faultData.faultLevel,
+            reportTime: faultData.reportTime,
+            reporter: faultData.reporter,
+            faultDescription: faultData.faultDescription,
+            troubleshootingSteps: faultData.troubleshootingSteps,
+            rootCause: faultData.rootCause,
+            resolution: faultData.resolution,
+            additionalInfo: faultData.additionalInfo || '',
+            fileUpload: faultData.fileUpload || [],
             status: faultData.status || 'pending',
             handler: faultData.handler || '',
             handleTime: faultData.handleTime || '',
@@ -210,85 +232,97 @@ export default {
       }
 
       // 更新故障状态
-      if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
-        if (!env.KV_WS_HUB) {
-          return new Response(JSON.stringify({
-            error: 'KV_WS_HUB not bound'
-          }), {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders
-            }
-          });
-        }
-
-        try {
-          const faultId = path.split('/').pop();
-          console.log('更新故障状态:', faultId);
-          
-          const requestBody = await request.json();
-          const { status, handler, handleDescription } = requestBody;
-          
-          // 获取现有故障数据
-          const existingData = await env.KV_WS_HUB.get(`fault_${faultId}`);
-          if (!existingData) {
-            return new Response(JSON.stringify({
-              error: '故障不存在',
-              faultId: faultId
-            }), {
-              status: 404,
-              headers: {
-                'Content-Type': 'application/json',
-                ...corsHeaders
-              }
-            });
-          }
-
-          const faultData = JSON.parse(existingData);
-          
-          // 更新字段
-          if (status) faultData.status = status;
-          if (handler) faultData.handler = handler;
-          if (handleDescription) faultData.handleDescription = handleDescription;
-          
-          // 如果状态变为处理中或已完成，更新处理时间
-          if (status && (status === 'processing' || status === 'completed') && faultData.status !== status) {
-            faultData.handleTime = new Date().toISOString();
-          }
-          
-          faultData.updateTime = new Date().toISOString();
-
-          // 保存更新后的数据
-          await env.KV_WS_HUB.put(`fault_${faultId}`, JSON.stringify(faultData));
-
-          console.log(`故障 ${faultId} 状态已更新为: ${status}`);
-
-          return new Response(JSON.stringify({
-            success: true,
-            fault: faultData,
-            message: '故障更新成功'
-          }), {
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders
-            }
-          });
-
-        } catch (error) {
-          console.error('更新故障状态失败:', error);
-          return new Response(JSON.stringify({
-            error: 'Failed to update fault',
-            message: error.message
-          }), {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              ...corsHeaders
-            }
-          });
-        }
+if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
+  if (!env.KV_WS_HUB) {
+    return new Response(JSON.stringify({
+      error: 'KV_WS_HUB not bound'
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
       }
+    });
+  }
+
+  try {
+    const faultId = path.split('/').pop();
+    console.log('更新故障状态:', faultId);
+    
+    const requestBody = await request.json();
+    
+    // 获取现有故障数据
+    const existingData = await env.KV_WS_HUB.get(`fault_${faultId}`);
+    if (!existingData) {
+      return new Response(JSON.stringify({
+        error: '故障不存在',
+        faultId: faultId
+      }), {
+        status: 404,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
+    }
+
+    const faultData = JSON.parse(existingData);
+    
+    // 更新字段
+    if (requestBody.plant !== undefined) faultData.plant = requestBody.plant;
+    if (requestBody.equipmentName !== undefined) faultData.equipmentName = requestBody.equipmentName;
+    if (requestBody.faultArea !== undefined) faultData.faultArea = requestBody.faultArea;
+    if (requestBody.faultCategory !== undefined) faultData.faultCategory = requestBody.faultCategory;
+    if (requestBody.faultLevel !== undefined) faultData.faultLevel = requestBody.faultLevel;
+    if (requestBody.reportTime !== undefined) faultData.reportTime = requestBody.reportTime;
+    if (requestBody.reporter !== undefined) faultData.reporter = requestBody.reporter;
+    if (requestBody.faultDescription !== undefined) faultData.faultDescription = requestBody.faultDescription;
+    if (requestBody.troubleshootingSteps !== undefined) faultData.troubleshootingSteps = requestBody.troubleshootingSteps;
+    if (requestBody.rootCause !== undefined) faultData.rootCause = requestBody.rootCause;
+    if (requestBody.resolution !== undefined) faultData.resolution = requestBody.resolution;
+    if (requestBody.additionalInfo !== undefined) faultData.additionalInfo = requestBody.additionalInfo;
+    if (requestBody.fileUpload !== undefined) faultData.fileUpload = requestBody.fileUpload;
+    if (requestBody.status !== undefined) faultData.status = requestBody.status;
+    if (requestBody.handler !== undefined) faultData.handler = requestBody.handler;
+    if (requestBody.handleDescription !== undefined) faultData.handleDescription = requestBody.handleDescription;
+    
+    // 如果状态变为处理中或已完成，更新处理时间
+    if (requestBody.status && (requestBody.status === 'processing' || requestBody.status === 'completed') && faultData.status !== requestBody.status) {
+      faultData.handleTime = new Date().toISOString();
+    }
+    
+    faultData.updateTime = new Date().toISOString();
+
+    // 保存更新后的数据
+    await env.KV_WS_HUB.put(`fault_${faultId}`, JSON.stringify(faultData));
+
+    console.log(`故障 ${faultId} 状态已更新为: ${requestBody.status}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      fault: faultData,
+      message: '故障更新成功'
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+
+  } catch (error) {
+    console.error('更新故障状态失败:', error);
+    return new Response(JSON.stringify({
+      error: 'Failed to update fault',
+      message: error.message
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  }
+}
 
       // 删除故障
       if (path.startsWith('/ws/api/faults/') && request.method === 'DELETE') {
