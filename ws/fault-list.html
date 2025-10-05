@@ -503,24 +503,25 @@
             </div>
             
             <table class="fault-table">
-                <thead>
-                    <tr>
-                        <th>故障ID</th>
-                        <th>工厂</th>
-                        <th>故障设备</th>
-                        <th>故障区域</th>
-                        <th>故障分类</th>
-                        <th>故障等级</th>
-                        <th>报告时间</th>
-                        <th>报告人</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="fault-table-body">
-                    <!-- 故障数据将通过JavaScript动态加载 -->
-                </tbody>
-            </table>
+                    <thead>
+                        <tr>
+                            <th>故障ID</th>
+                            <th>工厂</th>
+                            <th>故障设备</th>
+                            <th>故障区域</th>
+                            <th>故障分类</th>
+                            <th>故障等级</th>
+                            <th>故障描述</th>
+                            <th>报告时间</th>
+                            <th>报告人</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fault-table-body">
+                        <!-- 故障数据将通过JavaScript动态加载 -->
+                    </tbody>
+                </table>
         </div>
     </main>
     
@@ -635,6 +636,11 @@ async function loadFaultData() {
                         // 格式化时间
                         const reportTime = fault.reportTime ? new Date(fault.reportTime).toLocaleString() : '未知时间';
                         
+                        // 格式化故障描述，只显示前50个字符
+                        const shortDescription = fault.faultDescription && fault.faultDescription.length > 50 
+                            ? fault.faultDescription.substring(0, 50) + '...' 
+                            : fault.faultDescription || '无描述';
+                        
                         row.innerHTML = `
                             <td>${fault.id || '未知'}</td>
                             <td>${fault.plant || '未知工厂'}</td>
@@ -642,14 +648,14 @@ async function loadFaultData() {
                             <td>${fault.faultArea || '未知区域'}</td>
                             <td>${fault.faultCategory || '未知分类'}</td>
                             <td><span class="level-badge ${levelClass}">${levelText}</span></td>
+                            <td title="${fault.faultDescription || ''}">${shortDescription}</td>
                             <td>${reportTime}</td>
                             <td>${fault.reporter || '未知'}</td>
                             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                             <td>
                                 <div class="action-buttons">
-                                    <button class="btn btn-primary" onclick="viewFault('${fault.id}')">查看</button>
-                                    ${fault.status === 'pending' ? `<button class="btn btn-success" onclick="processFault('${fault.id}')">处理</button>` : ''}
-                                    <button class="btn btn-danger" onclick="deleteFault('${fault.id}')">删除</button>
+                                    <button class="btn btn-primary" onclick="viewFaultDetail('${fault.id}')">查看</button>
+                                    <button class="btn btn-success" onclick="editFault('${fault.id}')">编辑</button>
                                 </div>
                             </td>
                         `;
@@ -678,7 +684,19 @@ async function loadFaultData() {
             }
         }
 
-        // 查看故障详情
+        // 查看故障详情（新页面）
+        function viewFaultDetail(faultId) {
+            // 跳转到故障详情页面
+            window.location.href = `fault-detail.html?id=${faultId}`;
+        }
+        
+        // 编辑故障
+        function editFault(faultId) {
+            // 跳转到新建故障页面，并传递故障ID用于编辑
+            window.location.href = `new-fault.html?id=${faultId}`;
+        }
+
+        // 查看故障详情（模态框）- 保留原有函数以防其他地方调用
 async function viewFault(faultId) {
     try {
         const response = await fetch(`https://study-llm.me/ws/api/faults/${faultId}`);
