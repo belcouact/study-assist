@@ -269,6 +269,52 @@
             border-bottom: 1px solid #ddd;
         }
         
+        /* 可调整列宽的表格样式 */
+        .resizable-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        
+        .resizable-table th, .resizable-table td {
+            position: relative;
+        }
+        
+        /* 列宽调整手柄 */
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            user-select: none;
+        }
+        
+        .resize-handle:hover {
+            background-color: rgba(52, 152, 219, 0.3);
+        }
+        
+        .resize-handle.active {
+            background-color: rgba(52, 152, 219, 0.5);
+        }
+        
+        /* 调整时的遮罩层 */
+        .resize-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .resize-overlay.active {
+            display: block;
+        }
+        
         /* 故障描述列特殊样式 */
         .fault-table td:nth-child(7) {
             max-width: 300px;
@@ -622,6 +668,7 @@
                 .pagination-container {
                     flex-wrap: nowrap;
                     justify-content: space-between;
+                    align-items: center;
                 }
                 
                 .pagination-controls {
@@ -763,20 +810,20 @@
             </div>
             
             <div class="table-container">
-                <table class="fault-table">
+                <table class="fault-table resizable-table" id="fault-table">
                     <thead>
                         <tr>
-                            <th>故障ID</th>
-                            <th>工厂</th>
-                            <th>故障设备</th>
-                            <th>故障区域</th>
-                            <th>故障分类</th>
-                            <th>故障等级</th>
-                            <th>故障描述</th>
-                            <th>报告时间</th>
-                            <th>报告人</th>
-                            <th>状态</th>
-                            <th>操作</th>
+                            <th>故障ID<div class="resize-handle"></div></th>
+                            <th>工厂<div class="resize-handle"></div></th>
+                            <th>故障设备<div class="resize-handle"></div></th>
+                            <th>故障区域<div class="resize-handle"></div></th>
+                            <th>故障分类<div class="resize-handle"></div></th>
+                            <th>故障等级<div class="resize-handle"></div></th>
+                            <th>故障描述<div class="resize-handle"></div></th>
+                            <th>报告时间<div class="resize-handle"></div></th>
+                            <th>报告人<div class="resize-handle"></div></th>
+                            <th>状态<div class="resize-handle"></div></th>
+                            <th>操作<div class="resize-handle"></div></th>
                         </tr>
                     </thead>
                     <tbody id="fault-table-body">
@@ -784,6 +831,9 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- 列宽调整遮罩层 -->
+            <div class="resize-overlay" id="resizeOverlay"></div>
             
             <!-- 分页控件 -->
             <div class="pagination-container">
@@ -1056,6 +1106,9 @@ function renderFaultTable() {
         
         tableBody.appendChild(row);
     });
+    
+    // 加载保存的列宽设置
+    loadColumnWidths();
 }
 
 // 更新分页控件
@@ -1653,9 +1706,205 @@ function resetFilters() {
             if (reporterFilter) reporterFilter.addEventListener('change', filterFaults);
             if (searchInput) searchInput.addEventListener('input', filterFaults);
             
+            // 初始化列宽调整功能
+            initColumnResizing();
+            
             // 加载故障数据
             loadFaultData();
         });
+        
+        // 列宽调整功能
+        function initColumnResizing() {
+            const table = document.getElementById('fault-table');
+            if (!table) return;
+            
+            const resizeHandles = table.querySelectorAll('.resize-handle');
+            const resizeOverlay = document.getElementById('resizeOverlay');
+            
+            let currentColumn = null;
+            let startX = 0;
+            let startWidth = 0;
+            let isResizing = false;
+            
+            // 为每个调整手柄添加事件监听器
+            resizeHandles.forEach(handle => {
+                handle.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    
+                    // 获取当前列索引
+                    const th = this.parentElement;
+                    const ths = Array.from(th.parentElement.children);
+                    const columnIndex = ths.indexOf(th);
+                    
+                    currentColumn = columnIndex;
+                    startX = e.pageX;
+                    startWidth = th.offsetWidth;
+                    isResizing = true;
+                    
+                    // 显示遮罩层，防止文本选择
+                    if (resizeOverlay) {
+                        resizeOverlay.style.display = 'block';
+                    }
+                    
+                    // 添加临时样式
+                    document.body.style.cursor = 'col-resize';
+                    document.body.style.userSelect = 'none';
+                });
+            });
+            
+            // 添加全局鼠标移动事件
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const diffX = e.pageX - startX;
+                const newWidth = Math.max(50, startWidth + diffX); // 最小宽度为50px
+                
+                // 更新表头宽度
+                const ths = table.querySelectorAll('thead th');
+                if (ths[currentColumn]) {
+                    ths[currentColumn].style.width = `${newWidth}px`;
+                }
+                
+                // 更新表格列宽度
+                const tableRows = table.querySelectorAll('tbody tr');
+                tableRows.forEach(row => {
+                    const tds = row.querySelectorAll('td');
+                    if (tds[currentColumn]) {
+                        tds[currentColumn].style.width = `${newWidth}px`;
+                    }
+                });
+            });
+            
+            // 添加全局鼠标释放事件
+            document.addEventListener('mouseup', function() {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                currentColumn = null;
+                
+                // 隐藏遮罩层
+                if (resizeOverlay) {
+                    resizeOverlay.style.display = 'none';
+                }
+                
+                // 恢复默认样式
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                
+                // 保存列宽到本地存储（可选）
+                saveColumnWidths();
+            });
+            
+            // 添加触摸事件支持（移动设备）
+            resizeHandles.forEach(handle => {
+                handle.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const th = this.parentElement;
+                    const ths = Array.from(th.parentElement.children);
+                    const columnIndex = ths.indexOf(th);
+                    
+                    currentColumn = columnIndex;
+                    startX = touch.pageX;
+                    startWidth = th.offsetWidth;
+                    isResizing = true;
+                    
+                    // 显示遮罩层
+                    if (resizeOverlay) {
+                        resizeOverlay.style.display = 'block';
+                    }
+                }, { passive: false });
+            });
+            
+            // 添加触摸移动事件
+            document.addEventListener('touchmove', function(e) {
+                if (!isResizing) return;
+                
+                const touch = e.touches[0];
+                const diffX = touch.pageX - startX;
+                const newWidth = Math.max(50, startWidth + diffX); // 最小宽度为50px
+                
+                // 更新表头宽度
+                const ths = table.querySelectorAll('thead th');
+                if (ths[currentColumn]) {
+                    ths[currentColumn].style.width = `${newWidth}px`;
+                }
+                
+                // 更新表格列宽度
+                const tableRows = table.querySelectorAll('tbody tr');
+                tableRows.forEach(row => {
+                    const tds = row.querySelectorAll('td');
+                    if (tds[currentColumn]) {
+                        tds[currentColumn].style.width = `${newWidth}px`;
+                    }
+                });
+            }, { passive: false });
+            
+            // 添加触摸结束事件
+            document.addEventListener('touchend', function() {
+                if (!isResizing) return;
+                
+                isResizing = false;
+                currentColumn = null;
+                
+                // 隐藏遮罩层
+                if (resizeOverlay) {
+                    resizeOverlay.style.display = 'none';
+                }
+                
+                // 保存列宽到本地存储（可选）
+                saveColumnWidths();
+            });
+        }
+        
+        // 保存列宽到本地存储
+        function saveColumnWidths() {
+            const table = document.getElementById('fault-table');
+            if (!table) return;
+            
+            const ths = table.querySelectorAll('thead th');
+            const columnWidths = [];
+            
+            ths.forEach(th => {
+                columnWidths.push(th.style.width || th.offsetWidth);
+            });
+            
+            // 保存到本地存储
+            localStorage.setItem('faultTableColumnWidths', JSON.stringify(columnWidths));
+        }
+        
+        // 从本地存储加载列宽
+        function loadColumnWidths() {
+            const savedWidths = localStorage.getItem('faultTableColumnWidths');
+            if (!savedWidths) return;
+            
+            try {
+                const columnWidths = JSON.parse(savedWidths);
+                const table = document.getElementById('fault-table');
+                if (!table) return;
+                
+                const ths = table.querySelectorAll('thead th');
+                
+                // 应用保存的宽度
+                columnWidths.forEach((width, index) => {
+                    if (ths[index]) {
+                        ths[index].style.width = width;
+                        
+                        // 同时更新表格列宽度
+                        const tableRows = table.querySelectorAll('tbody tr');
+                        tableRows.forEach(row => {
+                            const tds = row.querySelectorAll('td');
+                            if (tds[index]) {
+                                tds[index].style.width = width;
+                            }
+                        });
+                    }
+                });
+            } catch (e) {
+                console.error('加载列宽时出错:', e);
+            }
+        }
     </script>
 </body>
 </html>
