@@ -923,6 +923,20 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
         
+        // Database configuration
+        const DB_CONFIG = {
+            equipment: {
+                table: 'equipment_basic_info',
+                database: 'ws-hub-db',
+                columns: ['plant', 'equipment', 'area', 'sub_area']
+            },
+            personnel: {
+                table: 'personnel_list',
+                database: 'ws-hub-db',
+                columns: ['plant', 'name', 'function', 'commitment']
+            }
+        };
+        
         // 获取URL参数中的故障ID
         const urlParams = new URLSearchParams(window.location.search);
         const faultId = urlParams.get('id');
@@ -949,8 +963,250 @@
             return `${year}-${month}-${day}T${hours}:${minutes}`;
         }
         
-        // 设置当前北京时间为默认报告时间
-        document.getElementById('reportTime').value = formatDateTimeLocal(getBeijingTime());
+        // Load unique plants from equipment data
+        async function loadPlants() {
+            try {
+                const response = await fetch(`/api/db/query/${DB_CONFIG.equipment.table}?database=${DB_CONFIG.equipment.database}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Get unique plants
+                    const plants = [...new Set(result.data.map(row => row.plant).filter(plant => plant))];
+                    
+                    // Populate plant dropdown
+                    const plantSelect = document.getElementById('plant');
+                    plantSelect.innerHTML = '<option value="">请选择工厂</option>';
+                    
+                    plants.forEach(plant => {
+                        const option = document.createElement('option');
+                        option.value = plant;
+                        option.textContent = plant;
+                        plantSelect.appendChild(option);
+                    });
+                    
+                    // Add event listener for plant change
+                    plantSelect.addEventListener('change', function() {
+                        loadEquipment(this.value);
+                        loadAreas(this.value);
+                        loadPersonnel(this.value);
+                    });
+                    
+                    // If we have a plant from URL parameter or edit mode, select it
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const plantParam = urlParams.get('plant');
+                    if (plantParam && plants.includes(plantParam)) {
+                        plantSelect.value = plantParam;
+                        loadEquipment(plantParam);
+                        loadAreas(plantParam);
+                        loadPersonnel(plantParam);
+                    }
+                } else {
+                    console.error('Failed to load plants:', result.error);
+                    showToast('加载工厂数据失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading plants:', error);
+                showToast('加载工厂数据时发生错误', 'error');
+            }
+        }
+        
+        // Load equipment based on selected plant
+        async function loadEquipment(plant) {
+            if (!plant) {
+                document.getElementById('equipmentName').value = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/db/query/${DB_CONFIG.equipment.table}?database=${DB_CONFIG.equipment.database}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Get equipment for the selected plant
+                    const equipment = result.data
+                        .filter(row => row.plant === plant)
+                        .map(row => row.equipment)
+                        .filter(eq => eq);
+                    
+                    // Convert equipment input to dropdown if it's not already
+                    const equipmentInput = document.getElementById('equipmentName');
+                    const parent = equipmentInput.parentNode;
+                    
+                    // Check if it's already a dropdown
+                    if (equipmentInput.tagName === 'SELECT') {
+                        // Update existing dropdown
+                        equipmentInput.innerHTML = '<option value="">请选择设备</option>';
+                        equipment.forEach(eq => {
+                            const option = document.createElement('option');
+                            option.value = eq;
+                            option.textContent = eq;
+                            equipmentInput.appendChild(option);
+                        });
+                    } else {
+                        // Replace input with dropdown
+                        const equipmentSelect = document.createElement('select');
+                        equipmentSelect.id = 'equipmentName';
+                        equipmentSelect.className = equipmentInput.className;
+                        equipmentSelect.name = equipmentInput.name;
+                        equipmentSelect.required = equipmentInput.required;
+                        
+                        equipmentSelect.innerHTML = '<option value="">请选择设备</option>';
+                        equipment.forEach(eq => {
+                            const option = document.createElement('option');
+                            option.value = eq;
+                            option.textContent = eq;
+                            equipmentSelect.appendChild(option);
+                        });
+                        
+                        // Replace input with select
+                        parent.replaceChild(equipmentSelect, equipmentInput);
+                    }
+                } else {
+                    console.error('Failed to load equipment:', result.error);
+                    showToast('加载设备数据失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading equipment:', error);
+                showToast('加载设备数据时发生错误', 'error');
+            }
+        }
+        
+        // Load areas based on selected plant
+        async function loadAreas(plant) {
+            if (!plant) {
+                document.getElementById('faultArea').value = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/db/query/${DB_CONFIG.equipment.table}?database=${DB_CONFIG.equipment.database}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Get areas for the selected plant
+                    const areas = [...new Set(result.data
+                        .filter(row => row.plant === plant)
+                        .map(row => row.area)
+                        .filter(area => area))];
+                    
+                    // Convert area input to dropdown if it's not already
+                    const areaInput = document.getElementById('faultArea');
+                    const parent = areaInput.parentNode;
+                    
+                    // Check if it's already a dropdown
+                    if (areaInput.tagName === 'SELECT') {
+                        // Update existing dropdown
+                        areaInput.innerHTML = '<option value="">请选择区域</option>';
+                        areas.forEach(area => {
+                            const option = document.createElement('option');
+                            option.value = area;
+                            option.textContent = area;
+                            areaInput.appendChild(option);
+                        });
+                    } else {
+                        // Replace input with dropdown
+                        const areaSelect = document.createElement('select');
+                        areaSelect.id = 'faultArea';
+                        areaSelect.className = areaInput.className;
+                        areaSelect.name = areaInput.name;
+                        areaSelect.required = areaInput.required;
+                        
+                        areaSelect.innerHTML = '<option value="">请选择区域</option>';
+                        areas.forEach(area => {
+                            const option = document.createElement('option');
+                            option.value = area;
+                            option.textContent = area;
+                            areaSelect.appendChild(option);
+                        });
+                        
+                        // Replace input with select
+                        parent.replaceChild(areaSelect, areaInput);
+                    }
+                } else {
+                    console.error('Failed to load areas:', result.error);
+                    showToast('加载区域数据失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading areas:', error);
+                showToast('加载区域数据时发生错误', 'error');
+            }
+        }
+        
+        // Load personnel based on selected plant
+        async function loadPersonnel(plant) {
+            if (!plant) {
+                document.getElementById('reporter').value = '';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/db/query/${DB_CONFIG.personnel.table}?database=${DB_CONFIG.personnel.database}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Get personnel for the selected plant
+                    const personnel = result.data
+                        .filter(row => row.plant === plant)
+                        .map(row => row.name)
+                        .filter(name => name);
+                    
+                    // Convert reporter input to dropdown if it's not already
+                    const reporterInput = document.getElementById('reporter');
+                    const parent = reporterInput.parentNode;
+                    
+                    // Check if it's already a dropdown
+                    if (reporterInput.tagName === 'SELECT') {
+                        // Update existing dropdown
+                        reporterInput.innerHTML = '<option value="">请选择报告人</option>';
+                        personnel.forEach(name => {
+                            const option = document.createElement('option');
+                            option.value = name;
+                            option.textContent = name;
+                            reporterInput.appendChild(option);
+                        });
+                    } else {
+                        // Replace input with dropdown
+                        const reporterSelect = document.createElement('select');
+                        reporterSelect.id = 'reporter';
+                        reporterSelect.className = reporterInput.className;
+                        reporterSelect.name = reporterInput.name;
+                        reporterSelect.required = reporterInput.required;
+                        
+                        reporterSelect.innerHTML = '<option value="">请选择报告人</option>';
+                        personnel.forEach(name => {
+                            const option = document.createElement('option');
+                            option.value = name;
+                            option.textContent = name;
+                            reporterSelect.appendChild(option);
+                        });
+                        
+                        // Replace input with select
+                        parent.replaceChild(reporterSelect, reporterInput);
+                    }
+                } else {
+                    console.error('Failed to load personnel:', result.error);
+                    showToast('加载人员数据失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading personnel:', error);
+                showToast('加载人员数据时发生错误', 'error');
+            }
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load dropdown data
+            loadPlants();
+            
+            // Set default report time
+            document.getElementById('reportTime').value = formatDateTimeLocal(getBeijingTime());
+            
+            // If we have a fault ID from URL parameter, load the fault data
+            if (faultId) {
+                isEditMode = true;
+                loadFaultData(faultId);
+            }
+        });
         
         // 如果有故障ID，则为编辑模式，加载故障数据
         if (faultId) {
@@ -980,6 +1236,14 @@
                 
                 // 填充表单数据
                 document.getElementById('plant').value = fault.plant || '';
+                // Load equipment, areas, and personnel based on the selected plant
+                if (fault.plant) {
+                    await loadEquipment(fault.plant);
+                    await loadAreas(fault.plant);
+                    await loadPersonnel(fault.plant);
+                }
+                
+                // Set values after dropdowns are populated
                 document.getElementById('equipmentName').value = fault.equipmentName || '';
                 document.getElementById('faultArea').value = fault.faultArea || '';
                 document.getElementById('faultCategory').value = fault.faultCategory || '';
@@ -1095,23 +1359,29 @@ function formatFileSize(bytes) {
     document.getElementById('fault-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // Create a function to get value from element whether it's input or select
+        const getElementValue = (elementId) => {
+            const element = document.getElementById(elementId);
+            return element ? element.value : '';
+        };
+        
         // 创建FormData对象以支持文件上传
         const formData = new FormData();
         
         // 添加表单字段
-        formData.append('plant', document.getElementById('plant').value);
-        formData.append('equipmentName', document.getElementById('equipmentName').value);
-        formData.append('faultArea', document.getElementById('faultArea').value);
-        formData.append('faultCategory', document.getElementById('faultCategory').value);
-        formData.append('faultLevel', document.getElementById('faultLevel').value);
-        formData.append('reportTime', document.getElementById('reportTime').value);
-        formData.append('reporter', document.getElementById('reporter').value);
-        formData.append('status', document.getElementById('status').value);
-        formData.append('faultDescription', document.getElementById('faultDescription').value);
-        formData.append('troubleshootingSteps', document.getElementById('troubleshootingSteps').value);
-        formData.append('rootCause', document.getElementById('rootCause').value);
-        formData.append('resolution', document.getElementById('resolution').value);
-        formData.append('additionalInfo', document.getElementById('additionalInfo').value);
+        formData.append('plant', getElementValue('plant'));
+        formData.append('equipmentName', getElementValue('equipmentName'));
+        formData.append('faultArea', getElementValue('faultArea'));
+        formData.append('faultCategory', getElementValue('faultCategory'));
+        formData.append('faultLevel', getElementValue('faultLevel'));
+        formData.append('reportTime', getElementValue('reportTime'));
+        formData.append('reporter', getElementValue('reporter'));
+        formData.append('status', getElementValue('status'));
+        formData.append('faultDescription', getElementValue('faultDescription'));
+        formData.append('troubleshootingSteps', getElementValue('troubleshootingSteps'));
+        formData.append('rootCause', getElementValue('rootCause'));
+        formData.append('resolution', getElementValue('resolution'));
+        formData.append('additionalInfo', getElementValue('additionalInfo'));
         formData.append('createTime', new Date().toISOString());
         
         // 添加文件
@@ -1167,10 +1437,18 @@ function formatFileSize(bytes) {
         // 取消按钮处理
         document.getElementById('cancelButton').addEventListener('click', function() {
             if (confirm('确定要取消吗？未保存的数据将丢失。')) {
+                // Reset form
                 document.getElementById('fault-form').reset();
-                document.getElementById('reportTime').value = new Date().toISOString().slice(0, 16);
+                
+                // Reset report time
+                document.getElementById('reportTime').value = formatDateTimeLocal(getBeijingTime());
+                
+                // Clear file list
                 fileList.innerHTML = '';
                 uploadedFiles = [];
+                
+                // Reload dropdown data to restore original state
+                loadPlants();
             }
         });
     </script>

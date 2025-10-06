@@ -173,6 +173,129 @@ app.get('/ws/api/faults', async (req, res) => {
     }
 });
 
+// 获取单个故障数据
+app.get('/ws/api/faults/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const response = await axios.get(`${KV_CONFIG.baseUrl}/values/fault_${id}`, { headers });
+        
+        if (response.data) {
+            const faultData = response.data;
+            // 确保数据结构包含必要字段
+            const fault = {
+                id: faultData.id || id,
+                plant: faultData.plant || 'N/A',
+                equipmentName: faultData.equipmentName || faultData.deviceName || 'N/A',
+                equipmentType: faultData.equipmentType || faultData.deviceType || 'N/A',
+                department: faultData.department || 'N/A',
+                faultArea: faultData.faultArea || 'N/A',
+                faultCategory: faultData.faultCategory || 'N/A',
+                faultLevel: faultData.faultLevel || faultData.priority || 'N/A',
+                description: faultData.description || faultData.faultDescription || 'N/A',
+                status: faultData.status || 'N/A',
+                reportTime: faultData.reportTime || faultData.createTime || new Date().toISOString(),
+                reporter: faultData.reporter || faultData.assignee || 'N/A',
+                progress: faultData.progress || '0%',
+                solution: faultData.solution || faultData.resolution || 'N/A',
+                createdAt: faultData.createdAt || faultData.createTime || new Date().toISOString(),
+                fileUpload: faultData.fileUpload || []
+            };
+            
+            res.json(fault);
+        } else {
+            res.status(404).json({ error: 'Fault not found' });
+        }
+    } catch (error) {
+        console.error('获取故障数据失败:', error);
+        res.status(500).json({ 
+            error: 'Failed to get fault data',
+            message: error.message 
+        });
+    }
+});
+
+// 查询数据库表数据
+app.get('/api/db/query/:table', async (req, res) => {
+    try {
+        const { table } = req.params;
+        const { database } = req.query;
+        
+        if (!table) {
+            return res.status(400).json({ success: false, error: 'Table name is required' });
+        }
+        
+        // 构建键名，格式为 {database}_{table}
+        const key = database ? `${database}_${table}` : table;
+        
+        // 从KV存储获取数据
+        const response = await axios.get(`${KV_CONFIG.baseUrl}/values/${key}`, { headers });
+        
+        if (response.data) {
+            // 返回成功响应和数据
+            res.json({
+                success: true,
+                data: response.data
+            });
+        } else {
+            // 如果没有数据，返回空数组
+            res.json({
+                success: true,
+                data: []
+            });
+        }
+    } catch (error) {
+        console.error(`查询表数据失败:`, error);
+        
+        // 如果键不存在，返回空数组而不是错误
+        if (error.response && error.response.status === 404) {
+            res.json({
+                success: true,
+                data: []
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: 'Failed to query table data',
+                message: error.message
+            });
+        }
+    }
+});
+
+// 上传数据到数据库表
+app.post('/api/db/upload/:table', async (req, res) => {
+    try {
+        const { table } = req.params;
+        const { database, data } = req.body;
+        
+        if (!table || !data) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Table name and data are required' 
+            });
+        }
+        
+        // 构建键名，格式为 {database}_{table}
+        const key = database ? `${database}_${table}` : table;
+        
+        // 将数据保存到KV存储
+        const response = await axios.put(`${KV_CONFIG.baseUrl}/values/${key}`, data, { headers });
+        
+        res.json({
+            success: true,
+            message: `Data uploaded successfully to ${table}`,
+            result: response.data
+        });
+    } catch (error) {
+        console.error(`上传表数据失败:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to upload table data',
+            message: error.message
+        });
+    }
+});
+
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`KV API Proxy Server running on port ${PORT}`);
