@@ -15,12 +15,19 @@ export async function onRequest(context) {
         const url = new URL(context.request.url);
         const databaseParam = url.searchParams.get('database') || 'default';
         
+
+        
         let db;
         if (databaseParam === 'db_gore') {
             if (!context.env.DB_GORE) {
                 throw new Error('Database binding "DB_GORE" not found. Please check your Cloudflare Pages D1 database bindings.');
             }
             db = context.env.DB_GORE;
+        } else if (table === 'equipment_basic_info' || table === 'personnel_list') {
+            if (!context.env.DB_WS_HUB) {
+                throw new Error('Database binding "DB_WS_HUB" not found. Please check your Cloudflare Pages D1 database bindings.');
+            }
+            db = context.env.DB_WS_HUB;
         } else {
             if (!context.env.DB) {
                 throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
@@ -32,7 +39,7 @@ export async function onRequest(context) {
         const { action, table } = context.params;
 
         // Validate table name to prevent SQL injection
-        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa_svg", "country_info"]; // Add more tables as needed
+        const validTables = ['chinese_dynasty', 'quote', "vocabulary", "chinese_poem", "english_dialog", "world_history", "lab_warehouse", "fa_svg", "country_info", "equipment_basic_info", "personnel_list"]; // Add more tables as needed
         if (!validTables.includes(table)) {
             throw new Error("Invalid table name");
         }
@@ -243,6 +250,30 @@ export async function onRequest(context) {
                                 row.其他6 || null,
                                 row.其他7 || null,
                                 row.其他8 || null
+                            );
+                        }));
+                    } else if (table === 'equipment_basic_info') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO equipment_basic_info (plant, equipment, area, sub_area)
+                                VALUES (?, ?, ?, ?)
+                            `).bind(
+                                row.plant || null,
+                                row.equipment || null,
+                                row.area || null,
+                                row.sub_area || null
+                            );
+                        }));
+                    } else if (table === 'personnel_list') {
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO personnel_list (plant, name, function, commitment)
+                                VALUES (?, ?, ?, ?)
+                            `).bind(
+                                row.plant || null,
+                                row.name || null,
+                                row.function || null,
+                                row.commitment || null
                             );
                         }));
                     }
