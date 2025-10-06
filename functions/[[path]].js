@@ -170,57 +170,7 @@ export async function onRequest(context) {
         });
     }
     
-    // Database Query API for ws routes
-    if (pathname.startsWith('/ws/api/db/query/')) {
-      const queryPath = pathname.replace('/ws/api/db/query/', '');
-      
-      // Forward the request to the database query handler
-      return await import('./api/db/[action]/[table].js')
-        .then(module => {
-          // Set up context for query action
-          context.params = { action: 'query', table: queryPath };
-          return module.onRequest(context);
-        })
-        .catch(error => {
-          console.error('Error loading db-query module:', error);
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: 'Internal server error loading db-query module' 
-          }), {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            }
-          });
-        });
-    }
-    
-    // Database Upload API for ws routes
-    if (pathname.startsWith('/ws/api/db/upload/')) {
-      const uploadPath = pathname.replace('/ws/api/db/upload/', '');
-      
-      // Forward the request to the database upload handler
-      return await import('./api/db/[action]/[table].js')
-        .then(module => {
-          // Set up context for upload action
-          context.params = { action: 'upload', table: uploadPath };
-          return module.onRequest(context);
-        })
-        .catch(error => {
-          console.error('Error loading db-upload module:', error);
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: 'Internal server error loading db-upload module' 
-          }), {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            }
-          });
-        });
-    }
+
     
     // Handle unknown API endpoints
     return new Response(JSON.stringify({ 
