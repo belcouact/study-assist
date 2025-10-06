@@ -988,188 +988,175 @@ async function exportToWord() {
         const includeAttachments = document.getElementById('includeAttachments').checked;
         
         // 创建Word文档
-        const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType } = docx;
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Table, TableRow, TableCell, WidthType, SectionType } = docx;
         
-        // 创建文档
-        const doc = new Document({
-            sections: [{
-                properties: {},
-                children: [
-                    // 标题
-                    new Paragraph({
-                        text: "设备故障报告",
-                        heading: HeadingLevel.TITLE,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 400 }
-                    }),
-                    
-                    // 故障ID
-                    new Paragraph({
-                        text: `故障编号: ${fault.id || 'N/A'}`,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 800 }
-                    })
-                ]
-            }]
-        });
+        // 收集所有段落
+        const children = [];
+        
+        // 添加标题
+        children.push(
+            new Paragraph({
+                text: "设备故障报告",
+                heading: HeadingLevel.TITLE,
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 400 }
+            }),
+            
+            new Paragraph({
+                text: `故障编号: ${fault.id || 'N/A'}`,
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 800 }
+            })
+        );
         
         // 添加基本信息
         if (includeBasicInfo) {
-            doc.addSection({
-                properties: {},
-                children: [
-                    new Paragraph({
-                        text: "基本信息",
-                        heading: HeadingLevel.HEADING_1,
-                        spacing: { before: 400, after: 200 }
+            children.push(
+                new Paragraph({
+                    text: "基本信息",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 400, after: 200 }
+                })
+            );
+            
+            // 创建基本信息表格
+            const basicInfoTable = new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "工厂" })], width: { size: 20, type: WidthType.PERCENTAGE } }),
+                            new TableCell({ children: [new Paragraph({ text: fault.plant || 'N/A' })] })
+                        ]
                     }),
-                    
-                    new Table({
-                        width: { size: 100, type: WidthType.PERCENTAGE },
-                        rows: [
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "工厂", width: { size: 20, type: WidthType.PERCENTAGE } }),
-                                    new TableCell({ text: fault.plant || 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "故障设备" }),
-                                    new TableCell({ text: fault.equipmentName || 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "故障区域" }),
-                                    new TableCell({ text: fault.faultArea || 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "故障分类" }),
-                                    new TableCell({ text: fault.faultCategory || 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "故障等级" }),
-                                    new TableCell({ text: getFaultLevelText(fault.faultLevel) })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "报告时间" }),
-                                    new TableCell({ text: fault.reportTime ? new Date(fault.reportTime).toLocaleString() : 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "报告人" }),
-                                    new TableCell({ text: fault.reporter || 'N/A' })
-                                ]
-                            }),
-                            new TableRow({
-                                children: [
-                                    new TableCell({ text: "状态" }),
-                                    new TableCell({ text: getFaultStatusText(fault.status) })
-                                ]
-                            })
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "故障设备" })] }),
+                            new TableCell({ children: [new Paragraph({ text: fault.equipmentName || 'N/A' })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "故障区域" })] }),
+                            new TableCell({ children: [new Paragraph({ text: fault.faultArea || 'N/A' })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "故障分类" })] }),
+                            new TableCell({ children: [new Paragraph({ text: fault.faultCategory || 'N/A' })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "故障等级" })] }),
+                            new TableCell({ children: [new Paragraph({ text: getFaultLevelText(fault.faultLevel) })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "报告时间" })] }),
+                            new TableCell({ children: [new Paragraph({ text: fault.reportTime ? new Date(fault.reportTime).toLocaleString() : 'N/A' })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "报告人" })] }),
+                            new TableCell({ children: [new Paragraph({ text: fault.reporter || 'N/A' })] })
+                        ]
+                    }),
+                    new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "状态" })] }),
+                            new TableCell({ children: [new Paragraph({ text: getFaultStatusText(fault.status) })] })
                         ]
                     })
                 ]
             });
+            
+            children.push(basicInfoTable);
         }
         
         // 添加故障详情
         if (includeFaultDetail) {
-            doc.addSection({
-                properties: {},
-                children: [
-                    new Paragraph({
-                        text: "故障详情",
-                        heading: HeadingLevel.HEADING_1,
-                        spacing: { before: 400, after: 200 }
-                    }),
-                    
-                    new Paragraph({
-                        text: "故障描述",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        text: fault.faultDescription || 'N/A',
-                        spacing: { after: 300 }
-                    }),
-                    
-                    new Paragraph({
-                        text: "故障排查",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        text: fault.troubleshootingSteps || 'N/A',
-                        spacing: { after: 300 }
-                    }),
-                    
-                    new Paragraph({
-                        text: "故障根因",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        text: fault.rootCause || 'N/A',
-                        spacing: { after: 300 }
-                    }),
-                    
-                    new Paragraph({
-                        text: "故障解决",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 300, after: 100 }
-                    }),
-                    
-                    new Paragraph({
-                        text: fault.resolution || 'N/A',
-                        spacing: { after: 300 }
-                    })
-                ]
-            });
+            children.push(
+                new Paragraph({
+                    text: "故障详情",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 400, after: 200 }
+                }),
+                
+                new Paragraph({
+                    text: "故障描述",
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 300, after: 100 }
+                }),
+                
+                new Paragraph({
+                    text: fault.faultDescription || 'N/A',
+                    spacing: { after: 300 }
+                }),
+                
+                new Paragraph({
+                    text: "故障排查",
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 300, after: 100 }
+                }),
+                
+                new Paragraph({
+                    text: fault.troubleshootingSteps || 'N/A',
+                    spacing: { after: 300 }
+                }),
+                
+                new Paragraph({
+                    text: "故障根因",
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 300, after: 100 }
+                }),
+                
+                new Paragraph({
+                    text: fault.rootCause || 'N/A',
+                    spacing: { after: 300 }
+                }),
+                
+                new Paragraph({
+                    text: "故障解决",
+                    heading: HeadingLevel.HEADING_2,
+                    spacing: { before: 300, after: 100 }
+                }),
+                
+                new Paragraph({
+                    text: fault.resolution || 'N/A',
+                    spacing: { after: 300 }
+                })
+            );
         }
         
         // 添加补充信息
         if (includeAdditionalInfo) {
-            doc.addSection({
-                properties: {},
-                children: [
-                    new Paragraph({
-                        text: "补充信息",
-                        heading: HeadingLevel.HEADING_1,
-                        spacing: { before: 400, after: 200 }
-                    }),
-                    
-                    new Paragraph({
-                        text: fault.additionalInfo || 'N/A',
-                        spacing: { after: 300 }
-                    })
-                ]
-            });
+            children.push(
+                new Paragraph({
+                    text: "补充信息",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 400, after: 200 }
+                }),
+                
+                new Paragraph({
+                    text: fault.additionalInfo || 'N/A',
+                    spacing: { after: 300 }
+                })
+            );
         }
         
         // 添加附件信息
         if (includeAttachments && fault.fileUpload && fault.fileUpload.length > 0) {
-            doc.addSection({
-                properties: {},
-                children: [
-                    new Paragraph({
-                        text: "附件信息",
-                        heading: HeadingLevel.HEADING_1,
-                        spacing: { before: 400, after: 200 }
-                    })
-                ]
-            });
+            children.push(
+                new Paragraph({
+                    text: "附件信息",
+                    heading: HeadingLevel.HEADING_1,
+                    spacing: { before: 400, after: 200 }
+                })
+            );
             
             // 分离图片和其他文件
             const images = fault.fileUpload.filter(file => file.type && file.type.startsWith('image/'));
@@ -1177,72 +1164,68 @@ async function exportToWord() {
             
             // 添加图片信息
             if (images.length > 0) {
-                doc.addSection({
-                    properties: {},
-                    children: [
-                        new Paragraph({
-                            text: "图片附件",
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        })
-                    ]
-                });
+                children.push(
+                    new Paragraph({
+                        text: "图片附件",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 300, after: 200 }
+                    })
+                );
                 
                 images.forEach(image => {
-                    doc.addSection({
-                        properties: {},
-                        children: [
-                            new Paragraph({
-                                text: `文件名: ${image.name}`,
-                                spacing: { after: 100 }
-                            }),
-                            new Paragraph({
-                                text: `文件大小: ${formatFileSize(image.size)}`,
-                                spacing: { after: 100 }
-                            }),
-                            new Paragraph({
-                                text: `文件类型: ${image.type || 'N/A'}`,
-                                spacing: { after: 200 }
-                            })
-                        ]
-                    });
+                    children.push(
+                        new Paragraph({
+                            text: `文件名: ${image.name}`,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: `文件大小: ${formatFileSize(image.size)}`,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: `文件类型: ${image.type || 'N/A'}`,
+                            spacing: { after: 200 }
+                        })
+                    );
                 });
             }
             
             // 添加其他文件信息
             if (otherFiles.length > 0) {
-                doc.addSection({
-                    properties: {},
-                    children: [
-                        new Paragraph({
-                            text: "其他附件",
-                            heading: HeadingLevel.HEADING_2,
-                            spacing: { before: 300, after: 200 }
-                        })
-                    ]
-                });
+                children.push(
+                    new Paragraph({
+                        text: "其他附件",
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 300, after: 200 }
+                    })
+                );
                 
                 otherFiles.forEach(file => {
-                    doc.addSection({
-                        properties: {},
-                        children: [
-                            new Paragraph({
-                                text: `文件名: ${file.name}`,
-                                spacing: { after: 100 }
-                            }),
-                            new Paragraph({
-                                text: `文件大小: ${formatFileSize(file.size)}`,
-                                spacing: { after: 100 }
-                            }),
-                            new Paragraph({
-                                text: `文件类型: ${file.type || 'N/A'}`,
-                                spacing: { after: 200 }
-                            })
-                        ]
-                    });
+                    children.push(
+                        new Paragraph({
+                            text: `文件名: ${file.name}`,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: `文件大小: ${formatFileSize(file.size)}`,
+                            spacing: { after: 100 }
+                        }),
+                        new Paragraph({
+                            text: `文件类型: ${file.type || 'N/A'}`,
+                            spacing: { after: 200 }
+                        })
+                    );
                 });
             }
         }
+        
+        // 创建文档
+        const doc = new Document({
+            sections: [{
+                properties: {},
+                children: children
+            }]
+        });
         
         // 生成文件名
         const fileName = `故障报告_${fault.id || 'N/A'}_${new Date().toISOString().slice(0, 10)}.docx`;
