@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>故障详情</title>
     <link rel="icon" href="../assets/icons/alex.ico" type="image/x-icon">
-    <!-- External Libraries -->
+    <!-- PDF生成库 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
@@ -293,6 +293,72 @@
             word-break: break-all;
         }
         
+        .file-size {
+            margin-left: auto;
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+        
+        /* PDF导出样式 */
+        .pdf-export-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .pdf-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 6px;
+        }
+        
+        .pdf-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .pdf-option input[type="checkbox"] {
+            width: 1rem;
+            height: 1rem;
+            cursor: pointer;
+        }
+        
+        .pdf-option label {
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        
+        .pdf-status {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            text-align: center;
+            display: none;
+        }
+        
+        .pdf-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .pdf-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .pdf-status.processing {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
         .image-placeholder {
             display: flex;
             flex-direction: column;
@@ -405,52 +471,6 @@
             text-align: center;
         }
         
-        /* PDF导出样式 */
-        .pdf-options {
-            margin: 1.5rem 0;
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 6px;
-        }
-        
-        .pdf-option {
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-        }
-        
-        .pdf-option input {
-            margin-right: 0.5rem;
-        }
-        
-        .pdf-option label {
-            font-size: 0.95rem;
-            color: #2c3e50;
-        }
-        
-        .pdf-status {
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border-radius: 6px;
-            text-align: center;
-            font-weight: 500;
-        }
-        
-        .pdf-status.success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .pdf-status.error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .pdf-status.generating {
-            background-color: #d1ecf1;
-            color: #0c5460;
-        }
-        
         /* 响应式设计 */
         @media (max-width: 768px) {
             .mobile-menu-toggle {
@@ -523,7 +543,7 @@
                 <div class="tab active" data-tab="basic-info">基本信息</div>
                 <div class="tab" data-tab="fault-detail">故障详情</div>
                 <div class="tab" data-tab="attachments">补充信息</div>
-                <div class="tab" data-tab="pdf-export">PDF导出</div>
+                <div class="tab" data-tab="pdf-export">导出PDF</div>
             </div>
             
             <!-- 标签页内容 -->
@@ -608,24 +628,26 @@
             
             <div id="pdf-export" class="tab-content">
                 <div class="detail-section">
-                    <h3>PDF导出</h3>
-                    <p>将故障详情信息导出为PDF格式，包含所有基本信息、故障详情和附件信息。</p>
-                    <div class="pdf-options">
-                        <div class="pdf-option">
-                            <input type="checkbox" id="include-images" checked>
-                            <label for="include-images">包含图片附件</label>
+                    <h3>导出PDF</h3>
+                    <div class="pdf-export-container">
+                        <p>将故障详情信息导出为PDF文件，包括所有文本信息和附件。</p>
+                        <div class="pdf-options">
+                            <div class="pdf-option">
+                                <input type="checkbox" id="include-images" checked>
+                                <label for="include-images">包含图片附件</label>
+                            </div>
+                            <div class="pdf-option">
+                                <input type="checkbox" id="include-files" checked>
+                                <label for="include-files">包含文件附件列表</label>
+                            </div>
+                            <div class="pdf-option">
+                                <input type="checkbox" id="include-timestamp" checked>
+                                <label for="include-timestamp">包含导出时间戳</label>
+                            </div>
                         </div>
-                        <div class="pdf-option">
-                            <input type="checkbox" id="include-files" checked>
-                            <label for="include-files">包含文件附件链接</label>
-                        </div>
-                        <div class="pdf-option">
-                            <input type="checkbox" id="include-timestamp" checked>
-                            <label for="include-timestamp">包含导出时间戳</label>
-                        </div>
+                        <button class="btn btn-primary" id="generatePdfBtn">生成PDF</button>
+                        <div class="pdf-status" id="pdfStatus"></div>
                     </div>
-                    <button class="btn btn-primary" id="generatePdfBtn">生成PDF</button>
-                    <div id="pdf-status" class="pdf-status"></div>
                 </div>
             </div>
             
@@ -676,6 +698,9 @@
             window.location.href = `new-fault.html?id=${faultId}`;
         });
         
+        // PDF生成按钮
+        document.getElementById('generatePdfBtn').addEventListener('click', generatePDF);
+        
         // 加载故障详情
         async function loadFaultDetail() {
             if (!faultId) {
@@ -692,11 +717,11 @@
                 }
                 
                 const fault = await response.json();
-        
-        // 存储故障数据用于PDF生成
-        faultData = fault;
-        
-        // 填充基本信息
+                
+                // 存储故障数据，用于PDF生成
+                faultData = fault;
+                
+                // 填充基本信息
                 document.getElementById('detail-id').textContent = fault.id || '-';
                 document.getElementById('detail-plant').textContent = fault.plant || '-';
                 document.getElementById('detail-equipment').textContent = fault.equipmentName || '-';
@@ -938,7 +963,7 @@ function formatFileSize(bytes) {
 // PDF生成功能
 let faultData = null; // 存储故障数据，用于PDF生成
 
-// 生成PDF函数
+// 生成PDF
 async function generatePDF() {
     if (!faultData) {
         showPdfStatus('错误：无法获取故障数据', 'error');
@@ -949,297 +974,194 @@ async function generatePDF() {
     const includeFiles = document.getElementById('include-files').checked;
     const includeTimestamp = document.getElementById('include-timestamp').checked;
     
-    showPdfStatus('正在生成PDF，请稍候...', 'generating');
+    showPdfStatus('正在生成PDF，请稍候...', 'processing');
     
     try {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'mm', 'a4');
+        const doc = new jsPDF();
         
         // 设置中文字体支持
-        doc.addFont('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/simhei.ttf', 'SimHei', 'normal');
-        doc.setFont('SimHei');
+        doc.setFont('helvetica');
         
         // 添加标题
         doc.setFontSize(20);
         doc.text('故障详情报告', 105, 20, { align: 'center' });
         
-        // 添加故障ID和导出时间
-        doc.setFontSize(12);
-        doc.text(`故障ID: ${faultData.id || '-'}`, 20, 35);
-        
+        // 添加时间戳
         if (includeTimestamp) {
-            const exportTime = new Date().toLocaleString('zh-CN');
-            doc.text(`导出时间: ${exportTime}`, 20, 42);
+            doc.setFontSize(10);
+            const timestamp = new Date().toLocaleString('zh-CN');
+            doc.text(`生成时间: ${timestamp}`, 105, 30, { align: 'center' });
         }
-        
-        let yPosition = 55;
         
         // 添加基本信息
         doc.setFontSize(16);
-        doc.text('基本信息', 20, yPosition);
-        yPosition += 10;
+        doc.text('基本信息', 20, 45);
         
         doc.setFontSize(12);
-        doc.text(`工厂: ${faultData.plant || '-'}`, 25, yPosition);
-        yPosition += 7;
-        doc.text(`设备名称: ${faultData.equipmentName || '-'}`, 25, yPosition);
-        yPosition += 7;
-        doc.text(`故障区域: ${faultData.faultArea || '-'}`, 25, yPosition);
-        yPosition += 7;
-        doc.text(`故障分类: ${faultData.faultCategory || '-'}`, 25, yPosition);
-        yPosition += 7;
+        let yPos = 55;
+        const lineHeight = 8;
         
-        // 故障等级
-        let levelText = '-';
-        if (faultData.faultLevel) {
-            switch(faultData.faultLevel) {
-                case 'high': levelText = '高'; break;
-                case 'medium': levelText = '中'; break;
-                case 'low': levelText = '低'; break;
-                default: levelText = '中';
-            }
-        }
-        doc.text(`故障等级: ${levelText}`, 25, yPosition);
-        yPosition += 7;
-        
-        doc.text(`报告时间: ${faultData.reportTime ? new Date(faultData.reportTime).toLocaleString() : '-'}`, 25, yPosition);
-        yPosition += 7;
-        doc.text(`报告人: ${faultData.reporter || '-'}`, 25, yPosition);
-        yPosition += 7;
-        
-        // 状态
-        let statusText = '-';
-        if (faultData.status) {
-            switch(faultData.status) {
-                case 'pending': statusText = '待处理'; break;
-                case 'processing': statusText = '处理中'; break;
-                case 'resolved': statusText = '已解决'; break;
-                case 'completed': statusText = '已完成'; break;
-                default: statusText = '未知';
-            }
-        }
-        doc.text(`状态: ${statusText}`, 25, yPosition);
-        yPosition += 15;
+        // 添加基本信息字段
+        yPos = addPdfText(doc, '故障ID: ' + (faultData.id || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '工厂: ' + (faultData.plant || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '故障设备: ' + (faultData.equipmentName || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '故障区域: ' + (faultData.faultArea || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '故障分类: ' + (faultData.faultCategory || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '故障等级: ' + getLevelText(faultData.faultLevel), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '报告时间: ' + formatDate(faultData.reportTime), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '报告人: ' + (faultData.reporter || '-'), 20, yPos, lineHeight);
+        yPos = addPdfText(doc, '状态: ' + getStatusText(faultData.status), 20, yPos, lineHeight);
         
         // 添加故障详情
-        if (yPosition > 250) {
+        yPos += 10; // 添加一些间距
+        if (yPos > 250) {
             doc.addPage();
-            yPosition = 20;
+            yPos = 20;
         }
         
         doc.setFontSize(16);
-        doc.text('故障详情', 20, yPosition);
-        yPosition += 10;
+        yPos = addPdfText(doc, '故障详情', 20, yPos, lineHeight);
         
         doc.setFontSize(12);
-        // 故障描述
-        const description = faultData.faultDescription || '-';
-        const descLines = doc.splitTextToSize(`故障描述: ${description}`, 170);
-        doc.text(descLines, 25, yPosition);
-        yPosition += descLines.length * 5 + 5;
+        yPos += 5;
         
-        // 故障排查
-        if (yPosition > 250) {
-            doc.addPage();
-            yPosition = 20;
-        }
-        const troubleshooting = faultData.troubleshootingSteps || '-';
-        const troubleshootLines = doc.splitTextToSize(`故障排查: ${troubleshooting}`, 170);
-        doc.text(troubleshootLines, 25, yPosition);
-        yPosition += troubleshootLines.length * 5 + 5;
+        yPos = addPdfText(doc, '故障描述:', 20, yPos, lineHeight);
+        yPos = addPdfText(doc, faultData.faultDescription || '-', 25, yPos, lineHeight, true);
         
-        // 故障根因
-        if (yPosition > 250) {
-            doc.addPage();
-            yPosition = 20;
-        }
-        const rootCause = faultData.rootCause || '-';
-        const rootCauseLines = doc.splitTextToSize(`故障根因: ${rootCause}`, 170);
-        doc.text(rootCauseLines, 25, yPosition);
-        yPosition += rootCauseLines.length * 5 + 5;
+        yPos = addPdfText(doc, '故障排查:', 20, yPos, lineHeight);
+        yPos = addPdfText(doc, faultData.troubleshootingSteps || '-', 25, yPos, lineHeight, true);
         
-        // 故障解决
-        if (yPosition > 250) {
-            doc.addPage();
-            yPosition = 20;
-        }
-        const resolution = faultData.resolution || '-';
-        const resolutionLines = doc.splitTextToSize(`故障解决: ${resolution}`, 170);
-        doc.text(resolutionLines, 25, yPosition);
-        yPosition += resolutionLines.length * 5 + 5;
+        yPos = addPdfText(doc, '故障根因:', 20, yPos, lineHeight);
+        yPos = addPdfText(doc, faultData.rootCause || '-', 25, yPos, lineHeight, true);
         
-        // 补充信息
-        if (yPosition > 250) {
-            doc.addPage();
-            yPosition = 20;
-        }
-        const additionalInfo = faultData.additionalInfo || '-';
-        const additionalInfoLines = doc.splitTextToSize(`补充信息: ${additionalInfo}`, 170);
-        doc.text(additionalInfoLines, 25, yPosition);
-        yPosition += additionalInfoLines.length * 5 + 15;
+        yPos = addPdfText(doc, '故障解决:', 20, yPos, lineHeight);
+        yPos = addPdfText(doc, faultData.resolution || '-', 25, yPos, lineHeight, true);
+        
+        yPos = addPdfText(doc, '补充信息:', 20, yPos, lineHeight);
+        yPos = addPdfText(doc, faultData.additionalInfo || '-', 25, yPos, lineHeight, true);
         
         // 添加附件信息
-        if (faultData.fileUpload && faultData.fileUpload.length > 0) {
-            if (yPosition > 250) {
+        if (includeFiles && faultData.fileUpload && faultData.fileUpload.length > 0) {
+            yPos += 10; // 添加一些间距
+            if (yPos > 250) {
                 doc.addPage();
-                yPosition = 20;
+                yPos = 20;
             }
             
             doc.setFontSize(16);
-            doc.text('附件信息', 20, yPosition);
-            yPosition += 10;
+            yPos = addPdfText(doc, '附件信息', 20, yPos, lineHeight);
             
             doc.setFontSize(12);
-            doc.text(`附件数量: ${faultData.fileUpload.length}`, 25, yPosition);
-            yPosition += 10;
+            yPos += 5;
             
-            // 处理图片附件
-            if (includeImages) {
-                const images = faultData.fileUpload.filter(file => 
-                    file.type && file.type.startsWith('image/')
-                );
+            // 分离图片和其他文件
+            const images = [];
+            const otherFiles = [];
+            
+            faultData.fileUpload.forEach(attachment => {
+                const isImage = attachment.type && attachment.type.startsWith('image/');
+                if (isImage) {
+                    images.push(attachment);
+                } else {
+                    otherFiles.push(attachment);
+                }
+            });
+            
+            // 添加图片附件
+            if (includeImages && images.length > 0) {
+                yPos = addPdfText(doc, '图片附件:', 20, yPos, lineHeight);
                 
-                if (images.length > 0) {
-                    doc.text(`图片附件 (${images.length}个):`, 25, yPosition);
-                    yPosition += 7;
+                for (const image of images) {
+                    yPos = addPdfText(doc, `- ${image.name} (${formatFileSize(image.size)})`, 25, yPos, lineHeight);
                     
-                    for (const image of images) {
-                        if (yPosition > 230) {
-                            doc.addPage();
-                            yPosition = 20;
-                        }
-                        
-                        doc.text(`- ${image.name} (${formatFileSize(image.size)})`, 30, yPosition);
-                        yPosition += 5;
-                        
-                        try {
-                            // 获取图片并添加到PDF
-                            const imgData = await getImageAsDataUrl(`https://study-llm.me/ws/api/files/${image.id}`);
-                            
-                            if (yPosition > 200) {
-                                doc.addPage();
-                                yPosition = 20;
-                            }
-                            
-                            // 添加图片到PDF
-                            doc.addImage(imgData, 'JPEG', 30, yPosition, 150, 100);
-                            yPosition += 110;
-                        } catch (error) {
-                            console.error('无法加载图片:', error);
-                            doc.text('  [图片加载失败]', 30, yPosition);
-                            yPosition += 5;
-                        }
-                    }
+                    // 如果需要，可以在这里添加图片到PDF
+                    // 注意：这需要额外的处理来加载和添加图片
                 }
             }
             
-            // 处理其他文件附件
-            if (includeFiles) {
-                const otherFiles = faultData.fileUpload.filter(file => 
-                    !file.type || !file.type.startsWith('image/')
-                );
+            // 添加其他文件附件
+            if (otherFiles.length > 0) {
+                yPos = addPdfText(doc, '其他附件:', 20, yPos, lineHeight);
                 
-                if (otherFiles.length > 0) {
-                    if (yPosition > 250) {
-                        doc.addPage();
-                        yPosition = 20;
-                    }
-                    
-                    doc.text(`其他附件 (${otherFiles.length}个):`, 25, yPosition);
-                    yPosition += 7;
-                    
-                    for (const file of otherFiles) {
-                        if (yPosition > 270) {
-                            doc.addPage();
-                            yPosition = 20;
-                        }
-                        
-                        doc.text(`- ${file.name} (${formatFileSize(file.size)})`, 30, yPosition);
-                        yPosition += 5;
-                        doc.text(`  下载链接: https://study-llm.me/ws/api/files/${file.id}`, 30, yPosition);
-                        yPosition += 7;
-                    }
+                for (const file of otherFiles) {
+                    yPos = addPdfText(doc, `- ${file.name} (${formatFileSize(file.size)})`, 25, yPos, lineHeight);
                 }
             }
         }
         
-        // 生成文件名并下载
-        const fileName = `故障详情_${faultData.id}_${new Date().toISOString().slice(0, 10)}.pdf`;
+        // 保存PDF
+        const fileName = `故障详情_${faultData.id || '未知'}_${new Date().toISOString().slice(0, 10)}.pdf`;
         doc.save(fileName);
         
         showPdfStatus('PDF生成成功！', 'success');
     } catch (error) {
         console.error('PDF生成失败:', error);
-        showPdfStatus(`PDF生成失败: ${error.message}`, 'error');
+        showPdfStatus('PDF生成失败: ' + error.message, 'error');
     }
 }
 
-// 获取图片并转换为Data URL
-function getImageAsDataUrl(url) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'Anonymous';
-        
-        img.onload = function() {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-        
-        img.onerror = function() {
-            reject(new Error('图片加载失败'));
-        };
-        
-        img.src = url;
-    });
+// 添加文本到PDF，处理分页
+function addPdfText(doc, text, x, y, lineHeight, isMultiline = false) {
+    if (y > 270) {
+        doc.addPage();
+        y = 20;
+    }
+    
+    if (isMultiline) {
+        // 处理多行文本
+        const lines = doc.splitTextToSize(text, 170); // 170是页面宽度减去边距
+        doc.text(lines, x, y);
+        return y + (lines.length * lineHeight);
+    } else {
+        doc.text(text, x, y);
+        return y + lineHeight;
+    }
 }
 
-// 显示PDF生成状态
+// 获取故障等级文本
+function getLevelText(level) {
+    switch(level) {
+        case 'high': return '高';
+        case 'medium': return '中';
+        case 'low': return '低';
+        default: return '未知';
+    }
+}
+
+// 获取状态文本
+function getStatusText(status) {
+    switch(status) {
+        case 'pending': return '待处理';
+        case 'processing': return '处理中';
+        case 'resolved': return '已解决';
+        case 'completed': return '已完成';
+        default: return '未知';
+    }
+}
+
+// 格式化日期
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleString('zh-CN');
+}
+
+// 显示PDF状态消息
 function showPdfStatus(message, type) {
-    const statusElement = document.getElementById('pdf-status');
+    const statusElement = document.getElementById('pdfStatus');
     statusElement.textContent = message;
     statusElement.className = 'pdf-status ' + type;
+    statusElement.style.display = 'block';
+    
+    if (type === 'success') {
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+        }, 3000);
+    }
 }
         
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
-            // 标签切换功能
-            const tabs = document.querySelectorAll('.tab');
-            const tabContents = document.querySelectorAll('.tab-content');
-            
-            tabs.forEach(tab => {
-                tab.addEventListener('click', function() {
-                    const tabId = this.getAttribute('data-tab');
-                    
-                    // 移除所有标签的active类
-                    tabs.forEach(t => t.classList.remove('active'));
-                    // 为当前标签添加active类
-                    this.classList.add('active');
-                    
-                    // 隐藏所有标签内容
-                    tabContents.forEach(content => {
-                        content.style.display = 'none';
-                    });
-                    
-                    // 显示当前标签内容
-                    const currentContent = document.getElementById(tabId + '-content');
-                    if (currentContent) {
-                        currentContent.style.display = 'block';
-                    }
-                });
-            });
-            
-            // PDF生成按钮事件监听
-            const generatePdfBtn = document.getElementById('generate-pdf-btn');
-            if (generatePdfBtn) {
-                generatePdfBtn.addEventListener('click', generatePDF);
-            }
-            
-            // 加载故障详情
             loadFaultDetail();
         });
     </script>
