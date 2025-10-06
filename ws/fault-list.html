@@ -517,6 +517,15 @@
                 white-space: nowrap; /* 防止文本换行 */
             }
             
+            /* 确保故障描述列字体大小与其他列一致 */
+            .fault-table td:nth-child(7) {
+                font-size: inherit;
+                max-width: 200px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            
             .fault-table th {
                 position: sticky;
                 top: 0;
@@ -556,6 +565,84 @@
                 padding: 0.25rem;
                 background-color: #f8f9fa;
                 border-top: 1px solid #e9ecef;
+            }
+            
+            /* 分页控件样式 */
+            .pagination-container {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-top: 1rem;
+                flex-wrap: wrap;
+                gap: 1rem;
+            }
+            
+            .pagination-info {
+                color: #6c757d;
+                font-size: 0.9rem;
+            }
+            
+            .pagination-controls {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .pagination-btn {
+                padding: 0.5rem 0.75rem;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.9rem;
+                transition: all 0.3s;
+            }
+            
+            .pagination-btn:hover:not(:disabled) {
+                background-color: #e9ecef;
+            }
+            
+            .pagination-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+            }
+            
+            .page-numbers {
+                display: flex;
+                gap: 0.25rem;
+            }
+            
+            .page-number {
+                min-width: 2rem;
+                height: 2rem;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                background-color: #f8f9fa;
+                cursor: pointer;
+                font-size: 0.9rem;
+                transition: all 0.3s;
+            }
+            
+            .page-number:hover {
+                background-color: #e9ecef;
+            }
+            
+            .page-number.active {
+                background-color: #3498db;
+                color: white;
+                border-color: #3498db;
+            }
+            
+            .reset-button {
+                background-color: #6c757d;
+                margin-left: 0.5rem;
+            }
+            
+            .reset-button:hover {
+                background-color: #5a6268;
             }
         }
     </style>
@@ -620,6 +707,7 @@
                         <div class="search-row">
                             <input type="text" id="search-input" class="search-box" placeholder="搜索设备名称、故障类型、故障描述...">
                             <button class="filter-button" onclick="filterFaults()">筛选</button>
+                            <button class="filter-button reset-button" onclick="resetFilters()">重置</button>
                         </div>
                     </div>
                 </div>
@@ -655,6 +743,20 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- 分页控件 -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span id="pagination-info">显示 0-0 条，共 0 条记录</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="prev-page" class="pagination-btn" onclick="changePage(-1)" disabled>上一页</button>
+                    <div id="page-numbers" class="page-numbers">
+                        <!-- 页码将通过JavaScript动态生成 -->
+                    </div>
+                    <button id="next-page" class="pagination-btn" onclick="changePage(1)" disabled>下一页</button>
+                </div>
+            </div>
         </div>
     </main>
     
@@ -663,6 +765,11 @@
     </footer>
     
     <script>
+        // 分页相关变量
+        let allFaults = []; // 存储所有故障数据
+        let currentPage = 1; // 当前页码
+        const recordsPerPage = 10; // 每页显示记录数
+        
         // 切换搜索区域的展开/折叠状态
         function toggleSearch() {
             const searchContent = document.getElementById('searchContent');
@@ -728,6 +835,12 @@ async function loadFaultData() {
         const faults = await response.json();
         console.log('获取到的故障数据:', faults);
         
+        // 存储所有故障数据
+        allFaults = faults || [];
+        
+        // 重置到第一页
+        currentPage = 1;
+        
         // 清空表格
         tableBody.innerHTML = '';
         
@@ -738,123 +851,272 @@ async function loadFaultData() {
         const areas = new Set();
         const reporters = new Set();
                 
-                if (faults && faults.length > 0) {
-                    // 渲染故障数据并收集筛选器选项
-                    faults.forEach(fault => {
-                        // 收集筛选器选项
-                        if (fault.plant) plants.add(fault.plant);
-                        if (fault.faultCategory) categories.add(fault.faultCategory);
-                        if (fault.equipmentName) equipments.add(fault.equipmentName);
-                        if (fault.faultArea) areas.add(fault.faultArea);
-                        if (fault.reporter) reporters.add(fault.reporter);
-                        
-                        const row = document.createElement('tr');
-                        
-                        // 格式化状态标签
-                        let statusClass = '';
-                        let statusText = '';
-                        
-                        switch(fault.status) {
-                            case 'pending':
-                                statusClass = 'status-pending';
-                                statusText = '待处理';
-                                break;
-                            case 'processing':
-                                statusClass = 'status-processing';
-                                statusText = '处理中';
-                                break;
-                            case 'resolved':
-                                statusClass = 'status-completed';
-                                statusText = '已解决';
-                                break;
-                            case 'completed':
-                                statusClass = 'status-completed';
-                                statusText = '已完成';
-                                break;
-                            default:
-                                statusClass = 'status-pending';
-                                statusText = '未知';
-                        }
-                        
-                        // 格式化故障级别
-                        let levelClass = '';
-                        let levelText = '';
-                        
-                        switch(fault.faultLevel) {
-                            case 'high':
-                                levelClass = 'level-high';
-                                levelText = '高';
-                                break;
-                            case 'medium':
-                                levelClass = 'level-medium';
-                                levelText = '中';
-                                break;
-                            case 'low':
-                                levelClass = 'level-low';
-                                levelText = '低';
-                                break;
-                            default:
-                                levelClass = 'level-medium';
-                                levelText = '中';
-                        }
-                        
-                        // 格式化时间
-                        const reportTime = fault.reportTime ? new Date(fault.reportTime).toLocaleString() : '未知时间';
-                        
-                        // 格式化故障描述，只显示前50个字符
-                        const shortDescription = fault.faultDescription && fault.faultDescription.length > 50 
-                            ? fault.faultDescription.substring(0, 50) + '...' 
-                            : fault.faultDescription || '无描述';
-                        
-                        row.innerHTML = `
-                            <td>${fault.id || '未知'}</td>
-                            <td>${fault.plant || '未知工厂'}</td>
-                            <td>${fault.equipmentName || '未知设备'}</td>
-                            <td>${fault.faultArea || '未知区域'}</td>
-                            <td>${fault.faultCategory || '未知分类'}</td>
-                            <td><span class="level-badge ${levelClass}">${levelText}</span></td>
-                            <td title="${fault.faultDescription || ''}">${shortDescription}</td>
-                            <td>${reportTime}</td>
-                            <td>${fault.reporter || '未知'}</td>
-                            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                            <td>
-                                <div class="action-buttons">
-                                    <button class="btn btn-primary" onclick="viewFaultDetail('${fault.id}')">查看</button>
-                                    <button class="btn btn-success" onclick="editFault('${fault.id}')">编辑</button>
-                                </div>
-                            </td>
-                        `;
-                        
-                        tableBody.appendChild(row);
-                    });
-                    
-                    // 填充筛选器选项
-                    populateFilterOptions('plant-filter', plants);
-                    populateFilterOptions('category-filter', categories);
-                    populateFilterOptions('equipment-filter', equipments);
-                    populateFilterOptions('area-filter', areas);
-                    populateFilterOptions('reporter-filter', reporters);
-                } else {
-                    // 没有数据时显示提示
-                    if (noDataMessage) noDataMessage.style.display = 'block';
-                }
+        if (allFaults && allFaults.length > 0) {
+            // 收集筛选器选项
+            allFaults.forEach(fault => {
+                // 收集筛选器选项
+                if (fault.plant) plants.add(fault.plant);
+                if (fault.faultCategory) categories.add(fault.faultCategory);
+                if (fault.equipmentName) equipments.add(fault.equipmentName);
+                if (fault.faultArea) areas.add(fault.faultArea);
+                if (fault.reporter) reporters.add(fault.reporter);
+            });
+            
+            // 填充筛选器选项
+            populateFilterOptions('plant-filter', plants);
+            populateFilterOptions('category-filter', categories);
+            populateFilterOptions('equipment-filter', equipments);
+            populateFilterOptions('area-filter', areas);
+            populateFilterOptions('reporter-filter', reporters);
+            
+            // 渲染当前页的故障数据
+            renderFaultTable();
+            
+            // 更新分页控件
+            updatePaginationControls();
+        } else {
+            // 没有数据时显示提示
+            if (noDataMessage) noDataMessage.style.display = 'block';
+            
+            // 更新分页信息
+            updatePaginationInfo();
+        }
                 
-            } catch (error) {
-                console.error('加载故障数据失败:', error);
-                
-                // 显示错误信息
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="8" style="text-align: center; color: #e74c3c;">
-                            加载故障数据失败: ${error.message}
-                        </td>
-                    </tr>
-                `;
-            } finally {
-                // 隐藏加载指示器
-                if (loadingIndicator) loadingIndicator.style.display = 'none';
+    } catch (error) {
+        console.error('加载故障数据失败:', error);
+        
+        // 显示错误信息
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="11" style="text-align: center; color: #e74c3c;">
+                    加载故障数据失败: ${error.message}
+                </td>
+            </tr>
+        `;
+    } finally {
+        // 隐藏加载指示器
+        if (loadingIndicator) loadingIndicator.style.display = 'none';
+    }
+}
+
+// 渲染故障表格（当前页）
+function renderFaultTable() {
+    const tableBody = document.getElementById('fault-table-body');
+    if (!tableBody) return;
+    
+    // 清空表格
+    tableBody.innerHTML = '';
+    
+    // 计算当前页的起始和结束索引
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    const endIndex = Math.min(startIndex + recordsPerPage, allFaults.length);
+    
+    // 获取当前页的故障数据
+    const currentPageFaults = allFaults.slice(startIndex, endIndex);
+    
+    // 渲染当前页的故障数据
+    currentPageFaults.forEach(fault => {
+        const row = document.createElement('tr');
+        
+        // 格式化状态标签
+        let statusClass = '';
+        let statusText = '';
+        
+        switch(fault.status) {
+            case 'pending':
+                statusClass = 'status-pending';
+                statusText = '待处理';
+                break;
+            case 'processing':
+                statusClass = 'status-processing';
+                statusText = '处理中';
+                break;
+            case 'resolved':
+                statusClass = 'status-completed';
+                statusText = '已解决';
+                break;
+            case 'completed':
+                statusClass = 'status-completed';
+                statusText = '已完成';
+                break;
+            default:
+                statusClass = 'status-pending';
+                statusText = '未知';
+        }
+        
+        // 格式化故障级别
+        let levelClass = '';
+        let levelText = '';
+        
+        switch(fault.faultLevel) {
+            case 'high':
+                levelClass = 'level-high';
+                levelText = '高';
+                break;
+            case 'medium':
+                levelClass = 'level-medium';
+                levelText = '中';
+                break;
+            case 'low':
+                levelClass = 'level-low';
+                levelText = '低';
+                break;
+            default:
+                levelClass = 'level-medium';
+                levelText = '中';
+        }
+        
+        // 格式化时间
+        const reportTime = fault.reportTime ? new Date(fault.reportTime).toLocaleString() : '未知时间';
+        
+        // 格式化故障描述，只显示前50个字符
+        const shortDescription = fault.faultDescription && fault.faultDescription.length > 50 
+            ? fault.faultDescription.substring(0, 50) + '...' 
+            : fault.faultDescription || '无描述';
+        
+        row.innerHTML = `
+            <td>${fault.id || '未知'}</td>
+            <td>${fault.plant || '未知工厂'}</td>
+            <td>${fault.equipmentName || '未知设备'}</td>
+            <td>${fault.faultArea || '未知区域'}</td>
+            <td>${fault.faultCategory || '未知分类'}</td>
+            <td><span class="level-badge ${levelClass}">${levelText}</span></td>
+            <td title="${fault.faultDescription || ''}">${shortDescription}</td>
+            <td>${reportTime}</td>
+            <td>${fault.reporter || '未知'}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" onclick="viewFaultDetail('${fault.id}')">查看</button>
+                    <button class="btn btn-success" onclick="editFault('${fault.id}')">编辑</button>
+                </div>
+            </td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+}
+
+// 更新分页控件
+function updatePaginationControls() {
+    const totalPages = Math.ceil(allFaults.length / recordsPerPage);
+    
+    // 更新上一页/下一页按钮状态
+    const prevButton = document.getElementById('prev-page');
+    const nextButton = document.getElementById('next-page');
+    
+    if (prevButton) {
+        prevButton.disabled = currentPage <= 1;
+    }
+    
+    if (nextButton) {
+        nextButton.disabled = currentPage >= totalPages;
+    }
+    
+    // 更新页码
+    const pageNumbersContainer = document.getElementById('page-numbers');
+    if (pageNumbersContainer) {
+        pageNumbersContainer.innerHTML = '';
+        
+        // 计算显示的页码范围（最多显示5个页码）
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        
+        // 调整起始页码，确保始终显示5个页码（如果总页数足够）
+        if (endPage - startPage < 4 && totalPages > 5) {
+            startPage = Math.max(1, endPage - 4);
+        }
+        
+        // 添加第一页和省略号（如果需要）
+        if (startPage > 1) {
+            addPageNumber(1);
+            if (startPage > 2) {
+                addEllipsis();
             }
         }
+        
+        // 添加页码
+        for (let i = startPage; i <= endPage; i++) {
+            addPageNumber(i);
+        }
+        
+        // 添加最后一页和省略号（如果需要）
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                addEllipsis();
+            }
+            addPageNumber(totalPages);
+        }
+    }
+    
+    // 更新分页信息
+    updatePaginationInfo();
+}
+
+// 添加页码按钮
+function addPageNumber(pageNum) {
+    const pageNumbersContainer = document.getElementById('page-numbers');
+    if (!pageNumbersContainer) return;
+    
+    const pageNumber = document.createElement('div');
+    pageNumber.className = 'page-number';
+    if (pageNum === currentPage) {
+        pageNumber.classList.add('active');
+    }
+    pageNumber.textContent = pageNum;
+    pageNumber.onclick = () => goToPage(pageNum);
+    
+    pageNumbersContainer.appendChild(pageNumber);
+}
+
+// 添加省略号
+function addEllipsis() {
+    const pageNumbersContainer = document.getElementById('page-numbers');
+    if (!pageNumbersContainer) return;
+    
+    const ellipsis = document.createElement('div');
+    ellipsis.className = 'page-number';
+    ellipsis.textContent = '...';
+    ellipsis.style.cursor = 'default';
+    ellipsis.style.border = 'none';
+    
+    pageNumbersContainer.appendChild(ellipsis);
+}
+
+// 更新分页信息
+function updatePaginationInfo() {
+    const paginationInfo = document.getElementById('pagination-info');
+    if (!paginationInfo) return;
+    
+    const totalRecords = allFaults.length;
+    const startIndex = totalRecords > 0 ? (currentPage - 1) * recordsPerPage + 1 : 0;
+    const endIndex = Math.min(currentPage * recordsPerPage, totalRecords);
+    
+    paginationInfo.textContent = `显示 ${startIndex}-${endIndex} 条，共 ${totalRecords} 条记录`;
+}
+
+// 切换页面
+function changePage(direction) {
+    const totalPages = Math.ceil(allFaults.length / recordsPerPage);
+    const newPage = currentPage + direction;
+    
+    if (newPage >= 1 && newPage <= totalPages) {
+        currentPage = newPage;
+        renderFaultTable();
+        updatePaginationControls();
+    }
+}
+
+// 跳转到指定页面
+function goToPage(pageNum) {
+    const totalPages = Math.ceil(allFaults.length / recordsPerPage);
+    
+    if (pageNum >= 1 && pageNum <= totalPages) {
+        currentPage = pageNum;
+        renderFaultTable();
+        updatePaginationControls();
+    }
+}
         
         // 填充筛选器选项
         function populateFilterOptions(filterId, optionsSet) {
@@ -1185,58 +1447,128 @@ async function viewFault(faultId) {
         }
         
         // 筛选功能
-        function filterFaults() {
-            const statusFilter = document.getElementById('status-filter').value;
-            const levelFilter = document.getElementById('level-filter').value;
-            const plantFilter = document.getElementById('plant-filter').value;
-            const categoryFilter = document.getElementById('category-filter').value;
-            const equipmentFilter = document.getElementById('equipment-filter').value;
-            const areaFilter = document.getElementById('area-filter').value;
-            const reporterFilter = document.getElementById('reporter-filter').value;
-            const searchInput = document.getElementById('search-input').value.toLowerCase();
-            
-            const rows = document.querySelectorAll('#fault-table-body tr');
-            
-            rows.forEach(row => {
-                const statusCell = row.querySelector('td:nth-child(9) .status-badge');
-                const levelCell = row.querySelector('td:nth-child(6) .level-badge');
-                const plantCell = row.querySelector('td:nth-child(2)');
-                const equipmentCell = row.querySelector('td:nth-child(3)');
-                const areaCell = row.querySelector('td:nth-child(4)');
-                const categoryCell = row.querySelector('td:nth-child(5)');
-                const reporterCell = row.querySelector('td:nth-child(9)');
-                const descriptionCell = row.querySelector('td:nth-child(7)');
-                
-                const status = statusCell ? statusCell.textContent : '';
-                const level = levelCell ? levelCell.textContent : '';
-                const plant = plantCell ? plantCell.textContent : '';
-                const equipment = equipmentCell ? equipmentCell.textContent : '';
-                const area = areaCell ? areaCell.textContent : '';
-                const category = categoryCell ? categoryCell.textContent : '';
-                const reporter = reporterCell ? reporterCell.textContent : '';
-                const description = descriptionCell ? descriptionCell.textContent : '';
-                
-                const statusMatch = !statusFilter || status === statusFilter;
-                const levelMatch = !levelFilter || level === levelFilter;
-                const plantMatch = !plantFilter || plant === plantFilter;
-                const categoryMatch = !categoryFilter || category === categoryFilter;
-                const equipmentMatch = !equipmentFilter || equipment === equipmentFilter;
-                const areaMatch = !areaFilter || area === areaFilter;
-                const reporterMatch = !reporterFilter || reporter === reporterFilter;
-                const searchMatch = !searchInput || 
-                    plant.toLowerCase().includes(searchInput) || 
-                    equipment.toLowerCase().includes(searchInput) ||
-                    area.toLowerCase().includes(searchInput) ||
-                    category.toLowerCase().includes(searchInput) ||
-                    description.toLowerCase().includes(searchInput);
-                
-                if (statusMatch && levelMatch && plantMatch && categoryMatch && equipmentMatch && areaMatch && reporterMatch && searchMatch) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+function filterFaults() {
+    const statusFilter = document.getElementById('status-filter').value;
+    const levelFilter = document.getElementById('level-filter').value;
+    const plantFilter = document.getElementById('plant-filter').value;
+    const categoryFilter = document.getElementById('category-filter').value;
+    const equipmentFilter = document.getElementById('equipment-filter').value;
+    const areaFilter = document.getElementById('area-filter').value;
+    const reporterFilter = document.getElementById('reporter-filter').value;
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    
+    // 筛选数据
+    const filteredFaults = allFaults.filter(fault => {
+        // 状态筛选
+        if (statusFilter) {
+            const statusText = formatFaultStatus(fault.status);
+            if (statusText !== statusFilter) return false;
         }
+        
+        // 级别筛选
+        if (levelFilter) {
+            const levelText = formatFaultLevel(fault.faultLevel);
+            if (levelText !== levelFilter) return false;
+        }
+        
+        // 工厂筛选
+        if (plantFilter && fault.plant !== plantFilter) {
+            return false;
+        }
+        
+        // 分类筛选
+        if (categoryFilter && fault.faultCategory !== categoryFilter) {
+            return false;
+        }
+        
+        // 设备筛选
+        if (equipmentFilter && fault.equipmentName !== equipmentFilter) {
+            return false;
+        }
+        
+        // 区域筛选
+        if (areaFilter && fault.faultArea !== areaFilter) {
+            return false;
+        }
+        
+        // 报告人筛选
+        if (reporterFilter && fault.reporter !== reporterFilter) {
+            return false;
+        }
+        
+        // 搜索筛选（检查故障描述和其他文本字段）
+        if (searchInput) {
+            const description = (fault.faultDescription || '').toLowerCase();
+            const equipment = (fault.equipmentName || '').toLowerCase();
+            const area = (fault.faultArea || '').toLowerCase();
+            const category = (fault.faultCategory || '').toLowerCase();
+            const plant = (fault.plant || '').toLowerCase();
+            const reporter = (fault.reporter || '').toLowerCase();
+            
+            if (!description.includes(searchInput) && 
+                !equipment.includes(searchInput) && 
+                !area.includes(searchInput) && 
+                !category.includes(searchInput) && 
+                !plant.includes(searchInput) && 
+                !reporter.includes(searchInput)) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    // 重置到第一页
+    currentPage = 1;
+    
+    // 临时存储筛选后的数据
+    const originalAllFaults = allFaults;
+    allFaults = filteredFaults;
+    
+    // 渲染当前页的故障数据
+    renderFaultTable();
+    
+    // 更新分页控件
+    updatePaginationControls();
+    
+    // 恢复原始数据
+    allFaults = originalAllFaults;
+    
+    // 如果没有筛选结果，显示提示
+    if (filteredFaults.length === 0) {
+        const noDataMessage = document.getElementById('no-data-message');
+        if (noDataMessage) {
+            noDataMessage.style.display = 'block';
+            noDataMessage.textContent = '没有找到符合条件的故障记录';
+        }
+    } else {
+        const noDataMessage = document.getElementById('no-data-message');
+        if (noDataMessage) {
+            noDataMessage.style.display = 'none';
+        }
+    }
+}
+
+        // 重置筛选器
+function resetFilters() {
+    // 重置所有筛选器
+    const filters = ['status-filter', 'level-filter', 'plant-filter', 'category-filter', 'equipment-filter', 'area-filter', 'reporter-filter'];
+    filters.forEach(filterId => {
+        const filter = document.getElementById(filterId);
+        if (filter) {
+            filter.value = '';
+        }
+    });
+    
+    // 重置搜索输入
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    
+    // 重新加载所有数据
+    loadFaultData();
+}
 
         // 添加事件监听器
         document.addEventListener('DOMContentLoaded', function() {
