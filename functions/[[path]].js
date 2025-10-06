@@ -148,11 +148,11 @@ export async function onRequest(context) {
     if (pathname.startsWith('/api/db/query/')) {
       const queryPath = pathname.replace('/api/db/query/', '');
       
-      // Forward the request to the database handler
-      return await import('./api/db/[action]/[table].js')
+      // Forward the request to the database query handler
+      return await import('./api/db-query.js')
         .then(module => {
-          // Set up context for query action
-          context.params = { action: 'query', table: queryPath };
+          // Add queryPath to context
+          context.queryPath = queryPath;
           return module.onRequest(context);
         })
         .catch(error => {
@@ -169,86 +169,6 @@ export async function onRequest(context) {
           });
         });
     }
-    
-    // Database Upload API
-    if (pathname.startsWith('/api/db/upload/')) {
-      const uploadPath = pathname.replace('/api/db/upload/', '');
-      
-      // Forward the request to the database handler
-      return await import('./api/db/[action]/[table].js')
-        .then(module => {
-          // Set up context for upload action
-          context.params = { action: 'upload', table: uploadPath };
-          return module.onRequest(context);
-        })
-        .catch(error => {
-          console.error('Error loading db-upload module:', error);
-          return new Response(JSON.stringify({ 
-            success: false, 
-            error: 'Internal server error loading db-upload module' 
-          }), {
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*'
-            }
-          });
-        });
-    }
-    
-    // Handle /ws/api/db/query/ routes for info-management.html
-    if (pathname.startsWith('/ws/api/db/query/')) {
-      const queryPath = pathname.replace('/ws/api/db/query/', '');
-      console.log('Forwarding to database API for query:', queryPath);
-      
-      try {
-        // Import the database handler
-        const dbHandler = await import('./api/db/[action]/[table].js');
-        
-        // Set up context for the database handler
-        const context = {
-          request: request,
-          env: env,
-          params: { action: 'query', table: queryPath }
-        };
-        
-        return await dbHandler.onRequest(context);
-      } catch (error) {
-        console.error('Error forwarding query request:', error);
-        return new Response(JSON.stringify({ error: 'Internal server error' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    // Handle /ws/api/db/upload/ routes for info-management.html
-    if (pathname.startsWith('/ws/api/db/upload/')) {
-      const uploadPath = pathname.replace('/ws/api/db/upload/', '');
-      console.log('Forwarding to database API for upload:', uploadPath);
-      
-      try {
-        // Import the database handler
-        const dbHandler = await import('./api/db/[action]/[table].js');
-        
-        // Set up context for the database handler
-        const context = {
-          request: request,
-          env: env,
-          params: { action: 'upload', table: uploadPath }
-        };
-        
-        return await dbHandler.onRequest(context);
-      } catch (error) {
-        console.error('Error forwarding upload request:', error);
-        return new Response(JSON.stringify({ error: 'Internal server error' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    }
-    
-
     
     // Handle unknown API endpoints
     return new Response(JSON.stringify({ 
