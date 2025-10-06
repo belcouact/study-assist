@@ -255,8 +255,8 @@
         
         /* 卡片布局样式 */
         .cards-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            flex-direction: column;
             gap: 2rem;
             margin-top: 2rem;
         }
@@ -394,6 +394,29 @@
             
             .nav-menu.active {
                 display: flex;
+            }
+            
+            .tabs-header {
+                overflow-x: auto;
+            }
+            
+            .cards-container {
+                gap: 1.5rem;
+            }
+            
+            .info-card {
+                min-height: auto;
+            }
+            
+            .download-section {
+                padding: 1.5rem 1rem;
+                gap: 1.5rem;
+            }
+            
+            .download-button {
+                min-width: 180px;
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
             }
             
             .tabs-header {
@@ -766,100 +789,84 @@
         });
         
         // 下载故障数据功能
-        function downloadFaultData() {
-            // 模拟故障数据（实际应用中应该从服务器获取）
-            const faultData = [
-                {
-                    "故障编号": "FAULT-001",
-                    "设备名称": "生产线A主机",
-                    "设备类型": "生产设备",
-                    "所属部门": "生产部",
-                    "故障描述": "设备异常停机，显示错误代码E203",
-                    "故障等级": "高",
-                    "状态": "处理中",
-                    "创建时间": "2023-06-20 09:15",
-                    "负责人": "张工程师",
-                    "处理进度": "70%",
-                    "解决方案": "更换传感器，重新校准设备"
-                },
-                {
-                    "故障编号": "FAULT-002",
-                    "设备名称": "检测仪B",
-                    "设备类型": "检测设备",
-                    "所属部门": "质检部",
-                    "故障描述": "检测结果不准确，偏差较大",
-                    "故障等级": "中",
-                    "状态": "待处理",
-                    "创建时间": "2023-06-19 14:30",
-                    "负责人": "李技师",
-                    "处理进度": "30%",
-                    "解决方案": "校准检测参数，清洁检测探头"
-                },
-                {
-                    "故障编号": "FAULT-003",
-                    "设备名称": "传送带C",
-                    "设备类型": "传输设备",
-                    "所属部门": "生产部",
-                    "故障描述": "传送带速度不稳定",
-                    "故障等级": "低",
-                    "状态": "已解决",
-                    "创建时间": "2023-06-18 16:45",
-                    "负责人": "王维修",
-                    "处理进度": "100%",
-                    "解决方案": "调整传送带张力，润滑传动部件"
-                }
-            ];
-            
+        async function downloadFaultData() {
             try {
                 // 显示加载状态
                 const downloadBtn = document.querySelector('.download-button');
                 const originalText = downloadBtn.innerHTML;
-                downloadBtn.innerHTML = '<span>⏳</span><span>正在准备数据...</span>';
+                downloadBtn.innerHTML = '<span>⏳</span><span>正在获取数据...</span>';
                 downloadBtn.disabled = true;
                 
-                // 模拟加载延迟
-                setTimeout(() => {
-                    // 创建工作簿
-                    const wb = XLSX.utils.book_new();
-                    
-                    // 将数据转换为工作表
-                    const ws = XLSX.utils.json_to_sheet(faultData);
-                    
-                    // 设置列宽
-                    const colWidths = [
-                        { wch: 12 }, // 故障编号
-                        { wch: 15 }, // 设备名称
-                        { wch: 12 }, // 设备类型
-                        { wch: 10 }, // 所属部门
-                        { wch: 30 }, // 故障描述
-                        { wch: 8 },  // 故障等级
-                        { wch: 10 }, // 状态
-                        { wch: 18 }, // 创建时间
-                        { wch: 12 }, // 负责人
-                        { wch: 8 },  // 处理进度
-                        { wch: 40 }  // 解决方案
-                    ];
-                    ws['!cols'] = colWidths;
-                    
-                    // 添加工作表到工作簿
-                    XLSX.utils.book_append_sheet(wb, ws, "故障数据");
-                    
-                    // 生成文件名
-                    const fileName = `故障数据_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}.xlsx`;
-                    
-                    // 下载文件
-                    XLSX.writeFile(wb, fileName);
-                    
-                    // 恢复按钮状态
+                // 从KV存储获取故障数据
+                const response = await fetch('/api/faults');
+                if (!response.ok) {
+                    throw new Error('获取数据失败');
+                }
+                
+                const faults = await response.json();
+                
+                if (!faults || faults.length === 0) {
+                    alert('暂无故障数据');
                     downloadBtn.innerHTML = originalText;
                     downloadBtn.disabled = false;
-                    
-                    console.log('故障数据下载成功');
-                }, 1500);
+                    return;
+                }
+                
+                // 转换数据格式为Excel需要的格式
+                const faultData = faults.map(fault => ({
+                    '故障编号': fault.id || fault.faultId || 'N/A',
+                    '设备名称': fault.equipmentName || fault.deviceName || 'N/A',
+                    '设备类型': fault.equipmentType || fault.deviceType || 'N/A',
+                    '所属部门': fault.department || 'N/A',
+                    '故障描述': fault.description || fault.faultDescription || 'N/A',
+                    '故障等级': fault.faultLevel || fault.priority || 'N/A',
+                    '状态': fault.status || 'N/A',
+                    '创建时间': fault.createdAt || fault.createTime || 'N/A',
+                    '负责人': fault.assignee || fault.responsiblePerson || 'N/A',
+                    '处理进度': fault.progress || fault.processingProgress || '0%',
+                    '解决方案': fault.solution || fault.resolution || 'N/A'
+                }));
+                
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                
+                // 将数据转换为工作表
+                const ws = XLSX.utils.json_to_sheet(faultData);
+                
+                // 设置列宽
+                const colWidths = [
+                    { wch: 12 }, // 故障编号
+                    { wch: 15 }, // 设备名称
+                    { wch: 12 }, // 设备类型
+                    { wch: 10 }, // 所属部门
+                    { wch: 30 }, // 故障描述
+                    { wch: 8 },  // 故障等级
+                    { wch: 10 }, // 状态
+                    { wch: 18 }, // 创建时间
+                    { wch: 12 }, // 负责人
+                    { wch: 8 },  // 处理进度
+                    { wch: 40 }  // 解决方案
+                ];
+                ws['!cols'] = colWidths;
+                
+                // 添加工作表到工作簿
+                XLSX.utils.book_append_sheet(wb, ws, "故障数据");
+                
+                // 生成文件名
+                const fileName = `故障数据_${new Date().toISOString().slice(0, 10)}_${new Date().getHours()}${new Date().getMinutes()}.xlsx`;
+                
+                // 下载文件
+                XLSX.writeFile(wb, fileName);
+                
+                // 恢复按钮状态
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+                
+                console.log('故障数据下载成功，共', faultData.length, '条记录');
                 
             } catch (error) {
                 console.error('下载失败:', error);
-                alert('下载失败，请稍后重试');
+                alert('下载失败：' + error.message + '，请稍后重试');
                 
                 // 恢复按钮状态
                 const downloadBtn = document.querySelector('.download-button');
