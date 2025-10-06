@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// ../.wrangler/tmp/bundle-tgfqGr/checked-fetch.js
+// ../.wrangler/tmp/bundle-KIniRn/checked-fetch.js
 function checkURL(request, init) {
   const url = request instanceof URL ? request : new URL(
     (typeof request === "string" ? new Request(request, init) : request).url
@@ -27,7 +27,7 @@ function checkURL(request, init) {
 }
 var urls;
 var init_checked_fetch = __esm({
-  "../.wrangler/tmp/bundle-tgfqGr/checked-fetch.js"() {
+  "../.wrangler/tmp/bundle-KIniRn/checked-fetch.js"() {
     urls = /* @__PURE__ */ new Set();
     __name(checkURL, "checkURL");
     globalThis.fetch = new Proxy(globalThis.fetch, {
@@ -40,14 +40,14 @@ var init_checked_fetch = __esm({
   }
 });
 
-// ../.wrangler/tmp/bundle-tgfqGr/strip-cf-connecting-ip-header.js
+// ../.wrangler/tmp/bundle-KIniRn/strip-cf-connecting-ip-header.js
 function stripCfConnectingIPHeader(input, init) {
   const request = new Request(input, init);
   request.headers.delete("CF-Connecting-IP");
   return request;
 }
 var init_strip_cf_connecting_ip_header = __esm({
-  "../.wrangler/tmp/bundle-tgfqGr/strip-cf-connecting-ip-header.js"() {
+  "../.wrangler/tmp/bundle-KIniRn/strip-cf-connecting-ip-header.js"() {
     __name(stripCfConnectingIPHeader, "stripCfConnectingIPHeader");
     globalThis.fetch = new Proxy(globalThis.fetch, {
       apply(target, thisArg, argArray) {
@@ -60,6 +60,10 @@ var init_strip_cf_connecting_ip_header = __esm({
 });
 
 // api/db/[action]/[table].js
+var table_exports = {};
+__export(table_exports, {
+  onRequest: () => onRequest
+});
 async function onRequest(context) {
   if (context.request.method === "OPTIONS") {
     return new Response(null, {
@@ -356,7 +360,7 @@ async function onRequest(context) {
 }
 var init_table = __esm({
   "api/db/[action]/[table].js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest, "onRequest");
@@ -378,7 +382,7 @@ function onRequest2(context) {
 }
 var init_speculation = __esm({
   "cdn-cgi/speculation/speculation.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest2, "onRequest");
@@ -433,7 +437,7 @@ async function workerChatOutput(prompt, env) {
 var DS_URL;
 var init_worker_chat = __esm({
   "api/worker-chat.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     DS_URL = "https://chat-api.study-llm.me";
@@ -599,7 +603,7 @@ function onRequestGet() {
 }
 var init_chat = __esm({
   "api/chat.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     init_worker_chat();
@@ -893,7 +897,7 @@ async function onRequest3(context) {
 var REQUEST_TIMEOUT, MAX_TOKENS, TEMPERATURE, CACHE_TTL, requestCache;
 var init_worker_glm = __esm({
   "api/worker-glm.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     REQUEST_TIMEOUT = 25e3;
@@ -1092,7 +1096,7 @@ function onRequestGet2() {
 }
 var init_chat_glm = __esm({
   "api/chat-glm.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     init_worker_glm();
@@ -1193,7 +1197,7 @@ async function handleHoroscope(request, env) {
 var onRequestOptions3, onRequestGet3;
 var init_ninjas = __esm({
   "api/ninjas.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     onRequestOptions3 = /* @__PURE__ */ __name(async ({ request }) => {
@@ -1756,7 +1760,7 @@ function detectTextType(text) {
 }
 var init_tts = __esm({
   "api/tts.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequestPost3, "onRequestPost");
@@ -2163,7 +2167,7 @@ function getMiniMaxVoiceId2(frontendVoice) {
 }
 var init_tts_dialog = __esm({
   "api/tts-dialog.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequestPost4, "onRequestPost");
@@ -2212,7 +2216,7 @@ async function onRequest4(context) {
 }
 var init_catch_all = __esm({
   "_middleware/catch_all.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest4, "onRequest");
@@ -2232,7 +2236,7 @@ async function onRequest5(context) {
 }
 var init_headers = __esm({
   "_middleware/headers.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest5, "onRequest");
@@ -2271,7 +2275,7 @@ async function onRequest6(context) {
 }
 var init_speculation2 = __esm({
   "_middleware/speculation.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest6, "onRequest");
@@ -2358,7 +2362,7 @@ async function onRequest7(context) {
 }
 var init_env = __esm({
   "api/env.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest7, "onRequest");
@@ -2551,7 +2555,7 @@ async function onRequest8(context) {
 var CACHE_TTL2, REQUEST_TIMEOUT2, requestCache2, requestQueue, MAX_CONCURRENT_REQUESTS, config;
 var init_glm_route = __esm({
   "api/glm-route.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     CACHE_TTL2 = 60 * 1e3;
@@ -2628,7 +2632,7 @@ async function onRequest9(context) {
 }
 var init_route = __esm({
   "api/route.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest9, "onRequest");
@@ -2692,7 +2696,7 @@ async function onRequest10(context) {
 }
 var init_tts_dialog_route = __esm({
   "api/tts-dialog-route.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest10, "onRequest");
@@ -2762,7 +2766,7 @@ async function onRequest11(context) {
 var config2;
 var init_tts_route = __esm({
   "api/tts-route.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest11, "onRequest");
@@ -2791,7 +2795,7 @@ async function onRequest12(context) {
 }
 var init_rum = __esm({
   "cdn-cgi/rum.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest12, "onRequest");
@@ -2813,7 +2817,7 @@ async function onRequest13(context) {
 }
 var init_speculation3 = __esm({
   "cdn-cgi/speculation.js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest13, "onRequest");
@@ -2928,8 +2932,8 @@ async function onRequest14(context) {
     }
     if (pathname.startsWith("/api/db/query/")) {
       const queryPath = pathname.replace("/api/db/query/", "");
-      return await import("./api/db-query.js").then((module) => {
-        context.queryPath = queryPath;
+      return await Promise.resolve().then(() => (init_table(), table_exports)).then((module) => {
+        context.params = { action: "query", table: queryPath };
         return module.onRequest(context);
       }).catch((error) => {
         console.error("Error loading db-query module:", error);
@@ -2944,6 +2948,63 @@ async function onRequest14(context) {
           }
         });
       });
+    }
+    if (pathname.startsWith("/api/db/upload/")) {
+      const uploadPath = pathname.replace("/api/db/upload/", "");
+      return await Promise.resolve().then(() => (init_table(), table_exports)).then((module) => {
+        context.params = { action: "upload", table: uploadPath };
+        return module.onRequest(context);
+      }).catch((error) => {
+        console.error("Error loading db-upload module:", error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: "Internal server error loading db-upload module"
+        }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+          }
+        });
+      });
+    }
+    if (pathname.startsWith("/ws/api/db/query/")) {
+      const queryPath = pathname.replace("/ws/api/db/query/", "");
+      console.log("Forwarding to database API for query:", queryPath);
+      try {
+        const dbHandler = await Promise.resolve().then(() => (init_table(), table_exports));
+        const context2 = {
+          request,
+          env,
+          params: { action: "query", table: queryPath }
+        };
+        return await dbHandler.onRequest(context2);
+      } catch (error) {
+        console.error("Error forwarding query request:", error);
+        return new Response(JSON.stringify({ error: "Internal server error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+    }
+    if (pathname.startsWith("/ws/api/db/upload/")) {
+      const uploadPath = pathname.replace("/ws/api/db/upload/", "");
+      console.log("Forwarding to database API for upload:", uploadPath);
+      try {
+        const dbHandler = await Promise.resolve().then(() => (init_table(), table_exports));
+        const context2 = {
+          request,
+          env,
+          params: { action: "upload", table: uploadPath }
+        };
+        return await dbHandler.onRequest(context2);
+      } catch (error) {
+        console.error("Error forwarding upload request:", error);
+        return new Response(JSON.stringify({ error: "Internal server error" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
     }
     return new Response(JSON.stringify({
       success: false,
@@ -2960,17 +3021,17 @@ async function onRequest14(context) {
 }
 var init_path = __esm({
   "[[path]].js"() {
-    init_functionsRoutes_0_39952630749780593();
+    init_functionsRoutes_0_7724356590623558();
     init_checked_fetch();
     init_strip_cf_connecting_ip_header();
     __name(onRequest14, "onRequest");
   }
 });
 
-// ../.wrangler/tmp/pages-s9pHkz/functionsRoutes-0.39952630749780593.mjs
+// ../.wrangler/tmp/pages-KrOJof/functionsRoutes-0.7724356590623558.mjs
 var routes;
-var init_functionsRoutes_0_39952630749780593 = __esm({
-  "../.wrangler/tmp/pages-s9pHkz/functionsRoutes-0.39952630749780593.mjs"() {
+var init_functionsRoutes_0_7724356590623558 = __esm({
+  "../.wrangler/tmp/pages-KrOJof/functionsRoutes-0.7724356590623558.mjs"() {
     init_table();
     init_speculation();
     init_chat();
@@ -3192,23 +3253,23 @@ var init_functionsRoutes_0_39952630749780593 = __esm({
   }
 });
 
-// ../.wrangler/tmp/bundle-tgfqGr/middleware-loader.entry.ts
-init_functionsRoutes_0_39952630749780593();
+// ../.wrangler/tmp/bundle-KIniRn/middleware-loader.entry.ts
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 
-// ../.wrangler/tmp/bundle-tgfqGr/middleware-insertion-facade.js
-init_functionsRoutes_0_39952630749780593();
+// ../.wrangler/tmp/bundle-KIniRn/middleware-insertion-facade.js
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 
 // C:/Users/45333/AppData/Roaming/npm/node_modules/wrangler/templates/pages-template-worker.ts
-init_functionsRoutes_0_39952630749780593();
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 
 // C:/Users/45333/AppData/Roaming/npm/node_modules/wrangler/node_modules/path-to-regexp/dist.es2015/index.js
-init_functionsRoutes_0_39952630749780593();
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 function lexer(str) {
@@ -3657,7 +3718,7 @@ var cloneResponse = /* @__PURE__ */ __name((response) => (
 ), "cloneResponse");
 
 // C:/Users/45333/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-ensure-req-body-drained.ts
-init_functionsRoutes_0_39952630749780593();
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 var drainBody = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx) => {
@@ -3678,7 +3739,7 @@ var drainBody = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 var middleware_ensure_req_body_drained_default = drainBody;
 
 // C:/Users/45333/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/middleware-miniflare3-json-error.ts
-init_functionsRoutes_0_39952630749780593();
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 function reduceError(e) {
@@ -3703,7 +3764,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// ../.wrangler/tmp/bundle-tgfqGr/middleware-insertion-facade.js
+// ../.wrangler/tmp/bundle-KIniRn/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -3711,7 +3772,7 @@ var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
 var middleware_insertion_facade_default = pages_template_worker_default;
 
 // C:/Users/45333/AppData/Roaming/npm/node_modules/wrangler/templates/middleware/common.ts
-init_functionsRoutes_0_39952630749780593();
+init_functionsRoutes_0_7724356590623558();
 init_checked_fetch();
 init_strip_cf_connecting_ip_header();
 var __facade_middleware__ = [];
@@ -3738,7 +3799,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// ../.wrangler/tmp/bundle-tgfqGr/middleware-loader.entry.ts
+// ../.wrangler/tmp/bundle-KIniRn/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class ___Facade_ScheduledController__ {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
@@ -3838,4 +3899,4 @@ export {
   __INTERNAL_WRANGLER_MIDDLEWARE__,
   middleware_loader_entry_default as default
 };
-//# sourceMappingURL=functionsWorker-0.7988946158507118.mjs.map
+//# sourceMappingURL=functionsWorker-0.9917579234318874.mjs.map
