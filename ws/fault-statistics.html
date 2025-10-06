@@ -151,6 +151,27 @@
             gap: 0.5rem;
         }
         
+        .filter-select {
+            padding: 0.5rem 1rem;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: border-color 0.3s;
+            min-width: 120px;
+        }
+        
+        .filter-select:hover {
+            border-color: #3498db;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+        
         .filter-button {
             padding: 0.5rem 1rem;
             background-color: #f8f9fa;
@@ -339,20 +360,18 @@
         
         <div class="chart-container">
             <div class="chart-header">
-                <h2 class="chart-title">故障设备和区域分布</h2>
-                <div class="chart-filter">
-                    <button class="filter-button active">按设备</button>
-                    <button class="filter-button">按区域</button>
-                </div>
-            </div>
-            <div id="equipmentAreaChart" class="chart-placeholder">
-                <p>故障设备和区域分布图表将显示在这里</p>
-            </div>
-        </div>
-        
-        <div class="chart-container">
-            <div class="chart-header">
                 <h2 class="chart-title">故障类型分布</h2>
+                <div class="chart-filter">
+                    <select id="faultTypeFilter" class="filter-select">
+                        <option value="faultCategory">故障分类</option>
+                        <option value="plant">工厂</option>
+                        <option value="equipmentName">故障设备</option>
+                        <option value="faultArea">故障区域</option>
+                        <option value="faultLevel">故障等级</option>
+                        <option value="reporter">报告人</option>
+                        <option value="status">状态</option>
+                    </select>
+                </div>
             </div>
             <div id="faultTypeChart" class="chart-placeholder">
                 <p>故障类型分布图表将显示在这里</p>
@@ -391,6 +410,14 @@
         // 初始化页面
         document.addEventListener('DOMContentLoaded', function() {
             fetchFaultData();
+            
+            // 添加下拉筛选器事件监听
+            const filterSelect = document.getElementById('faultTypeFilter');
+            if (filterSelect) {
+                filterSelect.addEventListener('change', function() {
+                    updateFaultTypeChart(this.value);
+                });
+            }
         });
         
         // 从KV数据集获取故障数据
@@ -403,14 +430,12 @@
                 
                 const faults = await response.json();
                 updateStatisticsCards(faults);
-                initEquipmentAreaChart(faults);
                 initFaultTypeChart(faults);
             } catch (error) {
                 console.error('获取故障数据失败:', error);
                 // 如果API不可用，使用模拟数据
                 const mockFaults = generateMockFaultData();
                 updateStatisticsCards(mockFaults);
-                initEquipmentAreaChart(mockFaults);
                 initFaultTypeChart(mockFaults);
             }
         }
@@ -423,6 +448,7 @@
             const faultCategories = ['电气', '机械', '软件', '其他'];
             const faultLevels = ['低', '中', '高', '紧急'];
             const statuses = ['pending', 'in-progress', 'resolved'];
+            const reporters = ['张三', '李四', '王五', '赵六', '钱七', '孙八'];
             
             const mockFaults = [];
             for (let i = 0; i < 30; i++) {
@@ -434,6 +460,7 @@
                     faultCategory: faultCategories[Math.floor(Math.random() * faultCategories.length)],
                     faultLevel: faultLevels[Math.floor(Math.random() * faultLevels.length)],
                     status: statuses[Math.floor(Math.random() * statuses.length)],
+                    reporter: reporters[Math.floor(Math.random() * reporters.length)],
                     reportTime: new Date(Date.now() - Math.floor(Math.random() * 30 * 24 * 60 * 60 * 1000)).toISOString()
                 });
             }
@@ -445,12 +472,117 @@
             const totalFaults = faults.length;
             const inProgressFaults = faults.filter(f => f.status === 'in-progress').length;
             const pendingFaults = faults.filter(f => f.status === 'pending').length;
-            const urgentFaults = faults.filter(f => f.faultLevel === '紧急' && (f.status === 'pending' || f.status === 'in-progress')).length;
+            const urgentFaults = faults.filter(f => f.faultLevel === '高' && f.status !== 'resolved').length;
             
             document.getElementById('totalFaults').textContent = totalFaults;
             document.getElementById('inProgressFaults').textContent = inProgressFaults;
             document.getElementById('pendingFaults').textContent = pendingFaults;
             document.getElementById('urgentFaults').textContent = urgentFaults;
+        }
+        
+        // 全局变量存储故障数据
+        let globalFaultsData = [];
+        
+        // 初始化故障类型分布图表（支持下拉筛选）
+        function initFaultTypeChart(faults) {
+            globalFaultsData = faults; // 存储数据供后续使用
+            updateFaultTypeChart('faultCategory'); // 默认按故障分类显示
+        }
+        
+        // 更新故障类型分布图表（根据筛选条件）
+        function updateFaultTypeChart(filterType) {
+            const chartDom = document.getElementById('faultTypeChart');
+            const myChart = echarts.init(chartDom);
+            
+            if (!globalFaultsData || globalFaultsData.length === 0) {
+                // 如果没有数据，重新获取
+                fetch('https://study-llm.me/ws/api/faults')
+                    .then(response => response.json())
+                    .then(data => {
+                        globalFaultsData = data;
+                        updateFaultTypeChart(filterType);
+                    })
+                    .catch(error => {
+                        console.error('获取故障数据失败:', error);
+                        const mockFaults = generateMockFaultData();
+                        globalFaultsData = mockFaults;
+                        updateFaultTypeChart(filterType);
+                    });
+                return;
+            }
+            
+            // 根据筛选类型统计故障数量
+            const countData = {};
+            const fieldNames = {
+                'faultCategory': '故障分类',
+                'plant': '工厂',
+                'equipmentName': '故障设备',
+                'faultArea': '故障区域',
+                'faultLevel': '故障等级',
+                'reporter': '报告人',
+                'status': '状态'
+            };
+            
+            globalFaultsData.forEach(fault => {
+                const key = fault[filterType] || '未知';
+                countData[key] = (countData[key] || 0) + 1;
+            });
+            
+            const data = Object.keys(countData).map(name => ({
+                name: name,
+                value: countData[name]
+            }));
+            
+            const option = {
+                title: {
+                    text: `按${fieldNames[filterType]}分布`,
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 'left',
+                    data: data.map(item => item.name)
+                },
+                series: [
+                    {
+                        name: fieldNames[filterType],
+                        type: 'pie',
+                        radius: ['40%', '70%'],
+                        avoidLabelOverlap: false,
+                        itemStyle: {
+                            borderRadius: 10,
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        },
+                        label: {
+                            show: false,
+                            position: 'center'
+                        },
+                        emphasis: {
+                            label: {
+                                show: true,
+                                fontSize: '18',
+                                fontWeight: 'bold'
+                            }
+                        },
+                        labelLine: {
+                            show: false
+                        },
+                        data: data
+                    }
+                ]
+            };
+            
+            myChart.setOption(option);
+            
+            // 响应式调整
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
         }
         
         // 初始化设备和区域分布图表
