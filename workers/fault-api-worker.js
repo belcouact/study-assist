@@ -489,10 +489,28 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
         }
       }
       
+      // 处理被删除的文件
+      const deletedFileIds = formData.getAll('deletedFileIds');
+      if (deletedFileIds.length > 0) {
+        // 从KV存储中删除被删除的文件
+        for (const fileId of deletedFileIds) {
+          const fileKey = `file_${fileId}`;
+          await env.KV_WS_HUB.delete(fileKey);
+        }
+        
+        // 从故障记录的文件列表中移除被删除的文件
+        if (faultData.fileUpload) {
+          faultData.fileUpload = faultData.fileUpload.filter(file => !deletedFileIds.includes(file.id));
+        }
+      }
+      
       // 如果有新上传的文件，更新文件列表
       if (uploadedFiles.length > 0) {
-        // 保留原有文件，添加新文件
+        // 保留原有文件（未被删除的），添加新文件
         requestBody.fileUpload = [...(faultData.fileUpload || []), ...uploadedFiles];
+      } else {
+        // 如果没有新文件，保留原有的未被删除的文件
+        requestBody.fileUpload = faultData.fileUpload || [];
       }
     } else {
       // 处理JSON数据（无文件上传）
