@@ -227,6 +227,86 @@
             color: #856404;
         }
         
+        /* 分页控件样式 */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .pagination-info {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .pagination-btn {
+            padding: 0.5rem 0.75rem;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .pagination-btn:hover:not(:disabled) {
+            background-color: #e9ecef;
+        }
+        
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page-numbers {
+            display: flex;
+            gap: 0.25rem;
+        }
+        
+        .page-number {
+            min-width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        .page-number:hover {
+            background-color: #e9ecef;
+        }
+        
+        .page-number.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        /* 桌面端分页控件样式 - 确保所有控件在同一行 */
+        @media (min-width: 769px) {
+            .pagination-container {
+                flex-wrap: nowrap;
+            }
+            
+            .pagination-controls {
+                flex-wrap: nowrap;
+            }
+        }
+        
         /* 页脚样式 */
         footer {
             background-color: #2c3e50;
@@ -527,6 +607,20 @@
                                     <!-- Data will be loaded here -->
                                 </tbody>
                             </table>
+                            
+                            <!-- 分页控件 -->
+                            <div class="pagination-container">
+                                <div class="pagination-info">
+                                    <span id="equipment-pagination-info">显示 0-0 条，共 0 条记录</span>
+                                </div>
+                                <div class="pagination-controls">
+                                    <button id="equipment-prev-page" class="pagination-btn" onclick="changeEquipmentPage(-1)" disabled>上一页</button>
+                                    <div id="equipment-page-numbers" class="page-numbers">
+                                        <!-- 页码将通过JavaScript动态生成 -->
+                                    </div>
+                                    <button id="equipment-next-page" class="pagination-btn" onclick="changeEquipmentPage(1)" disabled>下一页</button>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="tab-content" id="users-tab">
@@ -554,6 +648,20 @@
                     <!-- Data will be loaded here -->
                 </tbody>
             </table>
+            
+            <!-- 分页控件 -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span id="user-pagination-info">显示 0-0 条，共 0 条记录</span>
+                </div>
+                <div class="pagination-controls">
+                    <button id="user-prev-page" class="pagination-btn" onclick="changeUserPage(-1)" disabled>上一页</button>
+                    <div id="user-page-numbers" class="page-numbers">
+                        <!-- 页码将通过JavaScript动态生成 -->
+                    </div>
+                    <button id="user-next-page" class="pagination-btn" onclick="changeUserPage(1)" disabled>下一页</button>
+                </div>
+            </div>
         </div>
                     </div>
                 </div>
@@ -729,6 +837,19 @@
             }
         };
 
+        // 分页相关变量
+        const ITEMS_PER_PAGE = 10; // 每页显示10条记录
+        
+        // 设备管理分页变量
+        let allEquipmentData = [];
+        let currentEquipmentPage = 1;
+        let totalEquipmentPages = 0;
+        
+        // 用户管理分页变量
+        let allUserData = [];
+        let currentUserPage = 1;
+        let totalUserPages = 0;
+
         // Load data from database
         async function loadTableData(type) {
             const config = DB_CONFIG[type];
@@ -737,18 +858,18 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    const tbody = document.getElementById(`${type}TableBody`);
-                    tbody.innerHTML = '';
-                    
-                    result.data.forEach(row => {
-                        const tr = document.createElement('tr');
-                        config.columns.forEach(col => {
-                            const td = document.createElement('td');
-                            td.textContent = row[col] || '';
-                            tr.appendChild(td);
-                        });
-                        tbody.appendChild(tr);
-                    });
+                    // 存储所有数据
+                    if (type === 'equipment') {
+                        allEquipmentData = result.data;
+                        currentEquipmentPage = 1;
+                        totalEquipmentPages = Math.ceil(allEquipmentData.length / ITEMS_PER_PAGE);
+                        renderEquipmentTable();
+                    } else if (type === 'user') {
+                        allUserData = result.data;
+                        currentUserPage = 1;
+                        totalUserPages = Math.ceil(allUserData.length / ITEMS_PER_PAGE);
+                        renderUserTable();
+                    }
                 } else {
                     console.error('Failed to load data:', result.error);
                     alert('加载数据失败: ' + result.error);
@@ -759,6 +880,155 @@
             }
         }
 
+        // 渲染设备表格
+        function renderEquipmentTable() {
+            const tbody = document.getElementById('equipmentTableBody');
+            tbody.innerHTML = '';
+            
+            // 计算当前页的数据范围
+            const startIndex = (currentEquipmentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allEquipmentData.length);
+            const currentPageData = allEquipmentData.slice(startIndex, endIndex);
+            
+            // 渲染表格数据
+            currentPageData.forEach(row => {
+                const tr = document.createElement('tr');
+                DB_CONFIG.equipment.columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.textContent = row[col] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            
+            // 更新分页信息
+            updateEquipmentPagination();
+        }
+        
+        // 渲染用户表格
+        function renderUserTable() {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+            
+            // 计算当前页的数据范围
+            const startIndex = (currentUserPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, allUserData.length);
+            const currentPageData = allUserData.slice(startIndex, endIndex);
+            
+            // 渲染表格数据
+            currentPageData.forEach(row => {
+                const tr = document.createElement('tr');
+                DB_CONFIG.user.columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.textContent = row[col] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+            
+            // 更新分页信息
+            updateUserPagination();
+        }
+        
+        // 更新设备分页控件
+        function updateEquipmentPagination() {
+            const startIndex = (currentEquipmentPage - 1) * ITEMS_PER_PAGE + 1;
+            const endIndex = Math.min(currentEquipmentPage * ITEMS_PER_PAGE, allEquipmentData.length);
+            
+            // 更新分页信息
+            document.getElementById('equipment-pagination-info').textContent = 
+                `显示 ${startIndex}-${endIndex} 条，共 ${allEquipmentData.length} 条记录`;
+            
+            // 更新上一页/下一页按钮状态
+            document.getElementById('equipment-prev-page').disabled = currentEquipmentPage === 1;
+            document.getElementById('equipment-next-page').disabled = currentEquipmentPage === totalEquipmentPages || totalEquipmentPages === 0;
+            
+            // 生成页码
+            const pageNumbersContainer = document.getElementById('equipment-page-numbers');
+            pageNumbersContainer.innerHTML = '';
+            
+            // 计算显示的页码范围（最多显示5个页码）
+            let startPage = Math.max(1, currentEquipmentPage - 2);
+            let endPage = Math.min(totalEquipmentPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+            
+            // 生成页码按钮
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('div');
+                pageButton.className = 'page-number';
+                if (i === currentEquipmentPage) {
+                    pageButton.classList.add('active');
+                }
+                pageButton.textContent = i;
+                pageButton.onclick = function() {
+                    currentEquipmentPage = i;
+                    renderEquipmentTable();
+                };
+                pageNumbersContainer.appendChild(pageButton);
+            }
+        }
+        
+        // 更新用户分页控件
+        function updateUserPagination() {
+            const startIndex = (currentUserPage - 1) * ITEMS_PER_PAGE + 1;
+            const endIndex = Math.min(currentUserPage * ITEMS_PER_PAGE, allUserData.length);
+            
+            // 更新分页信息
+            document.getElementById('user-pagination-info').textContent = 
+                `显示 ${startIndex}-${endIndex} 条，共 ${allUserData.length} 条记录`;
+            
+            // 更新上一页/下一页按钮状态
+            document.getElementById('user-prev-page').disabled = currentUserPage === 1;
+            document.getElementById('user-next-page').disabled = currentUserPage === totalUserPages || totalUserPages === 0;
+            
+            // 生成页码
+            const pageNumbersContainer = document.getElementById('user-page-numbers');
+            pageNumbersContainer.innerHTML = '';
+            
+            // 计算显示的页码范围（最多显示5个页码）
+            let startPage = Math.max(1, currentUserPage - 2);
+            let endPage = Math.min(totalUserPages, startPage + 4);
+            
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+            
+            // 生成页码按钮
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('div');
+                pageButton.className = 'page-number';
+                if (i === currentUserPage) {
+                    pageButton.classList.add('active');
+                }
+                pageButton.textContent = i;
+                pageButton.onclick = function() {
+                    currentUserPage = i;
+                    renderUserTable();
+                };
+                pageNumbersContainer.appendChild(pageButton);
+            }
+        }
+        
+        // 切换设备页面
+        function changeEquipmentPage(direction) {
+            const newPage = currentEquipmentPage + direction;
+            if (newPage >= 1 && newPage <= totalEquipmentPages) {
+                currentEquipmentPage = newPage;
+                renderEquipmentTable();
+            }
+        }
+        
+        // 切换用户页面
+        function changeUserPage(direction) {
+            const newPage = currentUserPage + direction;
+            if (newPage >= 1 && newPage <= totalUserPages) {
+                currentUserPage = newPage;
+                renderUserTable();
+            }
+        }
         // Download data to Excel
         async function downloadTableData(type) {
             const config = DB_CONFIG[type];
@@ -770,7 +1040,7 @@
                     // Create workbook
                     const wb = XLSX.utils.book_new();
                     
-                    // Prepare data for Excel
+                    // Prepare data for Excel - 使用所有数据，而不仅仅是当前页
                     const excelData = [
                         config.headers, // Headers
                         ...result.data.map(row => config.columns.map(col => row[col] || ''))
@@ -837,6 +1107,8 @@
                         const result = await response.json();
                         
                         if (result.success) {
+                            // 上传成功后重新加载数据
+                            loadTableData(type);
                             resolve(result);
                         } else {
                             reject(new Error(result.error));
@@ -870,7 +1142,6 @@
                         try {
                             const result = await uploadTableData('equipment', file);
                             alert('上传成功! ' + result.message);
-                            loadTableData('equipment'); // Reload data
                         } catch (error) {
                             alert('上传失败: ' + error.message);
                         }
@@ -894,7 +1165,6 @@
                         try {
                             const result = await uploadTableData('user', file);
                             alert('上传成功! ' + result.message);
-                            loadTableData('user'); // Reload data
                         } catch (error) {
                             alert('上传失败: ' + error.message);
                         }
