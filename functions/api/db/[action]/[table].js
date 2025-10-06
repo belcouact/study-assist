@@ -15,19 +15,17 @@ export async function onRequest(context) {
         const url = new URL(context.request.url);
         const databaseParam = url.searchParams.get('database') || 'default';
         
-
-        
         let db;
         if (databaseParam === 'db_gore') {
             if (!context.env.DB_GORE) {
                 throw new Error('Database binding "DB_GORE" not found. Please check your Cloudflare Pages D1 database bindings.');
             }
             db = context.env.DB_GORE;
-        } else if (table === 'equipment_basic_info' || table === 'personnel_list') {
-            if (!context.env.DB_WS_HUB) {
-                throw new Error('Database binding "DB_WS_HUB" not found. Please check your Cloudflare Pages D1 database bindings.');
+        } else if (databaseParam === 'ws-hub-db') {
+            if (!context.env.DB_WS) {
+                throw new Error('Database binding "DB_WS" not found. Please check your Cloudflare Pages D1 database bindings.');
             }
-            db = context.env.DB_WS_HUB;
+            db = context.env.DB_WS;
         } else {
             if (!context.env.DB) {
                 throw new Error('Database binding "DB" not found. Please check your Cloudflare Pages D1 database bindings.');
@@ -253,9 +251,15 @@ export async function onRequest(context) {
                             );
                         }));
                     } else if (table === 'equipment_basic_info') {
+                        // First, clear existing data from the table
+                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        deletedCount = deleteResult.meta.changes || 0;
+
                         await db.batch(data.map(row => {
                             return db.prepare(`
-                                INSERT INTO equipment_basic_info (plant, equipment, area, sub_area)
+                                INSERT INTO equipment_basic_info (
+                                    plant, equipment, area, sub_area
+                                )
                                 VALUES (?, ?, ?, ?)
                             `).bind(
                                 row.plant || null,
@@ -265,9 +269,15 @@ export async function onRequest(context) {
                             );
                         }));
                     } else if (table === 'personnel_list') {
+                        // First, clear existing data from the table
+                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        deletedCount = deleteResult.meta.changes || 0;
+
                         await db.batch(data.map(row => {
                             return db.prepare(`
-                                INSERT INTO personnel_list (plant, name, function, commitment)
+                                INSERT INTO personnel_list (
+                                    plant, name, function, commitment
+                                )
                                 VALUES (?, ?, ?, ?)
                             `).bind(
                                 row.plant || null,
