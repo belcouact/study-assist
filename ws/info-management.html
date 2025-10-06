@@ -512,7 +512,6 @@
                         <div class="tabs-header">
                             <button class="tab-button active" data-tab="equipment">设备管理</button>
                             <button class="tab-button" data-tab="users">用户管理</button>
-                            <button class="tab-button" data-tab="departments">部门管理</button>
                         </div>
                         
                         <div class="tab-content active" id="equipment-tab">
@@ -656,73 +655,6 @@
                                 </tbody>
                             </table>
                         </div>
-                        
-                        <div class="tab-content" id="departments-tab">
-                            <div class="action-bar">
-                                <input type="text" class="search-box" placeholder="搜索部门名称或负责人...">
-                                <button class="action-button">
-                                    <span>➕</span>
-                                    <span>添加部门</span>
-                                </button>
-                            </div>
-                            
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>部门名称</th>
-                                        <th>负责人</th>
-                                        <th>员工数量</th>
-                                        <th>设备数量</th>
-                                        <th>创建时间</th>
-                                        <th>操作</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>生产部</td>
-                                        <td>赵经理</td>
-                                        <td>25</td>
-                                        <td>12</td>
-                                        <td>2022-01-15</td>
-                                        <td>
-                                            <div class="action-links">
-                                                <a href="#" class="action-link">编辑</a>
-                                                <a href="#" class="action-link">查看详情</a>
-                                                <a href="#" class="action-link delete">删除</a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>质检部</td>
-                                        <td>钱经理</td>
-                                        <td>15</td>
-                                        <td>8</td>
-                                        <td>2022-02-20</td>
-                                        <td>
-                                            <div class="action-links">
-                                                <a href="#" class="action-link">编辑</a>
-                                                <a href="#" class="action-link">查看详情</a>
-                                                <a href="#" class="action-link delete">删除</a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>维修部</td>
-                                        <td>孙经理</td>
-                                        <td>10</td>
-                                        <td>5</td>
-                                        <td>2022-03-10</td>
-                                        <td>
-                                            <div class="action-links">
-                                                <a href="#" class="action-link">编辑</a>
-                                                <a href="#" class="action-link">查看详情</a>
-                                                <a href="#" class="action-link delete">删除</a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -737,9 +669,11 @@
                         <div class="download-info">
                             <p>📊 下载包含所有故障记录的数据文件</p>
                             <ul class="download-features">
-                                <li>✅ 包含故障编号、设备信息、故障描述</li>
-                                <li>✅ 包含状态、优先级、创建时间</li>
-                                <li>✅ 包含处理进度、负责人信息</li>
+                                <li>✅ 包含故障编号、工厂、设备名称、故障区域</li>
+                                <li>✅ 包含故障分类、故障等级、报告时间和报告人</li>
+                                <li>✅ 包含故障描述、排查步骤、根本原因和解决方案</li>
+                                <li>✅ 包含状态、处理人、处理时间、处理描述</li>
+                                <li>✅ 包含创建时间、更新时间、附加信息</li>
                                 <li>✅ 排除上传的附件文件</li>
                             </ul>
                         </div>
@@ -797,8 +731,8 @@
                 downloadBtn.innerHTML = '<span>⏳</span><span>正在获取数据...</span>';
                 downloadBtn.disabled = true;
                 
-                // 从KV存储获取故障数据
-                const response = await fetch('/api/faults');
+                // 从远程API获取故障数据
+                const response = await fetch('https://study-llm.me/ws/api/faults');
                 if (!response.ok) {
                     throw new Error('获取数据失败');
                 }
@@ -812,19 +746,27 @@
                     return;
                 }
                 
-                // 转换数据格式为Excel需要的格式
+                // 转换数据格式为Excel需要的格式 - 包含所有KV数据集字段
                 const faultData = faults.map(fault => ({
                     '故障编号': fault.id || fault.faultId || 'N/A',
+                    '工厂': fault.plant || 'N/A',
                     '设备名称': fault.equipmentName || fault.deviceName || 'N/A',
-                    '设备类型': fault.equipmentType || fault.deviceType || 'N/A',
-                    '所属部门': fault.department || 'N/A',
-                    '故障描述': fault.description || fault.faultDescription || 'N/A',
+                    '故障区域': fault.faultArea || 'N/A',
+                    '故障分类': fault.faultCategory || 'N/A',
                     '故障等级': fault.faultLevel || fault.priority || 'N/A',
+                    '报告时间': fault.reportTime || 'N/A',
+                    '报告人': fault.reporter || 'N/A',
+                    '故障描述': fault.faultDescription || fault.description || 'N/A',
+                    '排查步骤': fault.troubleshootingSteps || 'N/A',
+                    '根本原因': fault.rootCause || 'N/A',
+                    '解决方案': fault.resolution || fault.solution || 'N/A',
+                    '附加信息': fault.additionalInfo || 'N/A',
                     '状态': fault.status || 'N/A',
-                    '创建时间': fault.createdAt || fault.createTime || 'N/A',
-                    '负责人': fault.assignee || fault.responsiblePerson || 'N/A',
-                    '处理进度': fault.progress || fault.processingProgress || '0%',
-                    '解决方案': fault.solution || fault.resolution || 'N/A'
+                    '处理人': fault.handler || 'N/A',
+                    '处理时间': fault.handleTime || 'N/A',
+                    '处理描述': fault.handleDescription || 'N/A',
+                    '创建时间': fault.createTime || fault.createdAt || 'N/A',
+                    '更新时间': fault.updateTime || 'N/A'
                 }));
                 
                 // 创建工作簿
@@ -833,20 +775,8 @@
                 // 将数据转换为工作表
                 const ws = XLSX.utils.json_to_sheet(faultData);
                 
-                // 设置列宽
-                const colWidths = [
-                    { wch: 12 }, // 故障编号
-                    { wch: 15 }, // 设备名称
-                    { wch: 12 }, // 设备类型
-                    { wch: 10 }, // 所属部门
-                    { wch: 30 }, // 故障描述
-                    { wch: 8 },  // 故障等级
-                    { wch: 10 }, // 状态
-                    { wch: 18 }, // 创建时间
-                    { wch: 12 }, // 负责人
-                    { wch: 8 },  // 处理进度
-                    { wch: 40 }  // 解决方案
-                ];
+                // 设置列宽 - 适配所有KV数据集字段（无字符限制）
+                const colWidths = Array(19).fill(null); // 19个字段，不限制列宽
                 ws['!cols'] = colWidths;
                 
                 // 添加工作表到工作簿
@@ -866,7 +796,17 @@
                 
             } catch (error) {
                 console.error('下载失败:', error);
-                alert('下载失败：' + error.message + '，请稍后重试');
+                
+                let errorMessage = '下载失败：';
+                if (error.message.includes('Failed to fetch')) {
+                    errorMessage += '网络连接失败，请检查网络连接或稍后重试';
+                } else if (error.message.includes('获取数据失败')) {
+                    errorMessage += '无法获取故障数据，请稍后重试';
+                } else {
+                    errorMessage += error.message;
+                }
+                
+                alert(errorMessage);
                 
                 // 恢复按钮状态
                 const downloadBtn = document.querySelector('.download-button');

@@ -114,6 +114,65 @@ app.get('/api/kv', async (req, res) => {
     }
 });
 
+// 获取故障数据
+app.get('/ws/api/faults', async (req, res) => {
+    try {
+        // 获取所有以 fault_ 开头的键
+        const listResponse = await axios.get(`${KV_CONFIG.baseUrl}/keys?prefix=fault_`, { headers });
+        const keys = listResponse.data.result || [];
+        
+        const faults = [];
+        
+        // 获取每个故障数据
+        for (const key of keys) {
+            try {
+                const faultResponse = await axios.get(`${KV_CONFIG.baseUrl}/values/${key.name}`, { headers });
+                const faultData = faultResponse.data;
+                
+                if (faultData && typeof faultData === 'object') {
+                    // 确保数据结构包含必要字段
+                    const fault = {
+                        id: faultData.id || key.name.replace('fault_', ''),
+                        plant: faultData.plant || 'N/A',
+                        equipmentName: faultData.equipmentName || faultData.deviceName || 'N/A',
+                        equipmentType: faultData.equipmentType || faultData.deviceType || 'N/A',
+                        department: faultData.department || 'N/A',
+                        faultArea: faultData.faultArea || 'N/A',
+                        faultCategory: faultData.faultCategory || 'N/A',
+                        faultLevel: faultData.faultLevel || faultData.priority || 'N/A',
+                        description: faultData.description || faultData.faultDescription || 'N/A',
+                        status: faultData.status || 'N/A',
+                        reportTime: faultData.reportTime || faultData.createTime || new Date().toISOString(),
+                        reporter: faultData.reporter || faultData.assignee || 'N/A',
+                        progress: faultData.progress || '0%',
+                        solution: faultData.solution || faultData.resolution || 'N/A',
+                        createdAt: faultData.createdAt || faultData.createTime || new Date().toISOString()
+                    };
+                    
+                    faults.push(fault);
+                }
+            } catch (error) {
+                console.warn(`获取故障数据 ${key.name} 失败:`, error.message);
+            }
+        }
+        
+        // 按创建时间倒序排列
+        faults.sort((a, b) => {
+            const timeA = new Date(a.createdAt).getTime();
+            const timeB = new Date(b.createdAt).getTime();
+            return timeB - timeA; // 最新的在前面
+        });
+        
+        res.json(faults);
+    } catch (error) {
+        console.error('获取故障数据失败:', error);
+        res.status(500).json({ 
+            error: 'Failed to get fault data',
+            message: error.message 
+        });
+    }
+});
+
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`KV API Proxy Server running on port ${PORT}`);
