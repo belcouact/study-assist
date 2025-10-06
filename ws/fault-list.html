@@ -526,6 +526,22 @@
                 white-space: nowrap;
             }
             
+            /* 移动端故障描述列样式 - 允许文本换行 */
+            @media (max-width: 768px) {
+                .fault-table td:nth-child(7) {
+                    max-width: 150px;
+                    white-space: normal;
+                    overflow: visible;
+                    text-overflow: unset;
+                    line-height: 1.4;
+                    height: auto;
+                    max-height: 4.2em; /* 最多显示3行 */
+                    display: -webkit-box;
+                    -webkit-line-clamp: 3;
+                    -webkit-box-orient: vertical;
+                }
+            }
+            
             .fault-table th {
                 position: sticky;
                 top: 0;
@@ -586,6 +602,17 @@
                 display: flex;
                 align-items: center;
                 gap: 0.5rem;
+            }
+            
+            /* 桌面端分页控件样式 - 确保所有控件在同一行 */
+            @media (min-width: 769px) {
+                .pagination-container {
+                    flex-wrap: nowrap;
+                }
+                
+                .pagination-controls {
+                    flex-wrap: nowrap;
+                }
             }
             
             .pagination-btn {
@@ -784,21 +811,30 @@
             }
         }
         
-        // 移动端菜单切换
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuToggle = document.getElementById('mobileMenuToggle');
-            const navMenu = document.getElementById('navMenu');
-            
-            if (menuToggle && navMenu) {
-                menuToggle.addEventListener('click', function() {
-                    navMenu.classList.toggle('active');
-                });
-            }
+        // 处理窗口大小变化，重新渲染表格以适应新的屏幕尺寸
+function handleResize() {
+    // 重新渲染当前页的故障数据
+    renderFaultTable();
+}
 
-            // 从KV表加载故障数据
-            console.log('页面加载完成，开始加载故障数据...');
-            loadFaultData();
+// 移动端菜单切换
+document.addEventListener('DOMContentLoaded', function() {
+    const menuToggle = document.getElementById('mobileMenuToggle');
+    const navMenu = document.getElementById('navMenu');
+    
+    if (menuToggle && navMenu) {
+        menuToggle.addEventListener('click', function() {
+            navMenu.classList.toggle('active');
         });
+    }
+
+    // 添加窗口大小变化监听器
+    window.addEventListener('resize', handleResize);
+
+    // 从KV表加载故障数据
+    console.log('页面加载完成，开始加载故障数据...');
+    loadFaultData();
+});
 
         // 从KV表加载故障数据
 async function loadFaultData() {
@@ -969,10 +1005,21 @@ function renderFaultTable() {
         // 格式化时间
         const reportTime = fault.reportTime ? new Date(fault.reportTime).toLocaleString() : '未知时间';
         
-        // 格式化故障描述，只显示前50个字符
-        const shortDescription = fault.faultDescription && fault.faultDescription.length > 50 
-            ? fault.faultDescription.substring(0, 50) + '...' 
-            : fault.faultDescription || '无描述';
+        // 格式化故障描述，根据屏幕尺寸调整显示长度
+        let shortDescription;
+        const isMobile = window.innerWidth <= 768;
+        
+        if (isMobile) {
+            // 移动端显示更多字符，因为我们会使用CSS控制显示行数
+            shortDescription = fault.faultDescription && fault.faultDescription.length > 100 
+                ? fault.faultDescription.substring(0, 100) + '...' 
+                : fault.faultDescription || '无描述';
+        } else {
+            // 桌面端保持原来的50字符限制
+            shortDescription = fault.faultDescription && fault.faultDescription.length > 50 
+                ? fault.faultDescription.substring(0, 50) + '...' 
+                : fault.faultDescription || '无描述';
+        }
         
         row.innerHTML = `
             <td>${fault.id || '未知'}</td>
