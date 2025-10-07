@@ -1300,6 +1300,7 @@
                     // Add event listener for plant change
                     plantSelect.addEventListener('change', function() {
                         loadEquipment(this.value);
+                        // Don't pass equipment to loadAreas initially, just plant
                         loadAreas(this.value);
                         loadPersonnel(this.value);
                         
@@ -1330,7 +1331,12 @@
         // Load equipment based on selected plant
         async function loadEquipment(plant) {
             if (!plant) {
-                document.getElementById('equipmentName').value = '';
+                const equipmentInput = document.getElementById('equipmentName');
+                if (equipmentInput.tagName === 'SELECT') {
+                    equipmentInput.innerHTML = '<option value="">请选择设备</option>';
+                } else {
+                    equipmentInput.value = '';
+                }
                 return;
             }
             
@@ -1381,6 +1387,16 @@
                         
                         // Replace input with select
                         parent.replaceChild(equipmentSelect, equipmentInput);
+                        
+                        // Add event listener for equipment change to load areas
+                        equipmentSelect.addEventListener('change', function() {
+                            const plantValue = document.getElementById('plant').value;
+                            loadAreas(plantValue, this.value);
+                            
+                            // Clear sub-area dropdown when equipment changes
+                            const subAreaSelect = document.getElementById('faultSubArea');
+                            subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
+                        });
                     }
                 } else {
                     console.error('Failed to load equipment:', result.error);
@@ -1392,10 +1408,15 @@
             }
         }
         
-        // Load areas based on selected plant
-        async function loadAreas(plant) {
+        // Load areas based on selected plant and equipment
+        async function loadAreas(plant, equipment = null) {
             if (!plant) {
-                document.getElementById('faultArea').value = '';
+                const areaInput = document.getElementById('faultArea');
+                if (areaInput.tagName === 'SELECT') {
+                    areaInput.innerHTML = '<option value="">请选择区域</option>';
+                } else {
+                    areaInput.value = '';
+                }
                 return;
             }
             
@@ -1404,11 +1425,14 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Get distinct areas for the selected plant
+                    // Get distinct areas for the selected plant and equipment
                     const areaSet = new Set();
                     result.data.forEach(row => {
                         if (row.plant === plant && row.area) {
-                            areaSet.add(row.area);
+                            // If equipment is provided, filter by equipment as well
+                            if (!equipment || row.equipment === equipment) {
+                                areaSet.add(row.area);
+                            }
                         }
                     });
                     
@@ -1449,7 +1473,9 @@
                         
                         // Add event listener for area change to load sub-areas
                         areaSelect.addEventListener('change', function() {
-                            loadSubAreas(plant, this.value);
+                            const plantValue = document.getElementById('plant').value;
+                            const equipmentValue = document.getElementById('equipmentName').value;
+                            loadSubAreas(plantValue, equipmentValue, this.value);
                         });
                     }
                 } else {
@@ -1462,8 +1488,8 @@
             }
         }
         
-        // Load sub-areas based on selected plant and area
-        async function loadSubAreas(plant, area) {
+        // Load sub-areas based on selected plant, equipment and area
+        async function loadSubAreas(plant, equipment = null, area = null) {
             if (!plant || !area) {
                 const subAreaSelect = document.getElementById('faultSubArea');
                 subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
@@ -1475,11 +1501,14 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    // Get distinct sub-areas for the selected plant and area
+                    // Get distinct sub-areas for the selected plant, equipment and area
                     const subAreaSet = new Set();
                     result.data.forEach(row => {
                         if (row.plant === plant && row.area === area && row.sub_area) {
-                            subAreaSet.add(row.sub_area);
+                            // If equipment is provided, filter by equipment as well
+                            if (!equipment || row.equipment === equipment) {
+                                subAreaSet.add(row.sub_area);
+                            }
                         }
                     });
                     
@@ -1612,12 +1641,13 @@
                 // First load equipment, areas, and personnel based on the selected plant
                 if (fault.plant) {
                     await loadEquipment(fault.plant);
-                    await loadAreas(fault.plant);
+                    // Load areas based on plant and equipment
+                    await loadAreas(fault.plant, fault.equipmentName);
                     await loadPersonnel(fault.plant);
                     
-                    // Load sub-areas based on the selected area
+                    // Load sub-areas based on the selected plant, equipment and area
                     if (fault.faultArea) {
-                        await loadSubAreas(fault.plant, fault.faultArea);
+                        await loadSubAreas(fault.plant, fault.equipmentName, fault.faultArea);
                     }
                 }
                 
