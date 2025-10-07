@@ -283,6 +283,7 @@ export default {
               plant: formData.get('plant'),
               equipmentName: formData.get('equipmentName'),
               faultArea: formData.get('faultArea'),
+              faultSubArea: formData.get('faultSubArea'),
               faultCategory: formData.get('faultCategory'),
               faultLevel: formData.get('faultLevel'),
               reportTime: formData.get('reportTime'),
@@ -350,6 +351,7 @@ export default {
             plant: faultData.plant,
             equipmentName: faultData.equipmentName,
             faultArea: faultData.faultArea,
+            faultSubArea: faultData.faultSubArea || '',
             faultCategory: faultData.faultCategory,
             faultLevel: faultData.faultLevel,
             reportTime: faultData.reportTime,
@@ -450,6 +452,7 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
         plant: formData.get('plant'),
         equipmentName: formData.get('equipmentName'),
         faultArea: formData.get('faultArea'),
+        faultSubArea: formData.get('faultSubArea'),
         faultCategory: formData.get('faultCategory'),
         faultLevel: formData.get('faultLevel'),
         reportTime: formData.get('reportTime'),
@@ -521,6 +524,7 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
     if (requestBody.plant !== undefined) faultData.plant = requestBody.plant;
     if (requestBody.equipmentName !== undefined) faultData.equipmentName = requestBody.equipmentName;
     if (requestBody.faultArea !== undefined) faultData.faultArea = requestBody.faultArea;
+    if (requestBody.faultSubArea !== undefined) faultData.faultSubArea = requestBody.faultSubArea;
     if (requestBody.faultCategory !== undefined) faultData.faultCategory = requestBody.faultCategory;
     if (requestBody.faultLevel !== undefined) faultData.faultLevel = requestBody.faultLevel;
     if (requestBody.reportTime !== undefined) faultData.reportTime = requestBody.reportTime;
