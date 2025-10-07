@@ -1504,6 +1504,20 @@
                         const worksheet = workbook.Sheets[sheetName];
                         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
                         
+                        // Validate Excel structure
+                        if (jsonData.length < 2) {
+                            throw new Error('Excel文件必须包含标题行和至少一行数据');
+                        }
+                        
+                        // Validate headers
+                        const headers = jsonData[0];
+                        const requiredColumns = config.columns;
+                        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+                        
+                        if (missingColumns.length > 0) {
+                            throw new Error(`Excel文件缺少必要的列: ${missingColumns.join(', ')}`);
+                        }
+                        
                         // Skip header row and map to database columns
                         const uploadData = jsonData.slice(1).map(row => {
                             const obj = {};
@@ -1512,6 +1526,21 @@
                             });
                             return obj;
                         });
+                        
+                        // Validate data before upload
+                        if (type === 'equipment') {
+                            const invalidRows = uploadData.filter(row => !row.plant || !row.equipment);
+                            if (invalidRows.length > 0) {
+                                throw new Error(`设备数据中存在${invalidRows.length}条无效记录，工厂和设备名称不能为空`);
+                            }
+                        } else if (type === 'user') {
+                            const invalidRows = uploadData.filter(row => !row.plant || !row.name);
+                            if (invalidRows.length > 0) {
+                                throw new Error(`用户数据中存在${invalidRows.length}条无效记录，工厂和姓名不能为空`);
+                            }
+                        }
+                        
+                        console.log(`准备上传${uploadData.length}条${type}记录`);
                         
                         // Upload to database
                         const response = await fetch(`/api/db/upload/${config.table}?database=${config.database}`, {
@@ -1525,18 +1554,27 @@
                             })
                         });
                         
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            throw new Error(`服务器响应错误: ${response.status} ${errorText}`);
+                        }
+                        
                         const result = await response.json();
                         
                         if (result.success) {
                             // 上传成功后重新加载数据
-                            loadTableData(type);
+                            await loadTableData(type);
                             resolve(result);
                         } else {
-                            reject(new Error(result.error));
+                            reject(new Error(result.error || '上传失败'));
                         }
                     } catch (error) {
+                        console.error('上传过程中发生错误:', error);
                         reject(error);
                     }
+                };
+                reader.onerror = function() {
+                    reject(new Error('读取文件失败'));
                 };
                 reader.readAsArrayBuffer(file);
             });
@@ -1576,11 +1614,23 @@
                 input.onchange = async function(e) {
                     const file = e.target.files[0];
                     if (file) {
+                        // 显示加载状态
+                        const originalText = document.getElementById('uploadEquipmentBtn').innerHTML;
+                        document.getElementById('uploadEquipmentBtn').innerHTML = '<span>⏳</span><span>上传中...</span>';
+                        document.getElementById('uploadEquipmentBtn').disabled = true;
+                        
                         try {
+                            console.log('开始上传设备数据文件:', file.name);
                             const result = await uploadTableData('equipment', file);
-                            alert('上传成功! ' + result.message);
+                            console.log('上传成功:', result);
+                            alert(`上传成功! ${result.message || '数据已成功上传到数据库'}`);
                         } catch (error) {
-                            alert('上传失败: ' + error.message);
+                            console.error('上传失败:', error);
+                            alert(`上传失败: ${error.message}`);
+                        } finally {
+                            // 恢复按钮状态
+                            document.getElementById('uploadEquipmentBtn').innerHTML = originalText;
+                            document.getElementById('uploadEquipmentBtn').disabled = false;
                         }
                     }
                 };
@@ -1673,11 +1723,23 @@
                 input.onchange = async function(e) {
                     const file = e.target.files[0];
                     if (file) {
+                        // 显示加载状态
+                        const originalText = document.getElementById('uploadUserBtn').innerHTML;
+                        document.getElementById('uploadUserBtn').innerHTML = '<span>⏳</span><span>上传中...</span>';
+                        document.getElementById('uploadUserBtn').disabled = true;
+                        
                         try {
+                            console.log('开始上传用户数据文件:', file.name);
                             const result = await uploadTableData('user', file);
-                            alert('上传成功! ' + result.message);
+                            console.log('上传成功:', result);
+                            alert(`上传成功! ${result.message || '数据已成功上传到数据库'}`);
                         } catch (error) {
-                            alert('上传失败: ' + error.message);
+                            console.error('上传失败:', error);
+                            alert(`上传失败: ${error.message}`);
+                        } finally {
+                            // 恢复按钮状态
+                            document.getElementById('uploadUserBtn').innerHTML = originalText;
+                            document.getElementById('uploadUserBtn').disabled = false;
                         }
                     }
                 };
