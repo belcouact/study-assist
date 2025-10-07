@@ -300,7 +300,7 @@ app.post('/api/db/upload/:table', async (req, res) => {
 app.post('/api/db/insert/:table', async (req, res) => {
     try {
         const { table } = req.params;
-        const { record } = req.body;
+        const { record, database } = req.body;
         
         if (!table || !record) {
             return res.status(400).json({ 
@@ -309,8 +309,8 @@ app.post('/api/db/insert/:table', async (req, res) => {
             });
         }
         
-        // 构建键名，格式为 ws-hub-db_{table}
-        const key = `ws-hub-db_${table}`;
+        // 构建键名，格式为 {database}_{table}，与其他端点保持一致
+        const key = database ? `${database}_${table}` : table;
         
         try {
             // 先获取现有数据
