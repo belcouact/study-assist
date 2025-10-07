@@ -205,6 +205,10 @@
             gap: 1.2rem;
         }
         
+        .login-button {
+            margin-top: 1rem; /* 添加顶部间距 */
+        }
+        
         .form-group {
             display: flex;
             flex-direction: column;
@@ -223,12 +227,12 @@
             border-radius: 8px;
             font-size: 1rem;
             background-color: rgba(255, 255, 255, 0.2);
-            color: #ffffff;
+            color: #000000; /* 黑色字体 */
             transition: all 0.3s;
         }
         
         .form-group input::placeholder, .form-group select option {
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(0, 0, 0, 0.7); /* 黑色占位符 */
         }
         
         .form-group input:focus, .form-group select:focus {
@@ -250,6 +254,8 @@
             transition: all 0.3s;
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
+            position: relative; /* 添加相对定位，以便加载指示器可以相对于按钮定位 */
+            overflow: hidden; /* 防止加载指示器超出按钮边界 */
         }
         
         .login-button:hover {
@@ -257,6 +263,10 @@
             border-color: rgba(255, 255, 255, 0.3);
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .login-button.loading {
+            color: transparent; /* 加载时隐藏按钮文字 */
         }
         
         .login-error {
@@ -270,8 +280,15 @@
         
         .login-loading {
             display: none;
-            text-align: center;
-            margin-top: 0.5rem;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            visibility: hidden; /* 初始状态不可见 */
+        }
+        
+        .login-loading.show {
+            visibility: visible; /* 显示时可见 */
         }
         
         .login-loading::after {
@@ -372,9 +389,10 @@
                     <label for="password">密码</label>
                     <input type="password" id="password" name="password" required>
                 </div>
-                <button type="submit" class="login-button">登录</button>
+                <button type="submit" class="login-button" id="loginButton">登录
+                    <div class="login-loading" id="loginLoading"></div>
+                </button>
                 <div class="login-error" id="loginError">用户名或密码错误，请重试</div>
-                <div class="login-loading" id="loginLoading"></div>
             </form>
         </div>
     </div>
@@ -424,6 +442,7 @@
             const loginForm = document.getElementById('loginForm');
             const loginError = document.getElementById('loginError');
             const loginLoading = document.getElementById('loginLoading');
+            const loginButton = document.getElementById('loginButton');
             const logoutLink = document.getElementById('logoutLink');
             
             // 检查是否已经登录
@@ -446,6 +465,8 @@
                 // 显示加载状态
                 loginError.style.display = 'none';
                 loginLoading.style.display = 'block';
+                loginLoading.classList.add('show');
+                loginButton.classList.add('loading'); // 添加loading类到按钮
                 
                 // 模拟API请求延迟
                 setTimeout(function() {
@@ -470,10 +491,14 @@
                                 sessionStorage.setItem('username', username); // 保存用户名
                                 loginOverlay.style.display = 'none';
                                 logoutLink.style.display = 'block';
+                                loginLoading.classList.remove('show'); // 隐藏加载指示器
+                                loginButton.classList.remove('loading'); // 移除按钮的loading类
                             } else {
                                 // 登录失败
                                 loginError.style.display = 'block';
                                 loginLoading.style.display = 'none';
+                                loginLoading.classList.remove('show'); // 隐藏加载指示器
+                                loginButton.classList.remove('loading'); // 移除按钮的loading类
                             }
                         })
                         .catch(error => {
@@ -482,6 +507,8 @@
                             loginError.textContent = '无法验证密码，请稍后再试';
                             loginError.style.display = 'block';
                             loginLoading.style.display = 'none';
+                            loginLoading.classList.remove('show'); // 隐藏加载指示器
+                            loginButton.classList.remove('loading'); // 移除按钮的loading类
                         });
                 }, 1000);
             });
