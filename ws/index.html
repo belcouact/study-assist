@@ -217,7 +217,7 @@
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
         
-        .form-group input {
+        .form-group input, .form-group select {
             padding: 0.8rem;
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
@@ -227,11 +227,11 @@
             transition: all 0.3s;
         }
         
-        .form-group input::placeholder {
+        .form-group input::placeholder, .form-group select option {
             color: rgba(255, 255, 255, 0.6);
         }
         
-        .form-group input:focus {
+        .form-group input:focus, .form-group select:focus {
             border-color: rgba(255, 255, 255, 0.5);
             outline: none;
             box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.3);
@@ -363,7 +363,10 @@
             <form class="login-form" id="loginForm">
                 <div class="form-group">
                     <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" value="ws" required>
+                    <select id="username" name="username" required>
+                        <option value="ws">ws</option>
+                        <option value="admin">admin</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="password">密码</label>
@@ -446,9 +449,11 @@
                 
                 // 模拟API请求延迟
                 setTimeout(function() {
-                    // 获取环境变量中的密码
+                    // 根据用户名确定要获取的环境变量
+                    const envVarName = username === 'admin' ? 'ws-admin-login-pwd' : 'ws-login-pwd';
+                    
                     // 尝试从服务器获取环境变量
-                    fetch('https://study-llm.me/api/env/ws-login-pwd')
+                    fetch(`https://study-llm.me/api/env/${envVarName}`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error('Failed to fetch password');
@@ -459,9 +464,10 @@
                             const envPassword = data.value; // 从环境变量获取密码
                             
                             // 验证用户名和密码
-                            if (username === 'ws' && password === envPassword) {
+                            if ((username === 'ws' || username === 'admin') && password === envPassword) {
                                 // 登录成功
                                 sessionStorage.setItem('isLoggedIn', 'true');
+                                sessionStorage.setItem('username', username); // 保存用户名
                                 loginOverlay.style.display = 'none';
                                 logoutLink.style.display = 'block';
                             } else {
