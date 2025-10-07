@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+require('dotenv').config();
 const app = express();
 const PORT = 3001;
 
@@ -12,7 +13,7 @@ app.use(express.json());
 const KV_CONFIG = {
     accountId: 'd69fd92582f54c82b0df2dc18f6ce059',
     namespaceId: 'kv-ws-hub',
-    apiToken: 'YOUR_API_TOKEN', // 需要替换为实际的API令牌
+    apiToken: process.env.CF_API_TOKEN || 'YOUR_API_TOKEN', // 从环境变量获取API令牌
     baseUrl: `https://api.cloudflare.com/client/v4/accounts/d69fd92582f54c82b0df2dc18f6ce059/storage/kv/namespaces/kv-ws-hub`
 };
 
@@ -309,8 +310,8 @@ app.post('/api/db/insert/:table', async (req, res) => {
             });
         }
         
-        // 构建键名，格式为 {database}_{table}，与其他端点保持一致
-        const key = database ? `${database}_${table}` : table;
+        // 构建键名，格式为 {database}_{table}
+        const key = database ? `${database}_${table}` : `ws-hub-db_${table}`;
         
         try {
             // 先获取现有数据
