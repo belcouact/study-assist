@@ -46,7 +46,43 @@ export async function onRequest(context) {
         switch (action) {
             case 'test':
                 // Test connection for specific table
-                const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
+                try {
+                    // First, try to select from the table to see if it exists
+                    await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
+                } catch (error) {
+                    // If table doesn't exist, create it
+                    if (error.message.includes('no such table')) {
+                        console.log(`Table ${table} does not exist, creating it...`);
+                        
+                        if (table === 'personnel_list') {
+                            await db.exec(`
+                                CREATE TABLE personnel_list (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    plant TEXT,
+                                    name TEXT,
+                                    function TEXT,
+                                    commitment TEXT,
+                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                                )
+                            `);
+                        } else if (table === 'equipment_basic_info') {
+                            await db.exec(`
+                                CREATE TABLE equipment_basic_info (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    plant TEXT,
+                                    equipment TEXT,
+                                    area TEXT,
+                                    sub_area TEXT,
+                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                                )
+                            `);
+                        }
+                        // Add more table creation statements as needed
+                    } else {
+                        throw error;
+                    }
+                }
+                
                 const url = new URL(context.request.url);
                 const databaseName = url.searchParams.get('database') || 'default';
                 return new Response(JSON.stringify({
