@@ -46,43 +46,7 @@ export async function onRequest(context) {
         switch (action) {
             case 'test':
                 // Test connection for specific table
-                try {
-                    // First, try to select from the table to see if it exists
-                    await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
-                } catch (error) {
-                    // If table doesn't exist, create it
-                    if (error.message.includes('no such table')) {
-                        console.log(`Table ${table} does not exist, creating it...`);
-                        
-                        if (table === 'personnel_list') {
-                            await db.exec(`
-                                CREATE TABLE personnel_list (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    plant TEXT,
-                                    name TEXT,
-                                    function TEXT,
-                                    commitment TEXT,
-                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                                )
-                            `);
-                        } else if (table === 'equipment_basic_info') {
-                            await db.exec(`
-                                CREATE TABLE equipment_basic_info (
-                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                    plant TEXT,
-                                    equipment TEXT,
-                                    area TEXT,
-                                    sub_area TEXT,
-                                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                                )
-                            `);
-                        }
-                        // Add more table creation statements as needed
-                    } else {
-                        throw error;
-                    }
-                }
-                
+                const testResult = await db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).first();
                 const url = new URL(context.request.url);
                 const databaseName = url.searchParams.get('database') || 'default';
                 return new Response(JSON.stringify({
@@ -121,7 +85,7 @@ export async function onRequest(context) {
                 }
 
                 // Parse the request body
-                const { data, database } = await context.request.json();
+                const { data, database: dbName } = await context.request.json();
                 if (!Array.isArray(data) || data.length === 0) {
                     throw new Error('Invalid data format. Expected non-empty array.');
                 }
@@ -340,6 +304,63 @@ export async function onRequest(context) {
                     });
                 } catch (error) {
                     throw new Error(`Upload failed: ${error.message}`);
+                }
+
+            case 'insert':
+                // Handle single record insertion
+                if (context.request.method !== 'POST') {
+                    throw new Error('Insert requires POST method');
+                }
+
+                // Parse the request body
+                const { record, database: insertDbName } = await context.request.json();
+                if (!record || typeof record !== 'object') {
+                    throw new Error('Invalid record format. Expected an object.');
+                }
+
+                try {
+                    let result;
+                    
+                    if (table === 'equipment_basic_info') {
+                        result = await db.prepare(`
+                            INSERT INTO equipment_basic_info (
+                                plant, equipment, area, sub_area
+                            )
+                            VALUES (?, ?, ?, ?)
+                        `).bind(
+                            record.plant || null,
+                            record.equipment || null,
+                            record.area || null,
+                            record.sub_area || null
+                        ).run();
+                    } else if (table === 'personnel_list') {
+                        result = await db.prepare(`
+                            INSERT INTO personnel_list (
+                                plant, name, function, commitment
+                            )
+                            VALUES (?, ?, ?, ?)
+                        `).bind(
+                            record.plant || null,
+                            record.name || null,
+                            record.function || null,
+                            record.commitment || null
+                        ).run();
+                    } else {
+                        throw new Error(`Insert operation not supported for table: ${table}`);
+                    }
+
+                    return new Response(JSON.stringify({
+                        success: true,
+                        message: `Record inserted successfully into ${table}.`,
+                        insertedId: result.meta.last_row_id
+                    }), {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    });
+                } catch (error) {
+                    throw new Error(`Insert failed: ${error.message}`);
                 }
 
             default:

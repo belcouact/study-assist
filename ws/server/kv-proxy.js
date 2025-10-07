@@ -296,6 +296,65 @@ app.post('/api/db/upload/:table', async (req, res) => {
     }
 });
 
+// 插入单条记录到数据库表
+app.post('/api/db/insert/:table', async (req, res) => {
+    try {
+        const { table } = req.params;
+        const { record } = req.body;
+        
+        if (!table || !record) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Table name and record are required' 
+            });
+        }
+        
+        // 构建键名，格式为 ws-hub-db_{table}
+        const key = `ws-hub-db_${table}`;
+        
+        try {
+            // 先获取现有数据
+            const existingDataResponse = await axios.get(`${KV_CONFIG.baseUrl}/values/${key}`, { headers });
+            const existingData = existingDataResponse.data || [];
+            
+            // 添加新记录
+            existingData.push(record);
+            
+            // 将更新后的数据保存回KV存储
+            const response = await axios.put(`${KV_CONFIG.baseUrl}/values/${key}`, existingData, { headers });
+            
+            res.json({
+                success: true,
+                message: `Record inserted successfully into ${table}`,
+                insertedId: existingData.length - 1, // 返回新记录的索引
+                result: response.data
+            });
+        } catch (error) {
+            // 如果键不存在（404错误），创建新数组
+            if (error.response && error.response.status === 404) {
+                const newData = [record];
+                const response = await axios.put(`${KV_CONFIG.baseUrl}/values/${key}`, newData, { headers });
+                
+                res.json({
+                    success: true,
+                    message: `Record inserted successfully into ${table}`,
+                    insertedId: 0,
+                    result: response.data
+                });
+            } else {
+                throw error;
+            }
+        }
+    } catch (error) {
+        console.error(`插入记录失败:`, error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to insert record',
+            message: error.message
+        });
+    }
+});
+
 // 启动服务器
 app.listen(PORT, () => {
     console.log(`KV API Proxy Server running on port ${PORT}`);
