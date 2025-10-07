@@ -251,107 +251,41 @@ export async function onRequest(context) {
                             );
                         }));
                     } else if (table === 'equipment_basic_info') {
-                        // Use transaction to ensure data consistency
-                        try {
-                            // Begin transaction
-                            await db.exec('BEGIN TRANSACTION');
-                            
-                            // First, clear existing data from the table
-                            const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
-                            deletedCount = deleteResult.meta.changes || 0;
+                        // First, clear existing data from the table
+                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        deletedCount = deleteResult.meta.changes || 0;
 
-                            // Validate data before inserting
-                            const validData = data.filter(row => 
-                                row.plant !== undefined && row.plant !== '' &&
-                                row.equipment !== undefined && row.equipment !== ''
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO equipment_basic_info (
+                                    plant, equipment, area, sub_area
+                                )
+                                VALUES (?, ?, ?, ?)
+                            `).bind(
+                                row.plant || null,
+                                row.equipment || null,
+                                row.area || null,
+                                row.sub_area || null
                             );
-                            
-                            if (validData.length !== data.length) {
-                                console.warn(`Filtered out ${data.length - validData.length} invalid records from equipment_basic_info upload`);
-                            }
-                            
-                            if (validData.length === 0) {
-                                await db.exec('ROLLBACK');
-                                throw new Error('No valid equipment records to insert. At least plant and equipment fields are required.');
-                            }
-
-                            // Insert data in batches
-                            const batchSize = 50; // Process 50 records at a time
-                            for (let i = 0; i < validData.length; i += batchSize) {
-                                const batch = validData.slice(i, i + batchSize);
-                                await db.batch(batch.map(row => {
-                                    return db.prepare(`
-                                        INSERT INTO equipment_basic_info (
-                                            plant, equipment, area, sub_area
-                                        )
-                                        VALUES (?, ?, ?, ?)
-                                    `).bind(
-                                        row.plant || null,
-                                        row.equipment || null,
-                                        row.area || null,
-                                        row.sub_area || null
-                                    );
-                                }));
-                            }
-                            
-                            // Commit transaction
-                            await db.exec('COMMIT');
-                        } catch (error) {
-                            // Rollback transaction on error
-                            await db.exec('ROLLBACK');
-                            throw error;
-                        }
+                        }));
                     } else if (table === 'personnel_list') {
-                        // Use transaction to ensure data consistency
-                        try {
-                            // Begin transaction
-                            await db.exec('BEGIN TRANSACTION');
-                            
-                            // First, clear existing data from the table
-                            const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
-                            deletedCount = deleteResult.meta.changes || 0;
+                        // First, clear existing data from the table
+                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        deletedCount = deleteResult.meta.changes || 0;
 
-                            // Validate data before inserting
-                            const validData = data.filter(row => 
-                                row.plant !== undefined && row.plant !== '' &&
-                                row.name !== undefined && row.name !== ''
+                        await db.batch(data.map(row => {
+                            return db.prepare(`
+                                INSERT INTO personnel_list (
+                                    plant, name, function, commitment
+                                )
+                                VALUES (?, ?, ?, ?)
+                            `).bind(
+                                row.plant || null,
+                                row.name || null,
+                                row.function || null,
+                                row.commitment || null
                             );
-                            
-                            if (validData.length !== data.length) {
-                                console.warn(`Filtered out ${data.length - validData.length} invalid records from personnel_list upload`);
-                            }
-                            
-                            if (validData.length === 0) {
-                                await db.exec('ROLLBACK');
-                                throw new Error('No valid personnel records to insert. At least plant and name fields are required.');
-                            }
-
-                            // Insert data in batches
-                            const batchSize = 50; // Process 50 records at a time
-                            for (let i = 0; i < validData.length; i += batchSize) {
-                                const batch = validData.slice(i, i + batchSize);
-                                await db.batch(batch.map(row => {
-                                    return db.prepare(`
-                                        INSERT INTO personnel_list (
-                                            plant, name, function, commitment
-                                        )
-                                        VALUES (?, ?, ?, ?)
-                                    `).bind(
-                                        row.plant || null,
-                                        row.name || null,
-                                        row.function || null,
-                                        row.commitment || null
-                                    );
-                                }));
-                            }
-                            
-                            // Commit transaction
-                            await db.exec('COMMIT');
-                        } catch (error) {
-                            // Rollback transaction on error
-                            await db.exec('ROLLBACK');
-                            throw error;
-                        }
+                        }));
                     }
 
                     insertedCount = data.length;
@@ -369,23 +303,7 @@ export async function onRequest(context) {
                         },
                     });
                 } catch (error) {
-                    console.error("Upload error details:", error);
-                    return new Response(
-                        JSON.stringify({ 
-                            success: false,
-                            error: error.message,
-                            details: "Upload failed. Please check your data format and try again.",
-                            table: table,
-                            action: action
-                        }), 
-                        {
-                            status: 500,
-                            headers: {
-                                "Content-Type": "application/json",
-                                "Access-Control-Allow-Origin": "*",
-                            },
-                        }
-                    );
+                    throw new Error(`Upload failed: ${error.message}`);
                 }
 
             case 'insert':
