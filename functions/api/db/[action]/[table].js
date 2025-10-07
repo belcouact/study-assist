@@ -326,11 +326,10 @@ export async function onRequest(context) {
                     if (table === 'equipment_basic_info') {
                         result = await db.prepare(`
                             INSERT INTO equipment_basic_info (
-                                id, plant, equipment, area, sub_area
+                                plant, equipment, area, sub_area
                             )
-                            VALUES (?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?)
                         `).bind(
-                            insertRecord.id || null,
                             insertRecord.plant || null,
                             insertRecord.equipment || null,
                             insertRecord.area || null,
@@ -339,11 +338,10 @@ export async function onRequest(context) {
                     } else if (table === 'personnel_list') {
                         result = await db.prepare(`
                             INSERT INTO personnel_list (
-                                id, plant, name, function, commitment
+                                plant, name, function, commitment
                             )
-                            VALUES (?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?)
                         `).bind(
-                            insertRecord.id || null,
                             insertRecord.plant || null,
                             insertRecord.name || null,
                             insertRecord.function || null,
