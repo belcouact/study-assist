@@ -258,10 +258,11 @@ export async function onRequest(context) {
                         await db.batch(data.map(row => {
                             return db.prepare(`
                                 INSERT INTO equipment_basic_info (
-                                    plant, equipment, area, sub_area
+                                    id, plant, equipment, area, sub_area
                                 )
-                                VALUES (?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?)
                             `).bind(
+                                row.id || null,
                                 row.plant || null,
                                 row.equipment || null,
                                 row.area || null,
@@ -276,10 +277,11 @@ export async function onRequest(context) {
                         await db.batch(data.map(row => {
                             return db.prepare(`
                                 INSERT INTO personnel_list (
-                                    plant, name, function, commitment
+                                    id, plant, name, function, commitment
                                 )
-                                VALUES (?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?)
                             `).bind(
+                                row.id || null,
                                 row.plant || null,
                                 row.name || null,
                                 row.function || null,
@@ -313,8 +315,8 @@ export async function onRequest(context) {
                 }
 
                 // Parse the request body
-                const { record, database: insertDbName } = await context.request.json();
-                if (!record || typeof record !== 'object') {
+                const { record: insertRecord, database: insertDbName } = await context.request.json();
+                if (!insertRecord || typeof insertRecord !== 'object') {
                     throw new Error('Invalid record format. Expected an object.');
                 }
 
@@ -324,26 +326,28 @@ export async function onRequest(context) {
                     if (table === 'equipment_basic_info') {
                         result = await db.prepare(`
                             INSERT INTO equipment_basic_info (
-                                plant, equipment, area, sub_area
+                                id, plant, equipment, area, sub_area
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
-                            record.plant || null,
-                            record.equipment || null,
-                            record.area || null,
-                            record.sub_area || null
+                            insertRecord.id || null,
+                            insertRecord.plant || null,
+                            insertRecord.equipment || null,
+                            insertRecord.area || null,
+                            insertRecord.sub_area || null
                         ).run();
                     } else if (table === 'personnel_list') {
                         result = await db.prepare(`
                             INSERT INTO personnel_list (
-                                plant, name, function, commitment
+                                id, plant, name, function, commitment
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
-                            record.plant || null,
-                            record.name || null,
-                            record.function || null,
-                            record.commitment || null
+                            insertRecord.id || null,
+                            insertRecord.plant || null,
+                            insertRecord.name || null,
+                            insertRecord.function || null,
+                            insertRecord.commitment || null
                         ).run();
                     } else {
                         throw new Error(`Insert operation not supported for table: ${table}`);
@@ -361,6 +365,117 @@ export async function onRequest(context) {
                     });
                 } catch (error) {
                     throw new Error(`Insert failed: ${error.message}`);
+                }
+
+            case 'update':
+                // Handle record update
+                if (context.request.method !== 'POST') {
+                    throw new Error('Update requires POST method');
+                }
+
+                // Parse the request body
+                const { record: updateRecord, id: updateId, database: updateDbName } = await context.request.json();
+                if (!updateRecord || typeof updateRecord !== 'object') {
+                    throw new Error('Invalid record format. Expected an object.');
+                }
+                if (!updateId) {
+                    throw new Error('ID is required for update operation');
+                }
+
+                try {
+                    let result;
+                    
+                    if (table === 'equipment_basic_info') {
+                        result = await db.prepare(`
+                            UPDATE equipment_basic_info 
+                            SET plant = ?, equipment = ?, area = ?, sub_area = ?
+                            WHERE id = ?
+                        `).bind(
+                            updateRecord.plant || null,
+                            updateRecord.equipment || null,
+                            updateRecord.area || null,
+                            updateRecord.sub_area || null,
+                            updateId
+                        ).run();
+                    } else if (table === 'personnel_list') {
+                        result = await db.prepare(`
+                            UPDATE personnel_list 
+                            SET plant = ?, name = ?, function = ?, commitment = ?
+                            WHERE id = ?
+                        `).bind(
+                            updateRecord.plant || null,
+                            updateRecord.name || null,
+                            updateRecord.function || null,
+                            updateRecord.commitment || null,
+                            updateId
+                        ).run();
+                    } else {
+                        throw new Error(`Update operation not supported for table: ${table}`);
+                    }
+
+                    if (result.meta.changes === 0) {
+                        throw new Error(`No record found with ID: ${updateId}`);
+                    }
+
+                    return new Response(JSON.stringify({
+                        success: true,
+                        message: `Record updated successfully in ${table}.`,
+                        updatedRows: result.meta.changes
+                    }), {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    });
+                } catch (error) {
+                    throw new Error(`Update failed: ${error.message}`);
+                }
+
+            case 'delete':
+                // Handle record deletion
+                if (context.request.method !== 'POST') {
+                    throw new Error('Delete requires POST method');
+                }
+
+                // Parse the request body
+                const { id: deleteId, database: deleteDbName } = await context.request.json();
+                if (!deleteId) {
+                    throw new Error('ID is required for delete operation');
+                }
+
+                try {
+                    let result;
+                    
+                    if (table === 'equipment_basic_info') {
+                        result = await db.prepare(`
+                            DELETE FROM equipment_basic_info 
+                            WHERE id = ?
+                        `).bind(deleteId).run();
+                    } else if (table === 'personnel_list') {
+                        result = await db.prepare(`
+                            DELETE FROM personnel_list 
+                            WHERE id = ?
+                        `).bind(deleteId).run();
+                    } else {
+                        throw new Error(`Delete operation not supported for table: ${table}`);
+                    }
+
+                    if (result.meta.changes === 0) {
+                        throw new Error(`No record found with ID: ${deleteId}`);
+                    }
+
+                    return new Response(JSON.stringify({
+                        success: true,
+                        message: `Record deleted successfully from ${table}.`,
+                        deletedRows: result.meta.changes
+                    }), {
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Access-Control-Allow-Origin": "*",
+                        },
+                    });
+                } catch (error) {
+                    throw new Error(`Delete failed: ${error.message}`);
                 }
 
             default:
