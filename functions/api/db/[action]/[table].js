@@ -315,7 +315,7 @@ export async function onRequest(context) {
                 }
 
                 // Parse the request body
-                const { record: insertRecord, database: insertDbName } = await context.request.json();
+                const { record: insertRecord, id: insertId, database: insertDbName } = await context.request.json();
                 if (!insertRecord || typeof insertRecord !== 'object') {
                     throw new Error('Invalid record format. Expected an object.');
                 }
@@ -326,10 +326,11 @@ export async function onRequest(context) {
                     if (table === 'equipment_basic_info') {
                         result = await db.prepare(`
                             INSERT INTO equipment_basic_info (
-                                plant, equipment, area, sub_area
+                                id, plant, equipment, area, sub_area
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
+                            insertId || null,
                             insertRecord.plant || null,
                             insertRecord.equipment || null,
                             insertRecord.area || null,
@@ -338,10 +339,11 @@ export async function onRequest(context) {
                     } else if (table === 'personnel_list') {
                         result = await db.prepare(`
                             INSERT INTO personnel_list (
-                                plant, name, function, commitment
+                                id, plant, name, function, commitment
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
+                            insertId || null,
                             insertRecord.plant || null,
                             insertRecord.name || null,
                             insertRecord.function || null,
