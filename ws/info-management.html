@@ -832,10 +832,12 @@
                                 <table class="data-table">
                                     <thead>
                                         <tr>
+                                            <th class="sortable" data-column="id">ID</th>
                                             <th class="sortable" data-column="plant">工厂</th>
                                             <th class="sortable" data-column="equipment">设备名称</th>
                                             <th class="sortable" data-column="area">区域</th>
                                             <th class="sortable" data-column="sub_area">子区域</th>
+                                            <th>操作</th>
                                         </tr>
                                     </thead>
                                     <tbody id="equipmentTableBody">
@@ -879,10 +881,12 @@
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th class="sortable" data-column="id">ID</th>
                             <th class="sortable" data-column="plant">工厂</th>
                             <th class="sortable" data-column="name">姓名</th>
                             <th class="sortable" data-column="function">部门</th>
                             <th class="sortable" data-column="commitment">岗位</th>
+                            <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="userTableBody">
@@ -945,6 +949,7 @@
                 <button class="modal-close" id="closeEquipmentModal">&times;</button>
             </div>
             <form class="modal-form" id="equipmentForm">
+                <input type="hidden" id="equipmentId" name="id">
                 <div class="form-group">
                     <label for="equipmentPlant">工厂</label>
                     <input type="text" id="equipmentPlant" name="plant" required>
@@ -979,6 +984,7 @@
                 <button class="modal-close" id="closeUserModal">&times;</button>
             </div>
             <form class="modal-form" id="userForm">
+                <input type="hidden" id="userId" name="id">
                 <div class="form-group">
                     <label for="userPlant">工厂</label>
                     <input type="text" id="userPlant" name="plant" required>
@@ -1137,14 +1143,14 @@
             equipment: {
                 table: 'equipment_basic_info',
                 database: 'ws-hub-db',
-                columns: ['plant', 'equipment', 'area', 'sub_area'],
-                headers: ['工厂', '设备名称', '区域', '子区域']
+                columns: ['id', 'plant', 'equipment', 'area', 'sub_area'],
+                headers: ['ID', '工厂', '设备名称', '区域', '子区域']
             },
             user: {
                 table: 'personnel_list',
                 database: 'ws-hub-db',
-                columns: ['plant', 'name', 'function', 'commitment'],
-                headers: ['工厂', '姓名', '部门', '工作']
+                columns: ['id', 'plant', 'name', 'function', 'commitment'],
+                headers: ['ID', '工厂', '姓名', '部门', '工作']
             }
         };
 
@@ -1314,16 +1320,51 @@
             // 渲染表格数据
             currentPageData.forEach(row => {
                 const tr = document.createElement('tr');
-                DB_CONFIG.equipment.columns.forEach(col => {
+                
+                // 添加ID列
+                const idTd = document.createElement('td');
+                idTd.textContent = row.id || '';
+                tr.appendChild(idTd);
+                
+                // 添加其他列
+                DB_CONFIG.equipment.columns.slice(1).forEach(col => {
                     const td = document.createElement('td');
                     td.textContent = row[col] || '';
                     tr.appendChild(td);
                 });
+                
+                // 添加操作列
+                const actionTd = document.createElement('td');
+                actionTd.innerHTML = `
+                    <div class="action-links">
+                        <a href="#" class="action-link edit-equipment" data-id="${row.id}">编辑</a>
+                        <a href="#" class="action-link delete-equipment" data-id="${row.id}">删除</a>
+                    </div>
+                `;
+                tr.appendChild(actionTd);
+                
                 tbody.appendChild(tr);
             });
             
             // 更新分页信息
             updateEquipmentPagination();
+            
+            // 添加编辑和删除事件监听器
+            document.querySelectorAll('.edit-equipment').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    editEquipment(id);
+                });
+            });
+            
+            document.querySelectorAll('.delete-equipment').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    deleteEquipment(id);
+                });
+            });
         }
         
         // 渲染用户表格
@@ -1339,16 +1380,51 @@
             // 渲染表格数据
             currentPageData.forEach(row => {
                 const tr = document.createElement('tr');
-                DB_CONFIG.user.columns.forEach(col => {
+                
+                // 添加ID列
+                const idTd = document.createElement('td');
+                idTd.textContent = row.id || '';
+                tr.appendChild(idTd);
+                
+                // 添加其他列
+                DB_CONFIG.user.columns.slice(1).forEach(col => {
                     const td = document.createElement('td');
                     td.textContent = row[col] || '';
                     tr.appendChild(td);
                 });
+                
+                // 添加操作列
+                const actionTd = document.createElement('td');
+                actionTd.innerHTML = `
+                    <div class="action-links">
+                        <a href="#" class="action-link edit-user" data-id="${row.id}">编辑</a>
+                        <a href="#" class="action-link delete-user" data-id="${row.id}">删除</a>
+                    </div>
+                `;
+                tr.appendChild(actionTd);
+                
                 tbody.appendChild(tr);
             });
             
             // 更新分页信息
             updateUserPagination();
+            
+            // 添加编辑和删除事件监听器
+            document.querySelectorAll('.edit-user').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    editUser(id);
+                });
+            });
+            
+            document.querySelectorAll('.delete-user').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const id = this.getAttribute('data-id');
+                    deleteUser(id);
+                });
+            });
         }
         
         // 更新设备分页控件
@@ -1617,6 +1693,7 @@
                 
                 // Get form data
                 const formData = new FormData(this);
+                const equipmentId = formData.get('id');
                 const equipmentData = {
                     plant: formData.get('plant'),
                     equipment: formData.get('equipment'),
@@ -1625,8 +1702,18 @@
                 };
                 
                 try {
+                    let response;
+                    let url;
+                    
+                    // 如果有ID，则是更新操作，否则是新增操作
+                    if (equipmentId) {
+                        url = `/api/db/update/equipment_basic_info/${equipmentId}?database=${DB_CONFIG.equipment.database}`;
+                    } else {
+                        url = `/api/db/insert/equipment_basic_info?database=${DB_CONFIG.equipment.database}`;
+                    }
+                    
                     // Send data to server
-                    const response = await fetch(`/api/db/insert/equipment_basic_info?database=${DB_CONFIG.equipment.database}`, {
+                    response = await fetch(url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1647,13 +1734,13 @@
                         await loadTableData('equipment');
                         
                         // Show success message
-                        alert('设备添加成功!');
+                        alert(equipmentId ? '设备更新成功!' : '设备添加成功!');
                     } else {
-                        throw new Error(result.message || '添加设备失败');
+                        throw new Error(result.message || (equipmentId ? '更新设备失败' : '添加设备失败'));
                     }
                 } catch (error) {
-                    console.error('Error adding equipment:', error);
-                    document.getElementById('equipmentError').textContent = '添加失败: ' + error.message;
+                    console.error('Error saving equipment:', error);
+                    document.getElementById('equipmentError').textContent = '保存失败: ' + error.message;
                     document.getElementById('equipmentError').style.display = 'block';
                 } finally {
                     // Hide loading state
@@ -1714,6 +1801,7 @@
                 
                 // Get form data
                 const formData = new FormData(this);
+                const userId = formData.get('id');
                 const userData = {
                     plant: formData.get('plant'),
                     name: formData.get('name'),
@@ -1722,8 +1810,18 @@
                 };
                 
                 try {
+                    let response;
+                    let url;
+                    
+                    // 如果有ID，则是更新操作，否则是新增操作
+                    if (userId) {
+                        url = `/api/db/update/personnel_list/${userId}?database=${DB_CONFIG.user.database}`;
+                    } else {
+                        url = `/api/db/insert/personnel_list?database=${DB_CONFIG.user.database}`;
+                    }
+                    
                     // Send data to server
-                    const response = await fetch(`/api/db/insert/personnel_list?database=${DB_CONFIG.user.database}`, {
+                    response = await fetch(url, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -1744,13 +1842,13 @@
                         await loadTableData('user');
                         
                         // Show success message
-                        alert('用户添加成功!');
+                        alert(userId ? '用户更新成功!' : '用户添加成功!');
                     } else {
-                        throw new Error(result.message || '添加用户失败');
+                        throw new Error(result.message || (userId ? '更新用户失败' : '添加用户失败'));
                     }
                 } catch (error) {
-                    console.error('Error adding user:', error);
-                    document.getElementById('userError').textContent = '添加失败: ' + error.message;
+                    console.error('Error saving user:', error);
+                    document.getElementById('userError').textContent = '保存失败: ' + error.message;
                     document.getElementById('userError').style.display = 'block';
                 } finally {
                     // Hide loading state
@@ -1758,6 +1856,144 @@
                 }
             });
         });
+
+        // 编辑设备
+        function editEquipment(id) {
+            // 查找设备数据
+            const equipment = allEquipmentData.find(item => item.id === id);
+            if (!equipment) {
+                console.error('设备不存在');
+                return;
+            }
+            
+            // 填充表单
+            document.getElementById('equipmentId').value = equipment.id;
+            document.getElementById('equipmentPlant').value = equipment.plant;
+            document.getElementById('equipmentName').value = equipment.equipment;
+            document.getElementById('equipmentArea').value = equipment.area;
+            document.getElementById('equipmentSubArea').value = equipment.sub_area;
+            
+            // 显示模态框
+            document.getElementById('equipmentModalOverlay').classList.add('active');
+            // 隐藏错误消息
+            document.getElementById('equipmentError').style.display = 'none';
+        }
+
+        // 删除设备
+        function deleteEquipment(id) {
+            if (!confirm('确定要删除这条记录吗？')) {
+                return;
+            }
+            
+            // 显示加载状态
+            const loading = document.createElement('div');
+            loading.className = 'loading';
+            loading.textContent = '删除中...';
+            loading.style.position = 'fixed';
+            loading.style.top = '50%';
+            loading.style.left = '50%';
+            loading.style.transform = 'translate(-50%, -50%)';
+            loading.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            loading.style.color = 'white';
+            loading.style.padding = '20px';
+            loading.style.borderRadius = '5px';
+            loading.style.zIndex = '9999';
+            document.body.appendChild(loading);
+            
+            // 发送删除请求
+            fetch(`/api/db/delete/equipment_basic_info/${id}?database=${DB_CONFIG.equipment.database}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('删除失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 重新加载数据
+                loadTableData('equipment');
+                // 显示成功消息
+                alert('删除成功');
+            })
+            .catch(error => {
+                console.error('删除设备出错:', error);
+                alert('删除失败，请重试');
+            })
+            .finally(() => {
+                // 移除加载状态
+                document.body.removeChild(loading);
+            });
+        }
+
+        // 编辑用户
+        function editUser(id) {
+            // 查找用户数据
+            const user = allUserData.find(item => item.id === id);
+            if (!user) {
+                console.error('用户不存在');
+                return;
+            }
+            
+            // 填充表单
+            document.getElementById('userId').value = user.id;
+            document.getElementById('userPlant').value = user.plant;
+            document.getElementById('userName').value = user.name;
+            document.getElementById('userFunction').value = user.function;
+            document.getElementById('userCommitment').value = user.commitment;
+            
+            // 显示模态框
+            document.getElementById('userModalOverlay').classList.add('active');
+            // 隐藏错误消息
+            document.getElementById('userError').style.display = 'none';
+        }
+
+        // 删除用户
+        function deleteUser(id) {
+            if (!confirm('确定要删除这条记录吗？')) {
+                return;
+            }
+            
+            // 显示加载状态
+            const loading = document.createElement('div');
+            loading.className = 'loading';
+            loading.textContent = '删除中...';
+            loading.style.position = 'fixed';
+            loading.style.top = '50%';
+            loading.style.left = '50%';
+            loading.style.transform = 'translate(-50%, -50%)';
+            loading.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+            loading.style.color = 'white';
+            loading.style.padding = '20px';
+            loading.style.borderRadius = '5px';
+            loading.style.zIndex = '9999';
+            document.body.appendChild(loading);
+            
+            // 发送删除请求
+            fetch(`/api/db/delete/personnel_list/${id}?database=${DB_CONFIG.user.database}`, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('删除失败');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // 重新加载数据
+                loadTableData('user');
+                // 显示成功消息
+                alert('删除成功');
+            })
+            .catch(error => {
+                console.error('删除用户出错:', error);
+                alert('删除失败，请重试');
+            })
+            .finally(() => {
+                // 移除加载状态
+                document.body.removeChild(loading);
+            });
+        }
     </script>
 </body>
 </html>
