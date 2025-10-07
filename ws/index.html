@@ -269,6 +269,28 @@
             color: transparent; /* 加载时隐藏按钮文字 */
         }
         
+        .guest-button {
+            background-color: rgba(149, 165, 166, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 0.8rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            margin-top: 0.5rem;
+        }
+        
+        .guest-button:hover {
+            background-color: rgba(127, 140, 141, 0.9);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
         .login-error {
             color: #ff6b6b;
             font-size: 0.85rem;
@@ -392,6 +414,7 @@
                 <button type="submit" class="login-button" id="loginButton">登录
                     <div class="login-loading" id="loginLoading"></div>
                 </button>
+                <button type="button" class="guest-button" id="guestButton">访客身份访问</button>
                 <div class="login-error" id="loginError">用户名或密码错误，请重试</div>
             </form>
         </div>
@@ -443,13 +466,17 @@
             const loginError = document.getElementById('loginError');
             const loginLoading = document.getElementById('loginLoading');
             const loginButton = document.getElementById('loginButton');
+            const guestButton = document.getElementById('guestButton');
             const logoutLink = document.getElementById('logoutLink');
             
             // 检查是否已经登录
             const isLoggedIn = sessionStorage.getItem('isLoggedIn');
+            const userRole = sessionStorage.getItem('userRole');
+            
             if (isLoggedIn === 'true') {
                 loginOverlay.style.display = 'none';
                 logoutLink.style.display = 'block';
+                applyRoleBasedAccess(userRole);
             } else {
                 loginOverlay.style.display = 'flex';
                 logoutLink.style.display = 'none';
@@ -489,10 +516,12 @@
                                 // 登录成功
                                 sessionStorage.setItem('isLoggedIn', 'true');
                                 sessionStorage.setItem('username', username); // 保存用户名
+                                sessionStorage.setItem('userRole', username); // 保存用户角色
                                 loginOverlay.style.display = 'none';
                                 logoutLink.style.display = 'block';
                                 loginLoading.classList.remove('show'); // 隐藏加载指示器
                                 loginButton.classList.remove('loading'); // 移除按钮的loading类
+                                applyRoleBasedAccess(username); // 应用基于角色的访问控制
                             } else {
                                 // 登录失败
                                 loginError.style.display = 'block';
@@ -513,14 +542,68 @@
                 }, 1000);
             });
             
+            // 处理访客登录
+            guestButton.addEventListener('click', function() {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                sessionStorage.setItem('userRole', 'visitor'); // 设置访客角色
+                sessionStorage.setItem('username', '访客'); // 设置访客用户名
+                loginOverlay.style.display = 'none';
+                logoutLink.style.display = 'block';
+                applyRoleBasedAccess('visitor'); // 应用基于角色的访问控制
+            });
+            
             // 处理退出登录
             logoutLink.addEventListener('click', function(e) {
                 e.preventDefault();
                 sessionStorage.removeItem('isLoggedIn');
+                sessionStorage.removeItem('userRole');
+                sessionStorage.removeItem('username');
                 loginOverlay.style.display = 'flex';
                 logoutLink.style.display = 'none';
                 document.getElementById('password').value = '';
             });
+            
+            // 基于角色的访问控制函数
+            function applyRoleBasedAccess(role) {
+                // 在首页应用访问控制
+                if (role === 'visitor') {
+                    // 隐藏新建故障和信息管理卡片
+                    const cards = document.querySelectorAll('.card');
+                    cards.forEach(card => {
+                        const title = card.querySelector('.card-title').textContent;
+                        if (title === '新建故障' || title === '信息管理') {
+                            card.style.display = 'none';
+                        }
+                    });
+                    
+                    // 隐藏导航菜单中的新建故障和信息管理
+                    const navLinks = document.querySelectorAll('.nav-menu a');
+                    navLinks.forEach(link => {
+                        if (link.textContent === '新建故障' || link.textContent === '信息管理') {
+                            link.style.display = 'none';
+                        }
+                    });
+                }
+                
+                // 将角色信息存储到sessionStorage，以便其他页面使用
+                sessionStorage.setItem('userRole', role);
+            }
+            
+            // 检查当前页面并应用角色访问控制
+            function checkPageAndApplyRoleAccess() {
+                const currentPath = window.location.pathname;
+                const userRole = sessionStorage.getItem('userRole');
+                
+                // 如果是访客角色，尝试访问新建故障或信息管理页面，则重定向到首页
+                if (userRole === 'visitor') {
+                    if (currentPath.includes('new-fault.html') || currentPath.includes('info-management.html')) {
+                        window.location.href = 'index.html';
+                    }
+                }
+            }
+            
+            // 页面加载时检查
+            checkPageAndApplyRoleAccess();
         });
     </script>
 </body>
