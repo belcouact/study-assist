@@ -915,7 +915,9 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="faultSubArea">故障子区域</label>
-                                <input type="text" id="faultSubArea" name="faultSubArea" class="form-input" placeholder="输入故障子区域">
+                                <select id="faultSubArea" name="faultSubArea" class="form-select">
+                                    <option value="">请选择子区域</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -1134,28 +1136,6 @@
         const faultAreaInput = document.getElementById('faultArea');
         const faultSubAreaInput = document.getElementById('faultSubArea');
         
-        // 区域和子区域的映射关系
-        const areaSubAreaMapping = {
-            '生产车间': ['装配线', '焊接区', '喷涂区', '包装区'],
-            '仓库': ['原材料区', '成品区', '半成品区', '辅料区'],
-            '办公区': ['行政办公室', '会议室', '接待区', '休息区'],
-            '设备区': ['主设备区', '辅助设备区', '维修区', '备件区'],
-            '公共区域': ['走廊', '楼梯间', '卫生间', '停车场']
-        };
-        
-        // 当故障区域改变时，自动填充子区域
-        faultAreaInput.addEventListener('change', function() {
-            const selectedArea = this.value;
-            
-            // 清空子区域输入框
-            faultSubAreaInput.value = '';
-            
-            // 如果选择的区域有预定义的子区域，则自动填充第一个子区域
-            if (selectedArea && areaSubAreaMapping[selectedArea]) {
-                faultSubAreaInput.value = areaSubAreaMapping[selectedArea][0];
-            }
-        });
-        
         // 文件上传拖拽功能
         const fileUploadContainer = document.querySelector('.file-upload-container');
         const fileUploadInput = document.getElementById('fileUpload');
@@ -1314,6 +1294,10 @@
                         loadEquipment(this.value);
                         loadAreas(this.value);
                         loadPersonnel(this.value);
+                        
+                        // Clear sub-area dropdown when plant changes
+                        const subAreaSelect = document.getElementById('faultSubArea');
+                        subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
                     });
                     
                     // If we have a plant from URL parameter or edit mode, select it
@@ -1454,6 +1438,11 @@
                         
                         // Replace input with select
                         parent.replaceChild(areaSelect, areaInput);
+                        
+                        // Add event listener for area change to load sub-areas
+                        areaSelect.addEventListener('change', function() {
+                            loadSubAreas(plant, this.value);
+                        });
                     }
                 } else {
                     console.error('Failed to load areas:', result.error);
@@ -1462,6 +1451,49 @@
             } catch (error) {
                 console.error('Error loading areas:', error);
                 showToast('加载区域数据时发生错误', 'error');
+            }
+        }
+        
+        // Load sub-areas based on selected plant and area
+        async function loadSubAreas(plant, area) {
+            if (!plant || !area) {
+                const subAreaSelect = document.getElementById('faultSubArea');
+                subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/db/query/${DB_CONFIG.equipment.table}?database=${DB_CONFIG.equipment.database}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Get distinct sub-areas for the selected plant and area
+                    const subAreaSet = new Set();
+                    result.data.forEach(row => {
+                        if (row.plant === plant && row.area === area && row.sub_area) {
+                            subAreaSet.add(row.sub_area);
+                        }
+                    });
+                    
+                    const subAreas = Array.from(subAreaSet);
+                    
+                    // Update sub-area dropdown
+                    const subAreaSelect = document.getElementById('faultSubArea');
+                    subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
+                    
+                    subAreas.forEach(subArea => {
+                        const option = document.createElement('option');
+                        option.value = subArea;
+                        option.textContent = subArea;
+                        subAreaSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Failed to load sub-areas:', result.error);
+                    showToast('加载子区域数据失败', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading sub-areas:', error);
+                showToast('加载子区域数据时发生错误', 'error');
             }
         }
         
@@ -1535,6 +1567,10 @@
             // Load dropdown data
             loadPlants();
             
+            // Initialize sub-area dropdown
+            const subAreaSelect = document.getElementById('faultSubArea');
+            subAreaSelect.innerHTML = '<option value="">请选择子区域</option>';
+            
             // Set default report time
             document.getElementById('reportTime').value = formatDateTimeLocal(getBeijingTime());
             
@@ -1544,12 +1580,6 @@
                 loadFaultData(faultId);
             }
         });
-        
-        // 如果有故障ID，则为编辑模式，加载故障数据
-        if (faultId) {
-            isEditMode = true;
-            loadFaultData(faultId);
-        }
         
         // 加载故障数据用于编辑
         async function loadFaultData(id) {
@@ -1576,6 +1606,11 @@
                     await loadEquipment(fault.plant);
                     await loadAreas(fault.plant);
                     await loadPersonnel(fault.plant);
+                    
+                    // Load sub-areas based on the selected area
+                    if (fault.faultArea) {
+                        await loadSubAreas(fault.plant, fault.faultArea);
+                    }
                 }
                 
                 // Then set the plant value and other form fields
