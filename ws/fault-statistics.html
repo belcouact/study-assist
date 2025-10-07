@@ -378,6 +378,21 @@
             </div>
         </div>
         
+        <div class="chart-container">
+            <div class="chart-header">
+                <h2 class="chart-title">故障时间趋势</h2>
+                <div class="chart-filter">
+                    <select id="trendFilter" class="filter-select">
+                        <option value="month">按月统计</option>
+                        <option value="quarter">按季度统计</option>
+                        <option value="year">按年统计</option>
+                    </select>
+                </div>
+            </div>
+            <div id="trendChart" class="chart-placeholder">
+                <p>故障时间趋势图表将显示在这里</p>
+            </div>
+        </div>
         
     </main>
     
@@ -418,6 +433,14 @@
                     updateFaultTypeChart(this.value);
                 });
             }
+            
+            // 添加趋势图表筛选器事件监听
+            const trendFilter = document.getElementById('trendFilter');
+            if (trendFilter) {
+                trendFilter.addEventListener('change', function() {
+                    updateTrendChart(this.value);
+                });
+            }
         });
         
         // 从KV数据集获取故障数据
@@ -431,12 +454,14 @@
                 const faults = await response.json();
                 updateStatisticsCards(faults);
                 initFaultTypeChart(faults);
+                initTrendChart(faults);
             } catch (error) {
                 console.error('获取故障数据失败:', error);
                 // 如果API不可用，使用模拟数据
                 const mockFaults = generateMockFaultData();
                 updateStatisticsCards(mockFaults);
                 initFaultTypeChart(mockFaults);
+                initTrendChart(mockFaults);
             }
         }
         
@@ -749,6 +774,138 @@
                             show: false
                         },
                         data: data
+                    }
+                ]
+            };
+            
+            myChart.setOption(option);
+            
+            // 响应式调整
+            window.addEventListener('resize', function() {
+                myChart.resize();
+            });
+        }
+        
+        // 初始化趋势图表
+        function initTrendChart(faults) {
+            globalFaultsData = faults; // 存储数据供后续使用
+            updateTrendChart('month'); // 默认按月显示
+        }
+        
+        // 更新趋势图表
+        function updateTrendChart(timeUnit) {
+            const chartDom = document.getElementById('trendChart');
+            const myChart = echarts.init(chartDom);
+            
+            if (!globalFaultsData || globalFaultsData.length === 0) {
+                // 如果没有数据，重新获取
+                fetch('https://study-llm.me/ws/api/faults')
+                    .then(response => response.json())
+                    .then(data => {
+                        globalFaultsData = data;
+                        updateTrendChart(timeUnit);
+                    })
+                    .catch(error => {
+                        console.error('获取故障数据失败:', error);
+                        const mockFaults = generateMockFaultData();
+                        globalFaultsData = mockFaults;
+                        updateTrendChart(timeUnit);
+                    });
+                return;
+            }
+            
+            // 按时间单位统计故障数量
+            const countData = {};
+            
+            globalFaultsData.forEach(fault => {
+                if (!fault.reportTime) return;
+                
+                const date = new Date(fault.reportTime);
+                let key = '';
+                
+                if (timeUnit === 'month') {
+                    // 按年月统计，格式：YYYY-MM
+                    key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                } else if (timeUnit === 'quarter') {
+                    // 按季度统计，格式：YYYY-QX
+                    const quarter = Math.floor(date.getMonth() / 3) + 1;
+                    key = `${date.getFullYear()}-Q${quarter}`;
+                } else if (timeUnit === 'year') {
+                    // 按年统计，格式：YYYY
+                    key = `${date.getFullYear()}`;
+                }
+                
+                countData[key] = (countData[key] || 0) + 1;
+            });
+            
+            // 对时间单位进行排序
+            const sortedKeys = Object.keys(countData).sort();
+            
+            const data = sortedKeys.map(key => ({
+                name: key,
+                value: countData[key]
+            }));
+            
+            const unitNames = {
+                'month': '月',
+                'quarter': '季度',
+                'year': '年'
+            };
+            
+            const option = {
+                title: {
+                    text: `按${unitNames[timeUnit]}统计故障数量`,
+                    left: 'center'
+                },
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: '{b}: {c} 个故障'
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: sortedKeys,
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: '故障数量'
+                },
+                series: [
+                    {
+                        name: '故障数量',
+                        type: 'line',
+                        smooth: true,
+                        data: sortedKeys.map(key => countData[key]),
+                        itemStyle: {
+                            color: '#3498db'
+                        },
+                        areaStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                {
+                                    offset: 0,
+                                    color: 'rgba(52, 152, 219, 0.5)'
+                                },
+                                {
+                                    offset: 1,
+                                    color: 'rgba(52, 152, 219, 0.1)'
+                                }
+                            ])
+                        },
+                        markPoint: {
+                            data: [
+                                { type: 'max', name: '最大值' },
+                                { type: 'min', name: '最小值' }
+                            ]
+                        }
                     }
                 ]
             };
