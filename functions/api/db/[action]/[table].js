@@ -324,26 +324,26 @@ export async function onRequest(context) {
                     let result;
                     
                     if (table === 'equipment_basic_info') {
-                        // For insert operation, don't include ID field to let database auto-generate it
                         result = await db.prepare(`
                             INSERT INTO equipment_basic_info (
-                                plant, equipment, area, sub_area
+                                id, plant, equipment, area, sub_area
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
+                            insertRecord.id || null,
                             insertRecord.plant || null,
                             insertRecord.equipment || null,
                             insertRecord.area || null,
                             insertRecord.sub_area || null
                         ).run();
                     } else if (table === 'personnel_list') {
-                        // For insert operation, don't include ID field to let database auto-generate it
                         result = await db.prepare(`
                             INSERT INTO personnel_list (
-                                plant, name, function, commitment
+                                id, plant, name, function, commitment
                             )
-                            VALUES (?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?)
                         `).bind(
+                            insertRecord.id || null,
                             insertRecord.plant || null,
                             insertRecord.name || null,
                             insertRecord.function || null,
