@@ -544,6 +544,9 @@ if (path.startsWith('/ws/api/faults/') && request.method === 'PUT') {
       faultData.handleTime = new Date().toISOString();
     }
     
+    // 添加报告更新时间戳
+    faultData.reportUpdateTime = new Date().toISOString();
+    
     faultData.updateTime = new Date().toISOString();
 
     // 保存更新后的数据
