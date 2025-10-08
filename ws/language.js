@@ -445,6 +445,16 @@ const translations = {
         'delete-equipment-error': '删除设备出错',
         'delete-user-error': '删除用户出错',
         
+        // Placeholder translations for new-fault.html
+        'form-placeholder-equipment-name': '输入故障设备名称',
+        'form-placeholder-fault-area': '输入故障区域',
+        'form-placeholder-reporter': '输入报告人姓名',
+        'form-placeholder-fault-description': '详细描述故障现象，应包括故障发生时间、地点、影响范围、故障症状、故障产生的条件、发生频率等',
+        'form-placeholder-troubleshooting': '描述故障排查步骤，应包括检查故障现象、确认故障影响范围、记录排查过程和结果等',
+        'form-placeholder-root-cause': '分析故障的根本原因，应包括故障发生的因果关系等',
+        'form-placeholder-resolution': '描述故障解决方案，应包括修复故障的具体步骤、实际效果、预防措施（如日常点检、定期保养）等',
+        'form-placeholder-additional-info': '输入其他补充信息',
+        
         // Table headers for fault-list.html
         'table-header-status': '状态',
         'table-header-reporter': '报告人',
@@ -916,6 +926,16 @@ const translations = {
         'upload-failed': 'Upload failed',
         'delete-equipment-error': 'Delete equipment error',
         'delete-user-error': 'Delete user error',
+        
+        // Placeholder translations for new-fault.html
+        'form-placeholder-equipment-name': 'Enter fault equipment name',
+        'form-placeholder-fault-area': 'Enter fault area',
+        'form-placeholder-reporter': 'Enter reporter name',
+        'form-placeholder-fault-description': 'Describe the fault phenomenon in detail, including fault occurrence time, location, impact range, fault symptoms, conditions for fault occurrence, frequency, etc.',
+        'form-placeholder-troubleshooting': 'Describe the troubleshooting steps, including checking fault phenomena, confirming the impact range, recording the troubleshooting process and results, etc.',
+        'form-placeholder-root-cause': 'Analyze the root cause of the fault, including the causal relationship of the fault occurrence, etc.',
+        'form-placeholder-resolution': 'Describe the fault solution, including specific steps to fix the fault, actual effects, preventive measures (such as daily inspections, regular maintenance), etc.',
+        'form-placeholder-additional-info': 'Enter other additional information',
         
         // Table headers for fault-list.html
         'table-header-status': 'Status',
