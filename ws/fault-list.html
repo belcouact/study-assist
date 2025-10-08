@@ -266,7 +266,7 @@
         .fault-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;
+            table-layout: fixed;
             min-width: 1200px;
         }
         
@@ -279,11 +279,18 @@
             white-space: nowrap;
         }
         
+        /* Allow text wrapping in fault description column */
+        .fault-table th:nth-child(8), .fault-table td:nth-child(8) {
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
         /* 可调整列宽的表格样式 */
         .resizable-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: auto;
+            table-layout: fixed;
             min-width: 1200px;
         }
         
@@ -328,20 +335,12 @@
         
         /* 故障描述列特殊样式 */
         .fault-table td:nth-child(8) {
-            max-width: 300px;
+            max-width: 900px;
             word-wrap: break-word;
             overflow-wrap: break-word;
             white-space: normal;
             overflow: visible;
             line-height: 1.4;
-        }
-        
-        /* 宽屏上故障描述列宽度增加三倍 */
-        @media (min-width: 1400px) {
-            .fault-table td:nth-child(8) {
-                max-width: 900px;
-                width: 900px;
-            }
         }
         
         .fault-table th {
@@ -623,7 +622,7 @@
             .fault-table {
                 font-size: 0.8rem;
                 min-width: 1200px; /* 确保表格有最小宽度，触发水平滚动 */
-                table-layout: auto;
+                table-layout: fixed;
             }
             
             .fault-table th, .fault-table td {
@@ -631,6 +630,13 @@
                 word-wrap: normal;
                 overflow-wrap: normal;
                 white-space: nowrap;
+            }
+            
+            /* Allow text wrapping in fault description column on mobile */
+            .fault-table th:nth-child(8), .fault-table td:nth-child(8) {
+                white-space: normal;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
             
             /* 确保故障描述列字体大小与其他列一致 */
@@ -947,26 +953,6 @@
 function handleResize() {
     // 重新渲染当前页的故障数据
     renderFaultTable();
-    
-    // 在宽屏上确保故障描述列使用正确的宽度
-    if (window.innerWidth >= 1400) {
-        const table = document.getElementById('fault-table');
-        if (table) {
-            const ths = table.querySelectorAll('thead th');
-            if (ths[7]) {
-                ths[7].style.width = '900px';
-                
-                // 同时更新表格列宽度
-                const tableRows = table.querySelectorAll('tbody tr');
-                tableRows.forEach(row => {
-                    const tds = row.querySelectorAll('td');
-                    if (tds[7]) {
-                        tds[7].style.width = '900px';
-                    }
-                });
-            }
-        }
-    }
 }
 
 // 移动端菜单切换
@@ -2093,13 +2079,8 @@ function resetFilters() {
             const ths = table.querySelectorAll('thead th');
             const columnWidths = [];
             
-            ths.forEach((th, index) => {
-                // 对于故障描述列（第8列），在宽屏上不保存宽度，让CSS控制
-                if (index === 7 && window.innerWidth >= 1400) {
-                    columnWidths.push(''); // 保存空值，让CSS控制
-                } else {
-                    columnWidths.push(th.style.width || th.offsetWidth);
-                }
+            ths.forEach(th => {
+                columnWidths.push(th.style.width || th.offsetWidth);
             });
             
             // 保存到本地存储
@@ -2108,11 +2089,6 @@ function resetFilters() {
         
         // 从本地存储加载列宽
         function loadColumnWidths() {
-            // 如果是宽屏，先清除保存的列宽，确保使用CSS定义的宽度
-            if (window.innerWidth >= 1400) {
-                localStorage.removeItem('faultTableColumnWidths');
-            }
-            
             const savedWidths = localStorage.getItem('faultTableColumnWidths');
             if (!savedWidths) return;
             
@@ -2126,30 +2102,16 @@ function resetFilters() {
                 // 应用保存的宽度
                 columnWidths.forEach((width, index) => {
                     if (ths[index]) {
-                        // 对于故障描述列（第8列），在宽屏上使用更宽的宽度
-                        if (index === 7 && window.innerWidth >= 1400) {
-                            ths[index].style.width = '900px';
-                            
-                            // 同时更新表格列宽度
-                            const tableRows = table.querySelectorAll('tbody tr');
-                            tableRows.forEach(row => {
-                                const tds = row.querySelectorAll('td');
-                                if (tds[index]) {
-                                    tds[index].style.width = '900px';
-                                }
-                            });
-                        } else {
-                            ths[index].style.width = width;
-                            
-                            // 同时更新表格列宽度
-                            const tableRows = table.querySelectorAll('tbody tr');
-                            tableRows.forEach(row => {
-                                const tds = row.querySelectorAll('td');
-                                if (tds[index]) {
-                                    tds[index].style.width = width;
-                                }
-                            });
-                        }
+                        ths[index].style.width = width;
+                        
+                        // 同时更新表格列宽度
+                        const tableRows = table.querySelectorAll('tbody tr');
+                        tableRows.forEach(row => {
+                            const tds = row.querySelectorAll('td');
+                            if (tds[index]) {
+                                tds[index].style.width = width;
+                            }
+                        });
                     }
                 });
             } catch (e) {
