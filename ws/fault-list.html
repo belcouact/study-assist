@@ -810,16 +810,9 @@
                     <div class="filter-bar">
                         <select id="status-filter" class="filter-select">
                             <option value="">所有状态</option>
-                            <option value="待处理">待处理</option>
-                            <option value="处理中">处理中</option>
-                            <option value="已解决">已解决</option>
-                            <option value="已完成">已完成</option>
                         </select>
                         <select id="level-filter" class="filter-select">
                             <option value="">所有级别</option>
-                            <option value="高">高</option>
-                            <option value="中">中</option>
-                            <option value="低">低</option>
                         </select>
                         <select id="plant-filter" class="filter-select">
                             <option value="">所有工厂</option>
@@ -992,24 +985,53 @@ async function loadFaultData() {
     if (noDataMessage) noDataMessage.style.display = 'none';
     
     try {
-        // 直接调用Worker API获取故障数据
-        const apiUrl = 'https://study-llm.me/ws/api/faults';
-        console.log('正在请求API:', apiUrl);
+        // 并行加载故障数据和筛选器选项
+        const [faultsResponse, plantsResponse, categoriesResponse, equipmentsResponse, areasResponse, subareasResponse, reportersResponse, statusesResponse, levelsResponse] = await Promise.all([
+            fetch('https://study-llm.me/ws/api/faults', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/plants', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/categories', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/equipments', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/areas', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/subareas', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/reporters', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/statuses', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            }),
+            fetch('https://study-llm.me/ws/api/kv/levels', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            })
+        ]);
         
-        const response = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+        console.log('故障数据响应状态:', faultsResponse.status);
         
-        console.log('API响应状态:', response.status);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
+        if (!faultsResponse.ok) {
+            throw new Error(`HTTP error! Status: ${faultsResponse.status}`);
         }
         
-        const faults = await response.json();
+        const faults = await faultsResponse.json();
         console.log('获取到的故障数据:', faults);
         
         // 存储所有故障数据
@@ -1021,26 +1043,99 @@ async function loadFaultData() {
         // 清空表格
         tableBody.innerHTML = '';
         
-        // 收集所有可能的选项用于筛选器
-        const plants = new Set();
-        const categories = new Set();
-        const equipments = new Set();
-        const areas = new Set();
-        const subAreas = new Set();
-        const reporters = new Set();
+        // 尝试从KV获取筛选器选项，如果失败则从故障数据中收集
+        let plants = new Set();
+        let categories = new Set();
+        let equipments = new Set();
+        let areas = new Set();
+        let subAreas = new Set();
+        let reporters = new Set();
+        let statuses = new Set();
+        let levels = new Set();
+        
+        try {
+            // 从KV获取工厂列表
+            if (plantsResponse.ok) {
+                const plantsData = await plantsResponse.json();
+                if (plantsData && plantsData.result) {
+                    plants = new Set(plantsData.result);
+                }
+            }
+            
+            // 从KV获取分类列表
+            if (categoriesResponse.ok) {
+                const categoriesData = await categoriesResponse.json();
+                if (categoriesData && categoriesData.result) {
+                    categories = new Set(categoriesData.result);
+                }
+            }
+            
+            // 从KV获取设备列表
+            if (equipmentsResponse.ok) {
+                const equipmentsData = await equipmentsResponse.json();
+                if (equipmentsData && equipmentsData.result) {
+                    equipments = new Set(equipmentsData.result);
+                }
+            }
+            
+            // 从KV获取区域列表
+            if (areasResponse.ok) {
+                const areasData = await areasResponse.json();
+                if (areasData && areasData.result) {
+                    areas = new Set(areasData.result);
+                }
+            }
+            
+            // 从KV获取子区域列表
+            if (subareasResponse.ok) {
+                const subareasData = await subareasResponse.json();
+                if (subareasData && subareasData.result) {
+                    subAreas = new Set(subareasData.result);
+                }
+            }
+            
+            // 从KV获取报告人列表
+            if (reportersResponse.ok) {
+                const reportersData = await reportersResponse.json();
+                if (reportersData && reportersData.result) {
+                    reporters = new Set(reportersData.result);
+                }
+            }
+            
+            // 从KV获取状态列表
+            if (statusesResponse.ok) {
+                const statusesData = await statusesResponse.json();
+                if (statusesData && statusesData.result) {
+                    statuses = new Set(statusesData.result);
+                }
+            }
+            
+            // 从KV获取级别列表
+            if (levelsResponse.ok) {
+                const levelsData = await levelsResponse.json();
+                if (levelsData && levelsData.result) {
+                    levels = new Set(levelsData.result);
+                }
+            }
+        } catch (error) {
+            console.warn('从KV获取筛选器选项失败，将从故障数据中收集:', error.message);
+            
+            // 如果从KV获取失败，则从故障数据中收集
+            if (allFaults && allFaults.length > 0) {
+                allFaults.forEach(fault => {
+                    if (fault.plant) plants.add(fault.plant);
+                    if (fault.faultCategory) categories.add(fault.faultCategory);
+                    if (fault.equipmentName) equipments.add(fault.equipmentName);
+                    if (fault.faultArea) areas.add(fault.faultArea);
+                    if (fault.faultSubArea) subAreas.add(fault.faultSubArea);
+                    if (fault.reporter) reporters.add(fault.reporter);
+                    if (fault.status) statuses.add(fault.status);
+                    if (fault.faultLevel) levels.add(fault.faultLevel);
+                });
+            }
+        }
                 
         if (allFaults && allFaults.length > 0) {
-            // 收集筛选器选项
-            allFaults.forEach(fault => {
-                // 收集筛选器选项
-                if (fault.plant) plants.add(fault.plant);
-                if (fault.faultCategory) categories.add(fault.faultCategory);
-                if (fault.equipmentName) equipments.add(fault.equipmentName);
-                if (fault.faultArea) areas.add(fault.faultArea);
-                if (fault.faultSubArea) subAreas.add(fault.faultSubArea);
-                if (fault.reporter) reporters.add(fault.reporter);
-            });
-            
             // 填充筛选器选项
             populateFilterOptions('plant-filter', plants);
             populateFilterOptions('category-filter', categories);
@@ -1048,6 +1143,8 @@ async function loadFaultData() {
             populateFilterOptions('area-filter', areas);
             populateFilterOptions('subarea-filter', subAreas);
             populateFilterOptions('reporter-filter', reporters);
+            populateFilterOptions('status-filter', statuses);
+            populateFilterOptions('level-filter', levels);
             
             // 渲染当前页的故障数据
             renderFaultTable();
