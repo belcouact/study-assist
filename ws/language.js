@@ -443,7 +443,34 @@ const translations = {
         'upload-success': '上传成功',
         'upload-failed': '上传失败',
         'delete-equipment-error': '删除设备出错',
-        'delete-user-error': '删除用户出错'
+        'delete-user-error': '删除用户出错',
+        
+        // Table headers for fault-list.html
+        'table-header-status': '状态',
+        'table-header-reporter': '报告人',
+        'table-header-update-time': '更新时间',
+        'table-header-report-time': '报告时间',
+        'table-header-description': '故障描述',
+        'table-header-level': '等级',
+        'table-header-category': '分类',
+        
+        // Additional keys for fault-list.html
+        'search-title': '搜索和筛选',
+        'all-statuses': '所有状态',
+        'all-levels': '所有级别',
+        'all-plants': '所有工厂',
+        'all-categories': '所有分类',
+        'all-equipment': '所有设备',
+        'all-areas': '所有区域',
+        'all-subareas': '所有子区域',
+        'all-reporters': '所有报告人',
+        'filter-button': '筛选',
+        'reset-button': '重置',
+        'loading-faults': '正在加载故障数据...',
+        'no-fault-data': '暂无故障数据',
+        'table-header-update-time': '更新时间',
+        'prev-page': '上一页',
+        'next-page': '下一页'
     },
     en: {
         // Common elements
@@ -888,7 +915,34 @@ const translations = {
         'upload-success': 'Upload successful',
         'upload-failed': 'Upload failed',
         'delete-equipment-error': 'Delete equipment error',
-        'delete-user-error': 'Delete user error'
+        'delete-user-error': 'Delete user error',
+        
+        // Table headers for fault-list.html
+        'table-header-status': 'Status',
+        'table-header-reporter': 'Reporter',
+        'table-header-update-time': 'Update Time',
+        'table-header-report-time': 'Report Time',
+        'table-header-description': 'Description',
+        'table-header-level': 'Level',
+        'table-header-category': 'Category',
+        
+        // Additional keys for fault-list.html
+        'search-title': 'Search and Filter',
+        'all-statuses': 'All Statuses',
+        'all-levels': 'All Levels',
+        'all-plants': 'All Plants',
+        'all-categories': 'All Categories',
+        'all-equipment': 'All Equipment',
+        'all-areas': 'All Areas',
+        'all-subareas': 'All Subareas',
+        'all-reporters': 'All Reporters',
+        'filter-button': 'Filter',
+        'reset-button': 'Reset',
+        'loading-faults': 'Loading fault data...',
+        'no-fault-data': 'No fault data',
+        'table-header-update-time': 'Update Time',
+        'prev-page': 'Previous',
+        'next-page': 'Next'
     }
 };
 
