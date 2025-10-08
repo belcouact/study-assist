@@ -30,8 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 e.preventDefault();
                 
                 // 清除会话存储
-                sessionStorage.removeItem('isLoggedIn');
-                sessionStorage.removeItem('userRole');
+                sessionStorage.clear();
                 
                 // 跳转到首页
                 window.location.href = 'index.html';
