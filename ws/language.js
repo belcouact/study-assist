@@ -963,7 +963,7 @@ const translations = {
         'table-header-update-time': 'Update Time',
         'prev-page': 'Previous',
         'next-page': 'Next'
-    }
+    },
 };
 
 // Current language
@@ -985,6 +985,14 @@ function updatePageLanguage() {
         }
     });
     
+    // Update title tags
+    document.querySelectorAll('title[data-lang]').forEach(element => {
+        const key = element.getAttribute('data-lang');
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            element.textContent = translations[currentLanguage][key];
+        }
+    });
+    
     // Update placeholders
     document.querySelectorAll('[data-lang-placeholder]').forEach(element => {
         const key = element.getAttribute('data-lang-placeholder');
@@ -994,7 +1002,7 @@ function updatePageLanguage() {
     });
     
     // Update title attributes
-    document.querySelectorAll('[data-lang-title]').forEach(element => {
+    document.querySelectorAll('[data-lang_title]').forEach(element => {
         const key = element.getAttribute('data-lang_title');
         if (translations[currentLanguage] && translations[currentLanguage][key]) {
             element.title = translations[currentLanguage][key];
