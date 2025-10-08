@@ -345,13 +345,13 @@ const translations = {
     en: {
         // Common elements
         'login-title': 'System Login',
-        'login-subtitle': 'Please enter your credentials to access the system',
+        'login-subtitle': 'Please enter your credentials to login',
         'username-label': 'Username',
         'password-label': 'Password',
         'login-button': 'Login',
         'guest-text': 'Guest Access',
         'login-error': 'Username or password is incorrect, please try again',
-        'page-title': 'Gear Equipment Fault Management',
+        'page-title': 'Fault Management',
         'nav-home': 'Home',
         'nav-fault-list': 'Fault List',
         'nav-new-fault': 'New Fault',
