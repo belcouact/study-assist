@@ -445,13 +445,13 @@ const translations = {
         'chart-min': 'Minimum',
         
         // Info Management Page
-        'info-mgmt-title': 'Information Management',
+        'info-mgmt-title': 'Info Management',
         'info-mgmt-subtitle': 'Manage equipment and user information',
         'tab-equipment': 'Equipment Management',
         'tab-user': 'User Management',
         'basic-data-maintenance': 'Basic Data Maintenance',
         'fault-data-download': 'Fault Data Download',
-        'download-description': 'Download fault data tables for offline analysis',
+        'download-description': 'Download fault data table for offline analysis',
         'download-features': 'Features: Includes all fault records, supports Excel format, can be used for offline analysis',
         'download-button': 'Download Fault Data',
         'action-add-single': 'Add Single',
@@ -459,7 +459,7 @@ const translations = {
         'action-batch-upload': 'Batch Upload',
         'modal-add-equipment': 'Add Equipment',
         'modal-add-user': 'Add User',
-        'modal-plant': 'Plant',
+        'modal-plant': 'Factory',
         'modal-equipment-name': 'Equipment Name',
         'modal-area': 'Area',
         'modal-subarea': 'Sub Area',
@@ -476,26 +476,26 @@ const translations = {
         'modal-update-success-user': 'User updated successfully!',
         'modal-delete-confirm': 'Are you sure you want to delete this record?',
         'modal-delete-loading': 'Deleting...',
-        'modal-delete-success': 'Deleted successfully',
+        'modal-delete-success': 'Delete successful',
         'modal-delete-error': 'Delete failed, please try again',
         'table-loading': 'Failed to load data',
         'upload-success': 'Upload successful! {message}',
         'upload-error': 'Upload failed: {message}',
         
         // Additional keys for fault-list.html
-        'fault-detail-title': 'Fault Details',
+        'fault-detail-title': 'Fault Detail',
         'fault-id-label': 'Fault ID',
         'description-section': 'Description',
-        'get-fault-detail-failed': 'Failed to get fault details',
-        'get-fault-detail-error': 'Error getting fault details, please try again later',
+        'get-fault-detail-failed': 'Failed to get fault detail',
+        'get-fault-detail-error': 'Error getting fault detail, please try again later',
         'process-fault-title': 'Process Fault',
         'status-label': 'Status',
         'handler-label': 'Handler',
         'handling-description-label': 'Handling Description',
-        'resolution-label': 'Resolution',
+        'resolution-label': 'Fault Resolution',
         'submit-button': 'Submit',
         'cancel-button': 'Cancel',
-        'fault-status-updated': 'Fault status has been updated',
+        'fault-status-updated': 'Fault processing status has been updated',
         'update-failed': 'Update failed',
         'unknown-error': 'Unknown error',
         'update-fault-status-error': 'Error updating fault status, please try again later',
@@ -524,13 +524,13 @@ const translations = {
         'form-factory': 'Factory',
         'form-fault-equipment': 'Fault Equipment',
         'form-fault-area': 'Fault Area',
-        'form-fault-sub-area': 'Fault Sub-area',
+        'form-fault-sub-area': 'Fault Sub Area',
         'form-fault-category': 'Fault Category',
         'form-fault-level': 'Fault Level',
         'form-report-time': 'Report Time',
         'form-reporter': 'Reporter',
         'form-status': 'Status',
-        'form-select-status': 'Please select status',
+        'form-select-status': 'Select Status',
         'form-status-pending': 'Pending',
         'form-status-in-progress': 'In Progress',
         'form-status-resolved': 'Resolved',
@@ -538,11 +538,11 @@ const translations = {
         'form-fault-description': 'Fault Description',
         'form-ai-analysis': 'AI Professional Analysis',
         'form-ai-analysis-title': 'AI Professional Analysis and Troubleshooting Suggestions',
-        'form-troubleshooting': 'Troubleshooting',
-        'form-ai-troubleshoot': 'AI Troubleshoot Analysis',
-        'form-ai-troubleshoot-title': 'AI Troubleshoot Analysis and Solutions',
+        'form-troubleshooting': 'Fault Troubleshooting',
+        'form-ai-troubleshoot': 'AI Troubleshooting Analysis',
+        'form-ai-troubleshoot-title': 'AI Troubleshooting Analysis and Solutions',
         'form-root-cause': 'Root Cause',
-        'form-resolution': 'Resolution',
+        'form-resolution': 'Fault Resolution',
         'form-additional-info': 'Additional Information',
         'form-file-upload': 'Upload Files',
         'form-file-upload-hint': 'Support uploading multiple files, such as images, documents, etc.',
@@ -560,28 +560,28 @@ const translations = {
         'form-analysis-error': 'Error during professional analysis, please try again later',
         'form-troubleshoot-error': 'Error during troubleshooting analysis, please try again later',
         'form-edit-fault-title': 'Edit Fault',
-        'form-edit-fault-description': 'Edit Equipment Fault Record',
+        'form-edit-fault-description': 'Edit equipment fault record',
         'form-load-fault-data-failed': 'Failed to load fault data',
         'form-load-fault-data-error': 'Failed to load fault data, please try again later',
-        'form-fault-updated-successfully': 'Fault information updated successfully!',
-        'form-fault-submitted-successfully': 'Fault report submitted successfully!',
+        'form-fault-updated-successfully': 'Fault information has been successfully updated!',
+        'form-fault-submitted-successfully': 'Fault report has been successfully submitted!',
         'form-submit-failed': 'Submission failed',
         'form-unknown-error': 'Unknown error',
         'form-submit-error': 'Error submitting fault report, please try again later',
         'form-cancel-confirm': 'Are you sure you want to cancel? Unsaved data will be lost.',
-        'form-select-plant': 'Please select factory',
+        'form-select-plant': 'Please select a factory',
         'form-select-equipment': 'Please select equipment',
-        'form-select-area': 'Please select area',
-        'form-select-sub-area': 'Please select sub-area',
-        'form-select-reporter': 'Please select reporter',
+        'form-select-area': 'Please select an area',
+        'form-select-sub-area': 'Please select a sub area',
+        'form-select-reporter': 'Please select a reporter',
         'form-load-plant-data-failed': 'Failed to load factory data',
         'form-load-plant-data-error': 'Error occurred while loading factory data',
         'form-load-equipment-data-failed': 'Failed to load equipment data',
         'form-load-equipment-data-error': 'Error occurred while loading equipment data',
         'form-load-area-data-failed': 'Failed to load area data',
         'form-load-area-data-error': 'Error occurred while loading area data',
-        'form-load-sub-area-data-failed': 'Failed to load sub-area data',
-        'form-load-sub-area-data-error': 'Error occurred while loading sub-area data',
+        'form-load-sub-area-data-failed': 'Failed to load sub area data',
+        'form-load-sub-area-data-error': 'Error occurred while loading sub area data',
         'form-load-personnel-data-failed': 'Failed to load personnel data',
         'form-load-personnel-data-error': 'Error occurred while loading personnel data',
         
@@ -605,26 +605,26 @@ const translations = {
         'load-column-width-error': 'Failed to load column width settings',
         'no-matching-faults': 'No matching fault records found',
         // Fault Detail Page
-        'fault-detail-title': 'Fault Details',
-        'fault-detail-description': 'View detailed information about equipment faults',
+        'fault-detail-title': 'Fault Detail',
+        'fault-detail-description': 'View detailed information of equipment fault',
         'basic-info': 'Basic Information',
-        'fault-detail': 'Fault Details',
+        'fault-detail': 'Fault Detail',
         'additional-info': 'Additional Information',
         'export-document': 'Export Document',
         'fault-id': 'Fault ID',
         'plant': 'Factory',
         'fault-equipment': 'Fault Equipment',
         'fault-area': 'Fault Area',
-        'fault-subarea': 'Fault Sub-area',
+        'fault-subarea': 'Fault Sub Area',
         'fault-category': 'Fault Category',
         'fault-level': 'Fault Level',
         'report-time': 'Report Time',
         'reporter': 'Reporter',
         'status': 'Status',
         'fault-description': 'Fault Description',
-        'troubleshooting': 'Troubleshooting',
+        'troubleshooting': 'Fault Troubleshooting',
         'root-cause': 'Root Cause',
-        'resolution': 'Resolution',
+        'resolution': 'Fault Resolution',
         'attachments': 'Attachment Information',
         'export-fault-report': 'Export Fault Report',
         'export-description': 'Click the button below to export the complete fault information (including basic information, fault details, additional information and attachments) as a Word document.',
@@ -632,8 +632,8 @@ const translations = {
         'generating-document': 'Generating document...',
         'back-to-list': 'Back to List',
         'edit-fault': 'Edit Fault',
-        'no-fault-id': 'Fault ID not specified',
-        'load-fault-detail-failed': 'Failed to load fault details',
+        'no-fault-id': 'No fault ID specified',
+        'load-fault-detail-failed': 'Failed to load fault detail',
         'no-attachments': 'No attachments',
         'equipment-fault-report': 'Equipment Fault Report',
         'fault-number': 'Fault Number',
@@ -647,13 +647,13 @@ const translations = {
         'image-link': 'Image Link',
         'file-name': 'File Name',
         'file-link': 'File Link',
-        'image-embed-error': 'Note: Images cannot be directly embedded in the document, please click the link above to view the image',
+        'image-embed-error': 'Note: Images cannot be directly embedded in the document, please click the link above to view images',
         'no-attachments-report': 'This fault report has no attachments',
         'report-generation-info': 'Report Generation Information',
         'generation-time': 'Generation Time',
         'generation-method': 'Generation Method',
         'auto-generated': 'System Automatically Generated',
-        'export-failed': 'Export Failed',
+        'export-failed': 'Export failed',
         'high': 'High',
         'medium': 'Medium',
         'low': 'Low',
@@ -686,111 +686,61 @@ const translations = {
     }
 };
 
-// Default language
+// Current language
 let currentLanguage = 'zh';
 
-// Function to get saved language preference
-function getSavedLanguage() {
-    const savedLang = localStorage.getItem('preferredLanguage');
-    if (savedLang && translations[savedLang]) {
-        return savedLang;
-    }
-    
-    // Try to detect browser language
-    const browserLang = navigator.language || navigator.userLanguage;
-    if (browserLang.startsWith('en')) {
-        return 'en';
-    }
-    
-    // Default to Chinese
-    return 'zh';
+// Function to set the language
+function setLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem('language', lang);
+    updatePageLanguage();
 }
 
-// Function to set language
-function setLanguage(lang) {
-    if (!translations[lang]) {
-        console.error(`Language ${lang} not supported`);
-        return;
-    }
-    
-    currentLanguage = lang;
-    localStorage.setItem('preferredLanguage', lang);
-    
-    // Update active language button (if they exist)
-    const langButtons = document.querySelectorAll('.lang-btn');
-    langButtons.forEach(btn => {
-        btn.classList.remove('active');
-    });
-    
-    const activeButton = document.getElementById(`lang${lang.charAt(0).toUpperCase() + lang.slice(1)}`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-    
-    // Update all elements with data-lang attribute
+// Function to update the page language
+function updatePageLanguage() {
     document.querySelectorAll('[data-lang]').forEach(element => {
         const key = element.getAttribute('data-lang');
-        if (translations[lang][key]) {
-            // Special handling for elements that might contain HTML
-            if (element.tagName === 'BUTTON' && element.innerHTML.includes('<div')) {
-                // For login button which contains a loading div
-                const loadingDiv = element.querySelector('.login-loading');
-                element.innerHTML = translations[lang][key];
-                if (loadingDiv) {
-                    element.appendChild(loadingDiv);
-                }
-            } else {
-                element.textContent = translations[lang][key];
-            }
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            element.textContent = translations[currentLanguage][key];
         }
     });
     
-    // Update document title
-    document.title = translations[lang]['page-title'] + ' | ' + 
-                   (lang === 'zh' ? '故障管理' : 'Fault Management');
+    // Update placeholders
+    document.querySelectorAll('[data-lang-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-lang-placeholder');
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            element.placeholder = translations[currentLanguage][key];
+        }
+    });
     
-    // Update HTML lang attribute
-    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en-US';
-    
-    // Dispatch custom event for other scripts to react to language change
-    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: lang } }));
+    // Update title attributes
+    document.querySelectorAll('[data-lang-title]').forEach(element => {
+        const key = element.getAttribute('data-lang_title');
+        if (translations[currentLanguage] && translations[currentLanguage][key]) {
+            element.title = translations[currentLanguage][key];
+        }
+    });
 }
 
-// Initialize language when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    // Set initial language based on saved preference or browser language
-    const initialLang = getSavedLanguage();
-    setLanguage(initialLang);
-    
-    // Add event listeners to language buttons (if they exist)
-    const langZhButton = document.getElementById('langZh');
-    const langEnButton = document.getElementById('langEn');
-    
-    if (langZhButton) {
-        langZhButton.addEventListener('click', () => setLanguage('zh'));
+// Initialize language from localStorage or browser language
+function initializeLanguage() {
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage && translations[savedLanguage]) {
+        currentLanguage = savedLanguage;
+    } else {
+        // Try to detect browser language
+        const browserLang = navigator.language.split('-')[0];
+        if (translations[browserLang]) {
+            currentLanguage = browserLang;
+        }
     }
-    
-    if (langEnButton) {
-        langEnButton.addEventListener('click', () => setLanguage('en'));
-    }
-    
-    // Make setLanguage function globally available for other pages
-    window.setLanguage = setLanguage;
-    window.currentLanguage = currentLanguage;
-    window.translations = translations;
-});
-
-// Function to get current language (can be used by other scripts)
-function getCurrentLanguage() {
-    return currentLanguage;
+    updatePageLanguage();
 }
 
-// Function to get translation for a specific key
-function getTranslation(key, lang = null) {
-    const language = lang || currentLanguage;
-    return translations[language] && translations[language][key] ? translations[language][key] : key;
+// Function to get translation text
+function getTranslation(key) {
+    return translations[currentLanguage][key] || key;
 }
 
-// Export functions for use in other scripts
-window.getCurrentLanguage = getCurrentLanguage;
-window.getTranslation = getTranslation;
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', initializeLanguage);
