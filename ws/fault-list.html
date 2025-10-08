@@ -340,6 +340,7 @@
         @media (min-width: 1400px) {
             .fault-table td:nth-child(8) {
                 max-width: 900px;
+                width: 900px;
             }
         }
         
@@ -2072,8 +2073,13 @@ function resetFilters() {
             const ths = table.querySelectorAll('thead th');
             const columnWidths = [];
             
-            ths.forEach(th => {
-                columnWidths.push(th.style.width || th.offsetWidth);
+            ths.forEach((th, index) => {
+                // 对于故障描述列（第8列），在宽屏上不保存宽度，让CSS控制
+                if (index === 7 && window.innerWidth >= 1400) {
+                    columnWidths.push(''); // 保存空值，让CSS控制
+                } else {
+                    columnWidths.push(th.style.width || th.offsetWidth);
+                }
             });
             
             // 保存到本地存储
@@ -2095,16 +2101,30 @@ function resetFilters() {
                 // 应用保存的宽度
                 columnWidths.forEach((width, index) => {
                     if (ths[index]) {
-                        ths[index].style.width = width;
-                        
-                        // 同时更新表格列宽度
-                        const tableRows = table.querySelectorAll('tbody tr');
-                        tableRows.forEach(row => {
-                            const tds = row.querySelectorAll('td');
-                            if (tds[index]) {
-                                tds[index].style.width = width;
-                            }
-                        });
+                        // 对于故障描述列（第8列），在宽屏上使用更宽的宽度
+                        if (index === 7 && window.innerWidth >= 1400) {
+                            ths[index].style.width = '900px';
+                            
+                            // 同时更新表格列宽度
+                            const tableRows = table.querySelectorAll('tbody tr');
+                            tableRows.forEach(row => {
+                                const tds = row.querySelectorAll('td');
+                                if (tds[index]) {
+                                    tds[index].style.width = '900px';
+                                }
+                            });
+                        } else {
+                            ths[index].style.width = width;
+                            
+                            // 同时更新表格列宽度
+                            const tableRows = table.querySelectorAll('tbody tr');
+                            tableRows.forEach(row => {
+                                const tds = row.querySelectorAll('td');
+                                if (tds[index]) {
+                                    tds[index].style.width = width;
+                                }
+                            });
+                        }
                     }
                 });
             } catch (e) {
