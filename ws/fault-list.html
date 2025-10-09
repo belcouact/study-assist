@@ -285,6 +285,8 @@
             white-space: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            max-width: none;
+            width: 16.67%;
         }
         
         /* 可调整列宽的表格样式 */
@@ -312,7 +314,7 @@
             width: 10px;
             height: 100%;
             cursor: col-resize;
-            background: transparent;
+            background: rgba(52, 152, 219, 0.2);
             user-select: none;
             z-index: 10;
         }
@@ -342,12 +344,20 @@
         
         /* 故障描述列特殊样式 */
         .fault-table td:nth-child(8) {
-            max-width: 900px;
+            max-width: none;
+            width: 16.67%;
             word-wrap: break-word;
             overflow-wrap: break-word;
             white-space: normal;
             overflow: visible;
             line-height: 1.4;
+        }
+        
+        /* 报告时间和更新时间列样式 */
+        .fault-table th:nth-child(9), .fault-table td:nth-child(9),
+        .fault-table th:nth-child(10), .fault-table td:nth-child(10) {
+            width: 10%;
+            white-space: nowrap;
         }
         
         .fault-table th {
@@ -964,6 +974,8 @@ function handleResize() {
 
 // 移动端菜单切换
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM内容已加载，开始初始化...');
+    
     const menuToggle = document.getElementById('mobileMenuToggle');
     const navMenu = document.getElementById('navMenu');
     
@@ -985,6 +997,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('resize', handleResize);
     
     // 初始化列宽调整功能
+    console.log('调用initColumnResizing()...');
     initColumnResizing();
     
     // 移除访客访问控制调用
@@ -1297,12 +1310,9 @@ function renderFaultTable() {
         tableBody.appendChild(row);
     });
     
-    // 加载保存的列宽设置
-    loadColumnWidths();
-    
     // 重新初始化列宽调整功能
-    initColumnResizing();
-}
+            initColumnResizing();
+        }
 
 // 更新分页控件
 function updatePaginationControls() {
@@ -1953,12 +1963,23 @@ function resetFilters() {
                 return;
             }
             
+            // 确保表格有正确的类
+            if (!table.classList.contains('resizable-table')) {
+                table.classList.add('resizable-table');
+            }
+            
             const resizeHandles = table.querySelectorAll('.resize-handle');
             console.log('找到调整手柄数量:', resizeHandles.length);
             
             const resizeOverlay = document.getElementById('resizeOverlay');
             if (!resizeOverlay) {
                 console.error('找不到调整遮罩层元素');
+                // 创建遮罩层
+                const overlay = document.createElement('div');
+                overlay.id = 'resizeOverlay';
+                overlay.className = 'resize-overlay';
+                document.body.appendChild(overlay);
+                console.log('已创建新的调整遮罩层');
             }
             
             let currentColumn = null;
@@ -1966,13 +1987,25 @@ function resetFilters() {
             let startWidth = 0;
             let isResizing = false;
             
+            // 移除之前的事件监听器（如果有的话）
+            const oldResizeHandles = table.querySelectorAll('.resize-handle');
+            oldResizeHandles.forEach(handle => {
+                const newHandle = handle.cloneNode(true);
+                handle.parentNode.replaceChild(newHandle, handle);
+            });
+            
+            // 重新获取调整手柄
+            const newResizeHandles = table.querySelectorAll('.resize-handle');
+            console.log('重新获取调整手柄数量:', newResizeHandles.length);
+            
             // 为每个调整手柄添加事件监听器
-            resizeHandles.forEach((handle, index) => {
+            newResizeHandles.forEach((handle, index) => {
                 console.log('为调整手柄', index, '添加事件监听器');
                 
                 handle.addEventListener('mousedown', function(e) {
                     console.log('鼠标按下调整手柄', index);
                     e.preventDefault();
+                    e.stopPropagation();
                     
                     // 获取当前列索引
                     const th = this.parentElement;
@@ -1984,19 +2017,46 @@ function resetFilters() {
                     startWidth = th.offsetWidth;
                     isResizing = true;
                     
+                    // 添加活动类
+                    this.classList.add('active');
+                    
                     // 显示遮罩层，防止文本选择
-                    if (resizeOverlay) {
-                        resizeOverlay.style.display = 'block';
+                    const overlay = document.getElementById('resizeOverlay');
+                    if (overlay) {
+                        overlay.style.display = 'block';
                     }
                     
                     // 添加临时样式
                     document.body.style.cursor = 'col-resize';
                     document.body.style.userSelect = 'none';
                 });
+                
+                // 添加鼠标悬停效果
+                handle.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = 'rgba(52, 152, 219, 0.5)';
+                });
+                
+                handle.addEventListener('mouseleave', function() {
+                    if (!isResizing) {
+                        this.style.backgroundColor = 'rgba(52, 152, 219, 0.2)';
+                    }
+                });
             });
             
+            // 移除之前的事件监听器
+            const oldMouseMoveHandler = window.columnResizeMouseMoveHandler;
+            const oldMouseUpHandler = window.columnResizeMouseUpHandler;
+            
+            if (oldMouseMoveHandler) {
+                document.removeEventListener('mousemove', oldMouseMoveHandler);
+            }
+            
+            if (oldMouseUpHandler) {
+                document.removeEventListener('mouseup', oldMouseUpHandler);
+            }
+            
             // 添加全局鼠标移动事件
-            document.addEventListener('mousemove', function(e) {
+            window.columnResizeMouseMoveHandler = function(e) {
                 if (!isResizing) return;
                 
                 console.log('正在调整列宽，当前列:', currentColumn);
@@ -2018,10 +2078,12 @@ function resetFilters() {
                         tds[currentColumn].style.width = `${newWidth}px`;
                     }
                 });
-            });
+            };
+            
+            document.addEventListener('mousemove', window.columnResizeMouseMoveHandler);
             
             // 添加全局鼠标释放事件
-            document.addEventListener('mouseup', function() {
+            window.columnResizeMouseUpHandler = function() {
                 if (!isResizing) return;
                 
                 console.log('结束调整列宽');
@@ -2029,23 +2091,31 @@ function resetFilters() {
                 isResizing = false;
                 currentColumn = null;
                 
+                // 移除活动类
+                const activeHandles = table.querySelectorAll('.resize-handle.active');
+                activeHandles.forEach(handle => {
+                    handle.classList.remove('active');
+                    handle.style.backgroundColor = 'rgba(52, 152, 219, 0.2)';
+                });
+                
                 // 隐藏遮罩层
-                if (resizeOverlay) {
-                    resizeOverlay.style.display = 'none';
+                const overlay = document.getElementById('resizeOverlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
                 }
                 
                 // 恢复默认样式
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
-                
-                // 保存列宽到本地存储（可选）
-                saveColumnWidths();
-            });
+            };
+            
+            document.addEventListener('mouseup', window.columnResizeMouseUpHandler);
             
             // 添加触摸事件支持（移动设备）
-            resizeHandles.forEach(handle => {
+            newResizeHandles.forEach(handle => {
                 handle.addEventListener('touchstart', function(e) {
                     e.preventDefault();
+                    e.stopPropagation();
                     
                     const touch = e.touches[0];
                     const th = this.parentElement;
@@ -2057,15 +2127,31 @@ function resetFilters() {
                     startWidth = th.offsetWidth;
                     isResizing = true;
                     
+                    // 添加活动类
+                    this.classList.add('active');
+                    
                     // 显示遮罩层
-                    if (resizeOverlay) {
-                        resizeOverlay.style.display = 'block';
+                    const overlay = document.getElementById('resizeOverlay');
+                    if (overlay) {
+                        overlay.style.display = 'block';
                     }
                 }, { passive: false });
             });
             
+            // 移除之前的触摸事件监听器
+            const oldTouchMoveHandler = window.columnResizeTouchMoveHandler;
+            const oldTouchEndHandler = window.columnResizeTouchEndHandler;
+            
+            if (oldTouchMoveHandler) {
+                document.removeEventListener('touchmove', oldTouchMoveHandler);
+            }
+            
+            if (oldTouchEndHandler) {
+                document.removeEventListener('touchend', oldTouchEndHandler);
+            }
+            
             // 添加触摸移动事件
-            document.addEventListener('touchmove', function(e) {
+            window.columnResizeTouchMoveHandler = function(e) {
                 if (!isResizing) return;
                 
                 const touch = e.touches[0];
@@ -2086,92 +2172,36 @@ function resetFilters() {
                         tds[currentColumn].style.width = `${newWidth}px`;
                     }
                 });
-            }, { passive: false });
+            };
+            
+            document.addEventListener('touchmove', window.columnResizeTouchMoveHandler, { passive: false });
             
             // 添加触摸结束事件
-            document.addEventListener('touchend', function() {
+            window.columnResizeTouchEndHandler = function() {
                 if (!isResizing) return;
                 
                 isResizing = false;
                 currentColumn = null;
                 
-                // 隐藏遮罩层
-                if (resizeOverlay) {
-                    resizeOverlay.style.display = 'none';
-                }
-                
-                // 保存列宽到本地存储（可选）
-                saveColumnWidths();
-            });
-        }
-        
-        // 保存列宽到本地存储
-        function saveColumnWidths() {
-            console.log('保存列宽到本地存储...');
-            
-            const table = document.getElementById('fault-table');
-            if (!table) {
-                console.error('保存列宽时找不到表格元素');
-                return;
-            }
-            
-            const ths = table.querySelectorAll('thead th');
-            const columnWidths = [];
-            
-            ths.forEach(th => {
-                columnWidths.push(th.style.width || th.offsetWidth);
-            });
-            
-            console.log('保存的列宽:', columnWidths);
-            
-            // 保存到本地存储
-            localStorage.setItem('faultTableColumnWidths', JSON.stringify(columnWidths));
-        }
-        
-        // 从本地存储加载列宽
-        function loadColumnWidths() {
-            console.log('从本地存储加载列宽...');
-            
-            const savedWidths = localStorage.getItem('faultTableColumnWidths');
-            if (!savedWidths) {
-                console.log('没有找到保存的列宽');
-                return;
-            }
-            
-            try {
-                const columnWidths = JSON.parse(savedWidths);
-                console.log('加载的列宽:', columnWidths);
-                
-                const table = document.getElementById('fault-table');
-                if (!table) {
-                    console.error('加载列宽时找不到表格元素');
-                    return;
-                }
-                
-                const ths = table.querySelectorAll('thead th');
-                
-                // 应用保存的宽度
-                columnWidths.forEach((width, index) => {
-                    if (ths[index]) {
-                        console.log(`应用第${index}列宽度: ${width}`);
-                        ths[index].style.width = width;
-                        
-                        // 同时更新表格列宽度
-                        const tableRows = table.querySelectorAll('tbody tr');
-                        tableRows.forEach(row => {
-                            const tds = row.querySelectorAll('td');
-                            if (tds[index]) {
-                                tds[index].style.width = width;
-                            }
-                        });
-                    }
+                // 移除活动类
+                const activeHandles = table.querySelectorAll('.resize-handle.active');
+                activeHandles.forEach(handle => {
+                    handle.classList.remove('active');
+                    handle.style.backgroundColor = 'rgba(52, 152, 219, 0.2)';
                 });
                 
-                console.log('列宽加载完成');
-            } catch (e) {
-                console.error('加载列宽时出错:', e);
-            }
+                // 隐藏遮罩层
+                const overlay = document.getElementById('resizeOverlay');
+                if (overlay) {
+                    overlay.style.display = 'none';
+                }
+            };
+            
+            document.addEventListener('touchend', window.columnResizeTouchEndHandler);
+            
+            console.log('列宽调整功能初始化完成');
         }
-    </script>
+        
+        </script>
 </body>
 </html>
