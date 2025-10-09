@@ -650,7 +650,7 @@ const translations = {
         'modal-delete-success': 'Delete successful',
         'modal-delete-error': 'Delete failed, please try again',
         'table-loading': 'Failed to load data',
-'load-data-error': 'Error occurred while loading data',
+        'load-data-error': 'Error occurred while loading data',
         'upload-success': 'Upload successful! {message}',
         'upload-error': 'Upload failed: {message}',
         
@@ -1119,6 +1119,11 @@ function updatePageLanguage() {
             element.title = translations[currentLanguage][key];
         }
     });
+    
+    // Update dropdown placeholders if the function exists (for new-fault.html)
+    if (typeof updateDropdownPlaceholders === 'function') {
+        updateDropdownPlaceholders();
+    }
 }
 
 // Initialize language from localStorage or browser language
