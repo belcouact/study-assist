@@ -299,24 +299,30 @@
             position: relative;
         }
         
+        .resizable-table th {
+            position: relative;
+            padding-right: 15px !important;
+        }
+        
         /* 列宽调整手柄 */
         .resize-handle {
             position: absolute;
             top: 0;
             right: 0;
-            width: 5px;
+            width: 10px;
             height: 100%;
             cursor: col-resize;
             background: transparent;
             user-select: none;
+            z-index: 10;
         }
         
         .resize-handle:hover {
-            background-color: rgba(52, 152, 219, 0.3);
+            background-color: rgba(52, 152, 219, 0.5);
         }
         
         .resize-handle.active {
-            background-color: rgba(52, 152, 219, 0.5);
+            background-color: rgba(52, 152, 219, 0.7);
         }
         
         /* 调整时的遮罩层 */
@@ -347,7 +353,6 @@
         .fault-table th {
             background-color: #f8f9fa;
             font-weight: bold;
-            position: relative;
         }
         
         /* 排序相关样式 */
@@ -979,6 +984,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 添加窗口大小变化监听器
     window.addEventListener('resize', handleResize);
     
+    // 初始化列宽调整功能
+    initColumnResizing();
+    
     // 移除访客访问控制调用
     
     // 移除访客访问控制 - 信息管理链接对所有用户可见
@@ -1291,6 +1299,9 @@ function renderFaultTable() {
     
     // 加载保存的列宽设置
     loadColumnWidths();
+    
+    // 重新初始化列宽调整功能
+    initColumnResizing();
 }
 
 // 更新分页控件
@@ -1928,20 +1939,27 @@ function resetFilters() {
             // 初始化列宽调整功能
             initColumnResizing();
             
-            // 加载保存的列宽
-            loadColumnWidths();
-            
             // 加载故障数据
             loadFaultData();
         });
         
         // 列宽调整功能
         function initColumnResizing() {
+            console.log('初始化列宽调整功能...');
+            
             const table = document.getElementById('fault-table');
-            if (!table) return;
+            if (!table) {
+                console.error('找不到故障表格元素');
+                return;
+            }
             
             const resizeHandles = table.querySelectorAll('.resize-handle');
+            console.log('找到调整手柄数量:', resizeHandles.length);
+            
             const resizeOverlay = document.getElementById('resizeOverlay');
+            if (!resizeOverlay) {
+                console.error('找不到调整遮罩层元素');
+            }
             
             let currentColumn = null;
             let startX = 0;
@@ -1949,8 +1967,11 @@ function resetFilters() {
             let isResizing = false;
             
             // 为每个调整手柄添加事件监听器
-            resizeHandles.forEach(handle => {
+            resizeHandles.forEach((handle, index) => {
+                console.log('为调整手柄', index, '添加事件监听器');
+                
                 handle.addEventListener('mousedown', function(e) {
+                    console.log('鼠标按下调整手柄', index);
                     e.preventDefault();
                     
                     // 获取当前列索引
@@ -1978,6 +1999,8 @@ function resetFilters() {
             document.addEventListener('mousemove', function(e) {
                 if (!isResizing) return;
                 
+                console.log('正在调整列宽，当前列:', currentColumn);
+                
                 const diffX = e.pageX - startX;
                 const newWidth = Math.max(50, startWidth + diffX); // 最小宽度为50px
                 
@@ -2000,6 +2023,8 @@ function resetFilters() {
             // 添加全局鼠标释放事件
             document.addEventListener('mouseup', function() {
                 if (!isResizing) return;
+                
+                console.log('结束调整列宽');
                 
                 isResizing = false;
                 currentColumn = null;
@@ -2082,8 +2107,13 @@ function resetFilters() {
         
         // 保存列宽到本地存储
         function saveColumnWidths() {
+            console.log('保存列宽到本地存储...');
+            
             const table = document.getElementById('fault-table');
-            if (!table) return;
+            if (!table) {
+                console.error('保存列宽时找不到表格元素');
+                return;
+            }
             
             const ths = table.querySelectorAll('thead th');
             const columnWidths = [];
@@ -2092,25 +2122,38 @@ function resetFilters() {
                 columnWidths.push(th.style.width || th.offsetWidth);
             });
             
+            console.log('保存的列宽:', columnWidths);
+            
             // 保存到本地存储
             localStorage.setItem('faultTableColumnWidths', JSON.stringify(columnWidths));
         }
         
         // 从本地存储加载列宽
         function loadColumnWidths() {
+            console.log('从本地存储加载列宽...');
+            
             const savedWidths = localStorage.getItem('faultTableColumnWidths');
-            if (!savedWidths) return;
+            if (!savedWidths) {
+                console.log('没有找到保存的列宽');
+                return;
+            }
             
             try {
                 const columnWidths = JSON.parse(savedWidths);
+                console.log('加载的列宽:', columnWidths);
+                
                 const table = document.getElementById('fault-table');
-                if (!table) return;
+                if (!table) {
+                    console.error('加载列宽时找不到表格元素');
+                    return;
+                }
                 
                 const ths = table.querySelectorAll('thead th');
                 
                 // 应用保存的宽度
                 columnWidths.forEach((width, index) => {
                     if (ths[index]) {
+                        console.log(`应用第${index}列宽度: ${width}`);
                         ths[index].style.width = width;
                         
                         // 同时更新表格列宽度
@@ -2123,8 +2166,10 @@ function resetFilters() {
                         });
                     }
                 });
+                
+                console.log('列宽加载完成');
             } catch (e) {
-                console.error(getTranslation('load-column-width-error'), e);
+                console.error('加载列宽时出错:', e);
             }
         }
     </script>
