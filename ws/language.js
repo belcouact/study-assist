@@ -526,7 +526,7 @@ const translations = {
         'card-fault-stats-desc': 'View equipment fault data analysis',
         'card-info-mgmt-title': 'Info Management',
         'card-info-mgmt-desc': 'Manage equipment and user data',
-        'footer-text': 'Site created with Zhipu\'s GLM-4.5 LLM',
+        'footer-text': 'Site created with Zhipu\'s GLM-4.5 model',
         
         // Info Modal
         'info-modal-title': 'About System',
