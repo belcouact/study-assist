@@ -252,8 +252,8 @@ export async function onRequest(context) {
                         }));
                     } else if (table === 'equipment_basic_info') {
                         // First, clear existing data from the table
-                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
-                        deletedCount = deleteResult.meta.changes || 0;
+                        // const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        // deletedCount = deleteResult.meta.changes || 0;
 
                         await db.batch(data.map(row => {
                             return db.prepare(`
@@ -271,8 +271,8 @@ export async function onRequest(context) {
                         }));
                     } else if (table === 'personnel_list') {
                         // First, clear existing data from the table
-                        const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
-                        deletedCount = deleteResult.meta.changes || 0;
+                        // const deleteResult = await db.prepare(`DELETE FROM ${table}`).run();
+                        // deletedCount = deleteResult.meta.changes || 0;
 
                         await db.batch(data.map(row => {
                             return db.prepare(`

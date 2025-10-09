@@ -219,6 +219,7 @@ const translations = {
         'form-resolution': '故障解决',
         'form-additional-info': '补充信息',
         'form-file-upload': '上传文件',
+        'form-file-upload-text': '点击或拖拽文件到此处上传',
         'form-file-upload-hint': '支持上传多个文件，如图片、文档等',
         'form-submit': '提交',
         'form-cancel': '取消',
@@ -718,6 +719,7 @@ const translations = {
         'form-resolution': 'Fault Resolution',
         'form-additional-info': 'Additional Information',
         'form-file-upload': 'Upload Files',
+        'form-file-upload-text': 'Click or drag files here to upload',
         'form-file-upload-hint': 'Support uploading multiple files, such as images, documents, etc.',
         'form-submit': 'Submit',
         'form-cancel': 'Cancel',
@@ -1123,6 +1125,12 @@ function updatePageLanguage() {
     // Update dropdown placeholders if the function exists (for new-fault.html)
     if (typeof updateDropdownPlaceholders === 'function') {
         updateDropdownPlaceholders();
+    }
+    
+    // Update file upload text if the element exists (for new-fault.html)
+    const fileUploadText = document.querySelector('.file-upload-text');
+    if (fileUploadText) {
+        fileUploadText.textContent = getTranslation('form-file-upload-text');
     }
 }
 
