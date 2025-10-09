@@ -509,8 +509,8 @@ const translations = {
         'card-fault-stats-title': 'Fault Statistics',
         'card-fault-stats-desc': 'View equipment fault data analysis',
         'card-info-mgmt-title': 'Info Management',
-        'card-info-mgmt-desc': 'Manage equipment and user information',
-        'footer-text': 'Website created based on Zhipu AI GLM-4.5 model',
+        'card-info-mgmt-desc': 'Manage equipment and user data',
+        'footer-text': 'Site created with Zhipu\'s GLM-4.5 LLM',
         
         // Fault List Page
         'fault-list-title': 'Fault List',
