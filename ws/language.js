@@ -466,6 +466,16 @@ const translations = {
         'delete-equipment-error': '删除设备出错',
         'delete-user-error': '删除用户出错',
         
+        // Category filter options for fault-list.html
+        'category-mechanical': '机械',
+        'category-electrical': '电气',
+        'category-software': '软件',
+        'category-network': '网络',
+        'category-other': '其他',
+        
+        // Search placeholder for fault-list.html
+        'search-placeholder': '搜索故障ID，故障描述...',
+        
         // Placeholder translations for new-fault.html
         'form-placeholder-equipment-name': '输入故障设备名称',
         'form-placeholder-fault-area': '输入故障区域',
@@ -1062,7 +1072,17 @@ const translations = {
         'status-processing': 'Processing',
         'status-resolved': 'Resolved',
         'status-completed': 'Completed',
-        'status-unknown': 'Unknown'
+        'status-unknown': 'Unknown',
+        
+        // Category filter options for fault-list.html
+        'category-mechanical': 'Mechanical',
+        'category-electrical': 'Electrical',
+        'category-software': 'Software',
+        'category-network': 'Network',
+        'category-other': 'Other',
+        
+        // Search placeholder for fault-list.html
+        'search-placeholder': 'Search faults by ID, Description...'
     },
 };
 
