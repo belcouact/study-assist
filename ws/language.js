@@ -32,11 +32,11 @@ const translations = {
         'info-modal-main-purpose': '主要目的',
         'info-modal-purpose-desc': '本系统致力于为企业提供全面的设备故障管理解决方案，通过数字化手段实现故障记录、跟踪、分析和预防的全流程管理。',
         'info-modal-unique-features': '独特功能',
-        'info-modal-feature-1': '<strong>故障全生命周期管理</strong>：从故障发现、记录、处理到解决的全过程跟踪',
-        'info-modal-feature-2': '<strong>智能统计分析</strong>：提供多维度的故障数据分析，帮助识别故障模式和趋势',
-        'info-modal-feature-3': '<strong>多角色权限管理</strong>：根据用户角色提供不同的功能访问权限',
-        'info-modal-feature-4': '<strong>响应式设计</strong>：支持PC端和移动端访问，随时随地管理设备故障',
-        'info-modal-feature-5': '<strong>玻璃态UI设计</strong>：采用现代玻璃态设计风格，提供优雅的用户体验',
+        'info-modal-feature-1': '故障全生命周期管理：从故障发现、记录、处理到解决的全过程跟踪',
+        'info-modal-feature-2': '智能统计分析：提供多维度的故障数据分析，帮助识别故障模式和趋势',
+        'info-modal-feature-3': '多角色权限管理：根据用户角色提供不同的功能访问权限',
+        'info-modal-feature-4': '响应式设计：支持PC端和移动端访问，随时随地管理设备故障',
+        'info-modal-feature-5': '玻璃态UI设计：采用现代玻璃态设计风格，提供优雅的用户体验',
         'info-modal-benefits': '系统优势',
         'info-modal-benefits-desc': '通过使用本系统，企业可以实现设备维护的数字化转型，提高故障响应速度，降低维护成本，延长设备使用寿命，最终提升整体运营效率。',
         
@@ -532,11 +532,11 @@ const translations = {
         'info-modal-main-purpose': 'Main Purpose',
         'info-modal-purpose-desc': 'This system is committed to providing enterprises with comprehensive equipment fault management solutions, achieving full-process management of fault recording, tracking, analysis, and prevention through digital means.',
         'info-modal-unique-features': 'Unique Features',
-        'info-modal-feature-1': '<strong>Full Lifecycle Fault Management</strong>: Complete process tracking from fault discovery, recording, processing to resolution',
-        'info-modal-feature-2': '<strong>Intelligent Statistical Analysis</strong>: Provides multi-dimensional fault data analysis to help identify fault patterns and trends',
-        'info-modal-feature-3': '<strong>Multi-role Permission Management</strong>: Provides different functional access permissions based on user roles',
-        'info-modal-feature-4': '<strong>Responsive Design</strong>: Supports PC and mobile access, manage equipment faults anytime, anywhere',
-        'info-modal-feature-5': '<strong>Glassmorphism UI Design</strong>: Adopts modern glassmorphism design style to provide an elegant user experience',
+        'info-modal-feature-1': 'Full Lifecycle Fault Management: Complete process tracking from fault discovery, recording, processing to resolution',
+        'info-modal-feature-2': 'Intelligent Statistical Analysis: Provides multi-dimensional fault data analysis to help identify fault patterns and trends',
+        'info-modal-feature-3': 'Multi-role Permission Management: Provides different functional access permissions based on user roles',
+        'info-modal-feature-4': 'Responsive Design: Supports PC and mobile access, manage equipment faults anytime, anywhere',
+        'info-modal-feature-5': 'Glassmorphism UI Design: Adopts modern glassmorphism design style to provide an elegant user experience',
         'info-modal-benefits': 'System Advantages',
         'info-modal-benefits-desc': 'By using this system, enterprises can achieve digital transformation of equipment maintenance, improve fault response speed, reduce maintenance costs, extend equipment service life, and ultimately enhance overall operational efficiency.',
         
@@ -1075,7 +1075,20 @@ function updatePageLanguage() {
     document.querySelectorAll('[data-lang]').forEach(element => {
         const key = element.getAttribute('data-lang');
         if (translations[currentLanguage] && translations[currentLanguage][key]) {
-            element.textContent = translations[currentLanguage][key];
+            // Special handling for page-title to preserve the info icon
+            if (element.classList.contains('page-title')) {
+                // Save the info icon element
+                const infoIcon = element.querySelector('.info-icon');
+                // Update the text content
+                element.textContent = translations[currentLanguage][key];
+                // Re-add the info icon if it existed
+                if (infoIcon) {
+                    element.appendChild(infoIcon);
+                }
+            } else {
+                // For all other elements, just update the text content
+                element.textContent = translations[currentLanguage][key];
+            }
         }
     });
     
