@@ -104,6 +104,10 @@
         .table-container {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch; /* 在iOS上提供平滑滚动 */
+            width: 100%;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
         
         /* 可折叠搜索区域样式 */
@@ -269,7 +273,7 @@
         .fault-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
+            table-layout: auto;
             min-width: 1200px;
         }
         
@@ -295,7 +299,7 @@
         .resizable-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
+            table-layout: auto;
             min-width: 1200px;
         }
         
@@ -306,6 +310,7 @@
         .resizable-table th {
             position: relative;
             padding-right: 15px !important;
+            min-width: 50px; /* 确保列有最小宽度 */
         }
         
         /* 列宽调整手柄 */
@@ -313,20 +318,21 @@
             position: absolute;
             top: 0;
             right: 0;
-            width: 10px;
+            width: 1px;
             height: 100%;
             cursor: col-resize;
-            background: rgba(52, 152, 219, 0.2);
+            background: #666;
             user-select: none;
             z-index: 10;
+            display: block !important;
         }
         
         .resize-handle:hover {
-            background-color: rgba(52, 152, 219, 0.5);
+            background: #333;
         }
         
         .resize-handle.active {
-            background-color: rgba(52, 152, 219, 0.7);
+            background: #000;
         }
         
         /* 调整时的遮罩层 */
@@ -710,6 +716,8 @@
                 margin-bottom: 1rem;
                 border-radius: 4px;
                 border: 1px solid #e9ecef;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
             }
             
             /* 添加滚动提示 */
@@ -1096,12 +1104,22 @@ async function loadFaultData() {
             
             // 更新分页控件
             updatePaginationControls();
+            
+            // 重新初始化列宽调整功能
+            setTimeout(() => {
+                initColumnResizing();
+            }, 100);
         } else {
             // 没有数据时显示提示
             if (noDataMessage) noDataMessage.style.display = 'block';
             
             // 更新分页信息
             updatePaginationInfo();
+            
+            // 重新初始化列宽调整功能
+            setTimeout(() => {
+                initColumnResizing();
+            }, 100);
         }
                 
     } catch (error) {
@@ -1203,7 +1221,7 @@ function renderFaultTable() {
     // 获取当前页的故障数据
     const currentPageFaults = allFaults.slice(startIndex, endIndex);
     
-    // 渲染当前页的故障数据
+    // 渲染每一行故障数据
     currentPageFaults.forEach(fault => {
         const row = document.createElement('tr');
         
@@ -1312,9 +1330,14 @@ function renderFaultTable() {
         tableBody.appendChild(row);
     });
     
+    // 更新分页信息
+    updatePaginationInfo();
+    
     // 重新初始化列宽调整功能
-            initColumnResizing();
-        }
+    setTimeout(() => {
+        initColumnResizing();
+    }, 100);
+}
 
 // 更新分页控件
 function updatePaginationControls() {
@@ -1955,6 +1978,27 @@ function resetFilters() {
             loadFaultData();
         });
         
+        // 更新表格总宽度
+        function updateTableWidth() {
+            const table = document.getElementById('fault-table');
+            if (!table) return;
+            
+            // 计算所有列宽度的总和
+            const ths = table.querySelectorAll('thead th');
+            let totalWidth = 0;
+            
+            ths.forEach(th => {
+                const width = parseInt(window.getComputedStyle(th).width) || 0;
+                totalWidth += width;
+            });
+            
+            // 设置表格总宽度
+            table.style.width = `${totalWidth}px`;
+            table.style.minWidth = `${totalWidth}px`;
+            
+            console.log('更新表格总宽度为:', totalWidth, 'px');
+        }
+        
         // 列宽调整功能
         function initColumnResizing() {
             console.log('初始化列宽调整功能...');
@@ -1970,8 +2014,43 @@ function resetFilters() {
                 table.classList.add('resizable-table');
             }
             
+            // 检查并创建调整手柄
+            const headers = table.querySelectorAll('thead th');
+            console.log('找到表头数量:', headers.length);
+            
+            headers.forEach((header, index) => {
+                // 检查是否已有调整手柄
+                let handle = header.querySelector('.resize-handle');
+                
+                // 如果没有调整手柄，则创建一个
+                if (!handle) {
+                    handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    header.appendChild(handle);
+                    console.log('为表头', index, '创建调整手柄');
+                } else {
+                    console.log('表头', index, '已有调整手柄');
+                }
+                
+                // 确保调整手柄可见
+                handle.style.display = 'block';
+                handle.style.visibility = 'visible';
+                handle.style.opacity = '1';
+            });
+            
             const resizeHandles = table.querySelectorAll('.resize-handle');
             console.log('找到调整手柄数量:', resizeHandles.length);
+            
+            // 如果没有找到调整手柄，再次尝试创建
+            if (resizeHandles.length === 0) {
+                console.error('没有找到调整手柄，尝试重新创建...');
+                headers.forEach((header, index) => {
+                    const handle = document.createElement('div');
+                    handle.className = 'resize-handle';
+                    header.appendChild(handle);
+                    console.log('重新为表头', index, '创建调整手柄');
+                });
+            }
             
             const resizeOverlay = document.getElementById('resizeOverlay');
             if (!resizeOverlay) {
@@ -2035,12 +2114,12 @@ function resetFilters() {
                 
                 // 添加鼠标悬停效果
                 handle.addEventListener('mouseenter', function() {
-                    this.style.backgroundColor = 'rgba(52, 152, 219, 0.5)';
+                    this.style.backgroundColor = 'rgba(52, 152, 219, 0.8)';
                 });
                 
                 handle.addEventListener('mouseleave', function() {
                     if (!isResizing) {
-                        this.style.backgroundColor = 'rgba(52, 152, 219, 0.2)';
+                        this.style.backgroundColor = 'rgba(52, 152, 219, 0.5)';
                     }
                 });
             });
@@ -2070,6 +2149,8 @@ function resetFilters() {
                 const ths = table.querySelectorAll('thead th');
                 if (ths[currentColumn]) {
                     ths[currentColumn].style.width = `${newWidth}px`;
+                    ths[currentColumn].style.minWidth = `${newWidth}px`;
+                    ths[currentColumn].style.maxWidth = `${newWidth}px`;
                 }
                 
                 // 更新表格列宽度
@@ -2078,8 +2159,13 @@ function resetFilters() {
                     const tds = row.querySelectorAll('td');
                     if (tds[currentColumn]) {
                         tds[currentColumn].style.width = `${newWidth}px`;
+                        tds[currentColumn].style.minWidth = `${newWidth}px`;
+                        tds[currentColumn].style.maxWidth = `${newWidth}px`;
                     }
                 });
+                
+                // 更新表格总宽度
+                updateTableWidth();
             };
             
             document.addEventListener('mousemove', window.columnResizeMouseMoveHandler);
@@ -2164,6 +2250,8 @@ function resetFilters() {
                 const ths = table.querySelectorAll('thead th');
                 if (ths[currentColumn]) {
                     ths[currentColumn].style.width = `${newWidth}px`;
+                    ths[currentColumn].style.minWidth = `${newWidth}px`;
+                    ths[currentColumn].style.maxWidth = `${newWidth}px`;
                 }
                 
                 // 更新表格列宽度
@@ -2172,8 +2260,13 @@ function resetFilters() {
                     const tds = row.querySelectorAll('td');
                     if (tds[currentColumn]) {
                         tds[currentColumn].style.width = `${newWidth}px`;
+                        tds[currentColumn].style.minWidth = `${newWidth}px`;
+                        tds[currentColumn].style.maxWidth = `${newWidth}px`;
                     }
                 });
+                
+                // 更新表格总宽度
+                updateTableWidth();
             };
             
             document.addEventListener('touchmove', window.columnResizeTouchMoveHandler, { passive: false });
@@ -2200,6 +2293,9 @@ function resetFilters() {
             };
             
             document.addEventListener('touchend', window.columnResizeTouchEndHandler);
+            
+            // 初始化表格宽度
+            updateTableWidth();
             
             console.log('列宽调整功能初始化完成');
         }
