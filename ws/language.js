@@ -27,18 +27,13 @@ const translations = {
         'footer-text': '网页基于智谱大模型GLM-4.5创建',
         
         // Info Modal
-        'info-modal-title': '关于戈尔设备故障管理系统',
-        'info-modal-intro': '戈尔设备故障管理系统是一个专为设备维护和故障管理设计的综合性平台，旨在提高设备运行效率，减少停机时间，并优化维护资源分配。',
-        'info-modal-main-purpose': '主要目的',
-        'info-modal-purpose-desc': '本系统致力于为企业提供全面的设备故障管理解决方案，通过数字化手段实现故障记录、跟踪、分析和预防的全流程管理。',
+        'info-modal-title': '关于系统',
+        'info-modal-intro': '该系统为戈尔深圳工厂提供在线设备故障管理工具，通过数字化手段实现故障记录与跟踪的流程管理，促进知识与经验共享，从而有效提高设备维修效率。',
+        'info-modal-main-purpose': '关于系统',
         'info-modal-unique-features': '独特功能',
-        'info-modal-feature-1': '故障全生命周期管理：从故障发现、记录、处理到解决的全过程跟踪',
-        'info-modal-feature-2': '智能统计分析：提供多维度的故障数据分析，帮助识别故障模式和趋势',
-        'info-modal-feature-3': '多角色权限管理：根据用户角色提供不同的功能访问权限',
-        'info-modal-feature-4': '响应式设计：支持PC端和移动端访问，随时随地管理设备故障',
-        'info-modal-feature-5': '玻璃态UI设计：采用现代玻璃态设计风格，提供优雅的用户体验',
-        'info-modal-benefits': '系统优势',
-        'info-modal-benefits-desc': '通过使用本系统，企业可以实现设备维护的数字化转型，提高故障响应速度，降低维护成本，延长设备使用寿命，最终提升整体运营效率。',
+        'info-modal-feature-1': '标准化记录与分析： 标准化记录故障详情和处理过程，辅助AI分析并提供维修建议。',
+        'info-modal-feature-2': '多端便捷访问： 支持PC端和移动端访问，实现设备故障的随时随地管理（查看或编辑）。',
+        'info-modal-feature-3': '高效信息导出： 支持一键生成故障Word报告，并支持一键导出所有故障信息。',
         
         // Fault List Page
         'fault-list-title': '故障列表',
@@ -527,18 +522,13 @@ const translations = {
         'footer-text': 'Site created with Zhipu\'s GLM-4.5 LLM',
         
         // Info Modal
-        'info-modal-title': 'About Gore Equipment Fault Management System',
-        'info-modal-intro': 'The Gore Equipment Fault Management System is a comprehensive platform designed specifically for equipment maintenance and fault management, aiming to improve equipment operational efficiency, reduce downtime, and optimize maintenance resource allocation.',
-        'info-modal-main-purpose': 'Main Purpose',
-        'info-modal-purpose-desc': 'This system is committed to providing enterprises with comprehensive equipment fault management solutions, achieving full-process management of fault recording, tracking, analysis, and prevention through digital means.',
+        'info-modal-title': 'About System',
+        'info-modal-intro': 'This system provides an online equipment fault management tool for Gore Shenzhen Factory, implementing fault recording and tracking process management through digital means, promoting knowledge and experience sharing, thereby effectively improving equipment maintenance efficiency.',
+        'info-modal-main-purpose': 'About System',
         'info-modal-unique-features': 'Unique Features',
-        'info-modal-feature-1': 'Full Lifecycle Fault Management: Complete process tracking from fault discovery, recording, processing to resolution',
-        'info-modal-feature-2': 'Intelligent Statistical Analysis: Provides multi-dimensional fault data analysis to help identify fault patterns and trends',
-        'info-modal-feature-3': 'Multi-role Permission Management: Provides different functional access permissions based on user roles',
-        'info-modal-feature-4': 'Responsive Design: Supports PC and mobile access, manage equipment faults anytime, anywhere',
-        'info-modal-feature-5': 'Glassmorphism UI Design: Adopts modern glassmorphism design style to provide an elegant user experience',
-        'info-modal-benefits': 'System Advantages',
-        'info-modal-benefits-desc': 'By using this system, enterprises can achieve digital transformation of equipment maintenance, improve fault response speed, reduce maintenance costs, extend equipment service life, and ultimately enhance overall operational efficiency.',
+        'info-modal-feature-1': 'Standardized Recording and Analysis: Standardized recording of fault details and processing processes, assisted by AI analysis and providing maintenance suggestions.',
+        'info-modal-feature-2': 'Multi-platform Convenient Access: Supports PC and mobile access, enabling equipment fault management anytime, anywhere (viewing or editing).',
+        'info-modal-feature-3': 'Efficient Information Export: Supports one-click generation of fault Word reports and one-click export of all fault information.',
         
         // Fault List Page
         'fault-list-title': 'Fault List',
