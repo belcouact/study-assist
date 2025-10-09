@@ -263,6 +263,8 @@ const translations = {
         'reset-button': '重置',
         'load-column-width-error': '加载列宽设置失败',
         'no-matching-faults': '没有找到匹配的故障记录',
+        'view-button': '查看',
+        'edit-button': '编辑',
         // Fault Detail Page
         'fault-detail-title': '故障详情',
         'fault-detail-description': '查看设备故障的详细信息',
@@ -542,7 +544,9 @@ const translations = {
         'pagination-next': 'Next',
         'pagination-info': 'Showing {start}-{end} of {total} records',
         'no-data': 'No data available',
-        
+        'view-button': 'View',
+        'edit-button': 'Edit',
+
         // New Fault Page
         'new-fault-title': 'New Fault',
         'new-fault-subtitle': 'Fill in equipment fault information',
@@ -857,18 +861,18 @@ const translations = {
         'chart-trend-placeholder': 'Fault time trend chart will be displayed here',
         
         // Additional keys for info-management.html
-        'info-management-title': 'Information Management',
-        'info-management-description': 'Manage equipment and user information',
+        'info-management-title': 'Data Management',
+        'info-management-description': 'Manage equipment and user data',
         'basic-data-maintenance-title': 'Basic Data Maintenance',
-        'basic-data-maintenance-desc': 'Manage equipment, user and department information',
-        'equipment-management': 'Equipment Management',
-        'user-management': 'User Management',
+        'basic-data-maintenance-desc': 'Manage equipment and user data',
+        'equipment-management': 'Equipment Data',
+        'user-management': 'User Data',
         'single-add': 'Single Add',
         'batch-download': 'Batch Download',
         'batch-upload': 'Batch Upload',
         'table-header-id': 'ID',
         'table-header-plant': 'Plant',
-        'table-header-equipment': 'Equipment Name',
+        'table-header-equipment': 'Equipment',
         'table-header-area': 'Area',
         'table-header-subarea': 'Sub-area',
         'table-header-name': 'Name',
