@@ -414,7 +414,7 @@ const translations = {
         'table-header-department': '部门',
         'table-header-position': '岗位',
         'table-header-actions': '操作',
-        'pagination-info': '显示 0-0 条，共 0 条记录',
+        'pagination-info': '显示 {start}-{end} 条，共 {total} 条记录',
         'pagination-prev': '上一页',
         'pagination-next': '下一页',
         'fault-data-download-title': '故障数据下载',
@@ -922,7 +922,6 @@ const translations = {
         'table-header-department': 'Department',
         'table-header-position': 'Position',
         'table-header-actions': 'Actions',
-        'pagination-info': 'Showing 0-0 of 0 records',
         'pagination-prev': 'Previous',
         'pagination-next': 'Next',
         'fault-data-download-title': 'Fault Data Download',
@@ -1169,9 +1168,17 @@ function initializeLanguage() {
     updatePageLanguage();
 }
 
-// Function to get translation text
-function getTranslation(key) {
-    return translations[currentLanguage][key] || key;
+// Function to get translation text with optional placeholder replacement
+function getTranslation(key, placeholders = {}) {
+    let text = translations[currentLanguage][key] || key;
+    
+    // Replace placeholders in the format {key}
+    Object.keys(placeholders).forEach(placeholder => {
+        const regex = new RegExp(`{${placeholder}}`, 'g');
+        text = text.replace(regex, placeholders[placeholder]);
+    });
+    
+    return text;
 }
 
 // Initialize when DOM is loaded
