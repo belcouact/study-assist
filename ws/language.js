@@ -28,12 +28,12 @@ const translations = {
         
         // Info Modal
         'info-modal-title': '关于系统',
-        'info-modal-intro': '该系统为戈尔深圳工厂提供在线设备故障管理工具，通过数字化手段实现故障记录与跟踪的流程管理，促进知识与经验共享，从而有效提高设备维修效率。',
+        'info-modal-intro': '该系统为戈尔深圳工厂提供在线管理设备故障的工具，通过数字化手段实现故障记录与跟踪，促进知识与经验共享，从而有效提高设备维修效率。',
         'info-modal-main-purpose': '关于系统',
         'info-modal-unique-features': '独特功能',
         'info-modal-feature-1': '标准化记录与分析： 标准化记录故障详情和处理过程，辅助AI分析并提供维修建议。',
         'info-modal-feature-2': '多端便捷访问： 支持PC端和移动端访问，实现设备故障的随时随地管理（查看或编辑）。',
-        'info-modal-feature-3': '高效信息导出： 支持一键生成故障Word报告，并支持一键导出所有故障信息。',
+        'info-modal-feature-3': '高效信息导出： 支持一键生成故障报告（Word格式），并支持一键导出所有故障信息（Excel格式）。',
         
         // Fault List Page
         'fault-list-title': '故障列表',
@@ -544,9 +544,9 @@ const translations = {
         'info-modal-intro': 'This system provides an online equipment fault management tool for Gore Shenzhen Factory, implementing fault recording and tracking process management through digital means, promoting knowledge and experience sharing, thereby effectively improving equipment maintenance efficiency.',
         'info-modal-main-purpose': 'About System',
         'info-modal-unique-features': 'Unique Features',
-        'info-modal-feature-1': 'Standardized Recording and Analysis: Standardized recording of fault details and processing processes, assisted by AI analysis and providing maintenance suggestions.',
+        'info-modal-feature-1': 'Standardized Recording and Analysis: Standardized recording of fault details and trouble-shooting processes, assisted by AI analysis and maintenance suggestions.',
         'info-modal-feature-2': 'Multi-platform Convenient Access: Supports PC and mobile access, enabling equipment fault management anytime, anywhere (viewing or editing).',
-        'info-modal-feature-3': 'Efficient Information Export: Supports one-click generation of fault Word reports and one-click export of all fault information.',
+        'info-modal-feature-3': 'Efficient Information Export: Supports one-click generation of fault report in word format and one-click export of all faults information in excel.',
         
         // Fault List Page
         'fault-list-title': 'Fault List',
