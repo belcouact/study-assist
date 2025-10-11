@@ -24,6 +24,10 @@ const translations = {
         'card-fault-stats-desc': '查看设备故障数据分析',
         'card-info-mgmt-title': '数据管理',
         'card-info-mgmt-desc': '管理设备与用户数据',
+        'card-user-profile-title': '用户资料',
+        'card-user-profile-desc': '编辑个人资料和密码',
+        'card-feedback-title': '意见反馈',
+        'card-feedback-desc': '提交Bug报告或改进建议',
         'footer-text': '网页基于智谱大模型GLM-4.5创建',
         
         // Info Modal
@@ -1097,8 +1101,77 @@ const translations = {
         'password-changed': '密码已修改',
         'password-mismatch': '新密码和确认密码不一致',
         
+        // Feedback Card
+        'card-user-profile-title': '用户资料',
+        'card-user-profile-desc': '编辑个人资料和密码',
+        'card-feedback-title': '意见反馈',
+        'card-feedback-desc': '提交Bug报告或改进建议',
+        
         // Search placeholder for fault-list.html
-        'search-placeholder': 'Search faults by ID, Description...'
+        'search-placeholder': 'Search faults by ID, Description...',
+        
+        // Feedback Page
+        'feedback-title': 'Feedback',
+        'nav-feedback': 'Feedback',
+        'feedback-intro': 'Thank you for using our fault management system! If you encounter any issues or have any suggestions for improvement while using the system, please fill out the form below to let us know.',
+        'feedback-type-bug': 'Bug Report',
+        'feedback-type-suggestion': 'Feature Suggestion',
+        'feedback-type-other': 'Other',
+        'feedback-subject-label': 'Subject',
+        'feedback-subject-placeholder': 'Enter feedback subject',
+        'feedback-name-label': 'Name',
+        'feedback-name-placeholder': 'Enter your name',
+        'feedback-email-label': 'Email',
+        'feedback-email-placeholder': 'Enter your email',
+        'feedback-message-label': 'Detailed Description',
+        'feedback-message-placeholder': 'Please describe in detail the issues you encountered or suggestions...',
+        'feedback-submit-btn': 'Submit Feedback',
+        'feedback-reset-btn': 'Reset',
+        'feedback-type-error': 'Please select a feedback type',
+        'feedback-form-error': 'Please fill in all required fields',
+        'feedback-success': 'Thank you for your feedback! We have received your message and will get back to you soon.',
+        
+        // Feedback Page
+        'feedback-title': '意见反馈',
+        'nav-feedback': '意见反馈',
+        'feedback-intro': '感谢您使用我们的故障管理系统！如果您在使用过程中遇到任何问题或有任何改进建议，请填写下面的表单告诉我们。',
+        'feedback-type-bug': 'Bug报告',
+        'feedback-type-suggestion': '功能建议',
+        'feedback-type-other': '其他',
+        'feedback-subject-label': '主题',
+        'feedback-subject-placeholder': '请输入反馈主题',
+        'feedback-name-label': '姓名',
+        'feedback-name-placeholder': '请输入您的姓名',
+        'feedback-email-label': '邮箱',
+        'feedback-email-placeholder': '请输入您的邮箱',
+        'feedback-message-label': '详细描述',
+        'feedback-message-placeholder': '请详细描述您遇到的问题或建议...',
+        'feedback-submit-btn': '提交反馈',
+        'feedback-reset-btn': '重置',
+        'feedback-type-error': '请选择反馈类型',
+        'feedback-form-error': '请填写所有必填字段',
+        'feedback-success': '感谢您的反馈！我们已收到您的意见，将尽快回复您。',
+        
+        // Feedback Page
+        'feedback-title': 'Feedback',
+        'nav-feedback': 'Feedback',
+        'feedback-intro': 'Thank you for using our fault management system! If you encounter any issues or have any suggestions for improvement while using the system, please fill out the form below to let us know.',
+        'feedback-type-bug': 'Bug Report',
+        'feedback-type-suggestion': 'Feature Suggestion',
+        'feedback-type-other': 'Other',
+        'feedback-subject-label': 'Subject',
+        'feedback-subject-placeholder': 'Enter feedback subject',
+        'feedback-name-label': 'Name',
+        'feedback-name-placeholder': 'Enter your name',
+        'feedback-email-label': 'Email',
+        'feedback-email-placeholder': 'Enter your email',
+        'feedback-message-label': 'Detailed Description',
+        'feedback-message-placeholder': 'Please describe in detail the issues you encountered or suggestions...',
+        'feedback-submit-btn': 'Submit Feedback',
+        'feedback-reset-btn': 'Reset',
+        'feedback-type-error': 'Please select a feedback type',
+        'feedback-form-error': 'Please fill in all required fields',
+        'feedback-success': 'Thank you for your feedback! We have received your message and will get back to you soon.'
     },
     
     en: {
@@ -1125,6 +1198,10 @@ const translations = {
         'card-fault-stats-desc': 'View equipment fault data analysis',
         'card-info-mgmt-title': 'Data Management',
         'card-info-mgmt-desc': 'Manage equipment and user data',
+        'card-user-profile-title': 'User Profile',
+        'card-user-profile-desc': 'Edit personal profile and password',
+        'card-feedback-title': 'Feedback',
+        'card-feedback-desc': 'Submit bug reports or suggestions',
         'footer-text': 'Website created based on Zhipu GLM-4.5 model',
         
         // Info Modal
