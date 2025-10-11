@@ -4,7 +4,7 @@ const translations = {
         // Common elements
         'login-title': '系统登录',
         'login-subtitle': '请输入您的凭据以访问系统',
-        'username-label': '用户名',
+        'username-label': '账号',
         'password-label': '密码',
         'login-button': '登录',
         'guest-text': '访客身份访问',
@@ -1102,6 +1102,40 @@ const translations = {
     },
     
     en: {
+        // Common elements
+        'login-title': 'System Login',
+        'login-subtitle': 'Please enter your credentials to access the system',
+        'username-label': 'Account',
+        'password-label': 'Password',
+        'login-button': 'Login',
+        'guest-text': 'Guest Access',
+        'login-error': 'Incorrect account or password, please try again',
+        'page-title': 'Goer Equipment Fault Management',
+        'nav-home': 'Home',
+        'nav-fault-list': 'Fault List',
+        'nav-new-fault': 'New Fault',
+        'nav-fault-stats': 'Fault Statistics',
+        'nav-info-mgmt': 'Information Management',
+        'nav-logout': 'Logout',
+        'card-fault-list-title': 'Fault List',
+        'card-fault-list-desc': 'View all equipment fault records',
+        'card-new-fault-title': 'New Fault',
+        'card-new-fault-desc': 'Add new equipment fault record',
+        'card-fault-stats-title': 'Fault Statistics',
+        'card-fault-stats-desc': 'View equipment fault data analysis',
+        'card-info-mgmt-title': 'Information Management',
+        'card-info-mgmt-desc': 'Manage equipment and user information',
+        'footer-text': 'Website created based on Zhipu GLM-4.5 model',
+        
+        // Info Modal
+        'info-modal-title': 'About System',
+        'info-modal-intro': 'This system provides an online tool for managing equipment faults for Goer Shenzhen Factory, implementing fault recording and tracking through digital means, promoting knowledge and experience sharing, thereby effectively improving equipment maintenance efficiency.',
+        'info-modal-main-purpose': 'About System',
+        'info-modal-unique-features': 'Unique Features',
+        'info-modal-feature-1': 'Standardized Recording and Analysis: Standardize recording of fault details and processing procedures, assist AI analysis and provide maintenance suggestions.',
+        'info-modal-feature-2': 'Multi-device Convenient Access: Support PC and mobile device access, enabling equipment fault management anytime, anywhere (view or edit).',
+        'info-modal-feature-3': 'Efficient Information Export: Support one-click generation of fault reports (Word format), and support one-click export of all fault information (Excel format).',
+        
         // User Profile Page
         'user-profile-title': 'User Profile Management',
         'nav-user-profile': 'User Profile',
