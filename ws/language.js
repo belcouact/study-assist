@@ -590,7 +590,7 @@ const translations = {
         'screen-size': '屏幕尺寸',
         'viewport': '视口'
     },
-    
+
     en: {
         // Common elements
         'login-title': 'System Login',
@@ -1259,7 +1259,7 @@ const translations = {
     en: {
         // Common elements
         'login-title': 'System Login',
-        'login-subtitle': 'Please enter your credentials to access the system',
+        'login-subtitle': 'Please enter your credentials to access',
         'username-label': 'Account',
         'password-label': 'Password',
         'login-button': 'Login',

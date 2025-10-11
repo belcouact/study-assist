@@ -904,8 +904,7 @@
                             <th class="sortable" data-column="role" data-lang="table-header-role">角色</th>
                             <th class="sortable" data-column="function" data-lang="table-header-department">部门</th>
                             <th class="sortable" data-column="commitment" data-lang="table-header-position">岗位</th>
-                            <th data-lang="table-header-actions">操作</th>
-                        </tr>
+                            </tr>
                     </thead>
                     <tbody id="userTableBody">
                         <!-- Data will be loaded here -->
@@ -1473,47 +1472,11 @@
                     tr.appendChild(td);
                 });
                 
-                // 添加操作列
-                const actionTd = document.createElement('td');
-                
-                // 检查用户角色并应用访问控制
-                const userRole = sessionStorage.getItem('userRole');
-                let actionButtonsHtml = '';
-                
-                if (userRole === 'admin') {
-                    actionButtonsHtml = `
-                        <div class="action-links">
-                            <a href="#" class="action-link edit-user" data-id="${row.id}">${getTranslation('edit')}</a>
-                            <a href="#" class="action-link delete-user" data-id="${row.id}">${getTranslation('delete')}</a>
-                        </div>
-                    `;
-                }
-                
-                actionTd.innerHTML = actionButtonsHtml;
-                tr.appendChild(actionTd);
-                
                 tbody.appendChild(tr);
             });
             
             // 更新分页信息
             updateUserPagination();
-            
-            // 添加编辑和删除事件监听器
-            document.querySelectorAll('.edit-user').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const id = this.getAttribute('data-id');
-                    editUser(id);
-                });
-            });
-            
-            document.querySelectorAll('.delete-user').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const id = this.getAttribute('data-id');
-                    deleteUser(id);
-                });
-            });
         }
         
         // 更新设备分页控件
@@ -2085,86 +2048,6 @@
             })
             .catch(error => {
                 console.error(getTranslation('delete-equipment-error') + ':', error);
-                alert(getTranslation('delete-failed-retry'));
-            })
-            .finally(() => {
-                // 移除加载状态
-                document.body.removeChild(loading);
-            });
-        }
-
-        // 编辑用户
-        function editUser(id) {
-            // 查找用户数据
-            const user = allUserData.find(item => item.id === id);
-            if (!user) {
-                console.error(getTranslation('user-not-exist'));
-                return;
-            }
-            
-            // 填充表单
-            document.getElementById('userId').value = user.id;
-            document.getElementById('userPlant').value = user.plant;
-            document.getElementById('userAccount').value = user.account || '';
-            document.getElementById('userName').value = user.name;
-            document.getElementById('userEmail').value = user.email || '';
-            document.getElementById('userRole').value = user.role || '';
-            document.getElementById('userFunction').value = user.function;
-            document.getElementById('userCommitment').value = user.commitment;
-            document.getElementById('userPassword').value = user.password || '';
-            
-            // 显示模态框
-            document.getElementById('userModalOverlay').classList.add('active');
-            // 隐藏错误消息
-            document.getElementById('userError').style.display = 'none';
-        }
-
-        // 删除用户
-        function deleteUser(id) {
-            if (!confirm(getTranslation('delete-confirm'))) {
-                return;
-            }
-            
-            // 显示加载状态
-            const loading = document.createElement('div');
-            loading.className = 'loading';
-            loading.textContent = getTranslation('delete-loading');
-            loading.style.position = 'fixed';
-            loading.style.top = '50%';
-            loading.style.left = '50%';
-            loading.style.transform = 'translate(-50%, -50%)';
-            loading.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
-            loading.style.color = 'white';
-            loading.style.padding = '20px';
-            loading.style.borderRadius = '5px';
-            loading.style.zIndex = '9999';
-            document.body.appendChild(loading);
-            
-            // 发送删除请求
-            fetch(`/api/db/delete/personnel_list?database=${DB_CONFIG.user.database}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    id: id,
-                    database: DB_CONFIG.user.database
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(getTranslation('delete-failed'));
-                }
-                return response.json();
-            })
-            .then(data => {
-                // 重新加载数据
-                loadTableData('user');
-                // 显示成功消息
-                alert(getTranslation('delete-success'));
-            })
-            .catch(error => {
-                console.error(getTranslation('delete-user-error') + ':', error);
                 alert(getTranslation('delete-failed-retry'));
             })
             .finally(() => {
