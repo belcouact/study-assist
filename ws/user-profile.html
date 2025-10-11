@@ -513,23 +513,60 @@
                     email: formData.get('email')
                 };
                 
+                // 获取用户ID和账号
+                const userId = sessionStorage.getItem('userId');
+                const userAccount = sessionStorage.getItem('userAccount');
+                
+                if (!userId || !userAccount) {
+                    showNotification('无法获取用户信息', 'error');
+                    return;
+                }
+                
                 // 显示加载状态
                 loading.style.display = 'flex';
                 
-                // 模拟API请求延迟
-                setTimeout(function() {
-                    // 这里应该调用API保存用户资料
-                    console.log('保存用户资料:', profileData);
-                    
-                    // 更新页面上的用户名称
-                    document.getElementById('profileName').textContent = profileData.name;
-                    
+                // 构建更新数据
+                const updateData = {
+                    ...profileData,
+                    account: userAccount
+                };
+                
+                // 调用API更新用户资料
+                fetch(`/api/db/update/personnel_list/${userId}?database=ws-hub-db`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to update user profile');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    if (result.success) {
+                        // 更新页面上的用户名称
+                        document.getElementById('profileName').textContent = profileData.name;
+                        sessionStorage.setItem('username', profileData.name);
+                        
+                        // 隐藏加载状态
+                        loading.style.display = 'none';
+                        
+                        // 显示成功通知
+                        showNotification('个人资料已更新', 'success');
+                    } else {
+                        throw new Error(result.error || '更新失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating user profile:', error);
                     // 隐藏加载状态
                     loading.style.display = 'none';
-                    
-                    // 显示成功通知
-                    showNotification('个人资料已更新', 'success');
-                }, 1000);
+                    // 显示错误通知
+                    showNotification('更新失败: ' + error.message, 'error');
+                });
             });
             
             // 处理密码表单提交
@@ -541,29 +578,87 @@
                 const newPassword = formData.get('newPassword');
                 const confirmPassword = formData.get('confirmPassword');
                 
-                // 验证新密码和确认密码是否一致
+                // 验证新密码
+                if (newPassword.length < 6) {
+                    showNotification('新密码长度至少为6位', 'error');
+                    return;
+                }
+                
                 if (newPassword !== confirmPassword) {
                     showNotification('新密码和确认密码不一致', 'error');
+                    return;
+                }
+                
+                // 获取用户ID和账号
+                const userId = sessionStorage.getItem('userId');
+                const userAccount = sessionStorage.getItem('userAccount');
+                
+                if (!userId || !userAccount) {
+                    showNotification('无法获取用户信息', 'error');
                     return;
                 }
                 
                 // 显示加载状态
                 loading.style.display = 'flex';
                 
-                // 模拟API请求延迟
-                setTimeout(function() {
-                    // 这里应该调用API修改密码
-                    console.log('修改密码:', { currentPassword, newPassword });
+                // 首先验证当前密码是否正确
+                fetch(`/api/db/query/personnel_list?database=ws-hub-db&filter={"account":"${userAccount}"}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.data.length > 0) {
+                        const user = result.data[0];
+                        
+                        // 验证当前密码
+                        if (user.password !== currentPassword) {
+                            loading.style.display = 'none';
+                            showNotification('当前密码不正确', 'error');
+                            return;
+                        }
+                        
+                        // 更新密码
+                        return fetch(`/api/db/update/personnel_list/${userId}?database=ws-hub-db`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                account: userAccount,
+                                password: newPassword
+                            })
+                        });
+                    } else {
+                        throw new Error('用户不存在');
+                    }
+                })
+                .then(response => {
+                    if (!response) return; // 如果在密码验证阶段已经返回，这里不需要处理
                     
+                    if (!response.ok) {
+                        throw new Error('Failed to update password');
+                    }
+                    return response.json();
+                })
+                .then(result => {
+                    if (result && result.success) {
+                        // 隐藏加载状态
+                        loading.style.display = 'none';
+                        
+                        // 清空表单
+                        passwordForm.reset();
+                        
+                        // 显示成功通知
+                        showNotification('密码已修改', 'success');
+                    } else if (result) {
+                        throw new Error(result.error || '密码修改失败');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating password:', error);
                     // 隐藏加载状态
                     loading.style.display = 'none';
-                    
-                    // 显示成功通知
-                    showNotification('密码已修改', 'success');
-                    
-                    // 重置表单
-                    passwordForm.reset();
-                }, 1000);
+                    // 显示错误通知
+                    showNotification('密码修改失败: ' + error.message, 'error');
+                });
             });
             
             // 处理取消按钮
@@ -587,20 +682,62 @@
             
             // 加载用户资料的函数
             function loadUserProfile() {
-                // 这里应该调用API获取用户资料
-                // 目前使用模拟数据
-                const mockUserData = {
-                    name: username || '用户',
-                    function: '技术部',
-                    commitment: '工程师',
-                    email: 'user@example.com'
-                };
+                // 从personnel_list表获取用户数据
+                const userAccount = sessionStorage.getItem('userAccount');
                 
-                // 填充表单
-                document.getElementById('userName').value = mockUserData.name;
-                document.getElementById('userFunction').value = mockUserData.function;
-                document.getElementById('userCommitment').value = mockUserData.commitment;
-                document.getElementById('userEmail').value = mockUserData.email;
+                if (!userAccount) {
+                    showNotification('无法获取用户信息', 'error');
+                    return;
+                }
+                
+                // 显示加载状态
+                loading.style.display = 'flex';
+                
+                fetch(`/api/db/query/personnel_list?database=ws-hub-db`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch user data');
+                        }
+                        return response.json();
+                    })
+                    .then(result => {
+                        if (result.success) {
+                            // 在用户数据中查找当前用户
+                            const user = result.data.find(u => u.account === userAccount);
+                            
+                            if (user) {
+                                // 填充表单
+                                document.getElementById('userName').value = user.name || '';
+                                document.getElementById('userFunction').value = user.function || '';
+                                document.getElementById('userCommitment').value = user.commitment || '';
+                                document.getElementById('userEmail').value = user.email || '';
+                                
+                                // 更新页面上的用户名称
+                                document.getElementById('profileName').textContent = user.name || '用户';
+                                document.getElementById('profileRole').textContent = user.role || '普通用户';
+                                
+                                // 设置用户头像
+                                const profileAvatar = document.getElementById('profileAvatar');
+                                if (user.name) {
+                                    profileAvatar.textContent = user.name.charAt(0).toUpperCase();
+                                }
+                            } else {
+                                showNotification('未找到用户信息', 'error');
+                            }
+                        } else {
+                            console.error('Failed to load user data:', result.error);
+                            showNotification('加载用户信息失败', 'error');
+                        }
+                        
+                        // 隐藏加载状态
+                        loading.style.display = 'none';
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user data:', error);
+                        showNotification('加载用户信息失败', 'error');
+                        // 隐藏加载状态
+                        loading.style.display = 'none';
+                    });
             }
             
             // 显示通知的函数

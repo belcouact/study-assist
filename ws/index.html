@@ -772,33 +772,42 @@
                 
                 // 模拟API请求延迟
                 setTimeout(function() {
-                    // 根据用户名确定要获取的环境变量
-                    const envVarName = username === 'admin' ? 'ws-admin-login-pwd' : 'ws-login-pwd';
-                    
-                    // 尝试从服务器获取环境变量
-                    fetch(`https://study-llm.me/api/env/${envVarName}`)
+                    // 从personnel_list表获取用户数据进行验证
+                    fetch(`/api/db/query/personnel_list?database=ws-hub-db`)
                         .then(response => {
                             if (!response.ok) {
-                                throw new Error('Failed to fetch password');
+                                throw new Error('Failed to fetch user data');
                             }
                             return response.json();
                         })
-                        .then(data => {
-                            const envPassword = data.value; // 从环境变量获取密码
-                            
-                            // 验证用户名和密码
-                            if ((username === 'ws' || username === 'admin') && password === envPassword) {
-                                // 登录成功
-                                sessionStorage.setItem('isLoggedIn', 'true');
-                                sessionStorage.setItem('username', username); // 保存用户名
-                                sessionStorage.setItem('userRole', username); // 保存用户角色
-                                loginOverlay.style.display = 'none';
-                                logoutLink.style.display = 'block';
-                                loginLoading.classList.remove('show'); // 隐藏加载指示器
-                                loginButton.classList.remove('loading'); // 移除按钮的loading类
-                                applyRoleBasedAccess(username); // 应用基于角色的访问控制
+                        .then(result => {
+                            if (result.success) {
+                                // 在用户数据中查找匹配的账号和密码
+                                const user = result.data.find(u => u.account === username && u.password === password);
+                                
+                                if (user) {
+                                    // 登录成功
+                                    sessionStorage.setItem('isLoggedIn', 'true');
+                                    sessionStorage.setItem('username', user.name); // 保存用户姓名
+                                    sessionStorage.setItem('userAccount', user.account); // 保存用户账号
+                                    sessionStorage.setItem('userRole', user.role); // 保存用户角色
+                                    sessionStorage.setItem('userId', user.id); // 保存用户ID
+                                    sessionStorage.setItem('userPlant', user.plant); // 保存用户所属工厂
+                                    loginOverlay.style.display = 'none';
+                                    logoutLink.style.display = 'block';
+                                    loginLoading.classList.remove('show'); // 隐藏加载指示器
+                                    loginButton.classList.remove('loading'); // 移除按钮的loading类
+                                    applyRoleBasedAccess(user.role); // 应用基于角色的访问控制
+                                } else {
+                                    // 登录失败
+                                    loginError.style.display = 'block';
+                                    loginLoading.style.display = 'none';
+                                    loginLoading.classList.remove('show'); // 隐藏加载指示器
+                                    loginButton.classList.remove('loading'); // 移除按钮的loading类
+                                }
                             } else {
-                                // 登录失败
+                                console.error('Failed to load user data:', result.error);
+                                loginError.textContent = '无法验证用户信息，请稍后再试';
                                 loginError.style.display = 'block';
                                 loginLoading.style.display = 'none';
                                 loginLoading.classList.remove('show'); // 隐藏加载指示器
@@ -806,9 +815,9 @@
                             }
                         })
                         .catch(error => {
-                            console.error('Error fetching password:', error);
-                            // 如果获取环境变量失败，显示错误信息但不使用默认密码
-                            loginError.textContent = '无法验证密码，请稍后再试';
+                            console.error('Error fetching user data:', error);
+                            // 如果获取用户数据失败，显示错误信息
+                            loginError.textContent = '无法验证用户信息，请稍后再试';
                             loginError.style.display = 'block';
                             loginLoading.style.display = 'none';
                             loginLoading.classList.remove('show'); // 隐藏加载指示器
