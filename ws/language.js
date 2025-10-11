@@ -14,7 +14,7 @@ const translations = {
         'nav-fault-list': '故障列表',
         'nav-new-fault': '新建故障',
         'nav-fault-stats': '故障统计',
-        'nav-info-mgmt': '信息管理',
+        'nav-info-mgmt': '数据管理',
         'nav-logout': '退出登录',
         'card-fault-list-title': '故障列表',
         'card-fault-list-desc': '查看所有设备故障记录',
@@ -116,7 +116,7 @@ const translations = {
         'chart-min': '最小值',
         
         // Info Management Page
-        'info-mgmt-title': '信息管理',
+        'info-mgmt-title': '数据管理',
         'info-mgmt-subtitle': '管理设备与用户信息',
         'tab-equipment': '设备管理',
         'tab-user': '用户管理',
@@ -400,7 +400,7 @@ const translations = {
         'chart-trend-placeholder': '故障时间趋势图表将显示在这里',
         
         // Additional keys for info-management.html
-        'info-management-title': '信息管理',
+        'info-management-title': '数据管理',
         'info-management-description': '管理设备与用户信息',
         'basic-data-maintenance-title': '基础数据维护',
         'basic-data-maintenance-desc': '管理设备、用户和部门信息',
@@ -1251,28 +1251,7 @@ const translations = {
         'device-info': '设备信息',
         'user-agent': '用户代理',
         'screen-size': '屏幕尺寸',
-        'viewport': '视口',
-        
-        // Feedback Page
-        'feedback-title': 'Feedback',
-        'nav-feedback': 'Feedback',
-        'feedback-intro': 'Thank you for using our fault management system! If you encounter any issues or have any suggestions for improvement while using the system, please fill out the form below to let us know.',
-        'feedback-type-bug': 'Bug Report',
-        'feedback-type-suggestion': 'Feature Suggestion',
-        'feedback-type-other': 'Other',
-        'feedback-subject-label': 'Subject',
-        'feedback-subject-placeholder': 'Enter feedback subject',
-        'feedback-name-label': 'Name',
-        'feedback-name-placeholder': 'Enter your name',
-        'feedback-email-label': 'Email',
-        'feedback-email-placeholder': 'Enter your email',
-        'feedback-message-label': 'Detailed Description',
-        'feedback-message-placeholder': 'Please describe in detail the issues you encountered or suggestions...',
-        'feedback-submit-btn': 'Submit Feedback',
-        'feedback-reset-btn': 'Reset',
-        'feedback-type-error': 'Please select a feedback type',
-        'feedback-form-error': 'Please fill in all required fields',
-        'feedback-success': 'Thank you for your feedback! We have received your message and will get back to you soon.'
+        'viewport': '视口'
     },
     
     en: {
@@ -1330,6 +1309,29 @@ const translations = {
         'profile-updated': 'Profile updated successfully',
         'password-changed': 'Password changed successfully',
         'password-mismatch': 'New password and confirm password do not match',
+
+        
+        
+        // Feedback Page
+        'feedback-title': 'Feedback',
+        'nav-feedback': 'Feedback',
+        'feedback-intro': 'Thank you for using our fault management system! If you encounter any issues or have any suggestions for improvement while using the system, please fill out the form below to let us know.',
+        'feedback-type-bug': 'Bug',
+        'feedback-type-suggestion': 'Suggestion',
+        'feedback-type-other': 'Other',
+        'feedback-subject-label': 'Subject',
+        'feedback-subject-placeholder': 'Enter feedback subject',
+        'feedback-name-label': 'Name',
+        'feedback-name-placeholder': 'Enter your name',
+        'feedback-email-label': 'Email',
+        'feedback-email-placeholder': 'Enter your email',
+        'feedback-message-label': 'Detailed Description',
+        'feedback-message-placeholder': 'Please describe in detail the issues you encountered or suggestions...',
+        'feedback-submit-btn': 'Submit Feedback',
+        'feedback-reset-btn': 'Reset',
+        'feedback-type-error': 'Please select a feedback type',
+        'feedback-form-error': 'Please fill in all required fields',
+        'feedback-success': 'Thank you for your feedback! We have received your message and will get back to you soon.',
         
         // Search placeholder for fault-list.html
         'search-placeholder': 'Search faults by ID, Description...'
