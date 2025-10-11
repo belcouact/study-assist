@@ -46,7 +46,6 @@ export default {
         }
 
         let feedbackData;
-        let uploadedImages = [];
         
         // Check if the request is JSON or form data
         const contentType = request.headers.get('content-type') || '';
@@ -70,50 +69,8 @@ export default {
               userAgent: request.headers.get('user-agent') || '',
               screenSize: `${screen.width}x${screen.height}`,
               viewport: `${window.innerWidth}x${window.innerHeight}`
-            },
-            imageIds: []
-          };
-          
-          // Handle image uploads
-          const images = formData.getAll('images');
-          console.log('Processing image uploads, count:', images.length);
-          
-          for (const file of images) {
-            if (file && file.size > 0) {
-              try {
-                const imageId = `${feedbackData.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                
-                // Convert file to base64
-                const arrayBuffer = await file.arrayBuffer();
-                const uint8Array = new Uint8Array(arrayBuffer);
-                const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-                const base64Data = btoa(binaryString);
-                
-                // Store image data
-                const imageData = {
-                  id: imageId,
-                  name: file.name,
-                  type: file.type,
-                  size: file.size,
-                  data: base64Data,
-                  uploadTime: new Date().toISOString()
-                };
-                
-                await env.KV_WS_FEEDBACK.put(`image_${imageId}`, JSON.stringify(imageData));
-                uploadedImages.push(imageId);
-                
-                console.log(`Image ${file.name} stored successfully, ID: ${imageId}`);
-                
-              } catch (imageError) {
-                console.error('Failed to process image:', file.name, imageError);
-                // Continue processing other images, don't interrupt the whole process
-              }
             }
-          }
-          
-          // Update feedback data with image IDs
-          feedbackData.imageIds = uploadedImages;
-          console.log('Feedback includes image count:', uploadedImages.length);
+          };
         }
 
         // Generate ID if not provided
@@ -130,7 +87,6 @@ export default {
         feedbackData.status = feedbackData.status || 'pending';
         feedbackData.submitTime = feedbackData.submitTime || new Date().toISOString();
         feedbackData.updateTime = feedbackData.updateTime || feedbackData.submitTime;
-        feedbackData.imageIds = feedbackData.imageIds || uploadedImages;
         
         // Store device info if not provided
         if (!feedbackData.deviceInfo) {
@@ -149,10 +105,8 @@ export default {
         return new Response(JSON.stringify({
           success: true,
           id: feedbackData.id,
-          message: `Feedback submitted successfully${uploadedImages.length > 0 ? `, including ${uploadedImages.length} images` : ''}`,
-          data: feedbackData,
-          imagesUploaded: uploadedImages.length,
-          imageIds: uploadedImages
+          message: 'Feedback submitted successfully',
+          data: feedbackData
         }), {
           headers: {
             'Content-Type': 'application/json',
@@ -571,21 +525,8 @@ export default {
         }
 
         // Delete feedback and its comments
-        const feedback = JSON.parse(feedbackData);
         await env.KV_WS_FEEDBACK.delete(`feedback_${feedbackId}`);
         await env.KV_WS_FEEDBACK.delete(`comments_${feedbackId}`);
-        
-        // Delete associated images
-        if (feedback.imageIds && feedback.imageIds.length > 0) {
-          for (const imageId of feedback.imageIds) {
-            try {
-              await env.KV_WS_FEEDBACK.delete(`image_${imageId}`);
-              console.log('Deleted image:', imageId);
-            } catch (deleteError) {
-              console.warn('Failed to delete image:', imageId, deleteError);
-            }
-          }
-        }
         
         // Update index
         await removeFromFeedbackIndex(env, feedbackId);
@@ -599,55 +540,6 @@ export default {
             ...corsHeaders
           }
         });
-      }
-
-      // Get image
-      if (path.startsWith('/api/image/') && request.method === 'GET') {
-        if (!env.KV_WS_FEEDBACK) {
-          return new Response('KV_WS_FEEDBACK not bound', { 
-            status: 500,
-            headers: corsHeaders 
-          });
-        }
-
-        try {
-          const imageId = path.split('/').pop();
-          console.log('Getting image:', imageId);
-
-          const imageData = await env.KV_WS_FEEDBACK.get(`image_${imageId}`);
-          if (!imageData) {
-            return new Response('Image not found', { 
-              status: 404,
-              headers: corsHeaders 
-            });
-          }
-
-          const image = JSON.parse(imageData);
-          
-          // Convert base64 to binary data
-          const binaryData = atob(image.data);
-          const bytes = new Uint8Array(binaryData.length);
-
-          for (let i = 0; i < binaryData.length; i++) {
-            bytes[i] = binaryData.charCodeAt(i);
-          }
-
-          return new Response(bytes, {
-            headers: {
-              'Content-Type': image.type,
-              'Content-Disposition': `inline; filename="${image.name}"`,
-              'Cache-Control': 'public, max-age=31536000',
-              ...corsHeaders
-            }
-          });
-
-        } catch (error) {
-          console.error('Failed to get image:', error);
-          return new Response('Image processing error', { 
-            status: 500,
-            headers: corsHeaders 
-          });
-        }
       }
 
       // Default response for unmatched routes
