@@ -22,8 +22,8 @@ const translations = {
         'card-new-fault-desc': '添加新的设备故障记录',
         'card-fault-stats-title': '故障统计',
         'card-fault-stats-desc': '查看设备故障数据分析',
-        'card-info-mgmt-title': '信息管理',
-        'card-info-mgmt-desc': '管理设备与用户信息',
+        'card-info-mgmt-title': '数据管理',
+        'card-info-mgmt-desc': '管理设备与用户数据',
         'footer-text': '网页基于智谱大模型GLM-4.5创建',
         
         // Info Modal
@@ -1123,8 +1123,8 @@ const translations = {
         'card-new-fault-desc': 'Add new equipment fault record',
         'card-fault-stats-title': 'Fault Statistics',
         'card-fault-stats-desc': 'View equipment fault data analysis',
-        'card-info-mgmt-title': 'Information Management',
-        'card-info-mgmt-desc': 'Manage equipment and user information',
+        'card-info-mgmt-title': 'Data Management',
+        'card-info-mgmt-desc': 'Manage equipment and user data',
         'footer-text': 'Website created based on Zhipu GLM-4.5 model',
         
         // Info Modal
