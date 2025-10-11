@@ -277,15 +277,19 @@ export async function onRequest(context) {
                         await db.batch(data.map(row => {
                             return db.prepare(`
                                 INSERT INTO personnel_list (
-                                    id, plant, name, function, commitment
+                                    id, plant, name, function, commitment, role, account, email, password
                                 )
-                                VALUES (?, ?, ?, ?, ?)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                             `).bind(
                                 row.id || null,
                                 row.plant || null,
                                 row.name || null,
                                 row.function || null,
-                                row.commitment || null
+                                row.commitment || null,
+                                row.role || null,
+                                row.account || null,
+                                row.email || null,
+                                row.password || null
                             );
                         }));
                     }
@@ -339,15 +343,19 @@ export async function onRequest(context) {
                     } else if (table === 'personnel_list') {
                         result = await db.prepare(`
                             INSERT INTO personnel_list (
-                                id, plant, name, function, commitment
+                                id, plant, name, function, commitment, role, account, email, password
                             )
-                            VALUES (?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                         `).bind(
                             insertId || null,
                             insertRecord.plant || null,
                             insertRecord.name || null,
                             insertRecord.function || null,
-                            insertRecord.commitment || null
+                            insertRecord.commitment || null,
+                            insertRecord.role || null,
+                            insertRecord.account || null,
+                            insertRecord.email || null,
+                            insertRecord.password || null
                         ).run();
                     } else {
                         throw new Error(`Insert operation not supported for table: ${table}`);
@@ -400,13 +408,17 @@ export async function onRequest(context) {
                     } else if (table === 'personnel_list') {
                         result = await db.prepare(`
                             UPDATE personnel_list 
-                            SET plant = ?, name = ?, function = ?, commitment = ?
+                            SET plant = ?, name = ?, function = ?, commitment = ?, role = ?, account = ?, email = ?, password = ?
                             WHERE id = ?
                         `).bind(
                             updateRecord.plant || null,
                             updateRecord.name || null,
                             updateRecord.function || null,
                             updateRecord.commitment || null,
+                            updateRecord.role || null,
+                            updateRecord.account || null,
+                            updateRecord.email || null,
+                            updateRecord.password || null,
                             updateId
                         ).run();
                     } else {
