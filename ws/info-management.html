@@ -529,9 +529,11 @@
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.18);
-            padding: 2rem;
+            padding: 1.5rem;
             width: 90%;
             max-width: 450px;
+            max-height: 80vh;
+            overflow-y: auto;
             animation: fadeIn 0.3s ease-in-out;
         }
         
@@ -544,7 +546,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
         
         .modal-header h2 {
@@ -570,7 +572,7 @@
         .modal-form {
             display: flex;
             flex-direction: column;
-            gap: 1.2rem;
+            gap: 0.8rem;
         }
         
         .form-group {
@@ -579,14 +581,14 @@
         }
         
         .form-group label {
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
             color: rgba(255, 255, 255, 0.9);
             font-weight: 500;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
         
         .form-group input {
-            padding: 0.8rem;
+            padding: 0.6rem;
             border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
             font-size: 1rem;
@@ -609,12 +611,12 @@
         .form-actions {
             display: flex;
             gap: 1rem;
-            margin-top: 0.5rem;
+            margin-top: 0.2rem;
         }
         
         .submit-button, .cancel-button {
             flex: 1;
-            padding: 0.8rem;
+            padding: 0.6rem;
             border-radius: 8px;
             font-size: 1rem;
             font-weight: 500;
@@ -1461,8 +1463,11 @@
                 idTd.textContent = row.id || '';
                 tr.appendChild(idTd);
                 
-                // 添加其他列
+                // 添加其他列，排除密码列
                 DB_CONFIG.user.columns.slice(1).forEach(col => {
+                    // 跳过密码列
+                    if (col === 'password') return;
+                    
                     const td = document.createElement('td');
                     td.textContent = row[col] || '';
                     tr.appendChild(td);
@@ -1623,9 +1628,20 @@
                     
                     // Prepare data for Excel - 使用所有数据，而不仅仅是当前页
                     // 使用headers作为表头，而不是原始列名
+                    // 排除密码列
+                    const filteredHeaders = [];
+                    const filteredColumns = [];
+                    
+                    config.headers.forEach((header, index) => {
+                        if (config.columns[index] !== 'password') {
+                            filteredHeaders.push(header);
+                            filteredColumns.push(config.columns[index]);
+                        }
+                    });
+                    
                     const excelData = [
-                        config.headers, // 使用显示名称作为表头
-                        ...result.data.map(row => config.columns.map(col => row[col] || ''))
+                        filteredHeaders, // 使用过滤后的显示名称作为表头
+                        ...result.data.map(row => filteredColumns.map(col => row[col] || ''))
                     ];
                     
                     // Create worksheet
@@ -1673,6 +1689,9 @@
                                 if (col === 'id') {
                                     // 如果ID为空或未定义，则设置为空字符串
                                     obj[col] = row[index] !== undefined && row[index] !== null ? row[index] : '';
+                                } else if (col === 'password') {
+                                    // 密码列特殊处理，如果Excel中没有密码列，则设置为空字符串
+                                    obj[col] = row[index] || '';
                                 } else {
                                     obj[col] = row[index] || '';
                                 }
