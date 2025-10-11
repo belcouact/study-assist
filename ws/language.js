@@ -1402,6 +1402,11 @@ function updatePageLanguage() {
     if (fileUploadText) {
         fileUploadText.textContent = getTranslation('form-file-upload-text');
     }
+    
+    // Update feedback types if the function exists (for feedback.html)
+    if (typeof displayFeedbacks === 'function') {
+        setTimeout(displayFeedbacks, 50);
+    }
 }
 
 // Initialize language from localStorage or browser language
