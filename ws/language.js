@@ -1080,6 +1080,45 @@ const translations = {
         'category-network': 'Network',
         'category-other': 'Other',
         
+        // User Profile Page
+        'user-profile-title': '用户资料管理',
+        'nav-user-profile': '用户资料',
+        'tab-profile-info': '个人资料',
+        'tab-change-password': '修改密码',
+        'label-user-name': '姓名',
+        'label-user-function': '部门',
+        'label-user-commitment': '岗位',
+        'label-user-email': '邮箱',
+        'label-current-password': '当前密码',
+        'label-new-password': '新密码',
+        'label-confirm-password': '确认新密码',
+        'btn-change-password': '修改密码',
+        'profile-updated': '个人资料已更新',
+        'password-changed': '密码已修改',
+        'password-mismatch': '新密码和确认密码不一致',
+        
+        // Search placeholder for fault-list.html
+        'search-placeholder': 'Search faults by ID, Description...'
+    },
+    
+    en: {
+        // User Profile Page
+        'user-profile-title': 'User Profile Management',
+        'nav-user-profile': 'User Profile',
+        'tab-profile-info': 'Profile Info',
+        'tab-change-password': 'Change Password',
+        'label-user-name': 'Name',
+        'label-user-function': 'Department',
+        'label-user-commitment': 'Position',
+        'label-user-email': 'Email',
+        'label-current-password': 'Current Password',
+        'label-new-password': 'New Password',
+        'label-confirm-password': 'Confirm New Password',
+        'btn-change-password': 'Change Password',
+        'profile-updated': 'Profile updated successfully',
+        'password-changed': 'Password changed successfully',
+        'password-mismatch': 'New password and confirm password do not match',
+        
         // Search placeholder for fault-list.html
         'search-placeholder': 'Search faults by ID, Description...'
     },
